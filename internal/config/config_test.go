@@ -132,6 +132,49 @@ func TestWithTheme(t *testing.T) {
 	}
 }
 
+func TestWithSettingLeavesExamplesAlone(t *testing.T) {
+	out := withTheme(template, "Nord")
+	if !strings.Contains(out, `#   theme = "Tokyo Night"`) {
+		t.Error("the documentation example was rewritten")
+	}
+	if !strings.Contains(out, "\ntheme = \"Nord\"\n") || strings.Contains(out, `# theme = "auto"`) {
+		t.Error("the commented-out default wasn't replaced")
+	}
+
+	out = withSetting(template, "sidebar-auto-refresh", "false")
+	cfg, problems, err := Parse(out)
+	if err != nil || len(problems) > 0 || cfg.SidebarAutoRefresh {
+		t.Fatalf("after setting: %+v %v %v", cfg, problems, err)
+	}
+	if got := withSetting(out, "sidebar-auto-refresh", "true"); strings.Count(got, "sidebar-auto-refresh") != 1 {
+		t.Errorf("setting twice duplicated the line:\n%s", got)
+	}
+}
+
+func TestSidebarRefreshInterval(t *testing.T) {
+	cfg, problems, _ := Parse("sidebar-refresh-interval = 0.2\n")
+	if cfg.SidebarRefreshInterval != 3 || len(problems) != 1 {
+		t.Errorf("interval %v problems %v", cfg.SidebarRefreshInterval, problems)
+	}
+	cfg, problems, _ = Parse("sidebar-refresh-interval = 10\nsidebar-auto-refresh = false\n")
+	if cfg.SidebarRefreshInterval != 10 || cfg.SidebarAutoRefresh || len(problems) != 0 {
+		t.Errorf("got %+v %v", cfg, problems)
+	}
+}
+
+func TestServiceSetSidebarAutoRefresh(t *testing.T) {
+	s := NewService(t.TempDir())
+	if !s.Current().Config.SidebarAutoRefresh {
+		t.Fatal("auto-refresh should default to on")
+	}
+	if err := s.SetSidebarAutoRefresh(false); err != nil {
+		t.Fatal(err)
+	}
+	if s.Current().Config.SidebarAutoRefresh {
+		t.Error("still on after turning it off")
+	}
+}
+
 func TestGhosttyTheme(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "My Theme")

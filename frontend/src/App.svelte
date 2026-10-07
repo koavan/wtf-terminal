@@ -2,6 +2,8 @@
   import { onMount } from 'svelte';
   import { Events, Window } from '@wailsio/runtime';
   import AddressBar from './components/AddressBar.svelte';
+  import Icon from './components/Icon.svelte';
+  import Sidebar from './components/Sidebar.svelte';
   import Overlays from './components/Overlays.svelte';
   import TabPanes from './components/TabPanes.svelte';
   import TabStrip from './components/TabStrip.svelte';
@@ -12,6 +14,7 @@
   import { overlay } from './lib/overlay.svelte';
   import { isMac } from './lib/platform';
   import { autosave, restoreSession } from './lib/session.svelte';
+  import { sidebar } from './lib/sidebar.svelte';
   import { settings } from './lib/settings.svelte';
   import { applyChrome } from './lib/themes';
   import { focusedPane, paneTitle, tabs } from './lib/tabs.svelte';
@@ -80,19 +83,34 @@
 
 <div class="app" class:mac={isMac} class:fullscreen>
   <header class="strip" onmousedown={keepFocus} oncontextmenu={(e) => e.preventDefault()} role="presentation">
+    <button
+      class="sidebar-toggle"
+      class:on={sidebar.open}
+      title="Toggle Sidebar ({isMac ? '⌘B' : 'Ctrl+Shift+B'})"
+      aria-label="Toggle sidebar"
+      aria-pressed={sidebar.open}
+      onclick={() => sidebar.toggle()}
+    >
+      <Icon name="sidebar" size={15} />
+    </button>
     <TabStrip />
   </header>
 
-  <main class="card">
-    <div onmousedown={keepFocus} role="presentation">
-      <AddressBar />
-    </div>
-    <div class="terminals">
-      {#each tabs.list as tab (tab.id)}
-        <TabPanes {tab} visible={tab.id === tabs.activeId} />
-      {/each}
-    </div>
-  </main>
+  <div class="body">
+    {#if sidebar.open}
+      <Sidebar />
+    {/if}
+    <main class="card">
+      <div onmousedown={keepFocus} role="presentation">
+        <AddressBar />
+      </div>
+      <div class="terminals">
+        {#each tabs.list as tab (tab.id)}
+          <TabPanes {tab} visible={tab.id === tabs.activeId} />
+        {/each}
+      </div>
+    </main>
+  </div>
 </div>
 
 <Toast />
@@ -120,10 +138,39 @@
     padding-left: var(--traffic-lights-width);
   }
 
+  .sidebar-toggle {
+    --wails-draggable: no-drag;
+    display: grid;
+    place-items: center;
+    flex: none;
+    width: 28px;
+    height: 28px;
+    margin-right: 6px;
+    padding: 0;
+    border: 0;
+    border-radius: 7px;
+    background: transparent;
+    color: var(--chrome-muted);
+  }
+  .sidebar-toggle:hover {
+    background: var(--tab-hover);
+    color: var(--chrome-text);
+  }
+  .sidebar-toggle.on {
+    color: var(--chrome-text);
+  }
+
+  .body {
+    display: flex;
+    flex: 1;
+    min-height: 0;
+  }
+
   .card {
     display: flex;
     flex-direction: column;
     flex: 1;
+    min-width: 0;
     min-height: 0;
     margin: 0 8px 8px;
     border-radius: var(--radius-card);

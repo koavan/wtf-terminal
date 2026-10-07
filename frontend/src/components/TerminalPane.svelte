@@ -10,6 +10,7 @@
   import { Browser, Clipboard } from '@wailsio/runtime';
   import SearchBar from './SearchBar.svelte';
   import { Service, endpoint } from '../lib/backend';
+  import { history } from '../lib/history.svelte';
   import { notifyCommandDone } from '../lib/notify';
   import { isMac } from '../lib/platform';
   import { PromptTracker } from '../lib/prompts';
@@ -49,6 +50,8 @@
   let ws: WebSocket | null = null;
   let sessionId: string | null = null;
   let disposed = false;
+  /** A file from the tree is being dragged over this pane. */
+  let dropping = $state(false);
 
   const encoder = new TextEncoder();
 
@@ -110,8 +113,12 @@
 
     const prompts = new PromptTracker(t, {
       onPrompt: () => tabs.markIntegrated(pane.id),
-      onCommandStart: (text) => tabs.commandStarted(pane.id, text),
+      onCommandStart: (text, id) => {
+        tabs.commandStarted(pane.id, text);
+        history.started(pane.id, id, text, pane.cwd);
+      },
       onCommandEnd: (exitCode, durationMs) => {
+        history.finished(pane.id, exitCode, durationMs);
         tabs.commandFinished(pane.id, exitCode, durationMs);
         notifyCommandDone(pane, exitCode, durationMs, visible);
       },
@@ -123,8 +130,10 @@
       selectAll: () => t.selectAll(),
       getSelection: () => t.getSelection(),
       paste: (text) => t.paste(text),
+      type: (text) => t.input(text),
       jumpPrompt: (direction) => prompts.jump(direction),
       lastOutput: () => prompts.lastOutput(),
+      revealCommand: (id) => prompts.reveal(id),
       serialize: () => serializer.serialize({ scrollback: 5000 }),
       snapshot: (rows) => {
         const buf = t.buffer.active;
@@ -149,6 +158,8 @@
       resizeObserver.disconnect();
       unregister();
       prompts.dispose();
+      // The history belongs to this shell; a tab moving windows starts fresh there.
+      history.clear(pane.id);
       if (search.paneId === pane.id) search.close();
       ws?.close();
       // A tab moving to another window keeps its shells running.
@@ -193,7 +204,14 @@
     // A session taken over from another window stays attached there until
     // that window lets go, so the first attempts may be refused.
     let opened = false;
-    socket.onopen = () => (opened = true);
+    socket.onopen = () => {
+      opened = true;
+      // The shell reads this once it's ready; the tty holds it until then.
+      if (pane.initialCommand) {
+        socket.send(encoder.encode(pane.initialCommand + '\r'));
+        pane.initialCommand = undefined;
+      }
+    };
     socket.onclose = () => {
       if (!opened && !disposed && attempt < 40) setTimeout(() => connect(t, id, attempt + 1), 100);
     };
@@ -301,7 +319,28 @@
   });
 </script>
 
-<div class="pane" class:dimmed>
+<div
+  class="pane"
+  class:dimmed
+  class:drop-target={dropping}
+  role="presentation"
+  ondragover={(e) => {
+    if (!e.dataTransfer?.types.includes('application/x-wtf-path')) return;
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'copy';
+    dropping = true;
+  }}
+  ondragleave={() => (dropping = false)}
+  ondrop={(e) => {
+    dropping = false;
+    const text = e.dataTransfer?.getData('text/plain');
+    if (!text || !term) return;
+    e.preventDefault();
+    tabs.focusPane(tabId, pane.id);
+    term.paste(text + ' ');
+    term.focus();
+  }}
+>
   <div class="host" bind:this={el}></div>
   {#if searchAddon && search.paneId === pane.id}
     <SearchBar addon={searchAddon} />
@@ -326,6 +365,12 @@
   }
   .pane.dimmed::after {
     opacity: var(--dim-unfocused);
+  }
+  .pane.drop-target::after {
+    opacity: 1;
+    background: var(--accent-soft);
+    box-shadow: inset 0 0 0 2px var(--accent);
+    border-radius: 8px;
   }
 
   /* FitAddon measures the terminal's parent, so padding lives on .pane. */

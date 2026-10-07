@@ -1,6 +1,7 @@
 import { Service as StateService } from '../../bindings/github.com/dayanraj/wtf/internal/state';
 import { Service as Windows } from '../../bindings/github.com/dayanraj/wtf/internal/windows';
 import { settings } from './settings.svelte';
+import { sidebar, type SavedSidebar } from './sidebar.svelte';
 import { tabs, type SavedTabs } from './tabs.svelte';
 
 const VERSION = 1;
@@ -9,6 +10,7 @@ const SAVE_DELAY_MS = 400;
 interface SavedSession extends SavedTabs {
   version: number;
   fontSize: number;
+  sidebar?: SavedSidebar;
 }
 
 /**
@@ -24,6 +26,7 @@ export async function restoreSession(windowName: string): Promise<boolean> {
     if (data?.version !== VERSION) return false;
     // Before the panes mount, so terminals open at the right size.
     if (typeof data.fontSize === 'number') settings.setFontSize(data.fontSize);
+    sidebar.restore(data.sidebar);
     return tabs.restore(data);
   } catch (err) {
     console.warn('could not restore session', err);
@@ -50,7 +53,12 @@ export function autosave(windowName: string) {
   stopAutosave();
   stop = $effect.root(() => {
     $effect(() => {
-      const session: SavedSession = { version: VERSION, fontSize: settings.fontSize, ...tabs.snapshot() };
+      const session: SavedSession = {
+        version: VERSION,
+        fontSize: settings.fontSize,
+        sidebar: sidebar.snapshot(),
+        ...tabs.snapshot(),
+      };
       const json = JSON.stringify(session);
       clearTimeout(timer);
       timer = setTimeout(() => {

@@ -18,6 +18,8 @@ export interface Pane {
   running: boolean;
   command: string;
   lastCommand: FinishedCommand | null;
+  /** Typed into the shell once it starts, e.g. to open a file in $EDITOR. */
+  initialCommand?: string;
   /** Scrollback carried over from another window, written once on mount. */
   restoreBuffer?: string;
 }

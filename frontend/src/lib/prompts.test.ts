@@ -25,7 +25,7 @@ describe('PromptTracker', () => {
     const { events, write } = setup();
     await write(run('false', '', 1) + A + '$ ');
     expect(events.onPrompt).toHaveBeenCalledTimes(2);
-    expect(events.onCommandStart).toHaveBeenCalledWith('false');
+    expect(events.onCommandStart).toHaveBeenCalledWith('false', 1);
     expect(events.onCommandEnd).toHaveBeenCalledWith(1, expect.any(Number));
   });
 
@@ -61,6 +61,18 @@ describe('PromptTracker', () => {
     tracker.jump(1);
     tracker.jump(1);
     expect(term.buffer.active.viewportY).toBe(bottom);
+  });
+
+  it('gives each command an id and can scroll back to it', async () => {
+    const { term, events, tracker, write } = setup(4);
+    let out = '';
+    for (let i = 0; i < 6; i++) out += run(`echo ${i}`, `${i}\r\n${i}\r\n`);
+    await write(out + A + '$ ');
+    const ids = events.onCommandStart.mock.calls.map((c) => c[1]);
+    expect(ids).toEqual([1, 2, 3, 4, 5, 6]);
+    expect(tracker.reveal(2)).toBe(true);
+    expect(term.buffer.active.viewportY).toBe(3); // command 2's prompt is on line 3
+    expect(tracker.reveal(99)).toBe(false);
   });
 
   it('ignores a stray D without a started command', async () => {

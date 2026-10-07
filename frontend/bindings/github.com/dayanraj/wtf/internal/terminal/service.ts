@@ -63,3 +63,11 @@ export function Resize(id: string, cols: number, rows: number): $CancellableProm
 export function RunningProcesses(): $CancellablePromise<$models.Running[] | null> {
     return $Call.ByID(2596160610);
 }
+
+/**
+ * ShellPIDs maps each live session's shell process to its session ID, so
+ * other services can tell which terminal a process belongs to.
+ */
+export function ShellPIDs(): $CancellablePromise<{ [_ in `${number}`]?: string } | null> {
+    return $Call.ByID(3510656666);
+}

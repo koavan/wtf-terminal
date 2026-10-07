@@ -9,7 +9,10 @@ import (
 	"github.com/wailsapp/wails/v3/pkg/application"
 
 	"github.com/dayanraj/wtf/internal/config"
+	"github.com/dayanraj/wtf/internal/files"
+	"github.com/dayanraj/wtf/internal/netconn"
 	"github.com/dayanraj/wtf/internal/notify"
+	"github.com/dayanraj/wtf/internal/procs"
 	"github.com/dayanraj/wtf/internal/state"
 	"github.com/dayanraj/wtf/internal/terminal"
 	wtfwindows "github.com/dayanraj/wtf/internal/windows"
@@ -46,6 +49,9 @@ func main() {
 			application.NewService(term),
 			application.NewService(state.NewService(store)),
 			application.NewService(notify.NewService()),
+			application.NewService(files.NewService()),
+			application.NewService(netconn.NewService(term.ShellPIDs)),
+			application.NewService(procs.NewService(term.ShellPIDs)),
 			application.NewService(windows.Service()),
 		},
 		Assets: application.AssetOptions{
@@ -142,6 +148,11 @@ func buildMenu(windows *wtfwindows.Manager) *application.Menu {
 
 	view := menu.AddSubmenu("View")
 	cmd(view, "Command Palette…", "CmdOrCtrl+shift+p", "palette")
+	cmd(view, "Toggle Sidebar", "CmdOrCtrl+b", "sidebar.toggle")
+	cmd(view, "Show Files", "CmdOrCtrl+shift+e", "sidebar.files")
+	cmd(view, "Show Network Connections", "CmdOrCtrl+shift+o", "sidebar.network")
+	cmd(view, "Show Processes", "CmdOrCtrl+shift+a", "sidebar.processes")
+	cmd(view, "Show Command History", "CmdOrCtrl+shift+h", "sidebar.history")
 	view.AddSeparator()
 	cmd(view, "Previous Prompt", "CmdOrCtrl+up", "prompt.prev")
 	cmd(view, "Next Prompt", "CmdOrCtrl+down", "prompt.next")

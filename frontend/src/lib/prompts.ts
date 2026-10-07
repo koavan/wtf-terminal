@@ -5,6 +5,8 @@ import type { IDecoration, IDisposable, IMarker, Terminal } from '@xterm/xterm';
 // finished command.
 
 interface CommandRecord {
+  /** Stable per terminal; lets others refer to this command later. */
+  id: number;
   prompt: IMarker;
   /** Where the command's output starts and ends. */
   output?: IMarker;
@@ -15,7 +17,8 @@ interface CommandRecord {
 
 export interface PromptEvents {
   onPrompt(): void;
-  onCommandStart(text: string): void;
+  /** `id` identifies the command for reveal(). */
+  onCommandStart(text: string, id: number): void;
   onCommandEnd(exitCode: number, durationMs: number): void;
 }
 
@@ -34,6 +37,7 @@ export class PromptTracker implements IDisposable {
   #records: CommandRecord[] = [];
   #current: CommandRecord | undefined;
   #pendingText = '';
+  #nextId = 1;
   #handlers: IDisposable[];
 
   constructor(term: Terminal, events: PromptEvents) {
@@ -54,7 +58,7 @@ export class PromptTracker implements IDisposable {
       case 'A': {
         const prompt = this.#term.registerMarker(0);
         if (prompt) {
-          this.#current = { prompt };
+          this.#current = { id: this.#nextId++, prompt };
           this.#records.push(this.#current);
           this.#trim();
         }
@@ -67,7 +71,7 @@ export class PromptTracker implements IDisposable {
           rec.output = this.#term.registerMarker(0);
           rec.startedAt = performance.now();
         }
-        this.#events.onCommandStart(this.#pendingText);
+        this.#events.onCommandStart(this.#pendingText, rec?.id ?? 0);
         this.#pendingText = '';
         break;
       }
@@ -118,6 +122,17 @@ export class PromptTracker implements IDisposable {
       direction < 0 ? lines.filter((l) => l < top).at(-1) : lines.find((l) => l > top);
     if (target !== undefined) this.#term.scrollToLine(target);
     else if (direction > 0) this.#term.scrollToBottom();
+  }
+
+  /**
+   * Scrolls a command's prompt to the top of the view. False when it has
+   * scrolled out of the buffer.
+   */
+  reveal(id: number): boolean {
+    const rec = this.#records.find((r) => r.id === id);
+    if (!rec || rec.prompt.isDisposed || rec.prompt.line < 0) return false;
+    this.#term.scrollToLine(rec.prompt.line);
+    return true;
   }
 
   /** The output of the most recent finished command, or null. */

@@ -311,12 +311,16 @@ class Tabs {
 
   // ── Panes ────────────────────────────────────────────────────────────
 
-  /** Splits the focused pane of the active tab; the new pane gets focus. */
-  split(dir: SplitDir) {
+  /**
+   * Splits the focused pane of the active tab; the new pane gets focus. It
+   * starts in the same folder unless `cwd` is given, and can run `command`.
+   */
+  split(dir: SplitDir, { cwd, command }: { cwd?: string; command?: string } = {}) {
     const tab = this.active;
     if (!tab) return;
     const from = focusedPane(tab);
-    const pane = this.#newPane(from.cwd);
+    const pane = this.#newPane(cwd ?? from.cwd);
+    if (command) pane.initialCommand = command;
     tab.zoomedPaneId = null;
     tab.root = splitPane(tab.root, from.id, dir, pane);
     tab.focusedPaneId = pane.id;

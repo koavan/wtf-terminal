@@ -14,6 +14,10 @@ import (
 //go:embed all:shellintegration
 var integrationFS embed.FS
 
+// ClearHistoryKeys is the key sequence (Ctrl-X Ctrl-]) the scripts bind to
+// clearing the shell's in-memory history. The frontend sends the same bytes.
+const ClearHistoryKeys = "\x18\x1d"
+
 // installIntegration copies the scripts into dir, replacing old versions.
 func installIntegration(dir string) error {
 	return fs.WalkDir(integrationFS, "shellintegration", func(path string, d fs.DirEntry, err error) error {

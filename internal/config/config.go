@@ -28,6 +28,9 @@ type Config struct {
 	ShellIntegration  bool    `toml:"shell-integration" json:"shellIntegration"`
 	NotifyAfter       float64 `toml:"notify-after" json:"notifyAfter"`
 	UnfocusedSplitDim float64 `toml:"unfocused-split-dim" json:"unfocusedSplitDim"`
+
+	SidebarAutoRefresh     bool    `toml:"sidebar-auto-refresh" json:"sidebarAutoRefresh"`
+	SidebarRefreshInterval float64 `toml:"sidebar-refresh-interval" json:"sidebarRefreshInterval"`
 }
 
 func Defaults() Config {
@@ -42,6 +45,9 @@ func Defaults() Config {
 		ShellIntegration:  true,
 		NotifyAfter:       10,
 		UnfocusedSplitDim: 0.35,
+
+		SidebarAutoRefresh:     true,
+		SidebarRefreshInterval: 3,
 	}
 }
 
@@ -88,6 +94,14 @@ const template = `# wtf settings. Changes apply as soon as you save.
 
 # How much to fade split panes that don't have focus, 0 to 0.8.
 # unfocused-split-dim = 0.35
+
+# Keep the side pane's Files, Network and Processes tabs up to date on
+# their own. When off, they update only when opened or when you press
+# refresh, so they never do work in the background.
+# sidebar-auto-refresh = true
+
+# Seconds between updates of the Network and Processes tabs, 1 to 60.
+# sidebar-refresh-interval = 3
 `
 
 // Dir is $XDG_CONFIG_HOME/wtf, or ~/.config/wtf, on every platform.
@@ -152,6 +166,10 @@ func validate(c Config, problems []string) (Config, []string, error) {
 		bad("unfocused-split-dim", c.UnfocusedSplitDim, "must be between 0 and 0.8")
 		c.UnfocusedSplitDim = d.UnfocusedSplitDim
 	}
+	if c.SidebarRefreshInterval < 1 || c.SidebarRefreshInterval > 60 {
+		bad("sidebar-refresh-interval", c.SidebarRefreshInterval, "must be between 1 and 60")
+		c.SidebarRefreshInterval = d.SidebarRefreshInterval
+	}
 	if strings.TrimSpace(c.FontFamily) == "" {
 		c.FontFamily = d.FontFamily
 	}
@@ -198,18 +216,24 @@ func ThemePair(spec string, themes []Theme) (dark, light Theme, problems []strin
 	return dark, light, problems
 }
 
-var themeLine = regexp.MustCompile(`(?m)^[ \t]*#?[ \t]*theme[ \t]*=.*$`)
-
-// withTheme returns the config file text with its theme line set to spec,
-// keeping everything else (comments included) as it was. An active theme
-// line wins over a commented-out one.
 func withTheme(data, spec string) string {
-	line := fmt.Sprintf("theme = %q", spec)
-	active := regexp.MustCompile(`(?m)^[ \t]*theme[ \t]*=.*$`)
+	return withSetting(data, "theme", fmt.Sprintf("%q", spec))
+}
+
+// withSetting returns the config file text with `key = value` set (value
+// is a TOML literal), keeping everything else, comments included, as it
+// was. It replaces the active line if there is one, else the commented-out
+// default ("# key = …"), else appends. Documentation examples, which are
+// indented after the "#", are left alone.
+func withSetting(data, key, value string) string {
+	line := key + " = " + value
+	k := regexp.QuoteMeta(key)
+	active := regexp.MustCompile(`(?m)^[ \t]*` + k + `[ \t]*=.*$`)
 	if loc := active.FindStringIndex(data); loc != nil {
 		return data[:loc[0]] + line + data[loc[1]:]
 	}
-	if loc := themeLine.FindStringIndex(data); loc != nil {
+	commented := regexp.MustCompile(`(?m)^#[ ]?` + k + `[ \t]*=.*$`)
+	if loc := commented.FindStringIndex(data); loc != nil {
 		return data[:loc[0]] + line + data[loc[1]:]
 	}
 	if data != "" && !strings.HasSuffix(data, "\n") {

@@ -7,8 +7,12 @@ export interface TerminalHandle {
   selectAll(): void;
   getSelection(): string;
   paste(text: string): void;
+  /** Sends keystrokes to the shell, as if typed. */
+  type(text: string): void;
   /** Scroll to the previous (-1) or next (1) prompt. Needs shell integration. */
   jumpPrompt(direction: -1 | 1): void;
+  /** Scrolls to a command from the history; false if it left the scrollback. */
+  revealCommand(id: number): boolean;
   /** Output of the last finished command, or null. Needs shell integration. */
   lastOutput(): string | null;
   /** Scrollback with colors, to carry a tab to another window. */

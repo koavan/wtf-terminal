@@ -200,6 +200,20 @@ func (s *Service) CloseWindow(window string) {
 	}
 }
 
+// ShellPIDs maps each live session's shell process to its session ID, so
+// other services can tell which terminal a process belongs to.
+func (s *Service) ShellPIDs() map[int]string {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	out := make(map[int]string, len(s.sessions))
+	for id, sess := range s.sessions {
+		if sess.cmd.Process != nil && !sess.closed.Load() {
+			out[sess.cmd.Process.Pid] = id
+		}
+	}
+	return out
+}
+
 // Running describes a program other than the shell running in a session.
 type Running struct {
 	Window  string `json:"window"`

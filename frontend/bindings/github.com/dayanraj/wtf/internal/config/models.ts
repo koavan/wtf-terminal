@@ -18,6 +18,8 @@ export interface Config {
     "shellIntegration": boolean;
     "notifyAfter": number;
     "unfocusedSplitDim": number;
+    "sidebarAutoRefresh": boolean;
+    "sidebarRefreshInterval": number;
 }
 
 /**

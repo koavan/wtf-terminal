@@ -8,6 +8,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"runtime"
+	"strconv"
 	"sync"
 	"time"
 
@@ -73,6 +74,16 @@ func (s *Service) Themes() []Theme {
 
 // SetTheme writes the theme setting into the config file.
 func (s *Service) SetTheme(spec string) error {
+	return s.set("theme", fmt.Sprintf("%q", spec))
+}
+
+// SetSidebarAutoRefresh turns the side pane's background updates on or off.
+func (s *Service) SetSidebarAutoRefresh(on bool) error {
+	return s.set("sidebar-auto-refresh", strconv.FormatBool(on))
+}
+
+// set writes one setting into the config file, creating it if needed.
+func (s *Service) set(key, value string) error {
 	if err := os.MkdirAll(s.dir, 0o755); err != nil {
 		return err
 	}
@@ -83,7 +94,7 @@ func (s *Service) SetTheme(spec string) error {
 	if err != nil {
 		return err
 	}
-	if err := writeAtomic(s.path(), []byte(withTheme(string(data), spec))); err != nil {
+	if err := writeAtomic(s.path(), []byte(withSetting(string(data), key, value))); err != nil {
 		return err
 	}
 	s.reloadAndNotify()

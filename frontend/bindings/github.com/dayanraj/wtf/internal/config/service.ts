@@ -37,6 +37,13 @@ export function OpenThemesFolder(): $CancellablePromise<void> {
 }
 
 /**
+ * SetSidebarAutoRefresh turns the side pane's background updates on or off.
+ */
+export function SetSidebarAutoRefresh(on: boolean): $CancellablePromise<void> {
+    return $Call.ByID(3490308622, on);
+}
+
+/**
  * SetTheme writes the theme setting into the config file.
  */
 export function SetTheme(spec: string): $CancellablePromise<void> {

@@ -5,6 +5,7 @@ import { overlay } from './overlay.svelte';
 import { isMac } from './platform';
 import { search } from './search.svelte';
 import { settings } from './settings.svelte';
+import { sidebar } from './sidebar.svelte';
 import { tabs } from './tabs.svelte';
 import { activeTerminal } from './terminals';
 import { toast } from './toast.svelte';
@@ -47,6 +48,19 @@ export const commands: Command[] = [
   { id: 'config.open', label: 'Open Settings File', mac: '⌘,', other: 'Ctrl+,', run: () => ConfigService.OpenConfigFile().catch((e) => toast.show(`Couldn't open settings: ${e}`)) },
   { id: 'themes.folder', label: 'Open Themes Folder', run: () => ConfigService.OpenThemesFolder().catch((e) => toast.show(`Couldn't open folder: ${e}`)) },
 
+  { id: 'sidebar.toggle', label: 'Toggle Sidebar', mac: '⌘B', other: 'Ctrl+Shift+B', run: () => sidebar.toggle() },
+  { id: 'sidebar.files', label: 'Show Files', mac: '⌘⇧E', other: 'Ctrl+Shift+Alt+E', run: () => sidebar.show('files') },
+  { id: 'sidebar.network', label: 'Show Network Connections', mac: '⌘⇧O', other: 'Ctrl+Shift+Alt+O', run: () => sidebar.show('network') },
+  {
+    id: 'sidebar.autoRefresh',
+    label: 'Toggle Side Pane Auto-Refresh',
+    run: () =>
+      ConfigService.SetSidebarAutoRefresh(!settings.config.sidebarAutoRefresh).then(() =>
+        toast.show(settings.config.sidebarAutoRefresh ? 'Side pane auto-refresh off' : 'Side pane auto-refresh on'),
+      ),
+  },
+  { id: 'sidebar.history', label: 'Show Command History', mac: '⌘⇧H', other: 'Ctrl+Shift+Alt+H', run: () => sidebar.show('history') },
+  { id: 'sidebar.processes', label: 'Show Processes', mac: '⌘⇧A', other: 'Ctrl+Shift+Alt+A', run: () => sidebar.show('processes') },
   { id: 'tab.new', label: 'New Tab', mac: '⌘T', other: 'Ctrl+Shift+T', run: () => tabs.open() },
   { id: 'tab.duplicate', label: 'Duplicate Tab', run: () => tabs.duplicate() },
   { id: 'tab.close', label: 'Close Tab', mac: '⌥⌘W', run: () => tabs.activeId !== null && closeTab(tabs.activeId) },
@@ -138,6 +152,10 @@ function shortcutFor(e: KeyboardEvent): string | null {
     }
   }
   if (e.ctrlKey && e.shiftKey && e.altKey && e.code === 'KeyC') return 'term.copyOutput';
+  if (e.ctrlKey && e.shiftKey && e.altKey && e.code === 'KeyE') return 'sidebar.files';
+  if (e.ctrlKey && e.shiftKey && e.altKey && e.code === 'KeyO') return 'sidebar.network';
+  if (e.ctrlKey && e.shiftKey && e.altKey && e.code === 'KeyA') return 'sidebar.processes';
+  if (e.ctrlKey && e.shiftKey && e.altKey && e.code === 'KeyH') return 'sidebar.history';
   if (e.ctrlKey && !e.shiftKey && !e.altKey && e.code === 'Comma') return 'config.open';
   if (e.ctrlKey && e.shiftKey && !e.altKey) {
     switch (e.code) {
@@ -145,6 +163,7 @@ function shortcutFor(e: KeyboardEvent): string | null {
       case 'ArrowDown': return 'prompt.next';
       case 'KeyP': return 'palette';
       case 'KeyT': return 'tab.new';
+      case 'KeyB': return 'sidebar.toggle';
       case 'KeyN': return 'window.new';
       case 'Backslash': return 'tab.overview';
       case 'KeyW': return 'pane.close';
