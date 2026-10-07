@@ -1,0 +1,218 @@
+package config
+
+import (
+	"context"
+	"errors"
+	"fmt"
+	"os"
+	"os/exec"
+	"path/filepath"
+	"runtime"
+	"sync"
+	"time"
+
+	"github.com/wailsapp/wails/v3/pkg/application"
+)
+
+const (
+	EventChanged = "config:changed"
+	pollInterval = 750 * time.Millisecond
+)
+
+// Resolved is the config as the frontend uses it.
+type Resolved struct {
+	Config Config `json:"config"`
+	Dark   Theme  `json:"dark"`
+	Light  Theme  `json:"light"`
+	// Problems found while loading; the frontend shows them.
+	Problems []string `json:"problems"`
+	Path     string   `json:"path"`
+}
+
+func init() {
+	application.RegisterEvent[Resolved](EventChanged)
+}
+
+// Service loads the config, watches it, and pushes changes to the frontend.
+type Service struct {
+	dir string
+
+	mu       sync.Mutex
+	current  Resolved
+	themes   []Theme
+	snapshot string // fingerprint of the files on disk
+}
+
+func NewService(dir string) *Service {
+	s := &Service{dir: dir}
+	s.reload()
+	return s
+}
+
+func (s *Service) path() string      { return filepath.Join(s.dir, "config.toml") }
+func (s *Service) themesDir() string { return filepath.Join(s.dir, "themes") }
+
+func (s *Service) ServiceStartup(ctx context.Context, _ application.ServiceOptions) error {
+	go s.watch(ctx)
+	return nil
+}
+
+// Current returns the loaded config.
+func (s *Service) Current() Resolved {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.current
+}
+
+// Themes lists every available theme, built-in ones first.
+func (s *Service) Themes() []Theme {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.themes
+}
+
+// SetTheme writes the theme setting into the config file.
+func (s *Service) SetTheme(spec string) error {
+	if err := os.MkdirAll(s.dir, 0o755); err != nil {
+		return err
+	}
+	data, err := os.ReadFile(s.path())
+	if errors.Is(err, os.ErrNotExist) {
+		data, err = []byte(template), nil
+	}
+	if err != nil {
+		return err
+	}
+	if err := writeAtomic(s.path(), []byte(withTheme(string(data), spec))); err != nil {
+		return err
+	}
+	s.reloadAndNotify()
+	return nil
+}
+
+// OpenConfigFile opens the config file in the default text editor,
+// creating it with every setting documented if it doesn't exist yet.
+func (s *Service) OpenConfigFile() error {
+	if err := os.MkdirAll(s.themesDir(), 0o755); err != nil {
+		return err
+	}
+	if _, err := os.Stat(s.path()); errors.Is(err, os.ErrNotExist) {
+		if err := writeAtomic(s.path(), []byte(template)); err != nil {
+			return err
+		}
+	}
+	var cmd *exec.Cmd
+	if runtime.GOOS == "darwin" {
+		cmd = exec.Command("/usr/bin/open", "-t", s.path())
+	} else {
+		cmd = exec.Command("xdg-open", s.path())
+	}
+	return cmd.Start()
+}
+
+// OpenThemesFolder reveals the folder user themes are loaded from.
+func (s *Service) OpenThemesFolder() error {
+	if err := os.MkdirAll(s.themesDir(), 0o755); err != nil {
+		return err
+	}
+	opener := "xdg-open"
+	if runtime.GOOS == "darwin" {
+		opener = "/usr/bin/open"
+	}
+	return exec.Command(opener, s.themesDir()).Start()
+}
+
+func (s *Service) watch(ctx context.Context) {
+	t := time.NewTicker(pollInterval)
+	defer t.Stop()
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-t.C:
+		}
+		s.mu.Lock()
+		changed := s.fingerprint() != s.snapshot
+		s.mu.Unlock()
+		if changed {
+			s.reloadAndNotify()
+		}
+	}
+}
+
+func (s *Service) reloadAndNotify() {
+	r := s.reload()
+	if app := application.Get(); app != nil {
+		app.Event.Emit(EventChanged, r)
+	}
+}
+
+func (s *Service) reload() Resolved {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.snapshot = s.fingerprint()
+
+	problems := []string{} // never null in JSON
+	cfg := Defaults()
+	data, err := os.ReadFile(s.path())
+	switch {
+	case errors.Is(err, os.ErrNotExist):
+	case err != nil:
+		problems = append(problems, err.Error())
+	default:
+		parsed, warnings, perr := Parse(string(data))
+		if perr != nil {
+			// Keep running with the last good settings until it's fixed.
+			problems = append(problems, fmt.Sprintf("config.toml %v", perr))
+			if s.current.Path != "" {
+				cfg = s.current.Config
+			}
+		} else {
+			cfg = parsed
+			problems = append(problems, warnings...)
+		}
+	}
+
+	themes, themeProblems := Themes(s.themesDir())
+	problems = append(problems, themeProblems...)
+	dark, light, pairProblems := ThemePair(cfg.Theme, themes)
+	problems = append(problems, pairProblems...)
+
+	s.themes = themes
+	s.current = Resolved{Config: cfg, Dark: dark, Light: light, Problems: problems, Path: s.path()}
+	return s.current
+}
+
+// fingerprint changes whenever the config file or any theme file does.
+func (s *Service) fingerprint() string {
+	fp := ""
+	if fi, err := os.Stat(s.path()); err == nil {
+		fp += fmt.Sprintf("%d/%d;", fi.ModTime().UnixNano(), fi.Size())
+	}
+	entries, _ := os.ReadDir(s.themesDir())
+	for _, e := range entries {
+		if fi, err := e.Info(); err == nil {
+			fp += fmt.Sprintf("%s:%d/%d;", e.Name(), fi.ModTime().UnixNano(), fi.Size())
+		}
+	}
+	return fp
+}
+
+func writeAtomic(path string, data []byte) error {
+	tmp, err := os.CreateTemp(filepath.Dir(path), ".config.*.tmp")
+	if err != nil {
+		return err
+	}
+	defer os.Remove(tmp.Name())
+	if _, err := tmp.Write(data); err != nil {
+		tmp.Close()
+		return err
+	}
+	if err := tmp.Close(); err != nil {
+		return err
+	}
+	if err := os.Chmod(tmp.Name(), 0o644); err != nil {
+		return err
+	}
+	return os.Rename(tmp.Name(), path)
+}

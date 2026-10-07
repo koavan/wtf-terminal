@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="utf-8"?>
+<MsixPackagingToolTemplate
+    xmlns="http://schemas.microsoft.com/msix/packaging/msixpackagingtool/template/2022">
+    <Settings
+        AllowTelemetry="false"
+        ApplyACLsToPackageFiles="true"
+        GenerateCommandLineFile="true"
+        AllowPromptForPassword="false">
+    </Settings>
+    <Installer
+        Path="wtf"
+        Arguments=""
+        InstallLocation="C:\Program Files\dayanraj\wtf">
+    </Installer>
+    <PackageInformation
+        PackageName="wtf"
+        PackageDisplayName="wtf"
+        PublisherName="CN=dayanraj"
+        PublisherDisplayName="dayanraj"
+        Version="0.1.0.0"
+        PackageDescription="A browser-like terminal">
+        <Capabilities>
+            <Capability Name="runFullTrust" />
+            
+        </Capabilities>
+        <Applications>
+            <Application
+                Id="com.dayanraj.wtf"
+                Description="A browser-like terminal"
+                DisplayName="wtf"
+                ExecutableName="wtf"
+                EntryPoint="Windows.FullTrustApplication">
+                
+            </Application>
+        </Applications>
+        <Resources>
+            <Resource Language="en-us" />
+        </Resources>
+        <Dependencies>
+            <TargetDeviceFamily Name="Windows.Desktop" MinVersion="10.0.17763.0" MaxVersionTested="10.0.19041.0" />
+        </Dependencies>
+        <Properties>
+            <Framework>false</Framework>
+            <DisplayName>wtf</DisplayName>
+            <PublisherDisplayName>dayanraj</PublisherDisplayName>
+            <Description>A browser-like terminal</Description>
+            <Logo>Assets\AppIcon.png</Logo>
+        </Properties>
+    </PackageInformation>
+    <SaveLocation PackagePath="wtf.msix" />
+    <PackageIntegrity>
+        <CertificatePath></CertificatePath>
+    </PackageIntegrity>
+</MsixPackagingToolTemplate>

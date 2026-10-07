@@ -1,0 +1,183 @@
+/* Design tokens. Dark is the default; lib/themes.ts sets data-tone and the
+   theme-derived colors (--surface, --accent, --chrome…) at runtime. */
+:root {
+  --strip-height: 52px; /* matches the unified macOS toolbar, so tabs line up with the traffic lights */
+  --traffic-lights-width: 84px;
+  --address-height: 40px;
+  --tab-height: 32px;
+  --tab-width: 220px;
+  --tab-gap: 4px;
+  --radius-tab: 9px;
+  --radius-card: 12px;
+  --group-line-offset: -6px; /* group underline, just below the tabs */
+
+  --accent: #8d9cff;
+  --accent-soft: rgba(141, 156, 255, 0.14);
+  --on-accent: #fff;
+  --danger: #e5484d;
+  --mark-ok: #5bb98c;
+
+  /* Tab group colors (Chrome's set, tuned for dark), and text drawn on them. */
+  --g-grey: #a9adb8;
+  --g-blue: #8ab4f8;
+  --g-red: #f28b82;
+  --g-yellow: #fdd663;
+  --g-green: #81c995;
+  --g-pink: #ff8bcb;
+  --g-purple: #c58af9;
+  --g-cyan: #78d9ec;
+  --g-orange: #fcad70;
+  --group-ink: #17181c;
+
+  /* Window chrome sits on top of macOS vibrancy, so it is translucent. */
+  --chrome: rgba(19, 20, 24, 0.62);
+  --chrome-solid: #1c1d22;
+  --chrome-text: rgba(255, 255, 255, 0.92);
+  --chrome-muted: rgba(235, 235, 245, 0.56);
+  --tab-hover: rgba(255, 255, 255, 0.06);
+  --tab-hover-strong: rgba(255, 255, 255, 0.12);
+  --tab-active: rgba(255, 255, 255, 0.11);
+  --tab-active-shadow: inset 0 0.5px 0 rgba(255, 255, 255, 0.10), 0 1px 2px rgba(0, 0, 0, 0.28);
+  --tab-drag-shadow: 0 6px 18px rgba(0, 0, 0, 0.45), inset 0 0.5px 0 rgba(255, 255, 255, 0.12);
+
+  /* The card that holds the address bar and the terminal. */
+  --surface: #16171b; /* = terminal background in themes.ts */
+  --text: rgba(255, 255, 255, 0.90);
+  --text-muted: rgba(235, 235, 245, 0.50);
+  --hairline: rgba(255, 255, 255, 0.06);
+  --omnibox: rgba(255, 255, 255, 0.045);
+  --identity: rgba(255, 255, 255, 0.08);
+  --card-shadow: 0 0 0 0.5px rgba(255, 255, 255, 0.09), 0 10px 30px rgba(0, 0, 0, 0.30), 0 1px 3px rgba(0, 0, 0, 0.25);
+  --hairline-strong: rgba(255, 255, 255, 0.10);
+
+  /* Menus and popovers float over everything with their own blur. */
+  --popover: rgba(36, 37, 43, 0.82);
+  --popover-solid: #25262c;
+  --popover-shadow: 0 0 0 0.5px rgba(255, 255, 255, 0.14), 0 12px 40px rgba(0, 0, 0, 0.45), 0 2px 6px rgba(0, 0, 0, 0.3);
+  --field: rgba(0, 0, 0, 0.25);
+  --scrim: rgba(0, 0, 0, 0.18);
+  --dim-unfocused: 0.38; /* veil over unfocused split panes */
+
+  color-scheme: dark;
+  font-family: -apple-system, BlinkMacSystemFont, 'Inter Variable', 'Inter', system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Light token set; the active theme picks the tone (see lib/themes.ts). */
+:root[data-tone='light'] {
+  --accent: #4c5bd4;
+  --accent-soft: rgba(76, 91, 212, 0.10);
+  --danger: #d93036;
+  --mark-ok: #2f9e6a;
+
+  --g-grey: #5f6368;
+  --g-blue: #1a73e8;
+  --g-red: #d93025;
+  --g-yellow: #c98a00;
+  --g-green: #188038;
+  --g-pink: #d01884;
+  --g-purple: #a142f4;
+  --g-cyan: #007b83;
+  --g-orange: #e8710a;
+  --group-ink: #fff;
+
+  --chrome: rgba(236, 237, 241, 0.55);
+  --chrome-solid: #e9eaee;
+  --chrome-text: rgba(0, 0, 0, 0.86);
+  --chrome-muted: rgba(60, 60, 67, 0.62);
+  --tab-hover: rgba(0, 0, 0, 0.045);
+  --tab-hover-strong: rgba(0, 0, 0, 0.09);
+  --tab-active: rgba(255, 255, 255, 0.92);
+  --tab-active-shadow: 0 0 0 0.5px rgba(0, 0, 0, 0.08), 0 1px 3px rgba(0, 0, 0, 0.10);
+  --tab-drag-shadow: 0 6px 18px rgba(0, 0, 0, 0.16), 0 0 0 0.5px rgba(0, 0, 0, 0.10);
+
+  --surface: #fcfcfd;
+  --text: rgba(0, 0, 0, 0.86);
+  --text-muted: rgba(60, 60, 67, 0.60);
+  --hairline: rgba(0, 0, 0, 0.06);
+  --omnibox: rgba(0, 0, 0, 0.035);
+  --identity: rgba(0, 0, 0, 0.06);
+  --card-shadow: 0 0 0 0.5px rgba(0, 0, 0, 0.10), 0 8px 26px rgba(0, 0, 0, 0.10), 0 1px 3px rgba(0, 0, 0, 0.06);
+  --hairline-strong: rgba(0, 0, 0, 0.09);
+
+  --popover: rgba(250, 250, 252, 0.84);
+  --popover-solid: #fafafc;
+  --popover-shadow: 0 0 0 0.5px rgba(0, 0, 0, 0.12), 0 12px 36px rgba(0, 0, 0, 0.16), 0 2px 6px rgba(0, 0, 0, 0.08);
+  --field: rgba(255, 255, 255, 0.9);
+  --scrim: rgba(0, 0, 0, 0.06);
+  --dim-unfocused: 0.32;
+
+  color-scheme: light;
+}
+
+/* No vibrancy outside macOS: make the chrome opaque. */
+:root.no-vibrancy {
+  --chrome: var(--chrome-solid);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  height: 100%;
+  overflow: hidden;
+  background: transparent;
+}
+:root.no-vibrancy body {
+  background: var(--chrome-solid);
+}
+
+body {
+  color: var(--text);
+  /* An app, not a document: chrome text isn't selectable. */
+  -webkit-user-select: none;
+  user-select: none;
+  cursor: default;
+}
+
+button {
+  font: inherit;
+  cursor: default;
+}
+button:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+/* ✓/✗ marks beside finished commands (see lib/prompts.ts). xterm.js
+   positions the decoration on the prompt's first cell; the mark itself is
+   drawn in the pane's left padding so it never covers text. */
+.cmd-mark {
+  pointer-events: none;
+}
+.cmd-mark::before {
+  content: '';
+  position: absolute;
+  left: -9px;
+  top: 22%;
+  width: 3px;
+  height: 56%;
+  border-radius: 2px;
+  background: var(--mark-ok);
+  opacity: 0.75;
+}
+.cmd-mark.fail::before {
+  background: var(--danger);
+  opacity: 0.95;
+}
+
+.startup-error {
+  margin: 60px 24px;
+  padding: 16px;
+  border-radius: 10px;
+  background: var(--surface);
+  color: var(--text);
+  font: 12px/1.5 'JetBrains Mono Variable', monospace;
+  white-space: pre-wrap;
+  -webkit-user-select: text;
+  user-select: text;
+}
