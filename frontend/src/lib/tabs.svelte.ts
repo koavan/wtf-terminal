@@ -1,4 +1,3 @@
-import { Window } from '@wailsio/runtime';
 import type { Info } from '../../bindings/github.com/dayanraj/wtf/internal/terminal';
 import {
   clampRatio, findPane, leaves, neighbor, place, removePane, splitPane,
@@ -34,8 +33,20 @@ export interface Group {
 
 const MAX_REOPEN = 20;
 
-/** A layout as saved to disk: panes keep only their folder. */
-export type SavedNode = { cwd: string } | { dir: SplitDir; ratio: number; a: SavedNode; b: SavedNode };
+/**
+ * A saved layout. On disk panes keep only their folder; a tab moving to
+ * another window also carries each pane's live session and scrollback.
+ */
+export type SavedNode =
+  | { cwd: string; sessionId?: string; buffer?: string }
+  | { dir: SplitDir; ratio: number; a: SavedNode; b: SavedNode };
+
+/** A tab handed to another window (see detach/adopt). */
+export interface DetachedTab {
+  kind: 'tab';
+  tab: SavedTabs['tabs'][number];
+  group: Omit<Group, 'id' | 'collapsed'> | null;
+}
 
 export interface SavedTabs {
   tabs: { groupId: number | null; root: SavedNode; focused: number; zoomed: number | null }[];
@@ -46,12 +57,21 @@ export interface SavedTabs {
 
 const MAX_SAVED_DEPTH = 16;
 
+/**
+ * Sessions handed to another window: their panes unmount without killing
+ * the shell (see TerminalPane).
+ */
+export const detachedSessions = new Set<string>();
+
 // Invariant: the tabs of a group are always contiguous in `list`, like in
 // Chrome. Every method that reorders or regroups tabs preserves this.
 class Tabs {
   list = $state<Tab[]>([]);
   groups = $state<Group[]>([]);
   activeId = $state<number | null>(null);
+
+  /** Called when the last tab is gone; the window closes itself. */
+  onEmpty: () => void = () => {};
 
   #nextId = 1;
   #nextPaneId = 1;
@@ -154,7 +174,7 @@ class Tabs {
     this.#pruneGroups();
 
     if (this.list.length === 0) {
-      Window.Close();
+      this.onEmpty();
       return;
     }
     if (this.activeId !== null && closing.has(this.activeId)) {
@@ -417,19 +437,21 @@ class Tabs {
 
   // ── Persistence ──────────────────────────────────────────────────────
 
-  snapshot(): SavedTabs {
+  #saveTab(t: Tab, pane: (p: Pane) => SavedNode = (p) => ({ cwd: p.cwd })) {
     const save = (n: LayoutNode): SavedNode =>
-      n.kind === 'pane' ? { cwd: n.pane.cwd } : { dir: n.dir, ratio: n.ratio, a: save(n.a), b: save(n.b) };
+      n.kind === 'pane' ? pane(n.pane) : { dir: n.dir, ratio: n.ratio, a: save(n.a), b: save(n.b) };
+    const ids = leaves(t.root).map((p) => p.id);
     return {
-      tabs: this.list.map((t) => {
-        const ids = leaves(t.root).map((p) => p.id);
-        return {
-          groupId: t.groupId,
-          root: save(t.root),
-          focused: Math.max(0, ids.indexOf(t.focusedPaneId)),
-          zoomed: t.zoomedPaneId === null ? null : ids.indexOf(t.zoomedPaneId),
-        };
-      }),
+      groupId: t.groupId,
+      root: save(t.root),
+      focused: Math.max(0, ids.indexOf(t.focusedPaneId)),
+      zoomed: t.zoomedPaneId === null ? null : ids.indexOf(t.zoomedPaneId),
+    };
+  }
+
+  snapshot(): SavedTabs {
+    return {
+      tabs: this.list.map((t) => this.#saveTab(t)),
       groups: this.groups.map((g) => ({ ...g })),
       active: Math.max(0, this.list.findIndex((t) => t.id === this.activeId)),
     };
@@ -495,12 +517,86 @@ class Tabs {
     return true;
   }
 
-  #load(n: unknown, depth: number): LayoutNode | null {
+  /**
+   * Removes a tab without ending its shells, returning everything another
+   * window needs to show it: layout, sessions, scrollback (from `buffer`).
+   */
+  detach(id: number, buffer: (paneId: number) => string): DetachedTab | undefined {
+    const tab = this.get(id);
+    if (!tab) return;
+    const group = this.group(tab.groupId);
+    const saved = this.#saveTab(tab, (p) => ({ cwd: p.cwd, sessionId: p.sessionId ?? undefined, buffer: buffer(p.id) }));
+    for (const p of leaves(tab.root)) if (p.sessionId) detachedSessions.add(p.sessionId);
+    this.#forget(id);
+    return { kind: 'tab', tab: { ...saved, groupId: null }, group: group ? { name: group.name, color: group.color } : null };
+  }
+
+  /** Takes in a tab detached by another window; it joins the end, focused. */
+  adopt(data: unknown): boolean {
+    if (!isObject(data) || data.kind !== 'tab' || !isObject(data.tab)) return false;
+    const t = data.tab;
+    const root = this.#load(t.root, 0, true);
+    if (!root) return false;
+    const ids = leaves(root).map((p) => p.id);
+    let groupId: number | null = null;
+    if (isObject(data.group)) {
+      const g = data.group;
+      const name = typeof g.name === 'string' ? g.name.slice(0, 100) : '';
+      const color = GROUP_COLORS.includes(g.color as GroupColor) ? (g.color as GroupColor) : 'blue';
+      // Rejoin a group of the same name and color if this window has one.
+      const existing = this.groups.find((x) => x.name === name && x.color === color && name !== '');
+      if (existing) groupId = existing.id;
+      else {
+        groupId = this.#nextGroupId++;
+        this.groups.push({ id: groupId, name, color, collapsed: false });
+      }
+    }
+    const tab: Tab = {
+      id: this.#nextId++,
+      root,
+      focusedPaneId: (typeof t.focused === 'number' && ids[t.focused]) || ids[0],
+      zoomedPaneId: null,
+      activity: false,
+      finished: null,
+      groupId,
+    };
+    const last = groupId === null ? -1 : this.list.findLastIndex((x) => x.groupId === groupId);
+    this.list.splice(last < 0 ? this.list.length : last + 1, 0, tab);
+    this.activate(tab.id);
+    return true;
+  }
+
+  /** Drops a tab from this window without recording it as closed. */
+  #forget(id: number) {
+    const i = this.#index(id);
+    if (i < 0) return;
+    const wasActive = this.activeId === id;
+    this.list.splice(i, 1);
+    this.#pruneGroups();
+    if (this.list.length === 0) {
+      this.onEmpty();
+      return;
+    }
+    if (wasActive) {
+      const next = this.#nearestVisible(Math.min(i, this.list.length - 1));
+      if (next) this.activate(next.id);
+      else this.open({ cwd: '' });
+    }
+  }
+
+  #load(n: unknown, depth: number, live = false): LayoutNode | null {
     if (!isObject(n) || depth > MAX_SAVED_DEPTH) return null;
-    if (typeof n.cwd === 'string') return { kind: 'pane', pane: this.#newPane(n.cwd) };
+    if (typeof n.cwd === 'string') {
+      const pane = this.#newPane(n.cwd);
+      if (live && typeof n.sessionId === 'string') {
+        pane.sessionId = n.sessionId;
+        if (typeof n.buffer === 'string') pane.restoreBuffer = n.buffer;
+      }
+      return { kind: 'pane', pane };
+    }
     if (n.dir !== 'row' && n.dir !== 'column') return null;
-    const a = this.#load(n.a, depth + 1);
-    const b = this.#load(n.b, depth + 1);
+    const a = this.#load(n.a, depth + 1, live);
+    const b = this.#load(n.b, depth + 1, live);
     if (!a || !b) return a ?? b;
     const ratio = typeof n.ratio === 'number' && Number.isFinite(n.ratio) ? clampRatio(n.ratio) : 0.5;
     return { kind: 'split', dir: n.dir, ratio, a, b };

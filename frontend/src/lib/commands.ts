@@ -1,5 +1,6 @@
 import { Clipboard } from '@wailsio/runtime';
 import { Service as ConfigService } from '../../bindings/github.com/dayanraj/wtf/internal/config';
+import { closeActivePane, closeTab, closeWindow } from './closing';
 import { overlay } from './overlay.svelte';
 import { isMac } from './platform';
 import { search } from './search.svelte';
@@ -7,6 +8,7 @@ import { settings } from './settings.svelte';
 import { tabs } from './tabs.svelte';
 import { activeTerminal } from './terminals';
 import { toast } from './toast.svelte';
+import { closeThisWindow, moveTabToNewWindow, Windows } from './window';
 
 export interface Command {
   /** Stable name; the Go menu emits these. */
@@ -47,7 +49,11 @@ export const commands: Command[] = [
 
   { id: 'tab.new', label: 'New Tab', mac: '⌘T', other: 'Ctrl+Shift+T', run: () => tabs.open() },
   { id: 'tab.duplicate', label: 'Duplicate Tab', run: () => tabs.duplicate() },
-  { id: 'tab.close', label: 'Close Tab', mac: '⌥⌘W', run: () => tabs.closeActive() },
+  { id: 'tab.close', label: 'Close Tab', mac: '⌥⌘W', run: () => tabs.activeId !== null && closeTab(tabs.activeId) },
+  { id: 'tab.overview', label: 'Show All Tabs', mac: '⌘⇧\\', other: 'Ctrl+Shift+\\', run: () => overlay.toggleOverview() },
+  { id: 'tab.toNewWindow', label: 'Move Tab to New Window', run: () => tabs.activeId !== null && moveTabToNewWindow(tabs.activeId) },
+  { id: 'window.new', label: 'New Window', mac: '⌘N', other: 'Ctrl+Shift+N', run: () => Windows.NewWindow('', -1, -1) },
+  { id: 'window.close', label: 'Close Window', mac: '⌘⇧W', run: () => closeWindow(closeThisWindow) },
   { id: 'tab.reopen', label: 'Reopen Closed Tab', mac: '⌘⇧T', run: () => tabs.reopen() },
   { id: 'tab.next', label: 'Next Tab', mac: '⌘⇧]', other: 'Ctrl+PgDn', run: () => tabs.cycle(1) },
   { id: 'tab.prev', label: 'Previous Tab', mac: '⌘⇧[', other: 'Ctrl+PgUp', run: () => tabs.cycle(-1) },
@@ -57,7 +63,7 @@ export const commands: Command[] = [
 
   { id: 'pane.splitRight', label: 'Split Right', mac: '⌘D', other: 'Ctrl+Shift+E', run: () => tabs.split('row') },
   { id: 'pane.splitDown', label: 'Split Down', mac: '⌘⇧D', other: 'Ctrl+Shift+O', run: () => tabs.split('column') },
-  { id: 'pane.close', label: 'Close Pane', mac: '⌘W', other: 'Ctrl+Shift+W', run: () => tabs.closeActivePane() },
+  { id: 'pane.close', label: 'Close Pane', mac: '⌘W', other: 'Ctrl+Shift+W', run: closeActivePane },
   { id: 'pane.zoom', label: 'Toggle Pane Zoom', mac: '⌘⇧↩', other: 'Ctrl+Shift+Enter', run: () => tabs.toggleZoom(), available: hasSplits },
   { id: 'pane.next', label: 'Next Pane', mac: '⌘]', run: () => tabs.cyclePane(1), available: hasSplits },
   { id: 'pane.prev', label: 'Previous Pane', mac: '⌘[', run: () => tabs.cyclePane(-1), available: hasSplits },
@@ -139,6 +145,8 @@ function shortcutFor(e: KeyboardEvent): string | null {
       case 'ArrowDown': return 'prompt.next';
       case 'KeyP': return 'palette';
       case 'KeyT': return 'tab.new';
+      case 'KeyN': return 'window.new';
+      case 'Backslash': return 'tab.overview';
       case 'KeyW': return 'pane.close';
       case 'KeyG': return 'tab.group';
       case 'KeyE': return 'pane.splitRight';

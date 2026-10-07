@@ -2,6 +2,7 @@
   import { onMount } from 'svelte';
   import Popover from './Popover.svelte';
   import Icon from './Icon.svelte';
+  import { closeGroup } from '../lib/closing';
   import { overlay } from '../lib/overlay.svelte';
   import { GROUP_COLORS, tabs } from '../lib/tabs.svelte';
 
@@ -20,9 +21,12 @@
     if (!group) overlay.close();
   });
 
-  function act(action: () => void) {
+  // Props are read live from overlay state, which closing clears, so take
+  // what the action needs before closing.
+  function act(action: (groupId: number) => void) {
+    const id = groupId;
     overlay.close();
-    action();
+    action(id);
   }
 </script>
 
@@ -57,13 +61,13 @@
 
       <div class="separator"></div>
 
-      <button class="action" onclick={() => act(() => tabs.newTabInGroup(groupId))}>
+      <button class="action" onclick={() => act((id) => tabs.newTabInGroup(id))}>
         <Icon name="plus" size={14} /> New tab in group
       </button>
-      <button class="action" onclick={() => act(() => tabs.ungroup(groupId))}>
+      <button class="action" onclick={() => act((id) => tabs.ungroup(id))}>
         <Icon name="ungroup" size={14} /> Ungroup
       </button>
-      <button class="action danger" onclick={() => act(() => tabs.closeGroup(groupId))}>
+      <button class="action danger" onclick={() => act((id) => closeGroup(id))}>
         <Icon name="x" size={14} /> Close group
       </button>
     </div>

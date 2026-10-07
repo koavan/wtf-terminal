@@ -26,3 +26,12 @@ export interface Info {
     "cwd": string;
     "isShell": boolean;
 }
+
+/**
+ * Running describes a program other than the shell running in a session.
+ */
+export interface Running {
+    "window": string;
+    "process": string;
+    "cwd": string;
+}

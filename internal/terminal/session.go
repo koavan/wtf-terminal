@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"syscall"
 
 	"github.com/creack/pty"
@@ -31,7 +32,11 @@ type Session struct {
 
 	exitCode  int
 	closeOnce sync.Once
+	closed    atomic.Bool
 	attachMu  sync.Mutex // allows only one stream consumer at a time
+
+	// Window that shows this session; guarded by Service.mu.
+	window string
 }
 
 type spawnOptions struct {
@@ -116,6 +121,7 @@ func (s *Session) Resize(cols, rows uint16) error {
 
 // Close hangs up the terminal, which makes the shell and its jobs exit.
 func (s *Session) Close() {
+	s.closed.Store(true)
 	s.closeOnce.Do(func() {
 		if s.cmd.Process != nil {
 			// Negative pid signals the whole process group the shell leads.

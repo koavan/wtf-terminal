@@ -2,25 +2,45 @@
   import { onMount } from 'svelte';
   import { Events, Window } from '@wailsio/runtime';
   import AddressBar from './components/AddressBar.svelte';
-  import ContextMenu from './components/ContextMenu.svelte';
-  import GroupEditor from './components/GroupEditor.svelte';
-  import Palette from './components/Palette.svelte';
+  import Overlays from './components/Overlays.svelte';
   import TabPanes from './components/TabPanes.svelte';
   import TabStrip from './components/TabStrip.svelte';
   import Toast from './components/Toast.svelte';
+  import { prettyPath } from './lib/backend';
+  import { closeWindow } from './lib/closing';
   import { installShortcuts, runCommand } from './lib/commands';
   import { overlay } from './lib/overlay.svelte';
   import { isMac } from './lib/platform';
   import { autosave, restoreSession } from './lib/session.svelte';
   import { settings } from './lib/settings.svelte';
   import { applyChrome } from './lib/themes';
-  import { tabs } from './lib/tabs.svelte';
+  import { focusedPane, paneTitle, tabs } from './lib/tabs.svelte';
+  import { closeThisWindow, thisWindow, Windows } from './lib/window';
 
   let fullscreen = $state(false);
 
   onMount(() => {
+    const me = thisWindow.name;
+    tabs.onEmpty = closeThisWindow;
     const cleanups = [
-      Events.On('app:command', (e) => runCommand(e.data)),
+      // Events reach every window; each acts only on its own.
+      Events.On('app:command', (e) => e.data.window === me && runCommand(e.data.name)),
+      Events.On('window:closeRequested', (e) => e.data === me && closeWindow(closeThisWindow)),
+      Events.On('window:adopt', (e) => e.data.window === me && tabs.adopt(JSON.parse(e.data.payload))),
+      Events.On('app:quitRequested', (e) => {
+        if (e.data.window !== me) return;
+        const running = e.data.running ?? [];
+        overlay.confirm({
+          title: 'Quit wtf?',
+          message:
+            running.length === 1
+              ? 'A program is still running. Quitting will end it.'
+              : `${running.length} programs are still running. Quitting will end them.`,
+          items: running.map((r) => `${r.process} — ${prettyPath(r.cwd)}`),
+          confirmLabel: 'Quit',
+          onConfirm: () => Windows.Quit(),
+        });
+      }),
       Events.On('terminal:exit', (e) => tabs.onSessionExit(e.data.id)),
       Events.On('terminal:info', (e) => tabs.applyInfo(e.data)),
       installShortcuts(),
@@ -30,17 +50,22 @@
     const onResize = () => Window.IsFullscreen().then((f) => (fullscreen = f));
     window.addEventListener('resize', onResize);
 
-    let stopSaving: (() => void) | undefined;
-    restoreSession().then((restored) => {
+    restoreSession(me).then((restored) => {
       if (!restored) tabs.open();
-      stopSaving = autosave();
+      autosave(me);
     });
 
     return () => {
-      stopSaving?.();
       cleanups.forEach((off) => off());
       window.removeEventListener('resize', onResize);
     };
+  });
+
+  // The window title (Window menu, Mission Control) follows the active tab.
+  $effect(() => {
+    const tab = tabs.active;
+    const title = tab ? paneTitle(focusedPane(tab), prettyPath) : 'wtf';
+    Windows.SetTitle(thisWindow.name, title);
   });
 
   // The whole window follows the active theme.
@@ -72,17 +97,7 @@
 
 <Toast />
 
-{#if overlay.current?.kind === 'menu'}
-  <ContextMenu x={overlay.current.x} y={overlay.current.y} entries={overlay.current.entries} />
-{:else if overlay.current?.kind === 'palette'}
-  {#key overlay.current.mode}
-    <Palette mode={overlay.current.mode} />
-  {/key}
-{:else if overlay.current?.kind === 'group'}
-  {#key overlay.current.groupId}
-    <GroupEditor groupId={overlay.current.groupId} anchor={overlay.current.anchor} />
-  {/key}
-{/if}
+<Overlays />
 
 <style>
   .app {

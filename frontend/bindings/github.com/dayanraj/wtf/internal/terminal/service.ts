@@ -10,6 +10,13 @@ import { Call as $Call, CancellablePromise as $CancellablePromise } from "@wails
 import * as $models from "./models.js";
 
 /**
+ * Adopt hands a running session to another window (a tab moved there).
+ */
+export function Adopt(id: string, window: string): $CancellablePromise<void> {
+    return $Call.ByID(4212816944, id, window);
+}
+
+/**
  * Close hangs up a session. The exit event follows once the shell is gone.
  */
 export function Close(id: string): $CancellablePromise<void> {
@@ -17,10 +24,18 @@ export function Close(id: string): $CancellablePromise<void> {
 }
 
 /**
- * Create starts a new shell. An empty or invalid cwd falls back to $HOME.
+ * CloseWindow hangs up every session shown in a window that went away.
  */
-export function Create(cols: number, rows: number, cwd: string): $CancellablePromise<string> {
-    return $Call.ByID(2625746890, cols, rows, cwd);
+export function CloseWindow(window: string): $CancellablePromise<void> {
+    return $Call.ByID(2817772054, window);
+}
+
+/**
+ * Create starts a new shell for a window. An empty or invalid cwd falls
+ * back to $HOME.
+ */
+export function Create(window: string, cols: number, rows: number, cwd: string): $CancellablePromise<string> {
+    return $Call.ByID(2625746890, window, cols, rows, cwd);
 }
 
 /**
@@ -39,4 +54,12 @@ export function Home(): $CancellablePromise<string> {
 
 export function Resize(id: string, cols: number, rows: number): $CancellablePromise<void> {
     return $Call.ByID(1837780578, id, cols, rows);
+}
+
+/**
+ * RunningProcesses lists sessions that are busy with something other than
+ * their shell, so quitting can ask first.
+ */
+export function RunningProcesses(): $CancellablePromise<$models.Running[] | null> {
+    return $Call.ByID(2596160610);
 }

@@ -10,7 +10,18 @@ export type MenuEntry =
 export type OverlayState =
   | { kind: 'menu'; x: number; y: number; entries: MenuEntry[] }
   | { kind: 'group'; groupId: number; anchor: DOMRect }
-  | { kind: 'palette'; mode: PaletteMode };
+  | { kind: 'palette'; mode: PaletteMode }
+  | { kind: 'overview' }
+  | ({ kind: 'confirm' } & ConfirmRequest);
+
+export interface ConfirmRequest {
+  title: string;
+  message: string;
+  /** Things that will be lost, e.g. running programs. */
+  items: string[];
+  confirmLabel: string;
+  onConfirm: () => void;
+}
 
 export type PaletteMode = 'commands' | 'themes';
 
@@ -21,6 +32,15 @@ class Overlay {
   togglePalette(mode: PaletteMode = 'commands') {
     if (this.current?.kind === 'palette' && this.current.mode === mode) this.close();
     else this.current = { kind: 'palette', mode };
+  }
+
+  toggleOverview() {
+    if (this.current?.kind === 'overview') this.close();
+    else this.current = { kind: 'overview' };
+  }
+
+  confirm(request: ConfirmRequest) {
+    this.current = { kind: 'confirm', ...request };
   }
 
   openMenu(x: number, y: number, entries: MenuEntry[]) {

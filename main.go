@@ -12,21 +12,13 @@ import (
 	"github.com/dayanraj/wtf/internal/notify"
 	"github.com/dayanraj/wtf/internal/state"
 	"github.com/dayanraj/wtf/internal/terminal"
+	wtfwindows "github.com/dayanraj/wtf/internal/windows"
 )
 
 const version = "0.1.0"
 
 //go:embed all:frontend/dist
 var assets embed.FS
-
-// EventCommand carries a UI command (e.g. "tab.new") from the native menu to
-// the frontend. On Linux there is no global menu bar, so the frontend binds
-// the same commands to keyboard shortcuts itself.
-const EventCommand = "app:command"
-
-func init() {
-	application.RegisterEvent[string](EventCommand)
-}
 
 func main() {
 	stateDir, err := state.DefaultDir()
@@ -42,15 +34,19 @@ func main() {
 		c := cfg.Current().Config
 		return c.Shell, c.ShellIntegration
 	}
+	term := terminal.NewService(version, shellSettings)
+	store := state.NewStore(stateDir)
+	windows := wtfwindows.NewManager(term, store, windowOptions)
 
 	app := application.New(application.Options{
 		Name:        "wtf",
 		Description: "A browser-like terminal",
 		Services: []application.Service{
 			application.NewService(cfg),
-			application.NewService(terminal.NewService(version, shellSettings)),
-			application.NewService(state.NewService(state.NewStore(stateDir))),
+			application.NewService(term),
+			application.NewService(state.NewService(store)),
 			application.NewService(notify.NewService()),
+			application.NewService(windows.Service()),
 		},
 		Assets: application.AssetOptions{
 			Handler: application.AssetFileServerFS(assets),
@@ -58,13 +54,21 @@ func main() {
 		Mac: application.MacOptions{
 			ApplicationShouldTerminateAfterLastWindowClosed: true,
 		},
+		ShouldQuit: windows.ShouldQuit,
 	})
 
 	if runtime.GOOS == "darwin" {
-		app.Menu.SetApplicationMenu(buildMenu(app))
+		app.Menu.SetApplicationMenu(buildMenu(windows))
 	}
+	windows.Start(app)
 
-	app.Window.NewWithOptions(application.WebviewWindowOptions{
+	if err := app.Run(); err != nil {
+		log.Fatal(err)
+	}
+}
+
+func windowOptions() application.WebviewWindowOptions {
+	return application.WebviewWindowOptions{
 		Title:     "wtf",
 		Width:     1100,
 		Height:    700,
@@ -82,17 +86,13 @@ func main() {
 		},
 		BackgroundColour: application.NewRGBA(0, 0, 0, 0),
 		URL:              "/",
-	})
-
-	if err := app.Run(); err != nil {
-		log.Fatal(err)
 	}
 }
 
-func buildMenu(app *application.App) *application.Menu {
+func buildMenu(windows *wtfwindows.Manager) *application.Menu {
 	cmd := func(m *application.Menu, label, accel, command string) {
 		item := m.Add(label).OnClick(func(*application.Context) {
-			app.Event.Emit(EventCommand, command)
+			windows.SendCommand(command)
 		})
 		if accel != "" {
 			item.SetAccelerator(accel)
@@ -116,15 +116,17 @@ func buildMenu(app *application.App) *application.Menu {
 
 	shell := menu.AddSubmenu("Shell")
 	cmd(shell, "New Tab", "CmdOrCtrl+t", "tab.new")
+	cmd(shell, "New Window", "CmdOrCtrl+n", "window.new")
 	cmd(shell, "Split Right", "CmdOrCtrl+d", "pane.splitRight")
 	cmd(shell, "Split Down", "CmdOrCtrl+shift+d", "pane.splitDown")
 	cmd(shell, "Duplicate Tab", "", "tab.duplicate")
+	cmd(shell, "Move Tab to New Window", "", "tab.toNewWindow")
 	shell.AddSeparator()
 	cmd(shell, "Close", "CmdOrCtrl+w", "pane.close")
 	cmd(shell, "Close Tab", "CmdOrCtrl+OptionOrAlt+w", "tab.close")
 	cmd(shell, "Reopen Closed Tab", "CmdOrCtrl+shift+t", "tab.reopen")
 	shell.AddSeparator()
-	shell.AddRole(application.CloseWindow)
+	cmd(shell, "Close Window", "CmdOrCtrl+shift+w", "window.close")
 
 	edit := menu.AddSubmenu("Edit")
 	edit.AddRole(application.Copy)
@@ -151,6 +153,8 @@ func buildMenu(app *application.App) *application.Menu {
 	view.AddRole(application.ToggleFullscreen)
 
 	tabs := menu.AddSubmenu("Tab")
+	cmd(tabs, "Show All Tabs", "CmdOrCtrl+shift+\\", "tab.overview")
+	tabs.AddSeparator()
 	cmd(tabs, "Show Next Tab", "CmdOrCtrl+shift+]", "tab.next")
 	cmd(tabs, "Show Previous Tab", "CmdOrCtrl+shift+[", "tab.prev")
 	cmd(tabs, "Move Tab Right", "CmdOrCtrl+shift+right", "tab.moveRight")

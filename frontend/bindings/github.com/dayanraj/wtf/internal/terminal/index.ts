@@ -9,5 +9,6 @@ export {
 export type {
     Endpoint,
     ExitEvent,
-    Info
+    Info,
+    Running
 } from "./models.js";

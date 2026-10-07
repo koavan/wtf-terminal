@@ -11,15 +11,8 @@
 import { Call as $Call, CancellablePromise as $CancellablePromise } from "@wailsio/runtime";
 
 /**
- * LoadSession returns the saved session JSON, or "" when there is none.
+ * SaveWindow saves a window's session JSON.
  */
-export function LoadSession(): $CancellablePromise<string> {
-    return $Call.ByID(3244171753);
-}
-
-/**
- * SaveSession replaces the saved session with the given JSON.
- */
-export function SaveSession(data: string): $CancellablePromise<void> {
-    return $Call.ByID(519736118, data);
+export function SaveWindow(name: string, data: string): $CancellablePromise<void> {
+    return $Call.ByID(2321185566, name, data);
 }

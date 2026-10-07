@@ -4,9 +4,11 @@
   import { cubicOut } from 'svelte/easing';
   import Icon, { iconForProcess } from './Icon.svelte';
   import { prettyPath } from '../lib/backend';
+  import { closeTab, closeTabs } from '../lib/closing';
   import { overlay, type MenuEntry } from '../lib/overlay.svelte';
   import { isMac } from '../lib/platform';
   import { focusedPane, paneTitle, tabs, type Group, type Tab } from '../lib/tabs.svelte';
+  import { moveTabToNewWindow, moveTabToWindow, otherWindows } from '../lib/window';
 
   type Item =
     | { kind: 'chip'; key: string; group: Group; count: number }
@@ -37,7 +39,14 @@
     grabX: number;
     offset: number;
     moved: boolean;
+    startY: number;
+    /** Pulled far enough out of the strip that letting go opens a new window. */
+    tearing: boolean;
+    offsetY: number;
   }
+
+  /** How far below the strip a tab must be pulled to tear off. */
+  const TEAR_DISTANCE = 56;
 
   let stripEl: HTMLDivElement;
   let drag = $state<Drag | null>(null);
@@ -56,6 +65,9 @@
       grabX: e.clientX - el.getBoundingClientRect().left,
       offset: 0,
       moved: false,
+      startY: e.clientY,
+      tearing: false,
+      offsetY: 0,
     };
     el.setPointerCapture(e.pointerId);
   }
@@ -65,8 +77,18 @@
   async function onPointerMove(e: PointerEvent) {
     const d = drag;
     if (!d) return;
-    if (!d.moved && Math.abs(e.clientX - d.startX) < 4) return;
+    if (!d.moved && Math.abs(e.clientX - d.startX) < 4 && Math.abs(e.clientY - d.startY) < 4) return;
     d.moved = true;
+
+    // Pulled out of the strip (down, or outside the window): tear off.
+    const strip = stripEl.getBoundingClientRect();
+    const outside = e.clientX < 0 || e.clientX > window.innerWidth || e.clientY < 0;
+    d.tearing = tabs.list.length > 1 && (outside || e.clientY > strip.bottom + TEAR_DISTANCE);
+    d.offsetY = d.tearing ? e.clientY - d.startY : 0;
+    if (d.tearing) {
+      d.offset = e.clientX - d.startX;
+      return;
+    }
 
     const maxLeft = stripEl.scrollWidth - d.el.offsetWidth;
     const left = Math.max(0, Math.min(e.clientX - stripEl.getBoundingClientRect().left - d.grabX, maxLeft));
@@ -86,20 +108,27 @@
     if (drag === d) d.offset = left - d.el.offsetLeft;
   }
 
-  function endDrag() {
+  function endDrag(e: PointerEvent) {
+    const d = drag;
     drag = null;
+    if (d?.tearing && e.type === 'pointerup') {
+      // Place the new window so the tab lands under the pointer.
+      moveTabToNewWindow(d.id, e.screenX - d.grabX - 90, e.screenY - 20);
+    }
   }
 
   function onAuxClick(e: MouseEvent, tab: Tab) {
-    if (e.button === 1) tabs.close(tab.id); // middle-click closes, like a browser
+    if (e.button === 1) closeTab(tab.id); // middle-click closes, like a browser
   }
 
   function groupLabel(g: Group) {
     return g.name || 'Unnamed group';
   }
 
-  function tabMenu(e: MouseEvent, tab: Tab) {
+  async function tabMenu(e: MouseEvent, tab: Tab) {
     e.preventDefault();
+    const { clientX, clientY } = e;
+    const windows = await otherWindows();
     const index = tabs.list.indexOf(tab);
     const others = tabs.groups.filter((g) => g.id !== tab.groupId);
     const entries: MenuEntry[] = [
@@ -126,16 +155,30 @@
     entries.push(
       'separator',
       { label: 'Duplicate', action: () => tabs.openNextTo(tab.id, true) },
-      'separator',
-      { label: 'Close tab', hint: hint('⌥⌘W', ''), action: () => tabs.close(tab.id) },
     );
     if (tabs.list.length > 1) {
-      entries.push({ label: 'Close other tabs', action: () => tabs.closeOthers(tab.id) });
+      entries.push('separator', { label: 'Move to new window', action: () => moveTabToNewWindow(tab.id) });
+    }
+    if (windows.length) {
+      if (tabs.list.length === 1) entries.push('separator');
+      for (const w of windows) {
+        entries.push({ label: `Move to “${w.title || w.name}”`, action: () => moveTabToWindow(tab.id, w.name) });
+      }
+    }
+    entries.push('separator', { label: 'Close tab', hint: hint('⌥⌘W', ''), action: () => closeTab(tab.id) });
+    if (tabs.list.length > 1) {
+      entries.push({
+        label: 'Close other tabs',
+        action: () => closeTabs(tabs.list.filter((t) => t.id !== tab.id).map((t) => t.id)),
+      });
     }
     if (index < tabs.list.length - 1) {
-      entries.push({ label: 'Close tabs to the right', action: () => tabs.closeToTheRight(tab.id) });
+      entries.push({
+        label: 'Close tabs to the right',
+        action: () => closeTabs(tabs.list.slice(index + 1).map((t) => t.id)),
+      });
     }
-    overlay.openMenu(e.clientX, e.clientY, entries);
+    overlay.openMenu(clientX, clientY, entries);
   }
 
   function chipMenu(e: MouseEvent, group: Group) {
@@ -189,7 +232,8 @@
           class:grouped={!!item.group}
           class:group-end={item.groupEnd}
           style:--group-color={item.group ? `var(--g-${item.group.color})` : null}
-          style:transform={dragging ? `translateX(${drag!.offset}px)` : null}
+          class:tearing={dragging && drag!.tearing}
+          style:transform={dragging ? `translate(${drag!.offset}px, ${drag!.offsetY}px)` : null}
           data-id={tab.id}
           role="tab"
           tabindex="-1"
@@ -211,7 +255,7 @@
             aria-label="Close tab"
             onclick={(e) => {
               e.stopPropagation();
-              tabs.close(tab.id);
+              closeTab(tab.id);
             }}
           >
             <Icon name="x" size={11} stroke={2.25} />
@@ -284,6 +328,15 @@
     transition: none;
     z-index: 1;
     box-shadow: var(--tab-drag-shadow);
+  }
+  /* Lifted out of the strip: letting go opens it in a new window. */
+  .tab.tearing {
+    z-index: 50;
+    opacity: 0.92;
+    background: var(--popover-solid);
+    color: var(--chrome-text);
+    box-shadow: var(--popover-shadow);
+    scale: 1.03;
   }
 
   /* Group members share a colored line that runs under the chip and tabs. */

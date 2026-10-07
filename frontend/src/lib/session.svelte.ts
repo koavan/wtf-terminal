@@ -1,4 +1,5 @@
 import { Service as StateService } from '../../bindings/github.com/dayanraj/wtf/internal/state';
+import { Service as Windows } from '../../bindings/github.com/dayanraj/wtf/internal/windows';
 import { settings } from './settings.svelte';
 import { tabs, type SavedTabs } from './tabs.svelte';
 
@@ -10,12 +11,16 @@ interface SavedSession extends SavedTabs {
   fontSize: number;
 }
 
-/** Restores the last session. False means there was none (or it was unusable). */
-export async function restoreSession(): Promise<boolean> {
+/**
+ * Sets up this window from what the window manager hands it: its saved
+ * session, or a tab moved here from another window. False means start fresh.
+ */
+export async function restoreSession(windowName: string): Promise<boolean> {
   try {
-    const raw = await StateService.LoadSession();
+    const raw = await Windows.Bootstrap(windowName);
     if (!raw) return false;
-    const data = JSON.parse(raw) as Partial<SavedSession>;
+    const data = JSON.parse(raw) as Partial<SavedSession> & { kind?: string };
+    if (data?.kind === 'tab') return tabs.adopt(data);
     if (data?.version !== VERSION) return false;
     // Before the panes mount, so terminals open at the right size.
     if (typeof data.fontSize === 'number') settings.setFontSize(data.fontSize);
@@ -26,15 +31,24 @@ export async function restoreSession(): Promise<boolean> {
   }
 }
 
+let stop: (() => void) | undefined;
+
+/** Stops saving, e.g. because this window is closing for good. */
+export function stopAutosave() {
+  stop?.();
+  stop = undefined;
+}
+
 /**
- * Saves the session shortly after anything in it changes: tabs, groups,
- * layouts, folders, text size. Returns a function that stops saving.
+ * Saves this window's session shortly after anything in it changes: tabs,
+ * groups, layouts, folders, text size.
  */
-export function autosave(): () => void {
+export function autosave(windowName: string) {
   let timer: ReturnType<typeof setTimeout> | undefined;
   let last = '';
 
-  return $effect.root(() => {
+  stopAutosave();
+  stop = $effect.root(() => {
     $effect(() => {
       const session: SavedSession = { version: VERSION, fontSize: settings.fontSize, ...tabs.snapshot() };
       const json = JSON.stringify(session);
@@ -42,7 +56,7 @@ export function autosave(): () => void {
       timer = setTimeout(() => {
         if (json === last) return;
         last = json;
-        StateService.SaveSession(json).catch((err) => console.warn('could not save session', err));
+        StateService.SaveWindow(windowName, json).catch((err) => console.warn('could not save session', err));
       }, SAVE_DELAY_MS);
     });
     return () => clearTimeout(timer);

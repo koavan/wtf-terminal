@@ -22,6 +22,8 @@ Requires Go 1.25+, Node 20+, and `wails3` (`go install github.com/wailsapp/wails
 - `internal/config`: config file, themes (built-in, Ghostty, iTerm2), live reload.
 - `internal/terminal/shellintegration`: the bash/zsh scripts.
 - `internal/notify`: desktop notifications.
+- `internal/windows`: opening/restoring windows, moving tabs between them,
+  confirm-before-close/quit.
 - `frontend/src/lib`: tab/group/pane state (`tabs.svelte.ts`), split geometry
   (`layout.ts`), the command registry (`commands.ts`), session autosave, themes.
 - `frontend/src/components`: tab strip, address bar, panes, palette, search, menus.
@@ -34,6 +36,9 @@ Every command is also in the command palette.
 |---|---|---|
 | Command palette | ⌘⇧P | Ctrl+Shift+P |
 | New tab | ⌘T | Ctrl+Shift+T |
+| New window | ⌘N | Ctrl+Shift+N |
+| Show all tabs | ⌘⇧\ | Ctrl+Shift+\ |
+| Close window | ⌘⇧W | — |
 | Split right / down | ⌘D / ⌘⇧D | Ctrl+Shift+E / Ctrl+Shift+O |
 | Close pane (or tab, if it's the last pane) | ⌘W | Ctrl+Shift+W |
 | Close tab | ⌥⌘W | — |
@@ -53,6 +58,13 @@ Every command is also in the command palette.
 | Text size | ⌘= / ⌘- / ⌘0 | Ctrl+Shift+= / - / 0 |
 
 Right-click a tab or a group chip for more. Double-click a split divider to even it out.
+
+## Windows
+
+Drag a tab down out of the tab strip (or outside the window) and let go to
+open it in a new window; its shells keep running and its scrollback comes
+along. Right-click a tab to move it to another window. Closing a pane, tab,
+group or window, or quitting, asks first when a program is still running.
 
 ## Settings and themes
 
@@ -76,7 +88,7 @@ when a long command finishes out of sight. Turn it off with
 
 ## Session
 
-Tabs, groups, split layouts, folders and text size are saved to
+Each window's tabs, groups, split layouts, folders and text size are saved to
 `session.json` in the user config dir (`~/Library/Application Support/wtf`
 on macOS, `~/.config/wtf` on Linux) and restored on launch. Shells start
 fresh in their saved folders.

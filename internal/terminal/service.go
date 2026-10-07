@@ -120,8 +120,9 @@ func (s *Service) Endpoint() Endpoint {
 // Home returns the user's home directory, for prettifying paths.
 func (s *Service) Home() string { return s.home }
 
-// Create starts a new shell. An empty or invalid cwd falls back to $HOME.
-func (s *Service) Create(cols, rows int, cwd string) (string, error) {
+// Create starts a new shell for a window. An empty or invalid cwd falls
+// back to $HOME.
+func (s *Service) Create(window string, cols, rows int, cwd string) (string, error) {
 	if fi, err := os.Stat(cwd); cwd == "" || err != nil || !fi.IsDir() {
 		cwd = s.home
 	}
@@ -154,6 +155,7 @@ func (s *Service) Create(cols, rows int, cwd string) (string, error) {
 	}
 
 	s.mu.Lock()
+	sess.window = window
 	s.sessions[id] = sess
 	s.mu.Unlock()
 
@@ -169,6 +171,66 @@ func (s *Service) Create(cols, rows int, cwd string) (string, error) {
 		}
 	}()
 	return id, nil
+}
+
+// Adopt hands a running session to another window (a tab moved there).
+func (s *Service) Adopt(id, window string) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	sess := s.sessions[id]
+	if sess == nil {
+		return fmt.Errorf("no session %q", id)
+	}
+	sess.window = window
+	return nil
+}
+
+// CloseWindow hangs up every session shown in a window that went away.
+func (s *Service) CloseWindow(window string) {
+	s.mu.Lock()
+	var doomed []*Session
+	for _, sess := range s.sessions {
+		if sess.window == window {
+			doomed = append(doomed, sess)
+		}
+	}
+	s.mu.Unlock()
+	for _, sess := range doomed {
+		sess.Close()
+	}
+}
+
+// Running describes a program other than the shell running in a session.
+type Running struct {
+	Window  string `json:"window"`
+	Process string `json:"process"`
+	Cwd     string `json:"cwd"`
+}
+
+// RunningProcesses lists sessions that are busy with something other than
+// their shell, so quitting can ask first.
+func (s *Service) RunningProcesses() []Running {
+	s.mu.Lock()
+	all := make([]*Session, 0, len(s.sessions))
+	for _, sess := range s.sessions {
+		if !sess.closed.Load() {
+			all = append(all, sess)
+		}
+	}
+	s.mu.Unlock()
+
+	out := []Running{}
+	for _, sess := range all {
+		info, err := sess.info()
+		if err != nil || info.IsShell || info.Process == "" {
+			continue
+		}
+		s.mu.Lock()
+		window := sess.window
+		s.mu.Unlock()
+		out = append(out, Running{Window: window, Process: info.Process, Cwd: info.Cwd})
+	}
+	return out
 }
 
 func (s *Service) Resize(id string, cols, rows int) error {

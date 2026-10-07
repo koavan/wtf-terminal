@@ -11,14 +11,20 @@ import type * as config$0 from "../../../../dayanraj/wtf/internal/config/models.
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore: Unused imports
 import type * as terminal$0 from "../../../../dayanraj/wtf/internal/terminal/models.js";
+// eslint-disable-next-line @typescript-eslint/ban-ts-comment
+// @ts-ignore: Unused imports
+import type * as windows$0 from "../../../../dayanraj/wtf/internal/windows/models.js";
 
 declare module "@wailsio/runtime" {
     namespace Events {
         interface CustomEvents {
-            "app:command": string;
+            "app:command": windows$0.Command;
+            "app:quitRequested": windows$0.QuitRequest;
             "config:changed": config$0.Resolved;
             "terminal:exit": terminal$0.ExitEvent;
             "terminal:info": terminal$0.Info;
+            "window:adopt": windows$0.Adoption;
+            "window:closeRequested": string;
         }
     }
 }

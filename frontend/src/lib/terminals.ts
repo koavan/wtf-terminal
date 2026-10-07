@@ -11,6 +11,10 @@ export interface TerminalHandle {
   jumpPrompt(direction: -1 | 1): void;
   /** Output of the last finished command, or null. Needs shell integration. */
   lastOutput(): string | null;
+  /** Scrollback with colors, to carry a tab to another window. */
+  serialize(): string;
+  /** The last `rows` lines on screen, as plain text (tab overview). */
+  snapshot(rows: number): string[];
 }
 
 const handles = new Map<number, TerminalHandle>();
@@ -18,6 +22,10 @@ const handles = new Map<number, TerminalHandle>();
 export function registerTerminal(paneId: number, handle: TerminalHandle): () => void {
   handles.set(paneId, handle);
   return () => handles.delete(paneId);
+}
+
+export function terminalFor(paneId: number): TerminalHandle | undefined {
+  return handles.get(paneId);
 }
 
 /** The terminal with keyboard focus: the focused pane of the active tab. */

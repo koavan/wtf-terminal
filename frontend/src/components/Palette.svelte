@@ -114,7 +114,7 @@
     input?.focus();
     if (mode === 'themes') {
       ConfigService.Themes().then(async (all) => {
-        themes = all;
+        themes = all ?? [];
         await tick();
         // Start on the theme in use.
         const spec = settings.config.theme.trim().toLowerCase();

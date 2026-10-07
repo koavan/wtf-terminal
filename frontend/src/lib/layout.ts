@@ -18,6 +18,8 @@ export interface Pane {
   running: boolean;
   command: string;
   lastCommand: FinishedCommand | null;
+  /** Scrollback carried over from another window, written once on mount. */
+  restoreBuffer?: string;
 }
 
 export interface FinishedCommand {

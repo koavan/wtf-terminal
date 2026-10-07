@@ -3,6 +3,7 @@
   import { Terminal } from '@xterm/xterm';
   import { FitAddon } from '@xterm/addon-fit';
   import { SearchAddon } from '@xterm/addon-search';
+  import { SerializeAddon } from '@xterm/addon-serialize';
   import { WebglAddon } from '@xterm/addon-webgl';
   import { WebLinksAddon } from '@xterm/addon-web-links';
   import { Unicode11Addon } from '@xterm/addon-unicode11';
@@ -14,9 +15,10 @@
   import { PromptTracker } from '../lib/prompts';
   import { search } from '../lib/search.svelte';
   import { settings } from '../lib/settings.svelte';
-  import { tabs, type Pane } from '../lib/tabs.svelte';
+  import { detachedSessions, tabs, type Pane } from '../lib/tabs.svelte';
   import { registerTerminal } from '../lib/terminals';
   import { xtermTheme } from '../lib/themes';
+  import { thisWindow } from '../lib/window';
 
   let {
     pane,
@@ -78,6 +80,8 @@
     t.loadAddon(fit);
     const s = new SearchAddon({ highlightLimit: 2000 });
     t.loadAddon(s);
+    const serializer = new SerializeAddon();
+    t.loadAddon(serializer);
     t.loadAddon(new Unicode11Addon());
     t.unicode.activeVersion = '11';
     // ⌘-click (Ctrl-click elsewhere) opens links, like most terminals.
@@ -121,6 +125,16 @@
       paste: (text) => t.paste(text),
       jumpPrompt: (direction) => prompts.jump(direction),
       lastOutput: () => prompts.lastOutput(),
+      serialize: () => serializer.serialize({ scrollback: 5000 }),
+      snapshot: (rows) => {
+        const buf = t.buffer.active;
+        // Bottom of the screen, skipping trailing blank rows.
+        let end = buf.baseY + t.rows;
+        while (end > 0 && !buf.getLine(end - 1)?.translateToString(true).trim()) end--;
+        const lines: string[] = [];
+        for (let y = Math.max(0, end - rows); y < end; y++) lines.push(buf.getLine(y)?.translateToString(true) ?? '');
+        return lines;
+      },
     });
 
     const resizeObserver = new ResizeObserver(scheduleFit);
@@ -137,7 +151,8 @@
       prompts.dispose();
       if (search.paneId === pane.id) search.close();
       ws?.close();
-      if (sessionId) Service.Close(sessionId);
+      // A tab moving to another window keeps its shells running.
+      if (sessionId && !detachedSessions.delete(sessionId)) Service.Close(sessionId);
       webgl?.dispose();
       t.dispose();
     };
@@ -145,7 +160,20 @@
 
   async function start(t: Terminal) {
     fit.fit();
-    const id = await Service.Create(t.cols, t.rows, pane.initialCwd);
+    if (pane.sessionId) {
+      // Moved here from another window: show its scrollback, take over its shell.
+      const id = pane.sessionId;
+      if (pane.restoreBuffer) {
+        t.write(pane.restoreBuffer);
+        pane.restoreBuffer = undefined;
+      }
+      sessionId = id;
+      await Service.Adopt(id, thisWindow.name);
+      await Service.Resize(id, t.cols, t.rows);
+      connect(t, id);
+      return;
+    }
+    const id = await Service.Create(thisWindow.name, t.cols, t.rows, pane.initialCwd);
     if (disposed) {
       Service.Close(id);
       return;
@@ -155,11 +183,20 @@
     connect(t, id);
   }
 
-  async function connect(t: Terminal, id: string) {
+  async function connect(t: Terminal, id: string, attempt = 0) {
     const { url, token } = await endpoint();
+    if (disposed) return;
     const socket = new WebSocket(`${url}?id=${encodeURIComponent(id)}&token=${token}`);
     socket.binaryType = 'arraybuffer';
     ws = socket;
+
+    // A session taken over from another window stays attached there until
+    // that window lets go, so the first attempts may be refused.
+    let opened = false;
+    socket.onopen = () => (opened = true);
+    socket.onclose = () => {
+      if (!opened && !disposed && attempt < 40) setTimeout(() => connect(t, id, attempt + 1), 100);
+    };
 
     let rendered = 0;
     let acked = 0;

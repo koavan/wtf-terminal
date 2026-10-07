@@ -1,9 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
+const { tabs, focusedPane, detachedSessions } = await import('./tabs.svelte');
 const closeWindow = vi.fn();
-vi.mock('@wailsio/runtime', () => ({ Window: { Close: () => closeWindow() } }));
-
-const { tabs, focusedPane } = await import('./tabs.svelte');
+tabs.onEmpty = closeWindow;
 const { leaves } = await import('./layout');
 
 function reset() {
@@ -405,5 +404,68 @@ describe('session restore', () => {
     });
     expect(tabs.list.map((t) => focusedPane(t).cwd)).toEqual(['/1', '/3', '/2']);
     checkInvariants();
+  });
+});
+
+describe('moving tabs between windows', () => {
+  it('detaches a tab with its sessions and scrollback, and another window adopts it', () => {
+    const [a, b] = openTabs(2);
+    const g = tabs.createGroup(b)!;
+    g.name = 'api';
+    tabs.activate(b);
+    tabs.setSession(tabs.activePane!.id, 's1');
+    tabs.split('row');
+    tabs.setSession(tabs.activePane!.id, 's2');
+
+    const payload = tabs.detach(b, (paneId) => `buffer-${paneId}`)!;
+    expect(ids()).toEqual([a]);
+    expect(tabs.activeId).toBe(a);
+    expect(tabs.groups).toHaveLength(0);
+    expect([...detachedSessions].sort()).toEqual(['s1', 's2']);
+    expect(closeWindow).not.toHaveBeenCalled();
+
+    // The other window.
+    reset();
+    detachedSessions.clear();
+    openTabs(1);
+    expect(tabs.adopt(JSON.parse(JSON.stringify(payload)))).toBe(true);
+    const adopted = tabs.active!;
+    const panes = leaves(adopted.root);
+    expect(panes.map((p) => p.sessionId)).toEqual(['s1', 's2']);
+    expect(panes.every((p) => p.restoreBuffer?.startsWith('buffer-'))).toBe(true);
+    expect(tabs.group(adopted.groupId)).toMatchObject({ name: 'api', color: 'blue' });
+    expect(focusedPane(adopted).sessionId).toBe('s2');
+    checkInvariants();
+  });
+
+  it('joins an existing group with the same name and color', () => {
+    const [a] = openTabs(1);
+    const g = tabs.createGroup(a)!;
+    g.name = 'api';
+    openTabs(1);
+    tabs.adopt({ kind: 'tab', tab: { root: { cwd: '/x', sessionId: 's9' }, focused: 0 }, group: { name: 'api', color: 'blue' } });
+    expect(tabs.groups).toHaveLength(1);
+    expect(tabs.tabsIn(g.id)).toHaveLength(2);
+    checkInvariants();
+  });
+
+  it('detaching the last tab empties the window', () => {
+    const [a] = openTabs(1);
+    tabs.detach(a, () => '');
+    expect(closeWindow).toHaveBeenCalledOnce();
+  });
+
+  it('saved sessions never carry session ids into a restore', () => {
+    tabs.restore({ tabs: [{ root: { cwd: '/x', sessionId: 'stale', buffer: 'x' } }], groups: [], active: 0 });
+    expect(focusedPane(tabs.active!).sessionId).toBeNull();
+    expect(focusedPane(tabs.active!).restoreBuffer).toBeUndefined();
+  });
+
+  it('rejects malformed adoptions', () => {
+    openTabs(1);
+    expect(tabs.adopt(null)).toBe(false);
+    expect(tabs.adopt({ kind: 'tab', tab: { root: 'x' } })).toBe(false);
+    expect(tabs.adopt({ kind: 'other' })).toBe(false);
+    expect(tabs.list).toHaveLength(1);
   });
 });
