@@ -35,15 +35,16 @@
 <aside class="sidebar" style:width="{sidebar.width}px" aria-label="Side pane">
   <div class="tabs" role="tablist" aria-label="Side pane">
     {#each TABS as t (t.id)}
+      <!-- Icons only, like VS Code; the name is in the tooltip and label. -->
       <button
         role="tab"
         class:on={sidebar.tab === t.id}
         aria-selected={sidebar.tab === t.id}
+        aria-label={t.label}
         title="{t.label} ({t.key})"
         onclick={() => (sidebar.tab = t.id)}
       >
-        <Icon name={t.icon} size={13} />
-        <span>{t.label}</span>
+        <Icon name={t.icon} size={16} stroke={1.8} />
       </button>
     {/each}
   </div>
@@ -88,40 +89,37 @@
     display: flex;
     gap: 2px;
     flex: none;
-    padding: 0 6px 4px;
+    padding: 0 8px 6px;
   }
   .tabs button {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 6px;
-    flex: 1;
-    min-width: 0;
-    height: 26px;
-    padding: 0 8px;
+    position: relative;
+    display: grid;
+    place-items: center;
+    width: 32px;
+    height: 28px;
+    padding: 0;
     border: 0;
     border-radius: 7px;
     background: transparent;
     color: var(--chrome-muted);
-    font-size: 12px;
-    font-weight: 600;
-  }
-  .tabs button span {
-    overflow: hidden;
-    white-space: nowrap;
-    text-overflow: ellipsis;
   }
   .tabs button:hover {
     background: var(--tab-hover);
     color: var(--chrome-text);
   }
   .tabs button.on {
-    background: var(--tab-active);
-    color: var(--chrome-text);
-    box-shadow: var(--tab-active-shadow);
-  }
-  .tabs button.on :global(svg) {
     color: var(--accent);
+  }
+  /* The active tab's marker: a short bar under its icon. */
+  .tabs button.on::after {
+    content: '';
+    position: absolute;
+    left: 9px;
+    right: 9px;
+    bottom: -3px;
+    height: 2px;
+    border-radius: 1px;
+    background: var(--accent);
   }
 
   .content {
