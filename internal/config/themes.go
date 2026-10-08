@@ -43,10 +43,10 @@ func palette(s string) (p [16]string) {
 }
 
 var builtinThemes = []Theme{
-	{Name: DefaultDarkTheme, Background: "#16171b", Foreground: "#e4e6eb", Cursor: "#a9b5ff", CursorText: "#16171b",
+	{Name: DefaultDarkTheme, Background: "#141821", Foreground: "#e4e6eb", Cursor: "#a9b5ff", CursorText: "#141821",
 		SelectionBackground: "rgba(139, 156, 255, 0.30)",
-		Palette: palette("#2b2d35 #ff6b7d #7fe0a7 #f3d37e #7ea4ff #c79dff #70d6e6 #c9ccd5 " +
-			"#5e6272 #ff919e #a0eec2 #ffe3a1 #a1bdff #d8bbff #98e7f2 #f5f6f9")},
+		Palette: palette("#2a2f3c #ff6b7d #7fe0a7 #f3d37e #7ea4ff #c79dff #70d6e6 #c9ccd5 " +
+			"#666d82 #ff919e #a0eec2 #ffe3a1 #a1bdff #d8bbff #98e7f2 #f5f6f9")},
 	{Name: DefaultLightTheme, Background: "#f5f8fd", Foreground: "#24292f", Cursor: "#4c5bd4", CursorText: "#f5f8fd",
 		SelectionBackground: "rgba(76, 91, 212, 0.18)",
 		Palette: palette("#24292f #cf222e #116329 #4d2d00 #0969da #8250df #1b7c83 #6e7781 " +

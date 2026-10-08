@@ -30,8 +30,8 @@
   --group-ink: #17181c;
 
   /* Window chrome sits on top of macOS vibrancy, so it is translucent. */
-  --chrome: rgba(19, 20, 24, 0.62);
-  --chrome-solid: #1c1d22;
+  --chrome: rgba(14, 17, 24, 0.6);
+  --chrome-solid: #0e1118;
   --chrome-text: rgba(255, 255, 255, 0.92);
   --chrome-muted: rgba(235, 235, 245, 0.56);
   --tab-hover: rgba(255, 255, 255, 0.06);
@@ -41,7 +41,7 @@
   --tab-drag-shadow: 0 6px 18px rgba(0, 0, 0, 0.45), inset 0 0.5px 0 rgba(255, 255, 255, 0.12);
 
   /* The card that holds the address bar and the terminal. */
-  --surface: #16171b; /* = terminal background in themes.ts */
+  --surface: #141821; /* = wtf Dark's background */
   --text: rgba(255, 255, 255, 0.90);
   --text-muted: rgba(235, 235, 245, 0.50);
   --hairline: rgba(255, 255, 255, 0.06);
@@ -51,8 +51,8 @@
   --hairline-strong: rgba(255, 255, 255, 0.10);
 
   /* Menus and popovers float over everything with their own blur. */
-  --popover: rgba(36, 37, 43, 0.82);
-  --popover-solid: #25262c;
+  --popover: rgba(34, 38, 46, 0.84);
+  --popover-solid: #22262e;
   --popover-shadow: 0 0 0 0.5px rgba(255, 255, 255, 0.14), 0 12px 40px rgba(0, 0, 0, 0.45), 0 2px 6px rgba(0, 0, 0, 0.3);
   --field: rgba(0, 0, 0, 0.25);
   --scrim: rgba(0, 0, 0, 0.18);
