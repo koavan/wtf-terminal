@@ -469,3 +469,45 @@ describe('moving tabs between windows', () => {
     expect(tabs.list).toHaveLength(1);
   });
 });
+
+describe('renaming', () => {
+  it('a custom name replaces the automatic one until cleared', async () => {
+    const { tabTitle } = await import('./tabs.svelte');
+    const [a] = openTabs(1);
+    const tab = tabs.get(a)!;
+    expect(tabTitle(tab, (p) => p)).toBe('t0');
+    tabs.rename(a, '  api   server  ');
+    expect(tabTitle(tab, (p) => p)).toBe('api server');
+    focusedPane(tab).cwd = '/elsewhere';
+    expect(tabTitle(tab, (p) => p)).toBe('api server'); // sticks across cd
+    tabs.rename(a, '   ');
+    expect(tab.customTitle).toBeNull();
+    expect(tabTitle(tab, (p) => p)).toBe('elsewhere');
+  });
+
+  it('caps the length', () => {
+    const [a] = openTabs(1);
+    tabs.rename(a, 'x'.repeat(200));
+    expect(tabs.get(a)!.customTitle).toHaveLength(60);
+  });
+
+  it('survives session restore and moving to another window', () => {
+    const [a] = openTabs(2);
+    tabs.rename(a, 'db');
+    const snap = JSON.parse(JSON.stringify(tabs.snapshot()));
+    const moved = tabs.detach(a, () => '')!;
+    reset();
+    tabs.restore(snap);
+    expect(tabs.list[0].customTitle).toBe('db');
+    expect(tabs.list[1].customTitle).toBeNull();
+    reset();
+    openTabs(1);
+    tabs.adopt(JSON.parse(JSON.stringify(moved)));
+    expect(tabs.active!.customTitle).toBe('db');
+  });
+
+  it('ignores junk titles in a saved session', () => {
+    tabs.restore({ tabs: [{ root: { cwd: '/x' }, title: 42 }, { root: { cwd: '/y' }, title: '' }], groups: [], active: 0 });
+    expect(tabs.list.map((t) => t.customTitle)).toEqual([null, null]);
+  });
+});

@@ -17,7 +17,7 @@
   import { sidebar } from './lib/sidebar.svelte';
   import { settings } from './lib/settings.svelte';
   import { applyChrome } from './lib/themes';
-  import { focusedPane, paneTitle, tabs } from './lib/tabs.svelte';
+  import { tabs, tabTitle } from './lib/tabs.svelte';
   import { closeThisWindow, thisWindow, Windows } from './lib/window';
 
   let fullscreen = $state(false);
@@ -67,7 +67,7 @@
   // The window title (Window menu, Mission Control) follows the active tab.
   $effect(() => {
     const tab = tabs.active;
-    const title = tab ? paneTitle(focusedPane(tab), prettyPath) : 'wtf';
+    const title = tab ? tabTitle(tab, prettyPath) : 'wtf';
     Windows.SetTitle(thisWindow.name, title);
   });
 
@@ -78,7 +78,10 @@
   });
 
   // Clicking the chrome must not pull keyboard focus away from the terminal.
-  const keepFocus = (e: MouseEvent) => e.preventDefault();
+  // Text fields in the chrome (e.g. renaming a tab) still take clicks.
+  const keepFocus = (e: MouseEvent) => {
+    if (!(e.target as HTMLElement).closest('input, textarea')) e.preventDefault();
+  };
 </script>
 
 <div class="app" class:mac={isMac} class:fullscreen>

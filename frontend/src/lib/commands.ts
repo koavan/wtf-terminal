@@ -8,6 +8,7 @@ import { settings } from './settings.svelte';
 import { sidebar } from './sidebar.svelte';
 import { tabs } from './tabs.svelte';
 import { activeTerminal } from './terminals';
+import { focusedTextField, startRename } from './rename.svelte';
 import { toast } from './toast.svelte';
 import { closeThisWindow, moveTabToNewWindow, Windows } from './window';
 
@@ -68,6 +69,7 @@ export const commands: Command[] = [
   { id: 'tab.toNewWindow', label: 'Move Tab to New Window', run: () => tabs.activeId !== null && moveTabToNewWindow(tabs.activeId) },
   { id: 'window.new', label: 'New Window', mac: '⌘N', other: 'Ctrl+Shift+N', run: () => Windows.NewWindow('', -1, -1) },
   { id: 'window.close', label: 'Close Window', mac: '⌘⇧W', run: () => closeWindow(closeThisWindow) },
+  { id: 'tab.rename', label: 'Rename Tab…', run: () => startRename() },
   { id: 'tab.reopen', label: 'Reopen Closed Tab', mac: '⌘⇧T', run: () => tabs.reopen() },
   { id: 'tab.next', label: 'Next Tab', mac: '⌘⇧]', other: 'Ctrl+PgDn', run: () => tabs.cycle(1) },
   { id: 'tab.prev', label: 'Previous Tab', mac: '⌘⇧[', other: 'Ctrl+PgUp', run: () => tabs.cycle(-1) },
@@ -93,7 +95,15 @@ export const commands: Command[] = [
   { id: 'prompt.next', label: 'Jump to Next Prompt', mac: '⌘↓', other: 'Ctrl+Shift+↓', run: () => activeTerminal()?.jumpPrompt(1), available: integrated },
   { id: 'term.copyOutput', label: 'Copy Last Command Output', mac: '⌥⌘C', other: 'Ctrl+Shift+Alt+C', run: copyLastOutput, available: integrated },
   { id: 'term.clear', label: 'Clear Buffer', mac: '⌘K', other: 'Ctrl+Shift+K', run: () => activeTerminal()?.clear() },
-  { id: 'term.selectAll', label: 'Select All', mac: '⌘A', other: 'Ctrl+Shift+A', run: () => activeTerminal()?.selectAll() },
+  {
+    id: 'term.selectAll', label: 'Select All', mac: '⌘A', other: 'Ctrl+Shift+A',
+    // ⌘A is a menu shortcut, so it lands here even while typing in a field.
+    run: () => {
+      const field = focusedTextField();
+      if (field) field.select();
+      else activeTerminal()?.selectAll();
+    },
+  },
   {
     id: 'term.copy', label: 'Copy', mac: '⌘C', other: 'Ctrl+Shift+C',
     run: () => {

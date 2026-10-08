@@ -8,7 +8,7 @@
   import { Service as ConfigService } from '../../bindings/github.com/dayanraj/wtf/internal/config';
   import { overlay, type PaletteMode } from '../lib/overlay.svelte';
   import { settings, type Theme } from '../lib/settings.svelte';
-  import { focusedPane, paneTitle, tabs, type GroupColor } from '../lib/tabs.svelte';
+  import { focusedPane, type GroupColor, tabs, tabTitle } from '../lib/tabs.svelte';
   import { toast } from '../lib/toast.svelte';
 
   let { mode = 'commands' }: { mode?: PaletteMode } = $props();
@@ -66,7 +66,7 @@
       const group = tabs.group(tab.groupId);
       out.push({
         key: `tab${tab.id}`,
-        label: paneTitle(pane, prettyPath),
+        label: tabTitle(tab, prettyPath),
         detail: [group?.name, prettyPath(pane.cwd)].filter(Boolean).join(' · '),
         icon: iconForProcess(pane.process, pane.isShell),
         color: group?.color,

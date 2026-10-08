@@ -12,7 +12,7 @@
   import { overlay, type MenuEntry } from '../lib/overlay.svelte';
   import { formatBytes, formatElapsed, processes, processTree, sortProcs, type Proc, type ProcessSort } from '../lib/processes.svelte';
   import { sidebar } from '../lib/sidebar.svelte';
-  import { paneTitle, tabs } from '../lib/tabs.svelte';
+  import { tabs, tabTitle } from '../lib/tabs.svelte';
   import { toast } from '../lib/toast.svelte';
 
   /** Rows shown in "All"; the filter narrows the rest. */
@@ -53,7 +53,7 @@
       if (!rows.length) continue;
       out.push({
         session,
-        label: found ? paneTitle(found.pane, prettyPath) : 'Another window',
+        label: found ? tabTitle(found.tab, prettyPath) : 'Another window',
         tabId: found?.tab.id ?? null,
         order: found ? tabs.list.indexOf(found.tab) : Number.MAX_SAFE_INTEGER,
         rows,

@@ -7,7 +7,7 @@
   import { fuzzyMatch } from '../lib/fuzzy';
   import { leaves } from '../lib/layout';
   import { overlay } from '../lib/overlay.svelte';
-  import { focusedPane, paneTitle, tabs, type Group, type Tab } from '../lib/tabs.svelte';
+  import { focusedPane, type Group, type Tab, tabs, tabTitle } from '../lib/tabs.svelte';
   import { terminalFor } from '../lib/terminals';
 
   const PREVIEW_ROWS = 12;
@@ -33,7 +33,7 @@
       if (!q) return true;
       const p = focusedPane(t);
       const group = tabs.group(t.groupId)?.name ?? '';
-      return !!fuzzyMatch(q, `${paneTitle(p, prettyPath)} ${prettyPath(p.cwd)} ${group}`);
+      return !!fuzzyMatch(q, `${tabTitle(t, prettyPath)} ${prettyPath(p.cwd)} ${group}`);
     };
     const out: Section[] = [];
     for (const tab of tabs.list) {
@@ -184,7 +184,7 @@
           >
             <div class="card-head">
               <span class="icon"><Icon name={iconForProcess(pane.process, pane.isShell)} size={12} /></span>
-              <span class="title">{paneTitle(pane, prettyPath)}</span>
+              <span class="title">{tabTitle(tab, prettyPath)}</span>
               {#if paneCount > 1}<span class="badge">{paneCount} panes</span>{/if}
               <button
                 class="close"

@@ -1,13 +1,15 @@
 <script lang="ts">
-  import { tick } from 'svelte';
+  import { tick, untrack } from 'svelte';
   import { flip } from 'svelte/animate';
   import { cubicOut } from 'svelte/easing';
   import Icon, { iconForProcess } from './Icon.svelte';
   import { prettyPath } from '../lib/backend';
   import { closeTab, closeTabs } from '../lib/closing';
   import { overlay, type MenuEntry } from '../lib/overlay.svelte';
+  import { renaming, startRename } from '../lib/rename.svelte';
+  import { activeTerminal } from '../lib/terminals';
   import { isMac } from '../lib/platform';
-  import { focusedPane, paneTitle, tabs, type Group, type Tab } from '../lib/tabs.svelte';
+  import { focusedPane, paneTitle, tabs, type Group, type Tab, tabTitle, MAX_TITLE } from '../lib/tabs.svelte';
   import { moveTabToNewWindow, moveTabToWindow, otherWindows } from '../lib/window';
 
   type Item =
@@ -55,7 +57,7 @@
   const newTabHint = `New Tab (${hint('⌘T', 'Ctrl+Shift+T')})`;
 
   function onPointerDown(e: PointerEvent, tab: Tab) {
-    if (e.button !== 0 || (e.target as HTMLElement).closest('.close')) return;
+    if (e.button !== 0 || (e.target as HTMLElement).closest('.close, input')) return;
     tabs.activate(tab.id);
     const el = e.currentTarget as HTMLElement;
     drag = {
@@ -125,6 +127,54 @@
     return g.name || 'Unnamed group';
   }
 
+  // ── Renaming ─────────────────────────────────────────────────────────
+
+  let draft = $state('');
+  let renameInput = $state<HTMLInputElement>();
+
+  // Opening the editor (double-click, menu or palette) fills and focuses
+  // it. Only the tab being renamed is tracked, so updates to the tab (a cd,
+  // a program starting) don't overwrite what's being typed.
+  $effect(() => {
+    const id = renaming.tabId;
+    if (id === null) return;
+    untrack(() => {
+      const tab = tabs.get(id);
+      if (!tab) {
+        renaming.tabId = null;
+        return;
+      }
+      draft = tabTitle(tab, prettyPath);
+      tick().then(() => {
+        renameInput?.focus();
+        renameInput?.select();
+      });
+    });
+  });
+
+  function finishRename(save: boolean) {
+    const id = renaming.tabId;
+    if (id === null) return;
+    renaming.tabId = null;
+    if (save) {
+      const tab = tabs.get(id);
+      // Unchanged automatic name: keep following the folder/program.
+      if (tab && (tab.customTitle !== null || draft.trim() !== tabTitle(tab, prettyPath))) tabs.rename(id, draft);
+    }
+    activeTerminal()?.focus();
+  }
+
+  function onRenameKey(e: KeyboardEvent) {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      finishRename(true);
+    } else if (e.key === 'Escape') {
+      e.preventDefault();
+      e.stopPropagation();
+      finishRename(false);
+    }
+  }
+
   async function tabMenu(e: MouseEvent, tab: Tab) {
     e.preventDefault();
     const { clientX, clientY } = e;
@@ -164,6 +214,10 @@
       for (const w of windows) {
         entries.push({ label: `Move to “${w.title || w.name}”`, action: () => moveTabToWindow(tab.id, w.name) });
       }
+    }
+    entries.push('separator', { label: 'Rename Tab…', hint: 'double-click', action: () => startRename(tab.id) });
+    if (tab.customTitle !== null) {
+      entries.push({ label: 'Use Automatic Name', action: () => tabs.rename(tab.id, '') });
     }
     entries.push('separator', { label: 'Close tab', hint: hint('⌥⌘W', ''), action: () => closeTab(tab.id) });
     if (tabs.list.length > 1) {
@@ -245,11 +299,29 @@
           onpointercancel={endDrag}
           onauxclick={(e) => onAuxClick(e, tab)}
           oncontextmenu={(e) => tabMenu(e, tab)}
+          ondblclick={(e) => {
+            if (!(e.target as HTMLElement).closest('.close')) startRename(tab.id);
+          }}
         >
           <span class="icon" class:activity={tab.activity} class:ok={tab.finished === 'ok'} class:fail={tab.finished === 'fail'}>
             <Icon name={iconForProcess(pane.process, pane.isShell)} size={13} />
           </span>
-          <span class="title">{paneTitle(pane, prettyPath)}</span>
+          {#if renaming.tabId === tab.id}
+            <input
+              class="rename"
+              bind:this={renameInput}
+              bind:value={draft}
+              maxlength={MAX_TITLE}
+              spellcheck="false"
+              autocomplete="off"
+              aria-label="Tab name (empty for automatic)"
+              placeholder={paneTitle(pane, prettyPath)}
+              onkeydown={onRenameKey}
+              onblur={() => finishRename(true)}
+            />
+          {:else}
+            <span class="title" class:custom={tab.customTitle !== null}>{tabTitle(tab, prettyPath)}</span>
+          {/if}
           <button
             class="close"
             aria-label="Close tab"
@@ -414,6 +486,29 @@
     white-space: nowrap;
     /* Fade long titles out instead of an ellipsis, like Chrome. */
     mask-image: linear-gradient(to right, #000 calc(100% - 18px), transparent);
+  }
+
+  .rename {
+    --wails-draggable: no-drag;
+    flex: 1;
+    min-width: 0;
+    height: 22px;
+    margin: 0 -4px;
+    padding: 0 4px;
+    border: 0;
+    border-radius: 5px;
+    background: var(--field);
+    box-shadow: inset 0 0 0 1.5px var(--accent);
+    color: var(--chrome-text);
+    font: inherit;
+    -webkit-user-select: text;
+    user-select: text;
+  }
+  .rename:focus {
+    outline: none;
+  }
+  .rename::placeholder {
+    color: var(--chrome-muted);
   }
 
   .close {

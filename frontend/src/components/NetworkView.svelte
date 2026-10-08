@@ -6,7 +6,7 @@
   import RefreshControls from './RefreshControls.svelte';
   import { isExposed, mergeListeners, network, serviceName, splitAddress, type Conn } from '../lib/network.svelte';
   import { overlay, type MenuEntry } from '../lib/overlay.svelte';
-  import { paneTitle, tabs } from '../lib/tabs.svelte';
+  import { tabs, tabTitle } from '../lib/tabs.svelte';
   import { prettyPath } from '../lib/backend';
   import { poll, sidebarInterval } from '../lib/poller';
   import { settings } from '../lib/settings.svelte';
@@ -25,7 +25,7 @@
     if (!c.session) return null;
     const found = tabs.bySession(c.session);
     if (!found) return { label: 'Another window', tabId: null };
-    const title = paneTitle(found.pane, prettyPath);
+    const title = tabTitle(found.tab, prettyPath);
     return { label: title, tabId: found.tab.id };
   }
 

@@ -17,6 +17,18 @@ export interface Tab {
   /** A command finished while the tab was in the background. */
   finished: 'ok' | 'fail' | null;
   groupId: number | null;
+  /** Name the user gave the tab; null shows the automatic name. */
+  customTitle: string | null;
+}
+
+/** Longest name a tab can be given. */
+export const MAX_TITLE = 60;
+
+/** Trims a name; null when nothing is left (meaning "automatic"). */
+function cleanTitle(v: unknown): string | null {
+  if (typeof v !== 'string') return null;
+  const t = v.replace(/\s+/g, ' ').trim().slice(0, MAX_TITLE);
+  return t || null;
 }
 
 export const GROUP_COLORS = [
@@ -49,7 +61,7 @@ export interface DetachedTab {
 }
 
 export interface SavedTabs {
-  tabs: { groupId: number | null; root: SavedNode; focused: number; zoomed: number | null }[];
+  tabs: { groupId: number | null; root: SavedNode; focused: number; zoomed: number | null; title?: string | null }[];
   groups: Group[];
   /** Index of the active tab. */
   active: number;
@@ -122,6 +134,7 @@ class Tabs {
       activity: false,
       finished: null,
       groupId,
+      customTitle: null,
     };
     this.list.splice(index, 0, tab);
     this.activate(tab.id);
@@ -309,6 +322,12 @@ class Tabs {
     }
   }
 
+  /** Names a tab; an empty name goes back to the automatic one. */
+  rename(id: number, title: string) {
+    const tab = this.get(id);
+    if (tab) tab.customTitle = cleanTitle(title);
+  }
+
   // ── Panes ────────────────────────────────────────────────────────────
 
   /**
@@ -450,6 +469,7 @@ class Tabs {
       root: save(t.root),
       focused: Math.max(0, ids.indexOf(t.focusedPaneId)),
       zoomed: t.zoomedPaneId === null ? null : ids.indexOf(t.zoomedPaneId),
+      title: t.customTitle,
     };
   }
 
@@ -498,6 +518,7 @@ class Tabs {
         activity: false,
         finished: null,
         groupId: (typeof t.groupId === 'number' && groupIds.get(t.groupId)) || null,
+        customTitle: cleanTitle(t.title),
       });
     }
     if (list.length === 0) return false;
@@ -563,6 +584,7 @@ class Tabs {
       activity: false,
       finished: null,
       groupId,
+      customTitle: cleanTitle(t.title),
     };
     const last = groupId === null ? -1 : this.list.findLastIndex((x) => x.groupId === groupId);
     this.list.splice(last < 0 ? this.list.length : last + 1, 0, tab);
@@ -691,6 +713,11 @@ function isObject(x: unknown): x is Record<string, unknown> {
 }
 
 export const tabs = new Tabs();
+
+/** What a tab is called: the name the user gave it, or its focused pane's title. */
+export function tabTitle(tab: Tab, pretty: (p: string) => string): string {
+  return tab.customTitle ?? paneTitle(focusedPane(tab), pretty);
+}
 
 export function focusedPane(tab: Tab): Pane {
   return findPane(tab.root, tab.focusedPaneId) ?? leaves(tab.root)[0];

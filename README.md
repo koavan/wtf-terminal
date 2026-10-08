@@ -62,7 +62,8 @@ Every command is also in the command palette.
 | Settings file | ⌘, | Ctrl+, |
 | Text size | ⌘= / ⌘- / ⌘0 | Ctrl+Shift+= / - / 0 |
 
-Right-click a tab or a group chip for more. Double-click a split divider to even it out.
+Double-click a tab (or right-click → Rename Tab…) to name it; an empty name
+goes back to the automatic one (folder or program). Right-click a tab or a group chip for more. Double-click a split divider to even it out.
 
 ## Sidebar
 

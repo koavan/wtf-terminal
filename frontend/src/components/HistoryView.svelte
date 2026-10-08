@@ -7,7 +7,7 @@
   import { overlay, type MenuEntry } from '../lib/overlay.svelte';
   import { sidebar } from '../lib/sidebar.svelte';
   import { CLEAR_HISTORY_KEYS } from '../lib/shell';
-  import { paneTitle, tabs, type Pane } from '../lib/tabs.svelte';
+  import { type Pane, paneTitle, tabs, tabTitle } from '../lib/tabs.svelte';
   import { activeTerminal, terminalFor } from '../lib/terminals';
   import { formatDuration, toast } from '../lib/toast.svelte';
 
@@ -87,7 +87,10 @@
     const count = targets.reduce((n, p) => n + history.of(p.id).length, 0);
     const shellIdle = (p: Pane) => p.integrated && p.isShell && !p.running;
     const busy = targets.filter((p) => p.integrated && !shellIdle(p));
-    const label = (p: Pane) => paneTitle(p, prettyPath);
+    const label = (p: Pane) => {
+      const w = panes.find((x) => x.pane.id === p.id);
+      return w ? tabTitle(w.tab, prettyPath) : paneTitle(p, prettyPath);
+    };
 
     overlay.confirm({
       title: targets.length > 1 ? 'Clear command history for all panes?' : 'Clear command history?',
@@ -166,7 +169,7 @@
             <span class="cwd">· {prettyPath(e.cwd)}</span>
           </span>
         </span>
-        {#if w}<span class="owner" title="In “{paneTitle(w.pane, prettyPath)}”">{paneTitle(w.pane, prettyPath)}</span>{/if}
+        {#if w}<span class="owner" title="In “{tabTitle(w.tab, prettyPath)}”">{tabTitle(w.tab, prettyPath)}</span>{/if}
       </div>
     {:else}
       <div class="note">
