@@ -47,7 +47,7 @@ var builtinThemes = []Theme{
 		SelectionBackground: "rgba(139, 156, 255, 0.30)",
 		Palette: palette("#2b2d35 #ff6b7d #7fe0a7 #f3d37e #7ea4ff #c79dff #70d6e6 #c9ccd5 " +
 			"#5e6272 #ff919e #a0eec2 #ffe3a1 #a1bdff #d8bbff #98e7f2 #f5f6f9")},
-	{Name: DefaultLightTheme, Background: "#fcfcfd", Foreground: "#24292f", Cursor: "#4c5bd4", CursorText: "#fcfcfd",
+	{Name: DefaultLightTheme, Background: "#f5f8fd", Foreground: "#24292f", Cursor: "#4c5bd4", CursorText: "#f5f8fd",
 		SelectionBackground: "rgba(76, 91, 212, 0.18)",
 		Palette: palette("#24292f #cf222e #116329 #4d2d00 #0969da #8250df #1b7c83 #6e7781 " +
 			"#57606a #a40e26 #1a7f37 #633c01 #218bff #a475f9 #3192aa #8c959f")},

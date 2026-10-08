@@ -82,8 +82,8 @@
   --g-orange: #e8710a;
   --group-ink: #fff;
 
-  --chrome: rgba(236, 237, 241, 0.55);
-  --chrome-solid: #e9eaee;
+  --chrome: rgba(231, 234, 239, 0.55);
+  --chrome-solid: #e7eaef;
   --chrome-text: rgba(0, 0, 0, 0.86);
   --chrome-muted: rgba(60, 60, 67, 0.62);
   --tab-hover: rgba(0, 0, 0, 0.045);
@@ -92,7 +92,7 @@
   --tab-active-shadow: 0 0 0 0.5px rgba(0, 0, 0, 0.08), 0 1px 3px rgba(0, 0, 0, 0.10);
   --tab-drag-shadow: 0 6px 18px rgba(0, 0, 0, 0.16), 0 0 0 0.5px rgba(0, 0, 0, 0.10);
 
-  --surface: #fcfcfd;
+  --surface: #f5f8fd; /* = wtf Light's background */
   --text: rgba(0, 0, 0, 0.86);
   --text-muted: rgba(60, 60, 67, 0.60);
   --hairline: rgba(0, 0, 0, 0.06);
