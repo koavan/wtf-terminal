@@ -2,6 +2,7 @@
   import Confirm from './Confirm.svelte';
   import ContextMenu from './ContextMenu.svelte';
   import GroupEditor from './GroupEditor.svelte';
+  import AboutDialog from './AboutDialog.svelte';
   import AwsProfileEditor from './AwsProfileEditor.svelte';
   import AwsRotate from './AwsRotate.svelte';
   import CommandPromptDialog from './CommandPromptDialog.svelte';
@@ -66,6 +67,8 @@
   <WorkspaceOpenDialog workspace={overlay.current.workspace} />
 {:else if overlay.current?.kind === 'workspaceEdit'}
   <WorkspaceEditor workspace={overlay.current.workspace} draft={overlay.current.draft} duplicate={overlay.current.duplicate} />
+{:else if overlay.current?.kind === 'about'}
+  <AboutDialog />
 {:else if overlay.current?.kind === 'group'}
   {#key overlay.current.groupId}
     <GroupEditor groupId={overlay.current.groupId} anchor={overlay.current.anchor} />

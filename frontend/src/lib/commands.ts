@@ -49,6 +49,7 @@ function createGroupForActive() {
 
 export const commands: Command[] = [
   { id: 'palette', label: 'Command Palette', mac: '⌘⇧P', other: 'Ctrl+Shift+P', run: () => overlay.togglePalette() },
+  { id: 'app.about', label: 'About wtf', run: () => overlay.show({ kind: 'about' }) },
   { id: 'help.manual', label: 'Open Manual', mac: '⌘?', other: 'F1', run: () => openManual() },
   { id: 'snippets.run', label: 'Run Snippet…', mac: '⌘⇧R', other: 'Ctrl+Shift+Alt+R', run: () => overlay.togglePalette('snippets') },
   {

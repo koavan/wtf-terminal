@@ -30,10 +30,6 @@ export function CloseWindow(window: string): $CancellablePromise<void> {
     return $Call.ByID(2817772054, window);
 }
 
-/**
- * Create starts a new shell for a window. An empty or invalid cwd falls
- * back to $HOME.
- */
 export function Create(window: string, cols: number, rows: number, cwd: string): $CancellablePromise<string> {
     return $Call.ByID(2625746890, window, cols, rows, cwd);
 }
@@ -62,6 +58,16 @@ export function Resize(id: string, cols: number, rows: number): $CancellableProm
  */
 export function RunningProcesses(): $CancellablePromise<$models.Running[] | null> {
     return $Call.ByID(2596160610);
+}
+
+/**
+ * Create starts a new shell for a window. An empty or invalid cwd falls
+ * back to $HOME.
+ * ShellInfo is the shell new tabs start (the configured one, else the
+ * login shell) and whether shell integration loads into it — for About.
+ */
+export function ShellInfo(): $CancellablePromise<[string, boolean]> {
+    return $Call.ByID(4197601308);
 }
 
 /**

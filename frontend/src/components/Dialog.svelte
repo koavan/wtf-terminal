@@ -9,13 +9,16 @@
 
   let {
     title,
+    label = '',
     subtitle = '',
     width = 440,
     children,
     buttons,
     onsubmit,
   }: {
+    /** The heading; empty for a dialog that draws its own (then give a label). */
     title: string;
+    label?: string;
     subtitle?: string;
     width?: number;
     children: Snippet;
@@ -55,12 +58,13 @@
   style:width="min({width}px, calc(100vw - 32px))"
   role="dialog"
   aria-modal="true"
-  aria-labelledby={id}
+  aria-labelledby={title ? id : undefined}
+  aria-label={title ? undefined : label}
   tabindex="-1"
   in:appear
   onkeydown={onKeydown}
 >
-  <h2 {id}>{title}</h2>
+  {#if title}<h2 {id}>{title}</h2>{/if}
   {#if subtitle}<p class="subtitle">{subtitle}</p>{/if}
   {@render children()}
   <div class="buttons">{@render buttons()}</div>

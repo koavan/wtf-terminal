@@ -29,6 +29,7 @@ export type OverlayState =
   | { kind: 'eksAdd' }
   | { kind: 'secretView'; name: string; context: string; namespace: string; env: Record<string, string> }
   | { kind: 'manual'; topic: string }
+  | { kind: 'about' }
   | { kind: 'snippet'; snippet: Snippet }
   | { kind: 'snippetEdit'; snippet: Snippet | null; command?: string; duplicate?: boolean }
   | { kind: 'workspaceOpen'; workspace: Workspace }

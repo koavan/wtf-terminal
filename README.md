@@ -49,6 +49,12 @@ its shortcuts come from the app's own command list. The pages are Markdown
 in `frontend/src/manual/` (see `lib/manual.ts` for the subset they use);
 tests check that every command and page they mention exists.
 
+**wtf → About wtf** shows the version, the commit and date of the build
+(`wails3 build` stamps them in from git), the system, the shell and whether
+shell integration is on, and where settings, snippets, the session and
+backups live. **Copy Diagnostics** copies the version and system facts, with
+no paths, for a bug report.
+
 ## Shortcuts
 
 Every command is also in the command palette.

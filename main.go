@@ -8,6 +8,7 @@ import (
 
 	"github.com/wailsapp/wails/v3/pkg/application"
 
+	"github.com/dayanraj/wtf/internal/about"
 	"github.com/dayanraj/wtf/internal/awsprofiles"
 	"github.com/dayanraj/wtf/internal/config"
 	"github.com/dayanraj/wtf/internal/files"
@@ -24,6 +25,12 @@ import (
 )
 
 const version = "0.1.0"
+
+// Set by the build (see build/*/Taskfile.yml): the git commit and the date.
+var (
+	commit    string
+	buildDate string
+)
 
 //go:embed all:frontend/dist
 var assets embed.FS
@@ -59,6 +66,7 @@ func main() {
 			application.NewService(awsprofiles.NewService()),
 			application.NewService(kube.NewService(stateDir)),
 			application.NewService(snippets.NewService(configDir)),
+			application.NewService(about.NewService(version, commit, buildDate, configDir, stateDir, term.ShellInfo)),
 			application.NewService(sshhosts.NewService(stateDir)),
 			application.NewService(netconn.NewService(term.ShellPIDs)),
 			application.NewService(procs.NewService(term.ShellPIDs)),
@@ -117,7 +125,7 @@ func buildMenu(windows *wtfwindows.Manager) *application.Menu {
 
 	menu := application.NewMenu()
 	appMenu := menu.AddSubmenu("wtf")
-	appMenu.AddRole(application.About)
+	cmd(appMenu, "About wtf", "", "app.about")
 	appMenu.AddSeparator()
 	cmd(appMenu, "Settings…", "CmdOrCtrl+,", "config.open")
 	cmd(appMenu, "Change Theme…", "", "theme.pick")

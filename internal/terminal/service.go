@@ -122,6 +122,23 @@ func (s *Service) Home() string { return s.home }
 
 // Create starts a new shell for a window. An empty or invalid cwd falls
 // back to $HOME.
+// ShellInfo is the shell new tabs start (the configured one, else the
+// login shell) and whether shell integration loads into it — for About.
+func (s *Service) ShellInfo() (shell string, integration bool) {
+	shell, integration = s.shell, s.integrationDir != ""
+	if s.settings != nil {
+		custom, on := s.settings()
+		if custom != "" {
+			if path, err := exec.LookPath(custom); err == nil && isExecutable(path) {
+				shell = path
+			}
+		}
+		integration = integration && on
+	}
+	base := filepath.Base(shell)
+	return shell, integration && (base == "bash" || base == "zsh")
+}
+
 func (s *Service) Create(window string, cols, rows int, cwd string) (string, error) {
 	if fi, err := os.Stat(cwd); cwd == "" || err != nil || !fi.IsDir() {
 		cwd = s.home
