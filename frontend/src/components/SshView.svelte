@@ -29,7 +29,7 @@
         onclick={() => (sidebar.sshSection = s.id)}
       >
         {s.label}
-        {#if s.id === 'tunnels' && sshTunnels.running}<span class="badge" title="{sshTunnels.running} running">{sshTunnels.running}</span>{/if}
+        {#if s.id === 'tunnels' && sshTunnels.running('ssh')}<span class="badge" title="{sshTunnels.running('ssh')} running">{sshTunnels.running('ssh')}</span>{/if}
       </button>
     {/each}
   </div>

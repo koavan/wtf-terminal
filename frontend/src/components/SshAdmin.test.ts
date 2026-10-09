@@ -283,6 +283,29 @@ describe('host actions', () => {
 });
 
 describe('tunnels', () => {
+  it('saves a kubectl port-forward with the shell’s cluster variables', async () => {
+    vi.mocked(Service.SaveTunnel).mockResolvedValue([tunnel({ id: 'k1', kind: 'kubectl' })]);
+    vi.mocked(Service.StartTunnel).mockResolvedValue([tunnel({ id: 'k1', kind: 'kubectl', state: 'connecting' })]);
+    focusedPane(tabs.active!).env = { KUBECONFIG: '/home/me/.kube/qe.yaml', AWS_PROFILE: 'devops', PATH: '/opt/bin', HOME: '/home/me' };
+    const view = render(Overlays);
+    overlay.show({ kind: 'tunnel', tunnel: null, host: null, prefill: { kind: 'kubectl', context: 'qe', namespace: 'shop', resource: 'service/web', listenPort: '8080', destPort: '80' } });
+    await view.findByText(/KUBECONFIG=\/home\/me\/.kube\/qe.yaml AWS_PROFILE=devops kubectl --context qe --namespace shop port-forward service\/web 8080:80/);
+    await fireEvent.click(view.getByText('Save & Start'));
+    await waitFor(() => expect(Service.StartTunnel).toHaveBeenCalledWith('k1'));
+    expect(Service.SaveTunnel).toHaveBeenCalledWith(expect.objectContaining({
+      kind: 'kubectl', context: 'qe', namespace: 'shop', resource: 'service/web', spec: '8080:80',
+      env: { KUBECONFIG: '/home/me/.kube/qe.yaml', AWS_PROFILE: 'devops', PATH: '/opt/bin' },
+    }));
+  });
+
+  it('runs a one-off kubectl forward in a terminal instead', async () => {
+    const view = render(Overlays);
+    overlay.show({ kind: 'tunnel', tunnel: null, host: null, prefill: { kind: 'kubectl', context: 'qe', namespace: 'shop', resource: 'pod/web-1', listenPort: '9000', destPort: '9000', env: {} } });
+    await fireEvent.click(await view.findByText('Run in Terminal'));
+    expect(commands().at(-1)).toBe('kubectl --context qe --namespace shop port-forward pod/web-1 9000');
+    expect(Service.SaveTunnel).not.toHaveBeenCalled();
+  });
+
   it('lists tunnels, toggles them and follows backend updates', async () => {
     vi.mocked(Service.Tunnels).mockResolvedValue([tunnel({ name: 'staging db' })]);
     vi.mocked(Service.StartTunnel).mockResolvedValue([tunnel({ name: 'staging db', state: 'connecting' })]);
@@ -309,7 +332,7 @@ describe('tunnels', () => {
     render(Overlays);
     await fireEvent.contextMenu(await view.findByText('10.0.0.5'));
     pick('New Tunnel…');
-    await view.findByText('New Tunnel');
+    await view.findByText('New Port Forward');
     expect((view.getByPlaceholderText('bastion') as HTMLInputElement).value).toBe('10.0.0.5');
     await fireEvent.input(view.getByPlaceholderText('8080'), { target: { value: '15432' } });
     await fireEvent.input(view.getByPlaceholderText('localhost'), { target: { value: 'db.internal' } });
@@ -318,6 +341,7 @@ describe('tunnels', () => {
     await waitFor(() => expect(Service.StartTunnel).toHaveBeenCalledWith('n1'));
     expect(Service.SaveTunnel).toHaveBeenCalledWith({
       id: '', name: '', host: '10.0.0.5', port: '2222', kind: 'local', spec: '15432:db.internal:5432', autoStart: false,
+      context: '', namespace: '', resource: '', env: {},
     });
   });
 });

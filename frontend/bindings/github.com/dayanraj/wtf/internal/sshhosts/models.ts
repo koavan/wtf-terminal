@@ -227,15 +227,27 @@ export interface Tunnel {
     "port": string;
 
     /**
-     * local (-L), remote (-R) or dynamic (-D, a SOCKS proxy).
+     * local (-L), remote (-R) or dynamic (-D, a SOCKS proxy) for ssh;
+     * kubectl for a kubectl port-forward.
      */
     "kind": string;
 
     /**
-     * ssh's forward spec: "8080:localhost:80", or "1080" for dynamic.
+     * ssh's forward spec: "8080:localhost:80", or "1080" for dynamic;
+     * for kubectl, "LOCAL:REMOTE" ports.
      */
     "spec": string;
     "autoStart": boolean;
+
+    /**
+     * kubectl only: where and what to forward to (pod/x, svc/x, deploy/x),
+     * and the variables of the shell it was made in (KUBECONFIG, the AWS
+     * profile, PATH for login helpers), so it reaches the same cluster later.
+     */
+    "context"?: string;
+    "namespace"?: string;
+    "resource"?: string;
+    "env"?: { [_ in string]?: string } | null;
 }
 
 export interface TunnelStatus {
@@ -250,15 +262,27 @@ export interface TunnelStatus {
     "port": string;
 
     /**
-     * local (-L), remote (-R) or dynamic (-D, a SOCKS proxy).
+     * local (-L), remote (-R) or dynamic (-D, a SOCKS proxy) for ssh;
+     * kubectl for a kubectl port-forward.
      */
     "kind": string;
 
     /**
-     * ssh's forward spec: "8080:localhost:80", or "1080" for dynamic.
+     * ssh's forward spec: "8080:localhost:80", or "1080" for dynamic;
+     * for kubectl, "LOCAL:REMOTE" ports.
      */
     "spec": string;
     "autoStart": boolean;
+
+    /**
+     * kubectl only: where and what to forward to (pod/x, svc/x, deploy/x),
+     * and the variables of the shell it was made in (KUBECONFIG, the AWS
+     * profile, PATH for login helpers), so it reaches the same cluster later.
+     */
+    "context"?: string;
+    "namespace"?: string;
+    "resource"?: string;
+    "env"?: { [_ in string]?: string } | null;
     "state": string;
     "error": string;
 

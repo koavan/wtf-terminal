@@ -43,7 +43,7 @@
 {:else if overlay.current?.kind === 'hostKeys'}
   <HostKeysDialog host={overlay.current.host} />
 {:else if overlay.current?.kind === 'tunnel'}
-  <TunnelEditor tunnel={overlay.current.tunnel} host={overlay.current.host} />
+  <TunnelEditor tunnel={overlay.current.tunnel} host={overlay.current.host} prefill={overlay.current.prefill} />
 {:else if overlay.current?.kind === 'transfer'}
   <TransferDialog host={overlay.current.host} direction={overlay.current.direction} locals={overlay.current.locals} />
 {:else if overlay.current?.kind === 'awsProfile'}

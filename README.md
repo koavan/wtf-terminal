@@ -255,7 +255,15 @@ get-token…** rewrites its user to need only the aws CLI, keeping its AWS
 profile. Each change is confirmed first, and a copy of the kubeconfig is
 kept in wtf's cache folder (`kube-backups`, last 20).
 
-The **Network** tab lists listening ports and open connections — by default
+The **Network** tab starts with **Forwards**: every port forward wtf runs —
+ssh tunnels and **kubectl port-forwards** — with status, start/stop and
+**Open in Browser**; **+** adds either kind. A kubectl forward (context,
+namespace, `svc/…`, `deploy/…` or `pod/…`, ports) runs in the background with
+the `KUBECONFIG`, AWS profile and `PATH` of the shell it was made in,
+listening on 127.0.0.1, and is restarted when its pod restarts. The
+Kubernetes tab's **Port Forward…** opens the same editor (or runs a one-off
+in a terminal). Listening ports that belong to a forward are labeled with it.
+Below, the tab lists listening ports and open connections — by default
 those from programs in your terminals, labeled with their tab (click to jump
 there); switch to **All** for everything you own. Listeners reachable from
 other machines are marked. Right-click to open a port in the browser, copy

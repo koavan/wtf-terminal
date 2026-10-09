@@ -134,7 +134,7 @@ export const sshKeys = new SshKeys();
 /** A forward spec's parts: [listen (maybe with a bind address), dest host, dest port]. */
 const FORWARD = /^(.*?):(\[[^\]]+\]|[^:]+):(\d+)$/;
 
-export type TunnelKind = 'local' | 'remote' | 'dynamic';
+export type TunnelKind = 'local' | 'remote' | 'dynamic' | 'kubectl';
 
 export interface TunnelDraft {
   name: string;
@@ -147,14 +147,28 @@ export interface TunnelDraft {
   destHost: string;
   destPort: string;
   autoStart: boolean;
+  /** kubectl only: the context, namespace and target (svc/web, deploy/api, pod/x). */
+  context: string;
+  namespace: string;
+  resource: string;
+  /** kubectl only: the shell variables it runs with (KUBECONFIG, AWS profile, PATH). */
+  env: Record<string, string>;
 }
 
 export function emptyTunnel(host = '', port = ''): TunnelDraft {
-  return { name: '', host, port, kind: 'local', listenPort: '', destHost: 'localhost', destPort: '', autoStart: false };
+  return {
+    name: '', host, port, kind: 'local', listenPort: '', destHost: 'localhost', destPort: '', autoStart: false,
+    context: '', namespace: '', resource: '', env: {},
+  };
 }
 
 export function tunnelSpec(d: TunnelDraft): string {
   if (d.kind === 'dynamic') return d.listenPort.trim();
+  if (d.kind === 'kubectl') {
+    const local = d.listenPort.trim();
+    const remote = d.destPort.trim();
+    return remote && remote !== local ? `${local}:${remote}` : local;
+  }
   const host = d.destHost.trim() || 'localhost';
   const bracketed = host.includes(':') && !host.startsWith('[') ? `[${host}]` : host;
   return `${d.listenPort.trim()}:${bracketed}:${d.destPort.trim()}`;
@@ -166,6 +180,10 @@ export function draftOfTunnel(t: Tunnel): TunnelDraft {
   if (t.kind === 'dynamic') {
     d.listenPort = t.spec;
     return d;
+  }
+  if (t.kind === 'kubectl') {
+    const [local, remote] = t.spec.split(':');
+    return { ...d, listenPort: local, destPort: remote ?? local, context: t.context ?? '', namespace: t.namespace ?? '', resource: t.resource ?? '', env: { ...(t.env ?? {}) } as Record<string, string> };
   }
   const m = FORWARD.exec(t.spec);
   if (m) {
@@ -181,6 +199,7 @@ export function draftOfTunnel(t: Tunnel): TunnelDraft {
 /** The local port a tunnel listens on, for local and SOCKS tunnels. */
 export function localPort(t: Tunnel): string | null {
   if (t.kind === 'remote') return null;
+  if (t.kind === 'kubectl') return t.spec.split(':')[0] || null;
   const listen = t.kind === 'dynamic' ? t.spec : FORWARD.exec(t.spec)?.[1];
   return /(\d+)$/.exec(listen ?? '')?.[1] ?? null;
 }
@@ -188,6 +207,10 @@ export function localPort(t: Tunnel): string | null {
 /** "localhost:5432 → db.internal:5432 via bastion" */
 export function describeTunnel(t: Tunnel): string {
   if (t.kind === 'dynamic') return `SOCKS proxy on localhost:${t.spec} via ${t.host}`;
+  if (t.kind === 'kubectl') {
+    const [local, remote] = t.spec.split(':');
+    return `localhost:${local} → ${t.resource}:${remote ?? local} in ${t.namespace}`;
+  }
   const m = FORWARD.exec(t.spec);
   if (!m) return `${t.spec} via ${t.host}`;
   const listen = m[1].includes(':') ? m[1] : `localhost:${m[1]}`;
@@ -195,6 +218,16 @@ export function describeTunnel(t: Tunnel): string {
     ? `${listen} → ${m[2]}:${m[3]} via ${t.host}`
     : `${t.host}:${m[1]} → ${m[2]}:${m[3]} here`;
 }
+
+/** The variables a kubectl forward needs from the shell it's made in. */
+export function kubectlEnv(env: Record<string, string>): Record<string, string> {
+  const out: Record<string, string> = {};
+  for (const k of ['KUBECONFIG', 'AWS_PROFILE', 'AWS_REGION', 'AWS_DEFAULT_REGION', 'PATH']) if (env[k]) out[k] = env[k];
+  return out;
+}
+
+/** Whether a tunnel is a kubectl port-forward (rather than ssh). */
+export const isKubectl = (t: Tunnel) => t.kind === 'kubectl';
 
 class SshTunnels {
   list = $state.raw<TunnelStatus[]>([]);
@@ -213,8 +246,11 @@ class SshTunnels {
     }
   }
 
-  get running(): number {
-    return this.list.filter((t) => t.state === 'up' || t.state === 'connecting' || t.state === 'retrying').length;
+  /** How many are on; just ssh tunnels or just kubectl forwards when asked. */
+  running(kind?: 'ssh' | 'kubectl'): number {
+    return this.list.filter(
+      (t) => (t.state === 'up' || t.state === 'connecting' || t.state === 'retrying') && (!kind || (kind === 'kubectl') === (t.kind === 'kubectl')),
+    ).length;
   }
 
   async save(id: string, d: TunnelDraft) {
@@ -227,6 +263,10 @@ class SshTunnels {
         kind: d.kind,
         spec: tunnelSpec(d),
         autoStart: d.autoStart,
+        context: d.context.trim(),
+        namespace: d.namespace.trim(),
+        resource: d.resource.trim(),
+        env: d.env,
       })) ?? [];
   }
 

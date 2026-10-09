@@ -16,7 +16,7 @@ func fakeSSH(t *testing.T, scripts ...string) *[][]string {
 	var mu sync.Mutex
 	var calls [][]string
 	old, oldDelays := tunnelCommand, retryDelays
-	tunnelCommand = func(args []string) *exec.Cmd {
+	tunnelCommand = func(_ Tunnel, args []string) *exec.Cmd {
 		mu.Lock()
 		defer mu.Unlock()
 		script := scripts[min(len(calls), len(scripts)-1)]
@@ -149,6 +149,73 @@ func TestValidateTunnel(t *testing.T) {
 	for _, tt := range bad {
 		if err := validateTunnel(&tt); err == nil {
 			t.Errorf("%+v should be refused", tt)
+		}
+	}
+}
+
+func TestKubectlForward(t *testing.T) {
+	// Up when kubectl says so; the pod goes away; reconnects.
+	calls := fakeSSH(t,
+		"echo 'Forwarding from 127.0.0.1:15432 -> 5432'; sleep 0.2; echo 'error: lost connection to pod' >&2; exit 1",
+		"echo 'Forwarding from 127.0.0.1:15432 -> 5432'; exec sleep 30")
+	m := newTunnelManager("", nil)
+	defer m.Close()
+	in := Tunnel{
+		Name: "staging db", Kind: "kubectl", Context: "staging", Namespace: "data", Resource: "svc/postgres", Spec: "15432:5432",
+		Env: map[string]string{"KUBECONFIG": "/home/me/.kube/staging.yaml", "AWS_PROFILE": "devops", "PATH": "/opt/bin", "AWS_SECRET_ACCESS_KEY": "nope"},
+	}
+	list, err := m.Save(in)
+	if err != nil {
+		t.Fatal(err)
+	}
+	st := list[0]
+	if st.Command != "KUBECONFIG=/home/me/.kube/staging.yaml AWS_PROFILE=devops kubectl --context staging --namespace data port-forward --address 127.0.0.1 svc/postgres 15432:5432" {
+		t.Errorf("command %q", st.Command)
+	}
+	if _, kept := st.Env["AWS_SECRET_ACCESS_KEY"]; kept || st.Env["PATH"] != "/opt/bin" {
+		t.Errorf("env %v: only the shell variables a forward needs", st.Env)
+	}
+	m.Start(st.ID)
+	waitState(t, m, st.ID, TunnelUp)
+	waitState(t, m, st.ID, TunnelRetrying)
+	waitState(t, m, st.ID, TunnelUp)
+	if got := strings.Join((*calls)[0], " "); got != "--context staging --namespace data port-forward --address 127.0.0.1 svc/postgres 15432:5432" {
+		t.Errorf("args %q", got)
+	}
+}
+
+func TestKubectlEnv(t *testing.T) {
+	t.Setenv("AWS_SECRET_ACCESS_KEY", "app-secret")
+	t.Setenv("KUBECONFIG", "/wtf/own")
+	env := strings.Join(kubectlEnv(map[string]string{"KUBECONFIG": "/k", "AWS_PROFILE": "p", "PATH": "/opt/bin"}), "\n")
+	for _, want := range []string{"KUBECONFIG=/k", "AWS_PROFILE=p", "PATH=/opt/bin"} {
+		if !strings.Contains(env, want) {
+			t.Errorf("env lacks %s", want)
+		}
+	}
+	if strings.Contains(env, "app-secret") || strings.Contains(env, "/wtf/own") {
+		t.Error("wtf's own AWS keys and kubeconfig must not reach the forward")
+	}
+}
+
+func TestValidateKubectl(t *testing.T) {
+	ok := Tunnel{Kind: "kubectl", Context: "arn:aws:eks:us-east-1:1:cluster/prod", Namespace: "shop", Resource: "deploy/web", Spec: "8080:80", Host: "ignored"}
+	if err := validateTunnel(&ok); err != nil || ok.Host != "" {
+		t.Errorf("%+v: %v", ok, err)
+	}
+	same := Tunnel{Kind: "kubectl", Context: "c", Namespace: "n", Resource: "pod/web-1", Spec: "8080"}
+	if err := validateTunnel(&same); err != nil {
+		t.Errorf("single port: %v", err)
+	}
+	for _, bad := range []Tunnel{
+		{Kind: "kubectl", Context: "-x", Namespace: "n", Resource: "svc/a", Spec: "1:2"},
+		{Kind: "kubectl", Context: "c", Namespace: "a b", Resource: "svc/a", Spec: "1:2"},
+		{Kind: "kubectl", Context: "c", Namespace: "n", Resource: "secret/a", Spec: "1:2"},
+		{Kind: "kubectl", Context: "c", Namespace: "n", Resource: "svc/a", Spec: "99999:2"},
+		{Kind: "kubectl", Context: "c", Namespace: "n", Resource: "svc/a", Spec: "a:b"},
+	} {
+		if err := validateTunnel(&bad); err == nil {
+			t.Errorf("%+v should be refused", bad)
 		}
 	}
 }

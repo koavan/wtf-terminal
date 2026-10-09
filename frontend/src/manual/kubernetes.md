@@ -33,6 +33,7 @@ The tab follows the focused shell's context and namespace. Pick another namespac
 Right-click for actions. They run as real `kubectl` commands in a new tab, carrying the shell's `KUBECONFIG` and AWS profile and naming the context and namespace, so they do exactly what you were looking at:
 
 - **Pods**: **Logs** (double-click; per container, or from before the last restart), **Shell (exec)**, **Describe**, **Port Forward…**.
+- **Port Forward…** (pods, deployments, services) opens the port-forward editor filled in: **Save & Start** keeps it running in the background — reconnecting when the pod restarts — and lists it in the [Network tab's Forwards](#network); **Run in Terminal** runs a one-off `kubectl port-forward` in a new tab instead.
 - **Deployments, StatefulSets, DaemonSets**: logs of all pods, rollout status (and history for deployments), **View YAML**, **Describe**.
 - **Services**: **Port Forward…** with the service's first port filled in. **Ingresses**: open each host in your browser.
 - **Every kind**: **Describe**, **View YAML** (not for secrets), **Copy Name**.

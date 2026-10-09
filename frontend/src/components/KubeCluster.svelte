@@ -10,6 +10,7 @@
     TABLE_KINDS, type Deployment, type KubeSection, type Pod, type Row, type TableKind, type Target,
   } from '../lib/kube.svelte';
   import { overlay, type MenuEntry } from '../lib/overlay.svelte';
+  import { kubectlEnv } from '../lib/sshAdmin.svelte';
   import { poll, sidebarInterval } from '../lib/poller';
   import { settings } from '../lib/settings.svelte';
   import { tabs } from '../lib/tabs.svelte';
@@ -234,25 +235,27 @@
       .join('\n');
   }
 
+  /** A port forward to a resource: saved and run in the background, or one-off in a terminal (the editor offers both). */
   function portForward(resource: string, remoteDefault = '') {
     const ct = kube.commandTarget;
     if (!ct) return;
     overlay.show({
-      kind: 'commandPrompt',
-      title: `Port Forward ${resource}`,
-      message: where(ct),
-      fields: [
-        { label: 'Port here', value: '', placeholder: '8080' },
-        { label: resource.startsWith('service/') ? 'Port of the service' : 'Port in the pod', value: remoteDefault, placeholder: '80' },
-      ],
-      command: ([local, remote]) => {
-        const ok = (p: string) => /^\d+$/.test(p.trim()) && +p > 0 && +p < 65536;
-        if (!ok(local) || !ok(remote)) throw new Error('Enter both ports, 1–65535');
-        return kc.portForward(ct, resource, +local, +remote);
+      kind: 'tunnel',
+      tunnel: null,
+      host: null,
+      prefill: {
+        kind: 'kubectl',
+        name: resource.slice(resource.indexOf('/') + 1),
+        context: ct.context,
+        namespace: ct.namespace,
+        resource,
+        listenPort: remoteDefault,
+        destPort: remoteDefault,
+        env: kubectlEnv(ct.env),
       },
-      confirmLabel: 'Start in Terminal',
     });
   }
+
 
   function podDetail(p: Pod): string {
     const parts = [p.status];

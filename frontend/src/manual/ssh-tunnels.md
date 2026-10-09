@@ -23,4 +23,6 @@ Fill in the host to go through, the ports and the destination, optionally a name
 
 Each tunnel is its own `ssh -N` with its own connection, so stopping it never affects your terminal sessions. Tunnels stop when wtf quits.
 
+The [Network tab's Forwards](#network) lists these tunnels together with your kubectl port-forwards, and labels the ports they listen on.
+
 > Tunnels run without prompts, so the host must accept a key from ssh-agent or a key without a passphrase. "Permission denied (publickey)" means: load your key into the agent ([SSH keys](#ssh-keys)).

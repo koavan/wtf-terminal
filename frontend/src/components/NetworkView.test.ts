@@ -209,3 +209,26 @@ describe('NetworkView', () => {
     expect(await screen.findByText(':5432')).toBeTruthy();
   });
 });
+
+describe('forwards', () => {
+  it('lists port forwards and labels their listeners, even among terminal programs', async () => {
+    const { sshTunnels } = await import('../lib/sshAdmin.svelte');
+    sshTunnels.loaded = true;
+    sshTunnels.list = [
+      {
+        id: 'f1', name: 'staging db', host: '', port: '', kind: 'kubectl', spec: '15432:5432', autoStart: false,
+        context: 'staging', namespace: 'data', resource: 'svc/postgres', env: {}, state: 'up', error: '', since: 0,
+        command: 'kubectl --context staging --namespace data port-forward --address 127.0.0.1 svc/postgres 15432:5432',
+      },
+    ] as never;
+    conns = [...conns, conn({ pid: 20, process: 'kubectl', local: '127.0.0.1:15432' })];
+    const view = render(NetworkView);
+    await view.findByText('staging db');
+    const text = view.getByText('staging db').closest('.row')!.textContent!.replace(/\s+/g, ' ');
+    expect(text).toContain('localhost:15432 → svc/postgres:5432 in data · on');
+    // wtf runs it, not a terminal — but it's yours, so it shows under Terminals.
+    await view.findByText('forward · staging db');
+    expect(view.queryByText('postgres')).toBeNull(); // other programs' listeners still hidden
+    sshTunnels.list = [];
+  });
+});

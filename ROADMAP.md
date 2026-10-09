@@ -85,11 +85,14 @@ tab; runbooks run step by step; Save as Snippet… from a command or History.
 The Snippets side-pane tab (⌘⇧Y) manages them with a form editor (reviewed
 TOML, block-level edits that keep the rest of the file).
 
-### 8. Port-forward and tunnel manager ◐
+### 8. Port-forward and tunnel manager ☑
 
-ssh tunnels done (SSH tab → Tunnels). `kubectl port-forward` runs in a tab
-from the Kubernetes tab. Still to do: managing kubectl port-forwards like
-ssh tunnels, and linking both with the Network tab's listening ports.
+ssh tunnels (SSH tab → Tunnels) and kubectl port-forwards run by the same
+background manager (status, reconnect after a drop or pod restart, start
+with wtf, stop on quit). kubectl forwards keep the creating shell's
+KUBECONFIG, AWS profile and PATH. The Network tab's Forwards lists both,
+with open-in-browser, and labels their listening ports; the Kubernetes tab's
+Port Forward… opens the editor (save & start, or run once in a terminal).
 
 - Start/stop/monitor `kubectl port-forward` and `ssh -L` tunnels from the Network
   tab, which already lists listening ports.

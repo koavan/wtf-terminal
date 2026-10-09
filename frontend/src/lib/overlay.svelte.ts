@@ -1,6 +1,6 @@
 import { tick } from 'svelte';
 import type { Host, HostDraft } from './ssh.svelte';
-import type { Key, TunnelStatus } from './sshAdmin.svelte';
+import type { Key, TunnelDraft, TunnelStatus } from './sshAdmin.svelte';
 import type { Profile } from './aws.svelte';
 import type { Snippet, Workspace, WorkspaceDef } from './snippets.svelte';
 import type { GroupColor } from './tabs.svelte';
@@ -21,7 +21,7 @@ export type OverlayState =
   | { kind: 'keyGen' }
   | { kind: 'keyInstall'; key: Key | null; host: Host | null }
   | { kind: 'hostKeys'; host: Host }
-  | { kind: 'tunnel'; tunnel: TunnelStatus | null; host: Host | null }
+  | { kind: 'tunnel'; tunnel: TunnelStatus | null; host: Host | null; prefill?: Partial<TunnelDraft> }
   | { kind: 'transfer'; host: Host; direction: 'upload' | 'download'; locals: string[] }
   | { kind: 'awsProfile'; profile: Profile | null }
   | { kind: 'awsRotate'; profile: Profile }

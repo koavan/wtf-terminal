@@ -35,11 +35,21 @@ type Tunnel struct {
 	// for hosts that aren't in the config.
 	Host string `json:"host"`
 	Port string `json:"port"`
-	// local (-L), remote (-R) or dynamic (-D, a SOCKS proxy).
+	// local (-L), remote (-R) or dynamic (-D, a SOCKS proxy) for ssh;
+	// kubectl for a kubectl port-forward.
 	Kind string `json:"kind"`
-	// ssh's forward spec: "8080:localhost:80", or "1080" for dynamic.
+	// ssh's forward spec: "8080:localhost:80", or "1080" for dynamic;
+	// for kubectl, "LOCAL:REMOTE" ports.
 	Spec      string `json:"spec"`
 	AutoStart bool   `json:"autoStart"`
+
+	// kubectl only: where and what to forward to (pod/x, svc/x, deploy/x),
+	// and the variables of the shell it was made in (KUBECONFIG, the AWS
+	// profile, PATH for login helpers), so it reaches the same cluster later.
+	Context   string            `json:"context,omitempty"`
+	Namespace string            `json:"namespace,omitempty"`
+	Resource  string            `json:"resource,omitempty"`
+	Env       map[string]string `json:"env,omitempty"`
 }
 
 // Tunnel states.
@@ -85,9 +95,53 @@ var (
 )
 
 // tunnelCommand builds the process for a tunnel; tests replace it.
-var tunnelCommand = func(args []string) *exec.Cmd {
+var tunnelCommand = func(t Tunnel, args []string) *exec.Cmd {
+	if t.Kind == "kubectl" {
+		cmd := exec.Command(findKubectl(t.Env["PATH"]), args...)
+		cmd.Env = kubectlEnv(t.Env)
+		return cmd
+	}
 	return exec.Command(sshTool("ssh"), args...)
 }
+
+// Variables a kubectl forward takes from the shell it was made in.
+var kubectlVars = map[string]bool{"PATH": true, "KUBECONFIG": true, "AWS_PROFILE": true, "AWS_REGION": true, "AWS_DEFAULT_REGION": true}
+
+// kubectlEnv is wtf's environment with the forward's shell variables in
+// place of its own (and no stray AWS keys or kubeconfig of wtf's).
+func kubectlEnv(saved map[string]string) []string {
+	var out []string
+	for _, kv := range os.Environ() {
+		name, _, _ := strings.Cut(kv, "=")
+		if _, ok := saved[name]; ok || name == "KUBECONFIG" || strings.HasPrefix(name, "AWS_") {
+			continue
+		}
+		out = append(out, kv)
+	}
+	for k, v := range saved {
+		if kubectlVars[k] {
+			out = append(out, k+"="+v)
+		}
+	}
+	return out
+}
+
+// findKubectl looks on the saved PATH first, then wtf's.
+func findKubectl(path string) string {
+	for _, dir := range filepath.SplitList(path) {
+		p := filepath.Join(dir, "kubectl")
+		if fi, err := os.Stat(p); err == nil && !fi.IsDir() && fi.Mode()&0o111 != 0 {
+			return p
+		}
+	}
+	if p, err := exec.LookPath("kubectl"); err == nil {
+		return p
+	}
+	return "kubectl"
+}
+
+// kubectl says this when the forward is listening.
+const kubectlUp = "Forwarding from "
 
 type tunnelManager struct {
 	mu      sync.Mutex
@@ -179,7 +233,7 @@ func (m *tunnelManager) list() []TunnelStatus {
 			State:   t.state,
 			Error:   t.err,
 			Since:   t.since.UnixMilli(),
-			Command: "ssh " + strings.Join(quoteArgs(tunnelArgs(t.Tunnel, false)), " "),
+			Command: displayCommand(t.Tunnel),
 		})
 	}
 	return out
@@ -213,7 +267,8 @@ func (m *tunnelManager) Save(in Tunnel) ([]TunnelStatus, error) {
 		m.tunnels[in.ID] = t
 		m.order = append(m.order, in.ID)
 	} else {
-		restart = t.on && (t.Host != in.Host || t.Port != in.Port || t.Kind != in.Kind || t.Spec != in.Spec)
+		restart = t.on && (t.Host != in.Host || t.Port != in.Port || t.Kind != in.Kind || t.Spec != in.Spec ||
+			t.Context != in.Context || t.Namespace != in.Namespace || t.Resource != in.Resource)
 		t.Tunnel = in
 	}
 	if err := m.save(); err != nil {
@@ -324,7 +379,7 @@ func (m *tunnelManager) start(t *runningTunnel) {
 		t.retry.Stop()
 		t.retry = nil
 	}
-	cmd := tunnelCommand(tunnelArgs(t.Tunnel, true))
+	cmd := tunnelCommand(t.Tunnel, tunnelArgs(t.Tunnel, true))
 	cmd.Stdin = nil
 	// Its own process group, so a terminal's Ctrl-C never reaches it.
 	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
@@ -351,7 +406,7 @@ func (m *tunnelManager) start(t *runningTunnel) {
 	go func() {
 		sc := bufio.NewScanner(stdout)
 		for sc.Scan() {
-			if strings.TrimSpace(sc.Text()) == upMarker {
+			if line := strings.TrimSpace(sc.Text()); line == upMarker || strings.HasPrefix(line, kubectlUp) {
 				m.markUp(t, gen)
 			}
 		}
@@ -451,6 +506,9 @@ func lastErrorLine(r io.Reader) string {
 // tunnelArgs are ssh's arguments for a tunnel. The managed form adds what
 // wtf needs to run it unattended; the plain one is for showing the user.
 func tunnelArgs(t Tunnel, managed bool) []string {
+	if t.Kind == "kubectl" {
+		return []string{"--context", t.Context, "--namespace", t.Namespace, "port-forward", "--address", "127.0.0.1", t.Resource, t.Spec}
+	}
 	flag := map[string]string{"local": "-L", "remote": "-R", "dynamic": "-D"}[t.Kind]
 	args := []string{"-N"}
 	if managed {
@@ -476,6 +534,21 @@ func tunnelArgs(t Tunnel, managed bool) []string {
 	return append(args, t.Host)
 }
 
+// displayCommand is the tunnel as a command to show or run by hand.
+func displayCommand(t Tunnel) string {
+	if t.Kind == "kubectl" {
+		prefix := ""
+		if k := t.Env["KUBECONFIG"]; k != "" {
+			prefix = "KUBECONFIG=" + quoteArgs([]string{k})[0] + " "
+		}
+		if p := t.Env["AWS_PROFILE"]; p != "" {
+			prefix += "AWS_PROFILE=" + quoteArgs([]string{p})[0] + " "
+		}
+		return prefix + "kubectl " + strings.Join(quoteArgs(tunnelArgs(t, false)), " ")
+	}
+	return "ssh " + strings.Join(quoteArgs(tunnelArgs(t, false)), " ")
+}
+
 func quoteArgs(args []string) []string {
 	out := make([]string, len(args))
 	for i, a := range args {
@@ -493,6 +566,9 @@ func validateTunnel(t *Tunnel) error {
 	t.Host = strings.TrimSpace(t.Host)
 	t.Port = strings.TrimSpace(t.Port)
 	t.Spec = strings.TrimSpace(t.Spec)
+	if t.Kind == "kubectl" {
+		return validateKubectl(t)
+	}
 	switch {
 	case t.Host == "":
 		return errors.New("choose a host to connect through")
@@ -524,6 +600,40 @@ func validateTunnel(t *Tunnel) error {
 	for _, p := range m {
 		if n, _ := strconv.Atoi(p); n > 65535 {
 			return fmt.Errorf("port %s is above 65535", p)
+		}
+	}
+	return nil
+}
+
+var (
+	kubeResource = regexp.MustCompile(`^(pod|pods|po|svc|service|services|deploy|deployment|deployments|sts|statefulset|statefulsets|rs|replicaset)/[a-z0-9]([a-z0-9.-]*[a-z0-9])?$`)
+	kubePorts    = regexp.MustCompile(`^([1-9][0-9]{0,4})(:([1-9][0-9]{0,4}))?$`)
+	kubeName     = regexp.MustCompile(`^[^\s-][^\s]*$`)
+)
+
+func validateKubectl(t *Tunnel) error {
+	t.Host, t.Port = "", ""
+	t.Context, t.Namespace, t.Resource = strings.TrimSpace(t.Context), strings.TrimSpace(t.Namespace), strings.TrimSpace(t.Resource)
+	switch {
+	case !kubeName.MatchString(t.Context):
+		return fmt.Errorf("%q isn't a context name", t.Context)
+	case !kubeName.MatchString(t.Namespace):
+		return fmt.Errorf("%q isn't a namespace", t.Namespace)
+	case !kubeResource.MatchString(t.Resource):
+		return fmt.Errorf("%q should look like svc/web, deploy/api or pod/name", t.Resource)
+	}
+	m := kubePorts.FindStringSubmatch(t.Spec)
+	if m == nil {
+		return fmt.Errorf("%q should be LOCAL:REMOTE ports, like 8080:80", t.Spec)
+	}
+	for _, p := range []string{m[1], m[3]} {
+		if n, _ := strconv.Atoi(p); n > 65535 {
+			return fmt.Errorf("port %s is above 65535", p)
+		}
+	}
+	for k, v := range t.Env {
+		if !kubectlVars[k] || strings.ContainsAny(v, "\x00\n") {
+			delete(t.Env, k)
 		}
 	}
 	return nil

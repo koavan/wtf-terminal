@@ -11,8 +11,28 @@
   import { poll, sidebarInterval } from '../lib/poller';
   import { settings } from '../lib/settings.svelte';
   import { toast } from '../lib/toast.svelte';
+  import ForwardRow from './ForwardRow.svelte';
+  import { describeTunnel, localPort, sshTunnels, type TunnelStatus } from '../lib/sshAdmin.svelte';
 
   let showOther = $state(false);
+
+  // Port forwards (ssh tunnels, kubectl port-forwards): run by wtf, which
+  // reports every change, so nothing polls for them.
+  $effect(() => {
+    if (!sshTunnels.loaded) untrack(() => sshTunnels.load().catch(() => {}));
+  });
+
+  const activeForward = (t: TunnelStatus) => t.state === 'up' || t.state === 'connecting' || t.state === 'retrying';
+  /** The running forward listening on a local port, if any. */
+  function forwardOn(port: string): TunnelStatus | undefined {
+    return sshTunnels.list.find((t) => activeForward(t) && localPort(t) === port);
+  }
+  const forwards = $derived(
+    sshTunnels.list.filter((t) => {
+      const q = network.filter.trim().toLowerCase();
+      return !q || `${t.name} ${describeTunnel(t)} ${t.command}`.toLowerCase().includes(q);
+    }),
+  );
 
   // Polls while shown; with auto-refresh off, loads once (see lib/poller.ts).
   $effect(() => {
@@ -35,7 +55,8 @@
     const pid = /^pid:\s*(\d+)$/.exec(q)?.[1];
     return network.conns.filter((c) => {
       if (pid) return c.pid === Number(pid);
-      if (network.scope === 'terminals' && !c.session) return false;
+      // A forward's listener counts as yours: wtf runs it for you.
+      if (network.scope === 'terminals' && !c.session && !(c.state === 'LISTEN' && forwardOn(splitAddress(c.local).port))) return false;
       if (!q) return true;
       return `${c.process} ${c.local} ${c.remote} ${c.pid}`.toLowerCase().includes(q);
     });
@@ -154,6 +175,20 @@
       </div>
     {/if}
 
+    <h3>
+      <Icon name="tunnel" size={12} /> Forwards <span class="count">{forwards.length}</span>
+      <button class="add" title="New port forward (ssh tunnel or kubectl port-forward)" aria-label="New port forward" onclick={() => overlay.show({ kind: 'tunnel', tunnel: null, host: null })}>
+        <Icon name="plus" size={12} />
+      </button>
+    </h3>
+    {#each forwards as t (t.id)}
+      <ForwardRow {t} />
+    {:else}
+      {#if sshTunnels.loaded && !network.filter}
+        <div class="hint-row">None yet. + adds an ssh tunnel or a kubectl port-forward that runs in the background.</div>
+      {/if}
+    {/each}
+
     {#if listening.length}
       <h3><Icon name="radio" size={12} /> Listening <span class="count">{listening.length}</span></h3>
       {#each listening as c (key(c))}
@@ -166,6 +201,10 @@
             <span class="sub">
               {c.protocol}{serviceName(a.port) ? ` · ${serviceName(a.port)}` : ''}
               <span class="scope-pill" class:exposed title={exposed ? 'Reachable from other machines on your network' : 'Only reachable from this computer'}>{exposed ? 'network' : 'local'}</span>
+              {#if forwardOn(a.port)}
+                {@const f = forwardOn(a.port)!}
+                <span class="forward-pill" title={describeTunnel(f)}>forward · {f.name || describeTunnel(f)}</span>
+              {/if}
             </span>
           </span>
           {@render ownerChip(c)}
@@ -445,6 +484,37 @@
     background: none;
     color: var(--accent);
     font-size: 12px;
+    font-weight: 600;
+  }
+  .add {
+    display: grid;
+    place-items: center;
+    width: 18px;
+    height: 18px;
+    margin-left: auto;
+    padding: 0;
+    border: 0;
+    border-radius: 5px;
+    background: transparent;
+    color: var(--chrome-muted);
+  }
+  .add:hover {
+    background: var(--tab-hover);
+    color: var(--chrome-text);
+  }
+  .hint-row {
+    padding: 2px 10px 6px;
+    color: var(--chrome-muted);
+    font-size: 11.5px;
+    line-height: 1.4;
+  }
+  .forward-pill {
+    margin-left: 4px;
+    padding: 0 5px;
+    border-radius: 4px;
+    background: var(--accent-soft);
+    color: var(--accent);
+    font-size: 10px;
     font-weight: 600;
   }
 </style>

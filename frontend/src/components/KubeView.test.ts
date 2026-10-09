@@ -326,7 +326,11 @@ describe('KubeView', () => {
     await fireEvent.click(view.getByTitle('Show Services'));
     await fireEvent.contextMenu(await view.findByText('ClusterIP · 10.100.0.7 · 8080/TCP,9090/TCP · 30d'));
     pick('Port Forward…');
-    await view.findByDisplayValue('8080'); // the service's first port, prefilled
+    // The port-forward editor, filled in for this service: its first port, both sides.
+    await view.findByText('New Port Forward');
+    expect(view.getAllByDisplayValue('8080')).toHaveLength(2);
+    view.getByDisplayValue('service/web');
+    view.getByText(/kubectl --context prod --namespace shop port-forward service\/web 8080/);
 
     overlay.current = null;
     await fireEvent.click(view.getByTitle('Show Ingresses'));
