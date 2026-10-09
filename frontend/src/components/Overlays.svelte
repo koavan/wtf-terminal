@@ -2,6 +2,8 @@
   import Confirm from './Confirm.svelte';
   import ContextMenu from './ContextMenu.svelte';
   import GroupEditor from './GroupEditor.svelte';
+  import AwsProfileEditor from './AwsProfileEditor.svelte';
+  import AwsRotate from './AwsRotate.svelte';
   import HostEditor from './HostEditor.svelte';
   import HostKeysDialog from './HostKeysDialog.svelte';
   import KeyGenerator from './KeyGenerator.svelte';
@@ -36,6 +38,10 @@
   <TunnelEditor tunnel={overlay.current.tunnel} host={overlay.current.host} />
 {:else if overlay.current?.kind === 'transfer'}
   <TransferDialog host={overlay.current.host} direction={overlay.current.direction} locals={overlay.current.locals} />
+{:else if overlay.current?.kind === 'awsProfile'}
+  <AwsProfileEditor profile={overlay.current.profile} />
+{:else if overlay.current?.kind === 'awsRotate'}
+  <AwsRotate profile={overlay.current.profile} />
 {:else if overlay.current?.kind === 'group'}
   {#key overlay.current.groupId}
     <GroupEditor groupId={overlay.current.groupId} anchor={overlay.current.anchor} />

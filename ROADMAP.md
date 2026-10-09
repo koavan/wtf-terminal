@@ -82,6 +82,12 @@ and linking tunnels with the Network tab's listening ports.
   tab, which already lists listening ports.
 - "Open in browser" for localhost ports.
 
+### 9. AWS profile manager ☑
+
+AWS Profiles tab (⌘⇧U): list/add/edit/rename/delete profiles with a reviewed
+plan for every change, use a profile in the focused shell, check identity
+and key age, rotate access keys with rollback. See README.
+
 ## Tier 3 — polish
 
 - ☐ **Log-friendly rendering:** highlight and make clickable timestamps, levels

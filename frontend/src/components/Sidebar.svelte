@@ -4,6 +4,7 @@
   import Icon, { type IconName } from './Icon.svelte';
   import NetworkView from './NetworkView.svelte';
   import ProcessView from './ProcessView.svelte';
+  import AwsView from './AwsView.svelte';
   import SshView from './SshView.svelte';
   import { isMac } from '../lib/platform';
   import { sidebar, type SidebarTab } from '../lib/sidebar.svelte';
@@ -11,6 +12,7 @@
   const TABS: { id: SidebarTab; label: string; icon: IconName; key: string }[] = [
     { id: 'files', label: 'Files', icon: 'folder', key: isMac ? '⌘⇧E' : 'Ctrl+Shift+Alt+E' },
     { id: 'ssh', label: 'SSH Hosts', icon: 'server', key: isMac ? '⌘⇧S' : 'Ctrl+Shift+Alt+S' },
+    { id: 'aws', label: 'AWS Profiles', icon: 'cloud', key: isMac ? '⌘⇧U' : 'Ctrl+Shift+Alt+U' },
     { id: 'network', label: 'Network', icon: 'network', key: isMac ? '⌘⇧O' : 'Ctrl+Shift+Alt+O' },
     { id: 'processes', label: 'Processes', icon: 'cpu', key: isMac ? '⌘⇧A' : 'Ctrl+Shift+Alt+A' },
     { id: 'history', label: 'History', icon: 'history', key: isMac ? '⌘⇧H' : 'Ctrl+Shift+Alt+H' },
@@ -56,6 +58,8 @@
       <FileTree />
     {:else if sidebar.tab === 'ssh'}
       <SshView />
+    {:else if sidebar.tab === 'aws'}
+      <AwsView />
     {:else if sidebar.tab === 'network'}
       <NetworkView />
     {:else if sidebar.tab === 'processes'}

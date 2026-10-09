@@ -8,6 +8,7 @@ import (
 
 	"github.com/wailsapp/wails/v3/pkg/application"
 
+	"github.com/dayanraj/wtf/internal/awsprofiles"
 	"github.com/dayanraj/wtf/internal/config"
 	"github.com/dayanraj/wtf/internal/files"
 	"github.com/dayanraj/wtf/internal/infra"
@@ -53,6 +54,7 @@ func main() {
 			application.NewService(notify.NewService()),
 			application.NewService(files.NewService()),
 			application.NewService(infra.NewService()),
+			application.NewService(awsprofiles.NewService()),
 			application.NewService(sshhosts.NewService(stateDir)),
 			application.NewService(netconn.NewService(term.ShellPIDs)),
 			application.NewService(procs.NewService(term.ShellPIDs)),
@@ -160,6 +162,7 @@ func buildMenu(windows *wtfwindows.Manager) *application.Menu {
 	cmd(view, "Show Processes", "CmdOrCtrl+shift+a", "sidebar.processes")
 	cmd(view, "Show Command History", "CmdOrCtrl+shift+h", "sidebar.history")
 	cmd(view, "Show SSH Hosts", "CmdOrCtrl+shift+s", "sidebar.ssh")
+	cmd(view, "Show AWS Profiles", "CmdOrCtrl+shift+u", "sidebar.aws")
 	view.AddSeparator()
 	cmd(view, "Previous Prompt", "CmdOrCtrl+up", "prompt.prev")
 	cmd(view, "Next Prompt", "CmdOrCtrl+down", "prompt.next")

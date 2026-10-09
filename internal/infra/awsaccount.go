@@ -91,7 +91,7 @@ func fingerprint(path string) string {
 
 // stsLookup runs `aws sts get-caller-identity`, which needs no permissions.
 func stsLookup(ctx context.Context, profile, region, configFile, credsFile string) (string, error) {
-	bin := findAWS()
+	bin := FindAWS()
 	if bin == "" {
 		return "", errors.New("the aws CLI isn't installed")
 	}
@@ -100,7 +100,7 @@ func stsLookup(ctx context.Context, profile, region, configFile, credsFile strin
 	}
 	cmd := exec.CommandContext(ctx, bin, "sts", "get-caller-identity",
 		"--profile", profile, "--region", region, "--query", "Account", "--output", "text")
-	cmd.Env = awsEnv(configFile, credsFile)
+	cmd.Env = AWSEnv(configFile, credsFile)
 	cmd.Stdin = nil // an MFA prompt fails instead of waiting forever
 	var stderr bytes.Buffer
 	cmd.Stderr = &stderr
@@ -118,9 +118,9 @@ func stsLookup(ctx context.Context, profile, region, configFile, credsFile strin
 	return acct, nil
 }
 
-// awsEnv is wtf's environment without AWS settings that could override the
+// AWSEnv is wtf's environment without AWS settings that could override the
 // profile, pointing the CLI at the files the shell uses.
-func awsEnv(configFile, credsFile string) []string {
+func AWSEnv(configFile, credsFile string) []string {
 	var env []string
 	for _, kv := range os.Environ() {
 		if !strings.HasPrefix(kv, "AWS_") {
@@ -135,9 +135,9 @@ func awsEnv(configFile, credsFile string) []string {
 	)
 }
 
-// findAWS looks on PATH and then where installers put the CLI: apps
+// FindAWS looks on PATH and then where installers put the CLI: apps
 // started from the Finder get a minimal PATH.
-func findAWS() string {
+func FindAWS() string {
 	if p, err := exec.LookPath("aws"); err == nil {
 		return p
 	}

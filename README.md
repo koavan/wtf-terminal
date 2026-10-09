@@ -27,6 +27,8 @@ Requires Go 1.25+, Node 20+, and `wails3` (`go install github.com/wailsapp/wails
 - `internal/sshhosts`: the SSH tab: hosts from `~/.ssh/config` and `known_hosts`, keys
   and ssh-agent, server host keys, and background tunnels.
 - `internal/infra`: Kubernetes/AWS/gcloud/Terraform context for the context badges.
+- `internal/awsprofiles`: the AWS tab: profiles in `~/.aws/credentials` and
+  `~/.aws/config`, checks and key rotation through the aws CLI.
 - `internal/files`: directory listings (with git ignore rules) for the file tree.
 - `internal/netconn`: connections and listening ports, attributed to terminal sessions.
 - `internal/procs`: the user's processes, attributed to terminal sessions.
@@ -44,7 +46,7 @@ Every command is also in the command palette.
 |---|---|---|
 | Command palette | ⌘⇧P | Ctrl+Shift+P |
 | Toggle sidebar | ⌘B | Ctrl+Shift+B |
-| Sidebar: files / SSH / network / processes / history | ⌘⇧E / ⌘⇧S / ⌘⇧O / ⌘⇧A / ⌘⇧H | Ctrl+Shift+Alt+E / S / O / A / H |
+| Sidebar: files / SSH / AWS / network / processes / history | ⌘⇧E / ⌘⇧S / ⌘⇧U / ⌘⇧O / ⌘⇧A / ⌘⇧H | Ctrl+Shift+Alt+E / S / U / O / A / H |
 | New tab | ⌘T | Ctrl+Shift+T |
 | New window | ⌘N | Ctrl+Shift+N |
 | Show all tabs | ⌘⇧\ | Ctrl+Shift+\ |
@@ -142,6 +144,36 @@ above the terminals says where your typing goes, the panes are outlined and
 the tabs marked; ⌥⌘B (or Stop) ends it. Replies the terminal sends for a
 program (cursor position, mouse reports) aren't broadcast, and it never
 survives a restart.
+
+The **AWS Profiles** tab (⌘⇧U) lists the AWS CLI's profiles from
+`~/.aws/credentials` and `~/.aws/config` (or `$AWS_SHARED_CREDENTIALS_FILE` /
+`$AWS_CONFIG_FILE`): access-key, assume-role, SSO and credential-process
+profiles, with their key ID, region and account, and the one the focused
+shell uses marked "in use". Double-click (or ▶) points the focused shell at a
+profile by typing `export AWS_PROFILE=…` at its prompt — or opens a new tab
+that does, if a program is running. The menu also opens a tab with the
+profile, runs `aws sso login`, and asks AWS about it: **Check Identity**
+(`sts get-caller-identity`) and, for access keys, **Check Access Keys** (each
+key of the IAM user, its status, age and last use).
+
+Changes always show what they'll do first and wait for a yes: **+** and
+**Edit…** end in a review of every line that will change, and **Delete…**
+and **Copy to Default…** (which copies a profile into `[default]`, used when
+no profile is chosen) list their changes in a confirmation. Edits change only
+the lines involved, keeping comments and each key's spelling
+(`AWS_ACCESS_KEY_ID=` or `aws_access_key_id = `); renaming a profile updates
+the profiles that use it as `source_profile`. Secrets are write-only: wtf
+never shows a saved secret key or session token, and an empty secret field
+keeps the current one. Before each write a copy of the file goes to wtf's
+cache folder (`aws-backups`, last 20, readable only by you — they contain
+keys).
+
+**Rotate Access Key…** replaces an IAM user's long-term key: it checks the
+key works and the user has room for a second key (AWS allows two), shows the
+steps, and on confirmation creates a new key, writes it to the profile,
+waits until AWS accepts it, then deactivates — and optionally deletes — the
+old one. If AWS never accepts the new key, the old one is put back and the
+new one deleted. The new secret goes straight from AWS into the file.
 
 The **Network** tab lists listening ports and open connections — by default
 those from programs in your terminals, labeled with their tab (click to jump

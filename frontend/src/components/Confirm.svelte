@@ -41,10 +41,10 @@
   <p>{request.message}</p>
   {#if request.items.length}
     <ul>
-      {#each request.items.slice(0, 6) as item, i (i)}
+      {#each request.showAll ? request.items : request.items.slice(0, 6) as item, i (i)}
         <li>{item}</li>
       {/each}
-      {#if request.items.length > 6}<li class="more">and {request.items.length - 6} more</li>{/if}
+      {#if !request.showAll && request.items.length > 6}<li class="more">and {request.items.length - 6} more</li>{/if}
     </ul>
   {/if}
   <div class="buttons">
@@ -99,6 +99,9 @@
     list-style: none;
     font-family: 'JetBrains Mono Variable', monospace;
     font-size: 11.5px;
+    max-height: 50vh;
+    overflow: auto;
+    overflow-wrap: anywhere;
   }
   li {
     padding: 2px 0;

@@ -25,7 +25,7 @@ describe('Sidebar tabs', () => {
     sidebar.tab = 'files';
     const screen = render(Sidebar);
     const buttons = screen.getAllByRole('tab');
-    expect(buttons.map((b) => b.getAttribute('aria-label'))).toEqual(['Files', 'SSH Hosts', 'Network', 'Processes', 'History']);
+    expect(buttons.map((b) => b.getAttribute('aria-label'))).toEqual(['Files', 'SSH Hosts', 'AWS Profiles', 'Network', 'Processes', 'History']);
     for (const b of buttons) {
       expect(b.textContent?.trim()).toBe(''); // no visible text to truncate
       expect(b.getAttribute('title')).toMatch(/\(.+\)$/); // name and shortcut on hover

@@ -1,6 +1,7 @@
 import { tick } from 'svelte';
 import type { Host, HostDraft } from './ssh.svelte';
 import type { Key, TunnelStatus } from './sshAdmin.svelte';
+import type { Profile } from './aws.svelte';
 import type { GroupColor } from './tabs.svelte';
 import { activeTerminal } from './terminals';
 
@@ -20,13 +21,17 @@ export type OverlayState =
   | { kind: 'keyInstall'; key: Key | null; host: Host | null }
   | { kind: 'hostKeys'; host: Host }
   | { kind: 'tunnel'; tunnel: TunnelStatus | null; host: Host | null }
-  | { kind: 'transfer'; host: Host; direction: 'upload' | 'download'; locals: string[] };
+  | { kind: 'transfer'; host: Host; direction: 'upload' | 'download'; locals: string[] }
+  | { kind: 'awsProfile'; profile: Profile | null }
+  | { kind: 'awsRotate'; profile: Profile };
 
 export interface ConfirmRequest {
   title: string;
   message: string;
   /** Things that will be lost, e.g. running programs. */
   items: string[];
+  /** List every item; by default long lists are cut short. */
+  showAll?: boolean;
   confirmLabel: string;
   onConfirm: () => void;
 }
