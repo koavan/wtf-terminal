@@ -4,6 +4,7 @@
   import GroupEditor from './GroupEditor.svelte';
   import AwsProfileEditor from './AwsProfileEditor.svelte';
   import AwsRotate from './AwsRotate.svelte';
+  import CommandPromptDialog from './CommandPromptDialog.svelte';
   import HostEditor from './HostEditor.svelte';
   import HostKeysDialog from './HostKeysDialog.svelte';
   import KeyGenerator from './KeyGenerator.svelte';
@@ -42,6 +43,8 @@
   <AwsProfileEditor profile={overlay.current.profile} />
 {:else if overlay.current?.kind === 'awsRotate'}
   <AwsRotate profile={overlay.current.profile} />
+{:else if overlay.current?.kind === 'commandPrompt'}
+  <CommandPromptDialog request={overlay.current} />
 {:else if overlay.current?.kind === 'group'}
   {#key overlay.current.groupId}
     <GroupEditor groupId={overlay.current.groupId} anchor={overlay.current.anchor} />

@@ -54,7 +54,7 @@ for any command (not just the last).
 
 ## Tier 2 — differentiators
 
-### 5. Kubernetes side-pane tab ☐
+### 5. Kubernetes side-pane tab ☑
 
 - Pods, deployments, recent events for the current context/namespace.
 - Click a pod → logs / exec / describe, each opening a new tab with the real
@@ -75,8 +75,9 @@ for any command (not just the last).
 
 ### 8. Port-forward and tunnel manager ◐
 
-ssh tunnels done (SSH tab → Tunnels). Still to do: `kubectl port-forward`,
-and linking tunnels with the Network tab's listening ports.
+ssh tunnels done (SSH tab → Tunnels). `kubectl port-forward` runs in a tab
+from the Kubernetes tab. Still to do: managing kubectl port-forwards like
+ssh tunnels, and linking both with the Network tab's listening ports.
 
 - Start/stop/monitor `kubectl port-forward` and `ssh -L` tunnels from the Network
   tab, which already lists listening ports.

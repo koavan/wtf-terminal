@@ -12,6 +12,7 @@ import (
 	"github.com/dayanraj/wtf/internal/config"
 	"github.com/dayanraj/wtf/internal/files"
 	"github.com/dayanraj/wtf/internal/infra"
+	"github.com/dayanraj/wtf/internal/kube"
 	"github.com/dayanraj/wtf/internal/netconn"
 	"github.com/dayanraj/wtf/internal/notify"
 	"github.com/dayanraj/wtf/internal/procs"
@@ -55,6 +56,7 @@ func main() {
 			application.NewService(files.NewService()),
 			application.NewService(infra.NewService()),
 			application.NewService(awsprofiles.NewService()),
+			application.NewService(kube.NewService()),
 			application.NewService(sshhosts.NewService(stateDir)),
 			application.NewService(netconn.NewService(term.ShellPIDs)),
 			application.NewService(procs.NewService(term.ShellPIDs)),
@@ -163,6 +165,7 @@ func buildMenu(windows *wtfwindows.Manager) *application.Menu {
 	cmd(view, "Show Command History", "CmdOrCtrl+shift+h", "sidebar.history")
 	cmd(view, "Show SSH Hosts", "CmdOrCtrl+shift+s", "sidebar.ssh")
 	cmd(view, "Show AWS Profiles", "CmdOrCtrl+shift+u", "sidebar.aws")
+	cmd(view, "Show Kubernetes", "CmdOrCtrl+shift+k", "sidebar.kube")
 	view.AddSeparator()
 	cmd(view, "Previous Prompt", "CmdOrCtrl+up", "prompt.prev")
 	cmd(view, "Next Prompt", "CmdOrCtrl+down", "prompt.next")

@@ -446,6 +446,11 @@ class Tabs {
     if (pane) pane.infra = ctx;
   }
 
+  setEnv(paneId: number, env: Record<string, string>) {
+    const pane = this.#pane(paneId);
+    if (pane && JSON.stringify(pane.env) !== JSON.stringify(env)) pane.env = env;
+  }
+
   markActivity(id: number) {
     const tab = this.get(id);
     if (tab && id !== this.activeId && !tab.activity) tab.activity = true;
@@ -660,6 +665,7 @@ class Tabs {
       command: '',
       lastCommand: null,
       infra: null,
+      env: null,
     };
   }
 

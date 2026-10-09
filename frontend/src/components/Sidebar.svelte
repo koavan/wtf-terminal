@@ -5,6 +5,7 @@
   import NetworkView from './NetworkView.svelte';
   import ProcessView from './ProcessView.svelte';
   import AwsView from './AwsView.svelte';
+  import KubeView from './KubeView.svelte';
   import SshView from './SshView.svelte';
   import { isMac } from '../lib/platform';
   import { sidebar, type SidebarTab } from '../lib/sidebar.svelte';
@@ -13,6 +14,7 @@
     { id: 'files', label: 'Files', icon: 'folder', key: isMac ? '⌘⇧E' : 'Ctrl+Shift+Alt+E' },
     { id: 'ssh', label: 'SSH Hosts', icon: 'server', key: isMac ? '⌘⇧S' : 'Ctrl+Shift+Alt+S' },
     { id: 'aws', label: 'AWS Profiles', icon: 'cloud', key: isMac ? '⌘⇧U' : 'Ctrl+Shift+Alt+U' },
+    { id: 'kube', label: 'Kubernetes', icon: 'wheel', key: isMac ? '⌘⇧K' : 'Ctrl+Shift+Alt+K' },
     { id: 'network', label: 'Network', icon: 'network', key: isMac ? '⌘⇧O' : 'Ctrl+Shift+Alt+O' },
     { id: 'processes', label: 'Processes', icon: 'cpu', key: isMac ? '⌘⇧A' : 'Ctrl+Shift+Alt+A' },
     { id: 'history', label: 'History', icon: 'history', key: isMac ? '⌘⇧H' : 'Ctrl+Shift+Alt+H' },
@@ -60,6 +62,8 @@
       <SshView />
     {:else if sidebar.tab === 'aws'}
       <AwsView />
+    {:else if sidebar.tab === 'kube'}
+      <KubeView />
     {:else if sidebar.tab === 'network'}
       <NetworkView />
     {:else if sidebar.tab === 'processes'}

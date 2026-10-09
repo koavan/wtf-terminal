@@ -22,6 +22,8 @@ export interface Pane {
   lastCommand: FinishedCommand | null;
   /** Cloud and cluster context the shell reported at its last prompt. */
   infra: InfraContext | null;
+  /** The variables the shell reported at its last prompt (PWD, PATH, KUBECONFIG, AWS_*…). */
+  env: Record<string, string> | null;
   /** Typed into the shell once it starts, e.g. to open a file in $EDITOR. */
   initialCommand?: string;
   /** Scrollback carried over from another window, written once on mount. */

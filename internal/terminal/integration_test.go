@@ -149,13 +149,13 @@ func TestBashEscapesCommandLine(t *testing.T) {
 
 func TestBashReportsEnv(t *testing.T) {
 	out, home, _ := runIntegratedHome(t, "/bin/bash",
-		map[string]string{".bash_profile": "export AWS_PROFILE='a;b' AWS_ACCESS_KEY_ID=AKIASECRET\n"},
+		map[string]string{".bash_profile": "export PATH=/usr/bin:/bin AWS_PROFILE='a;b' AWS_ACCESS_KEY_ID=AKIASECRET\n"},
 		"export KUBECONFIG=/k\r",
 		`KUBECONFIG=/k\x0a`, // only in a report; the echoed input has no \x0a
 	)
 	reports := envReports(out)
 	home, _ = filepath.EvalSymlinks(home) // /var → /private/var on macOS
-	want := `PWD=` + home + `\x0aKUBECONFIG=/k\x0aAWS_PROFILE=a\x3bb\x0aWTF_AWS_ENV_KEYS=1\x0a`
+	want := `PWD=` + home + `\x0aPATH=/usr/bin:/bin\x0aKUBECONFIG=/k\x0aAWS_PROFILE=a\x3bb\x0aWTF_AWS_ENV_KEYS=1\x0a`
 	if reports[len(reports)-1] != want {
 		t.Fatalf("reports %q\nwant last %q", reports, want)
 	}
@@ -163,11 +163,11 @@ func TestBashReportsEnv(t *testing.T) {
 
 func TestZshReportsEnvAfterUserHooks(t *testing.T) {
 	// A precmd hook from .zshrc that changes the environment, like direnv's.
-	zshrc := "autoload -Uz add-zsh-hook\nlate() { export TF_WORKSPACE=late }\nadd-zsh-hook precmd late\n"
+	zshrc := "export PATH=/usr/bin:/bin\nautoload -Uz add-zsh-hook\nlate() { export TF_WORKSPACE=late }\nadd-zsh-hook precmd late\n"
 	out, home, _ := runIntegratedHome(t, "/bin/zsh", map[string]string{".zshrc": zshrc}, "true\r", `TF_WORKSPACE=late\x0a`)
 	reports := envReports(out)
 	home, _ = filepath.EvalSymlinks(home) // /var → /private/var on macOS
-	want := `PWD=` + home + `\x0aTF_WORKSPACE=late\x0a`
+	want := `PWD=` + home + `\x0aPATH=/usr/bin:/bin\x0aTF_WORKSPACE=late\x0a`
 	if reports[len(reports)-1] != want {
 		t.Fatalf("reports %q\nwant last %q", reports, want)
 	}

@@ -137,6 +137,7 @@
       },
       onEnv: (text) => {
         reportedEnv = parseEnv(text);
+        tabs.setEnv(pane.id, reportedEnv);
         refreshContext();
       },
     });

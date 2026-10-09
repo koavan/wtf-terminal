@@ -18,13 +18,14 @@ fi
 #   D;<status>  the command finished
 # plus OSC 633;E;<command line>, escaped like VS Code does, and
 # OSC 633;P;WtfEnv=<NAME=value lines>, escaped the same way: the variables
-# that pick the shell's cloud and cluster context (see internal/infra).
+# that pick the shell's cloud and cluster context (see internal/infra), and
+# PATH, so kubectl run for the Kubernetes tab finds the same auth plugins.
 
 if [ -n "$WTF_SHELL_INTEGRATION" ] && [ -z "$__wtf_loaded" ]; then
   __wtf_loaded=1
   __wtf_running=0
   __wtf_in_prompt=0
-  __wtf_env_names='PWD KUBECONFIG AWS_PROFILE AWS_DEFAULT_PROFILE AWS_VAULT
+  __wtf_env_names='PWD PATH KUBECONFIG AWS_PROFILE AWS_DEFAULT_PROFILE AWS_VAULT
     AWS_REGION AWS_DEFAULT_REGION AWS_CONFIG_FILE AWS_SHARED_CREDENTIALS_FILE CLOUDSDK_CONFIG
     CLOUDSDK_ACTIVE_CONFIG_NAME CLOUDSDK_CORE_PROJECT TF_WORKSPACE TF_DATA_DIR'
 

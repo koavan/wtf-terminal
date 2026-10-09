@@ -23,7 +23,19 @@ export type OverlayState =
   | { kind: 'tunnel'; tunnel: TunnelStatus | null; host: Host | null }
   | { kind: 'transfer'; host: Host; direction: 'upload' | 'download'; locals: string[] }
   | { kind: 'awsProfile'; profile: Profile | null }
-  | { kind: 'awsRotate'; profile: Profile };
+  | { kind: 'awsRotate'; profile: Profile }
+  | ({ kind: 'commandPrompt' } & CommandPrompt);
+
+/** A dialog that fills in a command (e.g. kubectl scale) and runs it in a new tab. */
+export interface CommandPrompt {
+  title: string;
+  /** Facts about where it runs (context, namespace). */
+  message: string;
+  fields: { label: string; value: string; placeholder?: string }[];
+  /** The command for the field values; throws a message for bad input. */
+  command: (values: string[]) => string;
+  confirmLabel: string;
+}
 
 export interface ConfirmRequest {
   title: string;

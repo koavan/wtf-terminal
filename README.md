@@ -27,6 +27,8 @@ Requires Go 1.25+, Node 20+, and `wails3` (`go install github.com/wailsapp/wails
 - `internal/sshhosts`: the SSH tab: hosts from `~/.ssh/config` and `known_hosts`, keys
   and ssh-agent, server host keys, and background tunnels.
 - `internal/infra`: Kubernetes/AWS/gcloud/Terraform context for the context badges.
+- `internal/kube`: the Kubernetes tab: deployments, pods and events, read with
+  kubectl using the focused shell's variables.
 - `internal/awsprofiles`: the AWS tab: profiles in `~/.aws/credentials` and
   `~/.aws/config`, checks and key rotation through the aws CLI.
 - `internal/files`: directory listings (with git ignore rules) for the file tree.
@@ -46,7 +48,7 @@ Every command is also in the command palette.
 |---|---|---|
 | Command palette | ⌘⇧P | Ctrl+Shift+P |
 | Toggle sidebar | ⌘B | Ctrl+Shift+B |
-| Sidebar: files / SSH / AWS / network / processes / history | ⌘⇧E / ⌘⇧S / ⌘⇧U / ⌘⇧O / ⌘⇧A / ⌘⇧H | Ctrl+Shift+Alt+E / S / U / O / A / H |
+| Sidebar: files / SSH / AWS / Kubernetes / network / processes / history | ⌘⇧E / ⌘⇧S / ⌘⇧U / ⌘⇧K / ⌘⇧O / ⌘⇧A / ⌘⇧H | Ctrl+Shift+Alt+E / S / U / K / O / A / H |
 | New tab | ⌘T | Ctrl+Shift+T |
 | New window | ⌘N | Ctrl+Shift+N |
 | Show all tabs | ⌘⇧\ | Ctrl+Shift+\ |
@@ -174,6 +176,35 @@ steps, and on confirmation creates a new key, writes it to the profile,
 waits until AWS accepts it, then deactivates — and optionally deletes — the
 old one. If AWS never accepts the new key, the old one is put back and the
 new one deleted. The new secret goes straight from AWS into the file.
+
+The **Kubernetes** tab (⌘⇧K) shows the focused shell's context and namespace:
+deployments, StatefulSets, DaemonSets, Jobs, CronJobs and pods; Services and
+Ingresses; ConfigMaps and Secrets; PersistentVolumeClaims; autoscalers;
+nodes; and recent events — following the shell as you
+switch — read with kubectl using that shell's own `KUBECONFIG`, AWS profile
+and `PATH`, so auth plugins such as aws-iam-authenticator work as they do
+there. Nothing is read from the cluster until you ask: opening the tab only
+resolves the context from the kubeconfig, each section (Deployments, Pods,
+Events) is fetched when you expand it, and only expanded sections refresh —
+at most every 10 seconds (or the side pane's interval, if longer). The
+namespace picker, which lists namespaces once you use it, views another
+namespace without changing the shell. Pods show kubectl's STATUS, readiness,
+restarts (with why the last run ended) and age; click a deployment to fetch
+only its pods (by its label selector). Kinds other than deployments, pods
+and events are listed the way `kubectl get` prints them (the cluster works
+out the columns), which keeps answers small — and for Secrets means names,
+types and key counts only: their values are never read into wtf, and the
+menu offers Describe (key names and sizes) but not View YAML.
+
+Everything else is a real kubectl command run in a new tab — with the
+shell's `KUBECONFIG` and AWS profile and an explicit `--context` and `-n`,
+so it does exactly what the view showed: logs (double-click; per container,
+or from before the last restart), a shell (`exec`), describe, view YAML,
+rollout status and history, port forwards (a Service's first port is filled
+in), opening an Ingress's hosts in the browser. Commands that change the cluster — delete a pod,
+restart a deployment, StatefulSet or DaemonSet, scale a deployment or
+StatefulSet, run a CronJob now — show the exact command, context, cluster and
+namespace and run only when you confirm.
 
 The **Network** tab lists listening ports and open connections — by default
 those from programs in your terminals, labeled with their tab (click to jump
