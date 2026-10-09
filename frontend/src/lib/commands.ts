@@ -61,6 +61,7 @@ export const commands: Command[] = [
       ),
   },
   { id: 'sidebar.history', label: 'Show Command History', mac: '⌘⇧H', other: 'Ctrl+Shift+Alt+H', run: () => sidebar.show('history') },
+  { id: 'sidebar.ssh', label: 'Show SSH Hosts', mac: '⌘⇧S', other: 'Ctrl+Shift+Alt+S', run: () => sidebar.show('ssh') },
   { id: 'sidebar.processes', label: 'Show Processes', mac: '⌘⇧A', other: 'Ctrl+Shift+Alt+A', run: () => sidebar.show('processes') },
   { id: 'tab.new', label: 'New Tab', mac: '⌘T', other: 'Ctrl+Shift+T', run: () => tabs.open() },
   { id: 'tab.duplicate', label: 'Duplicate Tab', run: () => tabs.duplicate() },
@@ -166,6 +167,7 @@ function shortcutFor(e: KeyboardEvent): string | null {
   if (e.ctrlKey && e.shiftKey && e.altKey && e.code === 'KeyO') return 'sidebar.network';
   if (e.ctrlKey && e.shiftKey && e.altKey && e.code === 'KeyA') return 'sidebar.processes';
   if (e.ctrlKey && e.shiftKey && e.altKey && e.code === 'KeyH') return 'sidebar.history';
+  if (e.ctrlKey && e.shiftKey && e.altKey && e.code === 'KeyS') return 'sidebar.ssh';
   if (e.ctrlKey && !e.shiftKey && !e.altKey && e.code === 'Comma') return 'config.open';
   if (e.ctrlKey && e.shiftKey && !e.altKey) {
     switch (e.code) {

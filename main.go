@@ -14,6 +14,7 @@ import (
 	"github.com/dayanraj/wtf/internal/netconn"
 	"github.com/dayanraj/wtf/internal/notify"
 	"github.com/dayanraj/wtf/internal/procs"
+	"github.com/dayanraj/wtf/internal/sshhosts"
 	"github.com/dayanraj/wtf/internal/state"
 	"github.com/dayanraj/wtf/internal/terminal"
 	wtfwindows "github.com/dayanraj/wtf/internal/windows"
@@ -52,6 +53,7 @@ func main() {
 			application.NewService(notify.NewService()),
 			application.NewService(files.NewService()),
 			application.NewService(infra.NewService()),
+			application.NewService(sshhosts.NewService()),
 			application.NewService(netconn.NewService(term.ShellPIDs)),
 			application.NewService(procs.NewService(term.ShellPIDs)),
 			application.NewService(windows.Service()),
@@ -155,6 +157,7 @@ func buildMenu(windows *wtfwindows.Manager) *application.Menu {
 	cmd(view, "Show Network Connections", "CmdOrCtrl+shift+o", "sidebar.network")
 	cmd(view, "Show Processes", "CmdOrCtrl+shift+a", "sidebar.processes")
 	cmd(view, "Show Command History", "CmdOrCtrl+shift+h", "sidebar.history")
+	cmd(view, "Show SSH Hosts", "CmdOrCtrl+shift+s", "sidebar.ssh")
 	view.AddSeparator()
 	cmd(view, "Previous Prompt", "CmdOrCtrl+up", "prompt.prev")
 	cmd(view, "Next Prompt", "CmdOrCtrl+down", "prompt.next")

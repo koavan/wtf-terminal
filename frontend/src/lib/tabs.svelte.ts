@@ -124,9 +124,18 @@ class Tabs {
 
   // ── Opening and closing ──────────────────────────────────────────────
 
-  /** Opens a new tab. By default it starts in the active tab's directory. */
-  open({ cwd = this.activePane?.cwd ?? '', index = this.list.length, groupId = null as number | null } = {}) {
+  /**
+   * Opens a new tab and returns its id. By default it starts in the active
+   * tab's directory; `command` is typed into its shell once it starts.
+   */
+  open({
+    cwd = this.activePane?.cwd ?? '',
+    index = this.list.length,
+    groupId = null as number | null,
+    command = undefined as string | undefined,
+  } = {}): number {
     const pane = this.#newPane(cwd);
+    if (command) pane.initialCommand = command;
     const tab: Tab = {
       id: this.#nextId++,
       root: { kind: 'pane', pane },
@@ -139,6 +148,7 @@ class Tabs {
     };
     this.list.splice(index, 0, tab);
     this.activate(tab.id);
+    return tab.id;
   }
 
   /** Opens a tab right after `id`, in the same group. */
@@ -732,7 +742,11 @@ export function focusedPane(tab: Tab): Pane {
 
 /** What a pane is called: the program when one is running, otherwise the folder. */
 export function paneTitle(pane: Pane, pretty: (p: string) => string): string {
-  if (!pane.isShell && pane.process) return pane.oscTitle || pane.process;
+  if (!pane.isShell && pane.process) {
+    // "ssh web1" says more than "ssh" when the remote doesn't set a title.
+    const ssh = pane.process === 'ssh' && pane.running && pane.command.startsWith('ssh ') ? pane.command : '';
+    return pane.oscTitle || ssh || pane.process;
+  }
   const path = pretty(pane.cwd);
   if (!path) return 'Terminal';
   if (path === '~' || path === '/') return path;

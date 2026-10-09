@@ -27,12 +27,11 @@ confirm-before-destructive-command guard. Detection by name patterns isn't
 fool-proof, and a warning that is sometimes wrong is worse than none. Revisit
 only with a reliable signal.
 
-### 2. SSH host manager (side-pane tab) ☐
+### 2. SSH host manager (side-pane tab) ☑
 
-- Parse `~/.ssh/config` (including `Include`); searchable list, grouped by host
-  patterns or tags.
-- Click → new tab with `ssh <host>`; multi-select → open as a tab group.
-- Browser metaphor: hosts are bookmarks.
+The SSH Hosts tab (⌘⇧S): `~/.ssh/config` hosts (with `Include`, grouped by
+file) plus known_hosts servers; filter, double-click to connect, open in a
+split, or multi-select and open as a named tab group (see README).
 
 ### 3. Broadcast input ☐
 

@@ -24,6 +24,7 @@ Requires Go 1.25+, Node 20+, and `wails3` (`go install github.com/wailsapp/wails
 - `internal/config`: config file, themes (built-in, Ghostty, iTerm2), live reload.
 - `internal/terminal/shellintegration`: the bash/zsh scripts.
 - `internal/notify`: desktop notifications.
+- `internal/sshhosts`: hosts from `~/.ssh/config` and `known_hosts` for the SSH tab.
 - `internal/infra`: Kubernetes/AWS/gcloud/Terraform context for the context badges.
 - `internal/files`: directory listings (with git ignore rules) for the file tree.
 - `internal/netconn`: connections and listening ports, attributed to terminal sessions.
@@ -42,7 +43,7 @@ Every command is also in the command palette.
 |---|---|---|
 | Command palette | ⌘⇧P | Ctrl+Shift+P |
 | Toggle sidebar | ⌘B | Ctrl+Shift+B |
-| Sidebar: files / network / processes / history | ⌘⇧E / ⌘⇧O / ⌘⇧A / ⌘⇧H | Ctrl+Shift+Alt+E / O / A / H |
+| Sidebar: files / SSH / network / processes / history | ⌘⇧E / ⌘⇧S / ⌘⇧O / ⌘⇧A / ⌘⇧H | Ctrl+Shift+Alt+E / S / O / A / H |
 | New tab | ⌘T | Ctrl+Shift+T |
 | New window | ⌘N | Ctrl+Shift+N |
 | Show all tabs | ⌘⇧\ | Ctrl+Shift+\ |
@@ -77,6 +78,16 @@ shell is idle), drag a file into a terminal to paste its path, and right-click
 for more (open in `$EDITOR` in a split, reveal in Finder, copy path…). Folders
 load on demand, git-ignored files are dimmed, and the tree refreshes after
 each command.
+
+The **SSH Hosts** tab lists the `Host` entries of `~/.ssh/config` and the
+files it `Include`s (grouped by file, with each host's user, address, port
+and jump host worked out as ssh would), then **Known hosts**: servers in
+`~/.ssh/known_hosts` your config doesn't name, most recent first. Git hosts
+such as github.com are left out. Double-click a host to connect in a new tab,
+or right-click to open it in a split or copy its `ssh` command. ⌘-click or
+shift-click to select several, then **Open as Tab Group** (or ↩) to connect
+to each in its own tab, grouped and named after their config file. The list
+is read when the tab opens; ↻ reads it again.
 
 The **Network** tab lists listening ports and open connections — by default
 those from programs in your terminals, labeled with their tab (click to jump
