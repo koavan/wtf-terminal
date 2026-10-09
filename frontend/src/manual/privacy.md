@@ -1,0 +1,34 @@
+# Privacy and safety
+
+wtf sits next to your keys and credentials. This is what it does and doesn't do with them.
+
+## It asks before changing anything
+
+Anything that changes a file you own or something in the cloud shows what will change and waits for you:
+
+| Change | Shown first | Backed up to (in wtf's cache folder) |
+|---|---|---|
+| SSH hosts (`~/.ssh/config`) | the editor, then the write | `ssh-backups` (last 30) |
+| Deleting an SSH key | a confirmation | `ssh-backups/keys` (the key pair is moved, not erased) |
+| known_hosts entries | the stored and scanned keys | `known_hosts.old` (ssh-keygen's own) |
+| AWS profiles | every changed line | `aws-backups` (last 20) |
+| AWS key rotation | the checked steps | the credentials file, as above |
+| kubeconfigs | the exact commands or edits | `kube-backups` (last 20) |
+| Kubernetes resources (delete, restart, scale, run) | the exact kubectl command, context, cluster and namespace | — |
+
+Backups are readable only by you. wtf's cache folder is {{mac:`~/Library/Caches/wtf`|other:`~/.cache/wtf`}}.
+
+## Secrets stay where they are
+
+- **AWS**: saved secret keys and session tokens are never shown or sent to the window; the field is write-only. During rotation, the new secret goes from AWS straight into your credentials file.
+- **SSH**: passphrases and passwords are typed into real ssh-keygen / ssh-add / ssh-copy-id commands in a terminal, never into wtf.
+- **Kubernetes**: tokens and certificates in kubeconfigs are never read out. Secret values are read only when you open one secret, masked until you reveal them, and dropped when the dialog closes.
+- **Context badges**: the shell reports whether AWS keys are exported, never the keys.
+
+## It only talks to servers when you ask
+
+Listing SSH hosts, keys, AWS profiles and kubeconfig contexts reads local files only. Requests to AWS or a cluster happen when you open a section, press a check or test button, or run an action — and side-pane tabs stop when you close them.
+
+## What it won't do
+
+wtf doesn't guess which of your environments is "production" or flag commands as dangerous: a guess that's sometimes wrong is worse than none. It shows facts — account IDs, cluster names, the exact command — and leaves the call to you.

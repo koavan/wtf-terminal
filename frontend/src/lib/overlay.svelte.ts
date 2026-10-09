@@ -26,7 +26,8 @@ export type OverlayState =
   | { kind: 'awsRotate'; profile: Profile }
   | ({ kind: 'commandPrompt' } & CommandPrompt)
   | { kind: 'eksAdd' }
-  | { kind: 'secretView'; name: string; context: string; namespace: string; env: Record<string, string> };
+  | { kind: 'secretView'; name: string; context: string; namespace: string; env: Record<string, string> }
+  | { kind: 'manual'; topic: string };
 
 /** A dialog that fills in a command (e.g. kubectl scale) and runs it in a new tab. */
 export interface CommandPrompt {

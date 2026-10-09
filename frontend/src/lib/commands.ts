@@ -1,6 +1,7 @@
 import { Clipboard } from '@wailsio/runtime';
 import { Service as ConfigService } from '../../bindings/github.com/dayanraj/wtf/internal/config';
 import { broadcast } from './broadcast.svelte';
+import { openManual } from './help';
 import { closeActivePane, closeTab, closeWindow } from './closing';
 import { overlay } from './overlay.svelte';
 import { isMac } from './platform';
@@ -46,6 +47,8 @@ function createGroupForActive() {
 
 export const commands: Command[] = [
   { id: 'palette', label: 'Command Palette', mac: '⌘⇧P', other: 'Ctrl+Shift+P', run: () => overlay.togglePalette() },
+  { id: 'help.manual', label: 'Open Manual', mac: '⌘?', other: 'F1', run: () => openManual() },
+  { id: 'help.shortcuts', label: 'Show Keyboard Shortcuts', run: () => openManual('shortcuts') },
   { id: 'theme.pick', label: 'Change Theme…', run: () => overlay.togglePalette('themes') },
   { id: 'config.open', label: 'Open Settings File', mac: '⌘,', other: 'Ctrl+,', run: () => ConfigService.OpenConfigFile().catch((e) => toast.show(`Couldn't open settings: ${e}`)) },
   { id: 'themes.folder', label: 'Open Themes Folder', run: () => ConfigService.OpenThemesFolder().catch((e) => toast.show(`Couldn't open folder: ${e}`)) },
@@ -157,6 +160,7 @@ export function runCommand(id: string) {
 // so we bind browser-style Ctrl+Shift shortcuts (plain Ctrl+letter belongs to
 // the shell). Ctrl+Tab works on every platform, like in a browser.
 function shortcutFor(e: KeyboardEvent): string | null {
+  if (e.key === 'F1' && !e.ctrlKey && !e.metaKey && !e.altKey && !isMac) return 'help.manual';
   if (e.ctrlKey && !e.metaKey && !e.altKey && e.key === 'Tab') {
     return e.shiftKey ? 'tab.prev' : 'tab.next';
   }

@@ -6,6 +6,7 @@
   import AwsRotate from './AwsRotate.svelte';
   import CommandPromptDialog from './CommandPromptDialog.svelte';
   import EksAddDialog from './EksAddDialog.svelte';
+  import Manual from './Manual.svelte';
   import SecretViewer from './SecretViewer.svelte';
   import HostEditor from './HostEditor.svelte';
   import HostKeysDialog from './HostKeysDialog.svelte';
@@ -51,6 +52,8 @@
   <EksAddDialog />
 {:else if overlay.current?.kind === 'secretView'}
   <SecretViewer request={overlay.current} />
+{:else if overlay.current?.kind === 'manual'}
+  <Manual topic={overlay.current.topic} />
 {:else if overlay.current?.kind === 'group'}
   {#key overlay.current.groupId}
     <GroupEditor groupId={overlay.current.groupId} anchor={overlay.current.anchor} />

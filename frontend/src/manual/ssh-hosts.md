@@ -1,0 +1,31 @@
+# SSH hosts
+
+The SSH tab ({{key:sidebar.ssh}}) has three parts: **Hosts**, [Keys](#ssh-keys) and [Tunnels](#ssh-tunnels).
+
+## What's listed
+
+- The `Host` entries of `~/.ssh/config` and every file it `Include`s, grouped by file, each with its user, address, port and jump host worked out the way ssh does (first value wins, `Host *` defaults apply).
+- **Known hosts**: servers in `~/.ssh/known_hosts` your config doesn't name, newest first.
+- Git hosts such as github.com are left out. Type in the filter to narrow the list.
+
+## Connecting
+
+- **Double-click** a host (or press ▶ on its row) to connect in a new tab.
+- Right-click → **Open in Split Right / Down**, or **Open sftp Session**.
+- **Several at once**: {{mac:⌘-click|other:Ctrl-click}} or shift-click to select hosts, then **Open as Tab Group** (or `Enter`). Each opens in its own tab, grouped and named after their config file. Right-click the selection for **Open … in a Tab Group with Broadcast Input** to type into all of them at once ([Broadcast input](#broadcast)).
+- **Copy ssh Command** and **Copy Host Name** in the menu.
+
+## Adding and editing hosts
+
+- **+** adds a host: name, address, user, port, key file, jump host, and any other settings, one `Key value` per line under **More settings**. **Save & Connect** adds it and connects.
+- Right-click a host → **Edit Host…** or **Delete Host…**; right-click a known host → **Save as Host…**.
+- **Key file**: pick a key from the list (your `~/.ssh` keys) or type the path of the *private* key, e.g. `~/.ssh/id_ed25519`. If your agent holds several keys and the server says "Too many authentication failures", add `IdentitiesOnly yes` under More settings.
+
+New hosts go into `~/.ssh/config` before any `Host *` block, so their own settings win. Edits change only the lines involved and keep your comments. Before writing, wtf checks that the file hasn't changed since it was listed and that `ssh -G` accepts the result — a typo can't break ssh. The old file is kept in wtf's cache folder (`ssh-backups`, last 30). Hosts from files outside `~/.ssh` (OrbStack's, for example) belong to the program that writes them and are read-only.
+
+## More from a host's menu
+
+- **Install Public Key…** — log in with a key instead of a password. See [SSH keys](#ssh-keys).
+- **Host Keys…** — see and fix the server's fingerprint. See [Host keys](#ssh-host-keys).
+- **Upload Files… / Download…** — see [Copying files](#ssh-files).
+- **New Tunnel…** — see [Tunnels](#ssh-tunnels).

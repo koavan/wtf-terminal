@@ -1,0 +1,22 @@
+# Settings and themes
+
+Settings live in `~/.config/wtf/config.toml` (or `$XDG_CONFIG_HOME/wtf/config.toml`). {{cmd:config.open}} opens it; it's created with every setting documented. Changes apply when you save; mistakes are reported in the window and the last good settings stay in effect.
+
+| Setting | What it does |
+|---|---|
+| `theme` | a theme name, or `"dark:Nord,light:Solarized Light"` to follow the system |
+| `font-family`, `font-size`, `line-height` | the terminal's text |
+| `cursor-style`, `cursor-blink` | block, bar or underline; blinking |
+| `scrollback` | lines kept per pane |
+| `option-as-meta` | macOS: ⌥ sends Meta (for Emacs, readline) |
+| `copy-on-select` | copy whatever you select |
+| `shell` | the shell to run (your login shell by default) |
+| `shell-integration` | prompt and command marks — see [Commands, prompts and output](#shell-integration) |
+| `notify-after` | notify when a command running at least this many seconds finishes out of sight; 0 turns it off |
+| `unfocused-split-dim` | how much unfocused panes are dimmed |
+| `sidebar-auto-refresh`, `sidebar-refresh-interval` | side pane updates — see [The side pane](#side-pane) |
+| `context-badges` | the address bar's Kubernetes/AWS/gcloud/Terraform badges |
+
+## Themes
+
+{{cmd:theme.pick}} previews themes as you move through the list. Add Ghostty theme files or iTerm2 `.itermcolors` files to the themes folder ({{cmd:themes.folder}}). The window's colors follow the theme.

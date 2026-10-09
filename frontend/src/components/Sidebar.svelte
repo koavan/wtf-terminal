@@ -8,6 +8,7 @@
   import KubeView from './KubeView.svelte';
   import SshView from './SshView.svelte';
   import { isMac } from '../lib/platform';
+  import { openManual } from '../lib/help';
   import { sidebar, type SidebarTab } from '../lib/sidebar.svelte';
 
   const TABS: { id: SidebarTab; label: string; icon: IconName; key: string }[] = [
@@ -53,6 +54,9 @@
         <Icon name={t.icon} size={16} stroke={1.8} />
       </button>
     {/each}
+    <span class="spacer"></span>
+    <!-- Help for the tab on screen. -->
+    <button class="help" aria-label="Help" title="Help for this tab ({isMac ? '⌘?' : 'F1'})" onclick={() => openManual()}>?</button>
   </div>
 
   <div class="content" role="tabpanel">
@@ -134,6 +138,14 @@
     background: var(--accent);
   }
 
+  .spacer {
+    flex: 1;
+  }
+  .tabs button.help {
+    width: 24px;
+    font-size: 13px;
+    font-weight: 700;
+  }
   .content {
     flex: 1;
     min-height: 0;

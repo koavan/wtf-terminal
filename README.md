@@ -40,6 +40,15 @@ Requires Go 1.25+, Node 20+, and `wails3` (`go install github.com/wailsapp/wails
   (`layout.ts`), the command registry (`commands.ts`), session autosave, themes.
 - `frontend/src/components`: tab strip, address bar, panes, palette, search, menus.
 
+## Manual
+
+wtf has a user manual built in: **Help → wtf Manual** (⌘?, F1 on Linux), the
+command palette, or the **?** at the top right of the side pane, which opens
+the page for the tab on screen. It covers every feature, with search, and
+its shortcuts come from the app's own command list. The pages are Markdown
+in `frontend/src/manual/` (see `lib/manual.ts` for the subset they use);
+tests check that every command and page they mention exists.
+
 ## Shortcuts
 
 Every command is also in the command palette.
@@ -47,6 +56,7 @@ Every command is also in the command palette.
 | Action | macOS | Linux |
 |---|---|---|
 | Command palette | ⌘⇧P | Ctrl+Shift+P |
+| Manual (at the page for the side-pane tab on screen) | ⌘? | F1 |
 | Toggle sidebar | ⌘B | Ctrl+Shift+B |
 | Sidebar: files / SSH / AWS / Kubernetes / network / processes / history | ⌘⇧E / ⌘⇧S / ⌘⇧U / ⌘⇧K / ⌘⇧O / ⌘⇧A / ⌘⇧H | Ctrl+Shift+Alt+E / S / U / K / O / A / H |
 | New tab | ⌘T | Ctrl+Shift+T |

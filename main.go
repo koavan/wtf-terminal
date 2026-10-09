@@ -202,5 +202,9 @@ func buildMenu(windows *wtfwindows.Manager) *application.Menu {
 	cmd(panes, "Select Pane Below", "CmdOrCtrl+OptionOrAlt+down", "pane.down")
 
 	menu.AddRole(application.WindowMenu)
+
+	help := menu.AddSubmenu("Help")
+	cmd(help, "wtf Manual", "CmdOrCtrl+?", "help.manual")
+	cmd(help, "Keyboard Shortcuts", "", "help.shortcuts")
 	return menu
 }
