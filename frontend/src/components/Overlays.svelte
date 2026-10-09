@@ -9,6 +9,8 @@
   import Manual from './Manual.svelte';
   import SnippetDialog from './SnippetDialog.svelte';
   import SnippetEditor from './SnippetEditor.svelte';
+  import WorkspaceEditor from './WorkspaceEditor.svelte';
+  import WorkspaceOpenDialog from './WorkspaceOpenDialog.svelte';
   import SecretViewer from './SecretViewer.svelte';
   import HostEditor from './HostEditor.svelte';
   import HostKeysDialog from './HostKeysDialog.svelte';
@@ -60,6 +62,10 @@
   <SnippetDialog snippet={overlay.current.snippet} />
 {:else if overlay.current?.kind === 'snippetEdit'}
   <SnippetEditor snippet={overlay.current.snippet} command={overlay.current.command} duplicate={overlay.current.duplicate} />
+{:else if overlay.current?.kind === 'workspaceOpen'}
+  <WorkspaceOpenDialog workspace={overlay.current.workspace} />
+{:else if overlay.current?.kind === 'workspaceEdit'}
+  <WorkspaceEditor workspace={overlay.current.workspace} draft={overlay.current.draft} duplicate={overlay.current.duplicate} />
 {:else if overlay.current?.kind === 'group'}
   {#key overlay.current.groupId}
     <GroupEditor groupId={overlay.current.groupId} anchor={overlay.current.anchor} />

@@ -3,6 +3,7 @@ import { Service as Windows } from '../../bindings/github.com/dayanraj/wtf/inter
 import { settings } from './settings.svelte';
 import { sidebar, type SavedSidebar } from './sidebar.svelte';
 import { tabs, type SavedTabs } from './tabs.svelte';
+import { openPlan, type WorkspacePayload } from './workspaces.svelte';
 
 const VERSION = 1;
 const SAVE_DELAY_MS = 400;
@@ -23,6 +24,10 @@ export async function restoreSession(windowName: string): Promise<boolean> {
     if (!raw) return false;
     const data = JSON.parse(raw) as Partial<SavedSession> & { kind?: string };
     if (data?.kind === 'tab') return tabs.adopt(data);
+    if (data?.kind === 'workspace') {
+      openPlan((data as unknown as WorkspacePayload).plan);
+      return tabs.list.length > 0;
+    }
     if (data?.version !== VERSION) return false;
     // Before the panes mount, so terminals open at the right size.
     if (typeof data.fontSize === 'number') settings.setFontSize(data.fontSize);

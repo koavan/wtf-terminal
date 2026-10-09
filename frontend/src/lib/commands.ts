@@ -3,6 +3,7 @@ import { Service as ConfigService } from '../../bindings/github.com/dayanraj/wtf
 import { Service as SnippetsService } from '../../bindings/github.com/dayanraj/wtf/internal/snippets';
 import { broadcast } from './broadcast.svelte';
 import { openManual } from './help';
+import { captureWindow } from './workspaces.svelte';
 import { closeActivePane, closeTab, closeWindow } from './closing';
 import { overlay } from './overlay.svelte';
 import { isMac } from './platform';
@@ -55,6 +56,8 @@ export const commands: Command[] = [
     label: 'Open Snippets File',
     run: () => SnippetsService.OpenUserFile().catch((e) => toast.show(`Couldn't open the snippets file: ${e}`)),
   },
+  { id: 'workspace.open', label: 'Open Workspace…', run: () => overlay.togglePalette('workspaces') },
+  { id: 'workspace.save', label: 'Save Window as Workspace…', run: () => overlay.show({ kind: 'workspaceEdit', workspace: null, draft: captureWindow() }) },
   { id: 'help.shortcuts', label: 'Show Keyboard Shortcuts', run: () => openManual('shortcuts') },
   { id: 'theme.pick', label: 'Change Theme…', run: () => overlay.togglePalette('themes') },
   { id: 'config.open', label: 'Open Settings File', mac: '⌘,', other: 'Ctrl+,', run: () => ConfigService.OpenConfigFile().catch((e) => toast.show(`Couldn't open settings: ${e}`)) },
@@ -76,6 +79,7 @@ export const commands: Command[] = [
   { id: 'sidebar.aws', label: 'Show AWS Profiles', mac: '⌘⇧U', other: 'Ctrl+Shift+Alt+U', run: () => sidebar.show('aws') },
   { id: 'sidebar.kube', label: 'Show Kubernetes', mac: '⌘⇧K', other: 'Ctrl+Shift+Alt+K', run: () => sidebar.show('kube') },
   { id: 'sidebar.snippets', label: 'Show Snippets', mac: '⌘⇧Y', other: 'Ctrl+Shift+Alt+Y', run: () => sidebar.show('snippets') },
+  { id: 'sidebar.workspaces', label: 'Show Workspaces', mac: '⌘⇧L', other: 'Ctrl+Shift+Alt+L', run: () => sidebar.show('workspaces') },
   { id: 'sidebar.processes', label: 'Show Processes', mac: '⌘⇧A', other: 'Ctrl+Shift+Alt+A', run: () => sidebar.show('processes') },
   { id: 'tab.new', label: 'New Tab', mac: '⌘T', other: 'Ctrl+Shift+T', run: () => tabs.open() },
   { id: 'tab.duplicate', label: 'Duplicate Tab', run: () => tabs.duplicate() },
@@ -196,6 +200,7 @@ function shortcutFor(e: KeyboardEvent): string | null {
   if (e.ctrlKey && e.shiftKey && e.altKey && e.code === 'KeyK') return 'sidebar.kube';
   if (e.ctrlKey && e.shiftKey && e.altKey && e.code === 'KeyR') return 'snippets.run';
   if (e.ctrlKey && e.shiftKey && e.altKey && e.code === 'KeyY') return 'sidebar.snippets';
+  if (e.ctrlKey && e.shiftKey && e.altKey && e.code === 'KeyL') return 'sidebar.workspaces';
   if (e.ctrlKey && e.shiftKey && e.altKey && e.code === 'KeyB') return 'broadcast.toggle';
   if (e.ctrlKey && !e.shiftKey && !e.altKey && e.code === 'Comma') return 'config.open';
   if (e.ctrlKey && e.shiftKey && !e.altKey) {

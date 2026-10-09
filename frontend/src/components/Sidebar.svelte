@@ -18,6 +18,7 @@
     { id: 'aws', label: 'AWS Profiles', icon: 'cloud', key: isMac ? '⌘⇧U' : 'Ctrl+Shift+Alt+U' },
     { id: 'kube', label: 'Kubernetes', icon: 'wheel', key: isMac ? '⌘⇧K' : 'Ctrl+Shift+Alt+K' },
     { id: 'snippets', label: 'Snippets', icon: 'scroll', key: isMac ? '⌘⇧Y' : 'Ctrl+Shift+Alt+Y' },
+    { id: 'workspaces', label: 'Workspaces', icon: 'layers', key: isMac ? '⌘⇧L' : 'Ctrl+Shift+Alt+L' },
     { id: 'network', label: 'Network', icon: 'network', key: isMac ? '⌘⇧O' : 'Ctrl+Shift+Alt+O' },
     { id: 'processes', label: 'Processes', icon: 'cpu', key: isMac ? '⌘⇧A' : 'Ctrl+Shift+Alt+A' },
     { id: 'history', label: 'History', icon: 'history', key: isMac ? '⌘⇧H' : 'Ctrl+Shift+Alt+H' },
@@ -72,7 +73,9 @@
     {:else if sidebar.tab === 'kube'}
       <KubeView />
     {:else if sidebar.tab === 'snippets'}
-      <SnippetsView />
+      <SnippetsView view="snippets" />
+    {:else if sidebar.tab === 'workspaces'}
+      <SnippetsView view="workspaces" />
     {:else if sidebar.tab === 'network'}
       <NetworkView />
     {:else if sidebar.tab === 'processes'}

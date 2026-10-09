@@ -18,10 +18,10 @@ export function ApplyEdit(e: $models.Edit, cwd: string): $CancellablePromise<$mo
 }
 
 /**
- * Delete removes a snippet's block from its file.
+ * Delete removes a snippet's or workspace's block from its file.
  */
-export function Delete(file: string, index: number, version: string, cwd: string): $CancellablePromise<$models.List> {
-    return $Call.ByID(26000163, file, index, version, cwd);
+export function Delete(kind: string, file: string, index: number, version: string, cwd: string): $CancellablePromise<$models.List> {
+    return $Call.ByID(26000163, kind, file, index, version, cwd);
 }
 
 /**

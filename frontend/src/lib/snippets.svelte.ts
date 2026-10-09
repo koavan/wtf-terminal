@@ -1,5 +1,6 @@
 import {
-  Service, type Edit, type List, type Param, type Snippet as RawSnippet, type Target,
+  Service, type Edit, type List, type Param, type Snippet as RawSnippet, type Target, type WPane, type WTab,
+  type Workspace as RawWorkspace,
 } from '../../bindings/github.com/dayanraj/wtf/internal/snippets';
 import { shellIdle } from './fileActions';
 import { overlay } from './overlay.svelte';
@@ -8,7 +9,7 @@ import { tabs, type Pane } from './tabs.svelte';
 import { activeTerminal } from './terminals';
 import { toast } from './toast.svelte';
 
-export type { Def, Edit, Preview, Target } from '../../bindings/github.com/dayanraj/wtf/internal/snippets';
+export type { Def, Edit, Preview, Target, WPane, WTab, WorkspaceDef } from '../../bindings/github.com/dayanraj/wtf/internal/snippets';
 
 // Snippets and runbooks: commands with {{placeholders}} from the user's and
 // the project's snippets files (see internal/snippets). This fills them in.
@@ -19,6 +20,12 @@ export type { Def, Edit, Preview, Target } from '../../bindings/github.com/dayan
 //
 // Only {{identifier}} forms are placeholders: a Go template such as
 // {{.metadata.name}} or {{end}} in a command is left alone.
+
+/** A workspace, with Go's nil slices made empty. */
+export type Workspace = Omit<RawWorkspace, 'tabs' | 'params'> & {
+  tabs: (Omit<WTab, 'panes'> & { panes: WPane[] })[];
+  params: Param[];
+};
 
 export type Snippet = Omit<RawSnippet, 'steps' | 'params' | 'tags'> & {
   steps: { title: string; command: string }[];
@@ -57,8 +64,13 @@ export const commandsOf = (s: Snippet) => (isRunbook(s) ? s.steps.map((st) => st
 
 /** The values a snippet asks for, in order of first use, with what its file says about them. */
 export function fieldsOf(s: Snippet): Field[] {
+  return fieldsIn(commandsOf(s), s.params);
+}
+
+/** The placeholders in some texts, in order of first use, with their declared settings. */
+export function fieldsIn(texts: string[], params: Param[]): Field[] {
   const out: Field[] = [];
-  for (const cmd of commandsOf(s)) {
+  for (const cmd of texts) {
     for (const m of cmd.matchAll(PLACEHOLDER)) {
       const [, name, inline] = m;
       if (TEMPLATE_WORDS.has(name) && inline === undefined) continue;
@@ -67,7 +79,7 @@ export function fieldsOf(s: Snippet): Field[] {
         if (!existing.default && inline !== undefined) existing.default = inline;
         continue;
       }
-      const p = s.params.find((x) => x.name === name);
+      const p = params.find((x) => x.name === name);
       out.push({
         name,
         description: p?.description ?? '',
@@ -112,9 +124,23 @@ export function fill(command: string, values: Record<string, string>, fields: Fi
   });
 }
 
+/**
+ * Text (a folder, a tab's title) with its placeholders filled in as typed,
+ * no quoting. Throws, naming the first field left empty.
+ */
+export function fillPlain(text: string, values: Record<string, string>): string {
+  return text.replace(PLACEHOLDER, (whole: string, name: string, inline?: string) => {
+    if (TEMPLATE_WORDS.has(name) && inline === undefined) return whole;
+    const v = (values[name] ?? '').trim();
+    if (!v) throw new Error(`Fill in ${name}`);
+    return v;
+  });
+}
+
 /** Snippets for the palette: what's in the user's and the focused shell's project files. */
 class Snippets {
   list = $state.raw<Snippet[]>([]);
+  workspaces = $state.raw<Workspace[]>([]);
   problems = $state.raw<string[]>([]);
   userFile = $state('');
   projectFile = $state('');
@@ -126,6 +152,11 @@ class Snippets {
   loaded = $state(false);
 
   apply(l: List) {
+    this.workspaces = (l.workspaces ?? []).map((w) => ({
+      ...w,
+      params: (w.params ?? []).map((p) => ({ ...p, choices: p.choices ?? [] })),
+      tabs: (w.tabs ?? []).map((t) => ({ ...t, panes: t.panes ?? [] })),
+    }));
     this.list = (l.snippets ?? []).map((s) => ({ ...s, steps: s.steps ?? [], params: (s.params ?? []).map((p) => ({ ...p, choices: p.choices ?? [] })), tags: s.tags ?? [] }));
     this.problems = l.problems ?? [];
     this.userFile = l.userFile;
@@ -148,8 +179,8 @@ class Snippets {
     this.apply(await Service.ApplyEdit(e, this.cwd()));
   }
 
-  async remove(s: Snippet) {
-    this.apply(await Service.Delete(s.source, s.index, this.versions[s.source] ?? '', this.cwd()));
+  async remove(s: { source: string; index: number }, kind: 'snippet' | 'workspace' = 'snippet') {
+    this.apply(await Service.Delete(kind, s.source, s.index, this.versions[s.source] ?? '', this.cwd()));
   }
 
   /** Reads the files afresh (they're small, and edited by hand). */

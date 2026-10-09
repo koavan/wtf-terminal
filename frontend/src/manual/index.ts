@@ -27,6 +27,7 @@ import sshHosts from './ssh-hosts.md?raw';
 import sshKeys from './ssh-keys.md?raw';
 import sshTunnels from './ssh-tunnels.md?raw';
 import tabs from './tabs.md?raw';
+import workspaces from './workspaces.md?raw';
 import troubleshooting from './troubleshooting.md?raw';
 
 export interface Topic {
@@ -47,6 +48,7 @@ export const TOPICS: Topic[] = [
   t('Basics', 'context-badges', 'Address bar and context badges', contextBadges),
   t('Basics', 'broadcast', 'Broadcast input', broadcast),
   t('Basics', 'snippets', 'Snippets and runbooks', snippetsPage),
+  t('Basics', 'workspaces', 'Workspaces', workspaces),
   t('Side pane', 'side-pane', 'The side pane', sideP),
   t('Side pane', 'files', 'Files', files),
   t('Side pane', 'network', 'Network', network),
@@ -74,6 +76,7 @@ export const SIDEBAR_TOPIC: Record<string, string> = {
   aws: 'aws',
   kube: 'kubernetes',
   snippets: 'snippets',
+  workspaces: 'workspaces',
   network: 'network',
   processes: 'processes',
   history: 'history',

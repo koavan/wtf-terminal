@@ -74,7 +74,8 @@ type Target struct {
 }
 
 type List struct {
-	Snippets []Snippet `json:"snippets"`
+	Snippets   []Snippet   `json:"snippets"`
+	Workspaces []Workspace `json:"workspaces"`
 	// The files that were read (existing ones only).
 	Files    []string `json:"files"`
 	Problems []string `json:"problems"`
@@ -97,7 +98,8 @@ type fileSnippet struct {
 }
 
 type file struct {
-	Snippet []fileSnippet `toml:"snippet"`
+	Snippet   []fileSnippet   `toml:"snippet,omitempty"`
+	Workspace []fileWorkspace `toml:"workspace,omitempty"`
 }
 
 const maxFile = 1 << 20
@@ -140,7 +142,7 @@ func version(data []byte) string {
 
 // List reads the snippets available in a shell's folder.
 func (s *Service) List(cwd string) List {
-	out := List{Snippets: []Snippet{}, Files: []string{}, Problems: []string{}, UserFile: s.userFile(), Versions: map[string]string{}}
+	out := List{Snippets: []Snippet{}, Workspaces: []Workspace{}, Files: []string{}, Problems: []string{}, UserFile: s.userFile(), Versions: map[string]string{}}
 	project := s.projectFiles(cwd)
 	if len(project) > 0 {
 		out.ProjectFile = project[0]
@@ -184,6 +186,18 @@ func (s *Service) List(cwd string) List {
 			sn.Index = i
 			sn.Project = isProject[p]
 			out.Snippets = append(out.Snippets, sn)
+		}
+		for i, fw := range f.Workspace {
+			w, err := convertWorkspace(fw)
+			if err != nil {
+				out.Problems = append(out.Problems, fmt.Sprintf("%s, workspace %d: %v", prettyHome(s.home, p), i+1, err))
+				continue
+			}
+			w.ID = fmt.Sprintf("%s#w%d", p, i)
+			w.Source = p
+			w.Index = i
+			w.Project = isProject[p]
+			out.Workspaces = append(out.Workspaces, w)
 		}
 	}
 	out.Targets = s.targets(cwd)
@@ -267,20 +281,53 @@ func convert(fs fileSnippet) (Snippet, error) {
 			return sn, errors.New("each step's command must be one line")
 		}
 	}
-	names := make([]string, 0, len(fs.Params))
-	for n := range fs.Params {
+	sn.Params = paramList(fs.Params)
+	return sn, nil
+}
+
+// paramList is a file's [….params.NAME] tables as a list, by name.
+func paramList(m map[string]Param) []Param {
+	names := make([]string, 0, len(m))
+	for n := range m {
 		names = append(names, n)
 	}
 	sort.Strings(names)
+	out := []Param{}
 	for _, n := range names {
-		p := fs.Params[n]
+		p := m[n]
 		p.Name = n
 		if p.Choices == nil {
 			p.Choices = []string{}
 		}
-		sn.Params = append(sn.Params, p)
+		out = append(out, p)
 	}
-	return sn, nil
+	return out
+}
+
+// cleanParams checks edited parameters and keeps those with something to say.
+func cleanParams(in []Param) (map[string]Param, error) {
+	var out map[string]Param
+	for _, p := range in {
+		if !paramNameRe.MatchString(p.Name) {
+			return nil, fmt.Errorf("%q isn't a placeholder name", p.Name)
+		}
+		p.Description, p.Default = strings.TrimSpace(p.Description), strings.TrimSpace(p.Default)
+		var choices []string
+		for _, c := range p.Choices {
+			if c = strings.TrimSpace(c); c != "" {
+				choices = append(choices, c)
+			}
+		}
+		p.Choices = choices
+		if p.Description == "" && p.Default == "" && len(p.Choices) == 0 && !p.Raw {
+			continue
+		}
+		if out == nil {
+			out = map[string]Param{}
+		}
+		out[p.Name] = p
+	}
+	return out, nil
 }
 
 // ── Editing ──────────────────────────────────────────────────────────────
@@ -295,13 +342,16 @@ type Def struct {
 	Params      []Param  `json:"params"`
 }
 
-// Edit adds a snippet to a file (Index -1) or replaces one.
+// Edit adds a snippet or workspace to a file (Index -1) or replaces one.
 type Edit struct {
+	// "snippet" (or "") or "workspace".
+	Kind  string `json:"kind"`
 	File  string `json:"file"`
 	Index int    `json:"index"`
 	// The file's version from List ("" for a file that doesn't exist yet).
-	Version string `json:"version"`
-	Snippet Def    `json:"snippet"`
+	Version   string       `json:"version"`
+	Snippet   Def          `json:"snippet"`
+	Workspace WorkspaceDef `json:"workspace"`
 }
 
 // Preview is what an edit writes.
@@ -322,9 +372,20 @@ const header = `# wtf snippets: commands with {{placeholders}}, run from the com
 
 var (
 	errChanged  = errors.New("the snippets file changed since it was read — reload and try again")
-	snippetLine = regexp.MustCompile(`^\s*\[\[\s*snippet\s*\]\]\s*(#.*)?$`)
+	topLevel    = regexp.MustCompile(`^\s*\[\[\s*(snippet|workspace)\s*\]\]\s*(#.*)?$`)
 	paramNameRe = regexp.MustCompile(`^[A-Za-z_][\w-]*$`)
 )
+
+// kindOf is an edit's kind, checked.
+func kindOf(k string) (string, error) {
+	switch k {
+	case "", "snippet":
+		return "snippet", nil
+	case "workspace":
+		return "workspace", nil
+	}
+	return "", fmt.Errorf("unknown kind %q", k)
+}
 
 // PlanEdit renders what an edit will write, without writing.
 func (s *Service) PlanEdit(e Edit, cwd string) (Preview, error) {
@@ -357,7 +418,8 @@ func (s *Service) ApplyEdit(e Edit, cwd string) (List, error) {
 		}
 		lines = append(lines, block...)
 	} else {
-		from, to, ok := blockRange(lines, e.Index)
+		kind, _ := kindOf(e.Kind)
+		from, to, ok := blockRange(lines, kind, e.Index)
 		if !ok {
 			return List{}, errChanged
 		}
@@ -369,8 +431,12 @@ func (s *Service) ApplyEdit(e Edit, cwd string) (List, error) {
 	return s.List(cwd), nil
 }
 
-// Delete removes a snippet's block from its file.
-func (s *Service) Delete(file string, index int, version, cwd string) (List, error) {
+// Delete removes a snippet's or workspace's block from its file.
+func (s *Service) Delete(kind, file string, index int, version, cwd string) (List, error) {
+	kind, err := kindOf(kind)
+	if err != nil {
+		return List{}, err
+	}
 	target, err := s.writable(file, cwd)
 	if err != nil {
 		return List{}, err
@@ -379,7 +445,7 @@ func (s *Service) Delete(file string, index int, version, cwd string) (List, err
 	if err != nil {
 		return List{}, err
 	}
-	from, to, ok := blockRange(lines, index)
+	from, to, ok := blockRange(lines, kind, index)
 	if !ok {
 		return List{}, errChanged
 	}
@@ -415,22 +481,28 @@ func (s *Service) readFor(path, want string) ([]string, error) {
 	return strings.Split(strings.TrimRight(strings.ReplaceAll(string(data), "\r\n", "\n"), "\n"), "\n"), nil
 }
 
-// blockRange finds the lines of the index-th [[snippet]] block: from its
-// header up to the next one, less the comments and blank lines just before
-// the next header (they introduce the next snippet).
-func blockRange(lines []string, index int) (int, int, bool) {
-	var heads []int
+// blockRange finds the lines of the index-th [[snippet]] (or [[workspace]])
+// block: from its header up to the next top-level block of either kind,
+// less the comments and blank lines just before it (they introduce it).
+func blockRange(lines []string, kind string, index int) (int, int, bool) {
+	var all, mine []int
 	for i, l := range lines {
-		if snippetLine.MatchString(l) {
-			heads = append(heads, i)
+		if m := topLevel.FindStringSubmatch(l); m != nil {
+			all = append(all, i)
+			if m[1] == kind {
+				mine = append(mine, i)
+			}
 		}
 	}
-	if index < 0 || index >= len(heads) {
+	if index < 0 || index >= len(mine) {
 		return 0, 0, false
 	}
-	from, to := heads[index], len(lines)
-	if index+1 < len(heads) {
-		to = heads[index+1]
+	from, to := mine[index], len(lines)
+	for _, h := range all {
+		if h > from {
+			to = h
+			break
+		}
 	}
 	for to > from+1 {
 		t := strings.TrimSpace(lines[to-1])
@@ -453,11 +525,28 @@ func (s *Service) writable(file, cwd string) (string, error) {
 	return "", fmt.Errorf("%s isn't a snippets file wtf saves to from here", prettyHome(s.home, file))
 }
 
-// prepare checks an edit and renders the snippet's block.
+// prepare checks an edit and renders its block.
 func (s *Service) prepare(e Edit, cwd string) (string, string, error) {
+	kind, err := kindOf(e.Kind)
+	if err != nil {
+		return "", "", err
+	}
 	target, err := s.writable(e.File, cwd)
 	if err != nil {
 		return "", "", err
+	}
+	if kind == "workspace" {
+		fw, err := fromDef(e.Workspace)
+		if err != nil {
+			return "", "", err
+		}
+		var buf bytes.Buffer
+		enc := toml.NewEncoder(&buf)
+		enc.Indent = ""
+		if err := enc.Encode(file{Workspace: []fileWorkspace{fw}}); err != nil {
+			return "", "", err
+		}
+		return target, buf.String(), nil
 	}
 	d := e.Snippet
 	fs := fileSnippet{
@@ -476,26 +565,11 @@ func (s *Service) prepare(e Edit, cwd string) (string, string, error) {
 		}
 		fs.Steps = append(fs.Steps, st)
 	}
-	for _, p := range d.Params {
-		if !paramNameRe.MatchString(p.Name) {
-			return "", "", fmt.Errorf("%q isn't a placeholder name", p.Name)
-		}
-		p.Description, p.Default = strings.TrimSpace(p.Description), strings.TrimSpace(p.Default)
-		var choices []string
-		for _, c := range p.Choices {
-			if c = strings.TrimSpace(c); c != "" {
-				choices = append(choices, c)
-			}
-		}
-		p.Choices = choices
-		if p.Description == "" && p.Default == "" && len(p.Choices) == 0 && !p.Raw {
-			continue // nothing to say about it
-		}
-		if fs.Params == nil {
-			fs.Params = map[string]Param{}
-		}
-		fs.Params[p.Name] = p
+	params, err := cleanParams(d.Params)
+	if err != nil {
+		return "", "", err
 	}
+	fs.Params = params
 	if strings.ContainsAny(fs.Name, "\r\n") || strings.ContainsAny(fs.Description, "\r\n") {
 		return "", "", errors.New("the name and description must be one line each")
 	}
@@ -568,6 +642,31 @@ command = "kubectl uncordon {{node}}"
 
 [snippet.params.node]
 description = "The node's name (kubectl get nodes)"
+
+# A workspace: tabs opened together (Open Workspace… in the command palette).
+[[workspace]]
+name = "Kubernetes on call"
+description = "Pods and events of a namespace, side by side, and a shell"
+
+[[workspace.tab]]
+title = "{{ns}} pods"
+group = "on call"
+color = "red"
+layout = "row"
+
+[[workspace.tab.pane]]
+command = "kubectl -n {{ns}} get pods -w"
+
+[[workspace.tab.pane]]
+command = "kubectl -n {{ns}} get events -w"
+
+[[workspace.tab]]
+title = "shell"
+group = "on call"
+cwd = "~"
+
+[workspace.params.ns]
+default = "$kube_namespace"
 `
 
 func writeAtomic(path string, data []byte) error {

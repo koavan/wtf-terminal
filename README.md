@@ -58,7 +58,7 @@ Every command is also in the command palette.
 | Command palette | ⌘⇧P | Ctrl+Shift+P |
 | Manual (at the page for the side-pane tab on screen) | ⌘? | F1 |
 | Toggle sidebar | ⌘B | Ctrl+Shift+B |
-| Sidebar: files / SSH / AWS / Kubernetes / snippets / network / processes / history | ⌘⇧E / ⌘⇧S / ⌘⇧U / ⌘⇧K / ⌘⇧Y / ⌘⇧O / ⌘⇧A / ⌘⇧H | Ctrl+Shift+Alt+E / S / U / K / Y / O / A / H |
+| Sidebar: files / SSH / AWS / Kubernetes / snippets / workspaces / network / processes / history | ⌘⇧E / ⌘⇧S / ⌘⇧U / ⌘⇧K / ⌘⇧Y / ⌘⇧L / ⌘⇧O / ⌘⇧A / ⌘⇧H | Ctrl+Shift+Alt+E / S / U / K / Y / L / O / A / H |
 | New tab | ⌘T | Ctrl+Shift+T |
 | New window | ⌘N | Ctrl+Shift+N |
 | Show all tabs | ⌘⇧\ | Ctrl+Shift+\ |
@@ -310,6 +310,21 @@ block, keeping the file's other snippets and comments; a project file is
 created at the repository root when there's none. **Save as Snippet…** on a
 command (or in History) opens the same editor. The manual's Snippets page
 documents the format.
+
+## Workspaces
+
+A workspace opens a set of tabs in one go: names, tab groups and colors,
+split panes (side by side or stacked) with their folders, and a startup
+command each — e.g. two SSH tabs grouped "payments", a repo shell, and
+`kubectl get pods -w` beside `kubectl get events -w`. **Open Workspace…**
+(command palette) or the **Workspaces** side-pane tab (⌘⇧L) opens one; a
+dialog asks for its `{{placeholders}}` (defaults may follow the shell, like
+snippets), lists every tab and command, and opens them here or in a new
+window. **Save Window as Workspace…** captures the current window — commands
+running in panes (ssh, kubectl … -w) become startup commands — into the same
+form editor snippets use, with the same review before writing. Workspaces are
+`[[workspace]]` blocks in the snippets files (yours, a project's
+`.wtf/snippets.toml`, team files), documented in the manual.
 
 ## Windows
 

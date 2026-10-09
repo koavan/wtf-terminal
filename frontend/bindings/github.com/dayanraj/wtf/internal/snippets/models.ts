@@ -14,9 +14,13 @@ export interface Def {
 }
 
 /**
- * Edit adds a snippet to a file (Index -1) or replaces one.
+ * Edit adds a snippet or workspace to a file (Index -1) or replaces one.
  */
 export interface Edit {
+    /**
+     * "snippet" (or "") or "workspace".
+     */
+    "kind": string;
     "file": string;
     "index": number;
 
@@ -25,10 +29,12 @@ export interface Edit {
      */
     "version": string;
     "snippet": Def;
+    "workspace": WorkspaceDef;
 }
 
 export interface List {
     "snippets": Snippet[] | null;
+    "workspaces": Workspace[] | null;
 
     /**
      * The files that were read (existing ones only).
@@ -135,4 +141,67 @@ export interface Target {
      */
     "kind": string;
     "exists": boolean;
+}
+
+/**
+ * WPane is one pane of a tab with several.
+ */
+export interface WPane {
+    "cwd": string;
+    "command": string;
+}
+
+/**
+ * WTab is one tab of a workspace.
+ */
+export interface WTab {
+    /**
+     * A name for the tab; empty keeps the automatic one.
+     */
+    "title": string;
+
+    /**
+     * Tabs with the same group name open in one tab group.
+     */
+    "group": string;
+    "color": string;
+
+    /**
+     * For a one-pane tab.
+     */
+    "cwd": string;
+    "command": string;
+
+    /**
+     * For several panes: "row" (side by side) or "column" (stacked).
+     */
+    "layout": string;
+    "panes": WPane[] | null;
+}
+
+export interface Workspace {
+    "id": string;
+    "name": string;
+    "description": string;
+
+    /**
+     * "new" opens it in a new window; otherwise in the current one.
+     */
+    "window": string;
+    "tabs": WTab[] | null;
+    "params": Param[] | null;
+    "source": string;
+    "index": number;
+    "project": boolean;
+}
+
+/**
+ * WorkspaceDef is a workspace as the editor fills it in.
+ */
+export interface WorkspaceDef {
+    "name": string;
+    "description": string;
+    "window": string;
+    "tabs": WTab[] | null;
+    "params": Param[] | null;
 }

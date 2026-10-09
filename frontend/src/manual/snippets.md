@@ -4,7 +4,7 @@ Snippets are commands you run often, with blanks to fill in: `kubectl -n {{ns}} 
 
 ## The Snippets tab
 
-{{cmd:sidebar.snippets}} shows every snippet in the side pane, grouped by file: **This project**, **Yours**, and team files. Filter by name or command.
+{{cmd:sidebar.snippets}} shows every snippet in the side pane, grouped by file: **This project**, **Yours**, and team files. Filter by name or command. The **Workspaces** tab next to it lists your [workspaces](#workspaces), from the same files.
 
 - **▶** (or double-click) runs one — see below.
 - **+** makes a new one in a form; right-click → **Edit…**, **Duplicate…**, **Copy Command** or **Delete…**.

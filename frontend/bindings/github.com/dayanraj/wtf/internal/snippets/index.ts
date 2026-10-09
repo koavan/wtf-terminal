@@ -14,5 +14,9 @@ export type {
     Preview,
     Snippet,
     Step,
-    Target
+    Target,
+    WPane,
+    WTab,
+    Workspace,
+    WorkspaceDef
 } from "./models.js";

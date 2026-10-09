@@ -64,11 +64,15 @@ on request, masked), and Contexts (every kubeconfig in ~/.kube, per-shell
 switching, rename/delete/namespace/merge, Add EKS Cluster, fix
 aws-iam-authenticator auth). See README.
 
-### 6. Workspaces / launch profiles ☐
+### 6. Workspaces / launch profiles ☑
 
-- Named layouts in `config.toml`: tabs, groups, splits, each with cwd, env and a
-  startup command (e.g. "payments-oncall": 3 SSH tabs + log tail + kubectl watch).
-- Open from the command palette. Builds on session restore.
+`[[workspace]]` blocks in the snippets files (user, project, team): tabs with
+names, groups and colors, panes (side by side or stacked) with folders and
+startup commands, `{{placeholders}}`. Open Workspace… (palette) or the
+Workspaces side-pane tab (⌘⇧L); a dialog previews every tab and command, then
+opens them here or in a new window. Save Window as Workspace… captures the
+current tabs (running commands become startup commands); form editor with
+reviewed, block-level writes.
 
 ### 7. Snippets / runbooks ☑
 

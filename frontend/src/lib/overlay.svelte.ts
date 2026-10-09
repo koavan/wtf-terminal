@@ -2,7 +2,7 @@ import { tick } from 'svelte';
 import type { Host, HostDraft } from './ssh.svelte';
 import type { Key, TunnelStatus } from './sshAdmin.svelte';
 import type { Profile } from './aws.svelte';
-import type { Snippet } from './snippets.svelte';
+import type { Snippet, Workspace, WorkspaceDef } from './snippets.svelte';
 import type { GroupColor } from './tabs.svelte';
 import { activeTerminal } from './terminals';
 
@@ -30,7 +30,9 @@ export type OverlayState =
   | { kind: 'secretView'; name: string; context: string; namespace: string; env: Record<string, string> }
   | { kind: 'manual'; topic: string }
   | { kind: 'snippet'; snippet: Snippet }
-  | { kind: 'snippetEdit'; snippet: Snippet | null; command?: string; duplicate?: boolean };
+  | { kind: 'snippetEdit'; snippet: Snippet | null; command?: string; duplicate?: boolean }
+  | { kind: 'workspaceOpen'; workspace: Workspace }
+  | { kind: 'workspaceEdit'; workspace: Workspace | null; draft?: WorkspaceDef; duplicate?: boolean };
 
 /** A dialog that fills in a command (e.g. kubectl scale) and runs it in a new tab. */
 export interface CommandPrompt {
@@ -58,7 +60,7 @@ export interface ConfirmRequest {
   onConfirm: () => void;
 }
 
-export type PaletteMode = 'commands' | 'themes' | 'snippets';
+export type PaletteMode = 'commands' | 'themes' | 'snippets' | 'workspaces';
 
 /** The one popover (context menu, group editor, palette) that can be open at a time. */
 class Overlay {

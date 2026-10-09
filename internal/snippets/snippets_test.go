@@ -163,7 +163,7 @@ func TestEditKeepsTheRestOfTheFile(t *testing.T) {
 	if _, err := s.ApplyEdit(e, home); err == nil {
 		t.Error("stale version")
 	}
-	if _, err := s.Delete(s.userFile(), 0, l.Versions[s.userFile()], home); err != nil {
+	if _, err := s.Delete("snippet", s.userFile(), 0, l.Versions[s.userFile()], home); err != nil {
 		t.Fatal(err)
 	}
 	got = read(t, s.userFile())
@@ -247,5 +247,112 @@ func TestExamplesParse(t *testing.T) {
 	}
 	if len(f.Snippet) != 5 || len(f.Snippet[4].Steps) != 3 {
 		t.Errorf("examples %+v", f.Snippet)
+	}
+	if len(f.Workspace) != 1 {
+		t.Fatalf("workspace examples %+v", f.Workspace)
+	}
+	if _, err := convertWorkspace(f.Workspace[0]); err != nil {
+		t.Errorf("workspace example: %v", err)
+	}
+}
+
+const mixed = `# Team file
+
+[[snippet]]
+name = "One"
+command = "echo 1"
+
+# The on-call workspace
+[[workspace]]
+name = "Oncall"
+window = "new"
+[[workspace.tab]]
+title = "api"
+group = "pay"
+color = "red"
+command = "ssh pay-api-1"
+[[workspace.tab]]
+layout = "column"
+[[workspace.tab.pane]]
+cwd = "~/src"
+command = "kubectl get pods -w -n {{ns}}"
+[[workspace.tab.pane]]
+command = "kubectl get events -w"
+[workspace.params.ns]
+default = "$kube_namespace"
+
+[[snippet]]
+name = "Two"
+command = "echo 2"
+`
+
+func TestWorkspaces(t *testing.T) {
+	s, home := service(t)
+	write(t, s.userFile(), mixed)
+	l := s.List(home)
+	if strings.Join(names(l), ",") != "One,Two" || len(l.Workspaces) != 1 {
+		t.Fatalf("list %+v (problems %v)", l, l.Problems)
+	}
+	w := l.Workspaces[0]
+	if w.Name != "Oncall" || w.Window != "new" || len(w.Tabs) != 2 || w.Tabs[0].Group != "pay" || w.Tabs[1].Layout != "column" ||
+		len(w.Tabs[1].Panes) != 2 || w.Tabs[1].Panes[0].Cwd != "~/src" || w.Params[0].Name != "ns" || w.Index != 0 {
+		t.Errorf("workspace %+v", w)
+	}
+
+	// Editing the workspace keeps the snippets around it — and the comment
+	// introducing it, and the snippet after it, which shares no lines.
+	e := Edit{Kind: "workspace", File: s.userFile(), Index: 0, Version: l.Versions[s.userFile()], Workspace: WorkspaceDef{
+		Name: "Oncall", Window: "current",
+		Tabs: []WTab{
+			{Title: "api", Group: "pay", Color: "red", Panes: []WPane{{Command: "ssh pay-api-1"}}}, // one pane: a plain tab
+			{Layout: "", Panes: []WPane{{Command: "top"}, {}, {Command: "htop"}}},                  // empty pane dropped
+		},
+	}}
+	pv, err := s.PlanEdit(e, home)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(pv.Text, "window") || !strings.Contains(pv.Text, "[[workspace.tab.pane]]") || !strings.Contains(pv.Text, `layout = "row"`) {
+		t.Errorf("preview:\n%s", pv.Text)
+	}
+	if _, err := s.ApplyEdit(e, home); err != nil {
+		t.Fatal(err)
+	}
+	got := read(t, s.userFile())
+	for _, keep := range []string{"# Team file", "# The on-call workspace", `name = "One"`, `name = "Two"`} {
+		if !strings.Contains(got, keep) {
+			t.Errorf("lost %q:\n%s", keep, got)
+		}
+	}
+	l = s.List(home)
+	if w := l.Workspaces[0]; w.Window != "" || w.Tabs[0].Command != "ssh pay-api-1" || len(w.Tabs[0].Panes) != 0 || len(w.Tabs[1].Panes) != 2 {
+		t.Errorf("after edit %+v", w)
+	}
+	if strings.Join(names(l), ",") != "One,Two" {
+		t.Errorf("snippets %v", names(l))
+	}
+
+	// Deleting the workspace leaves both snippets.
+	if l, err = s.Delete("workspace", s.userFile(), 0, l.Versions[s.userFile()], home); err != nil {
+		t.Fatal(err)
+	}
+	if len(l.Workspaces) != 0 || strings.Join(names(l), ",") != "One,Two" {
+		t.Errorf("after delete %+v", l)
+	}
+
+	for _, bad := range []WorkspaceDef{
+		{Name: "", Tabs: []WTab{{Command: "x"}}},
+		{Name: "x"},
+		{Name: "x", Tabs: []WTab{{Color: "magenta", Command: "x"}}},
+		{Name: "x", Tabs: []WTab{{Layout: "grid", Panes: []WPane{{Command: "a"}, {Command: "b"}}}}},
+		{Name: "x", Window: "elsewhere", Tabs: []WTab{{Command: "x"}}},
+		{Name: "x", Tabs: []WTab{{Command: "a\nb"}}},
+	} {
+		if _, err := s.PlanEdit(Edit{Kind: "workspace", File: s.userFile(), Index: -1, Version: l.Versions[s.userFile()], Workspace: bad}, home); err == nil {
+			t.Errorf("%+v should be refused", bad)
+		}
+	}
+	if _, err := s.Delete("table", s.userFile(), 0, "", home); err == nil {
+		t.Error("unknown kind")
 	}
 }

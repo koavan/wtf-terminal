@@ -9,6 +9,7 @@
 | [AWS Profiles](#aws) | {{key:sidebar.aws}} | AWS CLI profiles |
 | [Kubernetes](#kubernetes) | {{key:sidebar.kube}} | cluster resources and kubeconfig contexts |
 | [Snippets](#snippets) | {{key:sidebar.snippets}} | saved commands and runbooks |
+| [Workspaces](#workspaces) | {{key:sidebar.workspaces}} | sets of tabs to open in one go |
 | [Network](#network) | {{key:sidebar.network}} | listening ports and connections |
 | [Processes](#processes) | {{key:sidebar.processes}} | what's running in your terminals |
 | [History](#history) | {{key:sidebar.history}} | commands run in a shell |

@@ -1,6 +1,7 @@
 <script lang="ts">
   import { Service as SnippetsService } from '../../bindings/github.com/dayanraj/wtf/internal/snippets';
   import { isRunbook, openSnippet, snippets } from '../lib/snippets.svelte';
+  import { captureWindow } from '../lib/workspaces.svelte';
   import { onMount, tick } from 'svelte';
   import { cubicOut } from 'svelte/easing';
   import Icon, { iconForProcess, type IconName } from './Icon.svelte';
@@ -24,7 +25,7 @@
     color?: GroupColor;
     /** In theme mode: the theme to preview while this row is selected. */
     theme?: Theme;
-    section: 'Tabs' | 'Groups' | 'Commands' | 'Snippets' | 'Themes';
+    section: 'Tabs' | 'Groups' | 'Commands' | 'Snippets' | 'Workspaces' | 'Themes';
     run: () => void;
   }
 
@@ -83,9 +84,33 @@
     return out;
   });
 
+  const workspaceEntries = $derived.by((): Entry[] => {
+    const out: Entry[] = snippets.workspaces.map((w) => ({
+      key: `workspace:${w.id}`,
+      label: w.name,
+      detail: w.description || `${w.tabs.length} ${w.tabs.length === 1 ? 'tab' : 'tabs'}`,
+      hint: [w.window === 'new' ? 'new window' : '', w.project ? 'project' : ''].filter(Boolean).join(' · '),
+      icon: 'layers',
+      section: 'Workspaces',
+      run: () => overlay.show({ kind: 'workspaceOpen', workspace: w }),
+    }));
+    if (mode === 'workspaces') {
+      out.push({
+        key: 'workspaces:save',
+        label: 'Save Window as Workspace…',
+        detail: 'Its tabs, groups, splits, folders and running commands',
+        icon: 'plus',
+        section: 'Workspaces',
+        run: () => overlay.show({ kind: 'workspaceEdit', workspace: null, draft: captureWindow() }),
+      });
+    }
+    return out;
+  });
+
   const entries = $derived.by((): Entry[] => {
     if (mode === 'themes') return themeEntries;
     if (mode === 'snippets') return snippetEntries;
+    if (mode === 'workspaces') return workspaceEntries;
     const out: Entry[] = [];
     for (const tab of tabs.list) {
       const pane = focusedPane(tab);
@@ -114,7 +139,7 @@
       if (c.id === 'palette' || (c.available && !c.available())) continue;
       out.push({ key: c.id, label: c.label, hint: shortcutLabel(c), icon: 'command', section: 'Commands', run: c.run });
     }
-    out.push(...snippetEntries);
+    out.push(...snippetEntries, ...workspaceEntries);
     return out;
   });
 
@@ -122,7 +147,7 @@
   const results = $derived.by(() => {
     if (!query.trim() && mode === 'themes') return entries.map((e) => ({ e, indices: [] as number[] }));
     if (!query.trim()) {
-      const order = { Commands: 0, Tabs: 1, Groups: 2, Snippets: 3, Themes: 4 };
+      const order = { Commands: 0, Tabs: 1, Groups: 2, Workspaces: 3, Snippets: 4, Themes: 5 };
       return [...entries].sort((a, b) => order[a.section] - order[b.section]).map((e) => ({ e, indices: [] as number[] }));
     }
     return entries
@@ -229,7 +254,7 @@
     <input
       bind:this={input}
       bind:value={query}
-      placeholder={mode === 'themes' ? 'Search themes…' : mode === 'snippets' ? 'Search snippets…' : 'Search commands, tabs and snippets…'}
+      placeholder={mode === 'themes' ? 'Search themes…' : mode === 'snippets' ? 'Search snippets…' : mode === 'workspaces' ? 'Search workspaces…' : 'Search commands, tabs, snippets and workspaces…'}
       spellcheck="false"
       autocomplete="off"
       role="combobox"

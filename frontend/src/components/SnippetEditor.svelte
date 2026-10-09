@@ -59,6 +59,8 @@
   });
 
   const edit = $derived({
+    kind: 'snippet',
+    workspace: { name: '', description: '', window: '', tabs: [], params: [] },
     file,
     index: editing ? original!.index : -1,
     version: snippets.versions[file] ?? '',

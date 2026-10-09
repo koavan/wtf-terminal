@@ -209,7 +209,7 @@ describe('the Snippets tab', () => {
     expect(entries.map((e) => (typeof e === 'string' ? e : e.label))).toEqual(['Run…', 'separator', 'Edit…', 'Duplicate…', 'separator', 'Delete…']);
     (entries.find((e) => typeof e !== 'string' && e.label === 'Delete…') as { action: () => void }).action();
     await fireEvent.click(await view.findByText('Delete Snippet'));
-    expect(Service.Delete).toHaveBeenCalledWith(USER, 1, 'v1', '/w');
+    expect(Service.Delete).toHaveBeenCalledWith('snippet', USER, 1, 'v1', '/w');
     await waitFor(() => expect(view.queryByText('Drain a node')).toBeNull());
   });
 });

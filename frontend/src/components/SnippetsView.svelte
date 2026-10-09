@@ -5,13 +5,17 @@
   import Icon from './Icon.svelte';
   import { prettyPath } from '../lib/backend';
   import { overlay, type MenuEntry } from '../lib/overlay.svelte';
-  import { fieldsOf, isRunbook, openSnippet, snippets, type Snippet } from '../lib/snippets.svelte';
+  import { fieldsOf, isRunbook, openSnippet, snippets, type Snippet, type Workspace } from '../lib/snippets.svelte';
+  import { captureWindow } from '../lib/workspaces.svelte';
   import { tabs } from '../lib/tabs.svelte';
   import { toast } from '../lib/toast.svelte';
 
-  // Snippets and runbooks, by file: the project's (from the focused shell's
-  // folder up), yours, and team files. Reading is local; every change goes
+  // Snippets and runbooks — or workspaces — by file: the project's (from
+  // the focused shell's folder up), yours, and team files. Reading is local; every change goes
   // through the editor's review, and deleting asks first.
+
+  /** Which list this is: the Snippets tab, or the Workspaces tab (same files). */
+  let { view = 'snippets' }: { view?: 'snippets' | 'workspaces' } = $props();
 
   let filter = $state('');
 
@@ -28,15 +32,60 @@
     }),
   );
 
+  const shownWorkspaces = $derived(
+    snippets.workspaces.filter((w) => {
+      const q = filter.trim().toLowerCase();
+      return !q || `${w.name} ${w.description} ${w.tabs.map((t) => `${t.title} ${t.group} ${t.command} ${t.panes.map((p) => p.command).join(' ')}`).join(' ')}`.toLowerCase().includes(q);
+    }),
+  );
+
+  const fileTitle = (f: string) => {
+    const kind = snippets.targets.find((t) => t.path === f)?.kind;
+    return kind === 'project' ? `This project · ${prettyPath(f)}` : kind === 'user' ? 'Yours' : prettyPath(f);
+  };
+
   const sections = $derived.by(() =>
     snippets.files
-      .map((f) => {
-        const kind = snippets.targets.find((t) => t.path === f)?.kind;
-        const title = kind === 'project' ? `This project · ${prettyPath(f)}` : kind === 'user' ? 'Yours' : prettyPath(f);
-        return { file: f, title, list: shown.filter((s) => s.source === f) };
-      })
+      .map((f) => ({ file: f, title: fileTitle(f), list: shown.filter((s) => s.source === f) }))
       .filter((s) => s.list.length),
   );
+  const workspaceSections = $derived.by(() =>
+    snippets.files
+      .map((f) => ({ file: f, title: fileTitle(f), list: shownWorkspaces.filter((w) => w.source === f) }))
+      .filter((s) => s.list.length),
+  );
+
+  function removeWorkspace(w: Workspace) {
+    overlay.confirm({
+      title: `Delete workspace “${w.name}”?`,
+      message: `Removes it from ${prettyPath(w.source)}. The file’s snippets, other workspaces and comments stay. Open tabs aren’t affected.`,
+      items: [],
+      confirmLabel: 'Delete Workspace',
+      onConfirm: () =>
+        snippets
+          .remove(w, 'workspace')
+          .then(() => toast.show(`Deleted “${w.name}”`))
+          .catch((e) => toast.show(e instanceof Error ? e.message : String(e), 6000)),
+    });
+  }
+
+  function workspaceMenu(e: MouseEvent, w: Workspace) {
+    e.preventDefault();
+    overlay.openMenu(e.clientX, e.clientY, [
+      { label: 'Open…', hint: 'double-click', action: () => overlay.show({ kind: 'workspaceOpen', workspace: w }) },
+      'separator',
+      { label: 'Edit…', action: () => overlay.show({ kind: 'workspaceEdit', workspace: w }) },
+      { label: 'Duplicate…', action: () => overlay.show({ kind: 'workspaceEdit', workspace: w, duplicate: true }) },
+      'separator',
+      { label: 'Delete…', danger: true, action: () => removeWorkspace(w) },
+    ]);
+  }
+
+  function workspaceDetail(w: Workspace): string {
+    if (w.description) return w.description;
+    const groups = [...new Set(w.tabs.map((t) => t.group).filter(Boolean))];
+    return [`${w.tabs.length} ${w.tabs.length === 1 ? 'tab' : 'tabs'}`, ...groups.map((g) => `group ${g}`)].join(' · ');
+  }
 
   function copy(text: string, what: string) {
     Clipboard.SetText(text).then(() => toast.show(`Copied ${what}`));
@@ -81,11 +130,20 @@
   <header>
     <div class="filter">
       <Icon name="search" size={12} stroke={2} />
-      <input bind:value={filter} placeholder="Filter snippets" spellcheck="false" autocomplete="off" />
+      <input bind:value={filter} placeholder={view === 'snippets' ? 'Filter snippets' : 'Filter workspaces'} spellcheck="false" autocomplete="off" />
     </div>
-    <button class="tool" title="New snippet" aria-label="New snippet" onclick={() => overlay.show({ kind: 'snippetEdit', snippet: null })}>
-      <Icon name="plus" size={14} />
-    </button>
+    {#if view === 'snippets'}
+      <button class="tool" title="New snippet" aria-label="New snippet" onclick={() => overlay.show({ kind: 'snippetEdit', snippet: null })}>
+        <Icon name="plus" size={14} />
+      </button>
+    {:else}
+      <button class="tool" title="Save this window's tabs as a workspace" aria-label="Save window as workspace" onclick={() => overlay.show({ kind: 'workspaceEdit', workspace: null, draft: captureWindow() })}>
+        <Icon name="layers" size={13} />
+      </button>
+      <button class="tool" title="New workspace" aria-label="New workspace" onclick={() => overlay.show({ kind: 'workspaceEdit', workspace: null })}>
+        <Icon name="plus" size={14} />
+      </button>
+    {/if}
     <button class="tool" title="Open your snippets file in a text editor" aria-label="Open snippets file" onclick={() => Service.OpenUserFile().catch((e) => toast.show(`Couldn't open it: ${e}`))}>
       <Icon name="file" size={13} />
     </button>
@@ -93,6 +151,46 @@
   </header>
 
   <div class="list">
+    {#if view === 'workspaces'}
+      {#each workspaceSections as sec (sec.file)}
+        <div class="section" title={sec.file}>{sec.title}</div>
+        {#each sec.list as w (w.id)}
+          <div class="row" role="listitem" title={w.tabs.map((t, i) => `${i + 1}. ${t.title || t.command || t.panes.map((p) => p.command).filter(Boolean).join(' | ') || 'shell'}`).join('\n')} oncontextmenu={(e) => workspaceMenu(e, w)} ondblclick={() => overlay.show({ kind: 'workspaceOpen', workspace: w })}>
+            <span class="icon"><Icon name="layers" size={13} /></span>
+            <span class="main">
+              <span class="name">{w.name}</span>
+              <span class="sub">{workspaceDetail(w)}</span>
+            </span>
+            {#if w.window === 'new'}<span class="pill">new window</span>{/if}
+            <button
+              class="run"
+              title="Open"
+              aria-label="Open {w.name}"
+              onclick={(e) => {
+                e.stopPropagation();
+                overlay.show({ kind: 'workspaceOpen', workspace: w });
+              }}
+              ondblclick={(e) => e.stopPropagation()}
+            >
+              <Icon name="play" size={11} stroke={2} />
+            </button>
+          </div>
+        {/each}
+      {:else}
+        {#if snippets.loaded}
+          <div class="note">
+            {#if filter}
+              No workspaces match “{filter}”.
+            {:else}
+              <strong>No workspaces yet</strong>
+              A workspace opens a set of tabs in one go — folders, split panes, tab groups and startup commands. Arrange your tabs, then
+              <button class="link" onclick={() => overlay.show({ kind: 'workspaceEdit', workspace: null, draft: captureWindow() })}>save this window as a workspace</button>
+              — or press + to build one.
+            {/if}
+          </div>
+        {/if}
+      {/each}
+    {:else}
     {#each sections as sec (sec.file)}
       <div class="section" title={sec.file}>{sec.title}</div>
       {#each sec.list as s (s.id)}
@@ -130,6 +228,7 @@
         </div>
       {/if}
     {/each}
+    {/if}
     {#each snippets.problems as p (p)}<div class="problem">{p}</div>{/each}
   </div>
 </div>
