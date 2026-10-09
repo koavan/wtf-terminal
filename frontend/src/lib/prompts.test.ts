@@ -36,6 +36,14 @@ describe('PromptTracker', () => {
     expect(tracker.lastOutput()).toBe(`${long}\nend`);
   });
 
+  it('reports the context variables the shell sends with a prompt', async () => {
+    const { term, write } = setup();
+    const onEnv = vi.fn();
+    new PromptTracker(term as unknown as Terminal, { onPrompt() {}, onCommandStart() {}, onCommandEnd() {}, onEnv });
+    await write('\x1b]633;P;WtfEnv=PWD=/tmp\\x0aAWS_PROFILE=a\\x3bb\\x0a\x07' + A + '$ ');
+    expect(onEnv).toHaveBeenCalledWith('PWD=/tmp\nAWS_PROFILE=a;b\n');
+  });
+
   it('returns null before any command finished', async () => {
     const { tracker, write } = setup();
     await write(A + '$ ');

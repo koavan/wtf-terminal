@@ -31,6 +31,8 @@ type Config struct {
 
 	SidebarAutoRefresh     bool    `toml:"sidebar-auto-refresh" json:"sidebarAutoRefresh"`
 	SidebarRefreshInterval float64 `toml:"sidebar-refresh-interval" json:"sidebarRefreshInterval"`
+
+	ContextBadges bool `toml:"context-badges" json:"contextBadges"`
 }
 
 func Defaults() Config {
@@ -48,6 +50,8 @@ func Defaults() Config {
 
 		SidebarAutoRefresh:     true,
 		SidebarRefreshInterval: 3,
+
+		ContextBadges: true,
 	}
 }
 
@@ -102,6 +106,11 @@ const template = `# wtf settings. Changes apply as soon as you save.
 
 # Seconds between updates of the Network and Processes tabs, 1 to 60.
 # sidebar-refresh-interval = 3
+
+# Show the Kubernetes cluster and namespace, AWS account, profile and
+# region, gcloud project and Terraform workspace each shell is pointed at,
+# next to the folder in the address bar. Needs shell integration.
+# context-badges = true
 `
 
 // Dir is $XDG_CONFIG_HOME/wtf, or ~/.config/wtf, on every platform.

@@ -18,6 +18,7 @@ export function testConfig(over: Partial<Config> = {}): Config {
     unfocusedSplitDim: 0.35,
     sidebarAutoRefresh: true,
     sidebarRefreshInterval: 3,
+    contextBadges: true,
     ...over,
   } as Config;
 }

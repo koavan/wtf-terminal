@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { onMount } from 'svelte';
+  import { onMount, untrack } from 'svelte';
   import { Terminal } from '@xterm/xterm';
   import { FitAddon } from '@xterm/addon-fit';
   import { SearchAddon } from '@xterm/addon-search';
@@ -7,10 +7,11 @@
   import { WebglAddon } from '@xterm/addon-webgl';
   import { WebLinksAddon } from '@xterm/addon-web-links';
   import { Unicode11Addon } from '@xterm/addon-unicode11';
-  import { Browser, Clipboard } from '@wailsio/runtime';
+  import { Browser, Clipboard, Events } from '@wailsio/runtime';
   import SearchBar from './SearchBar.svelte';
   import { Service, endpoint } from '../lib/backend';
   import { history } from '../lib/history.svelte';
+  import { parseEnv, resolveContext } from '../lib/infra';
   import { notifyCommandDone } from '../lib/notify';
   import { isMac } from '../lib/platform';
   import { PromptTracker } from '../lib/prompts';
@@ -52,6 +53,8 @@
   let disposed = false;
   /** A file from the tree is being dragged over this pane. */
   let dropping = $state(false);
+  /** Context variables from the shell's last prompt (see lib/infra). */
+  let reportedEnv: Record<string, string> | null = null;
 
   const encoder = new TextEncoder();
 
@@ -122,6 +125,10 @@
         tabs.commandFinished(pane.id, exitCode, durationMs);
         notifyCommandDone(pane, exitCode, durationMs, visible);
       },
+      onEnv: (text) => {
+        reportedEnv = parseEnv(text);
+        refreshContext();
+      },
     });
 
     const unregister = registerTerminal(pane.id, {
@@ -146,6 +153,9 @@
       },
     });
 
+    // An AWS account lookup finished (see internal/infra).
+    const offInfra = Events.On('infra:changed', refreshContext);
+
     const resizeObserver = new ResizeObserver(scheduleFit);
     resizeObserver.observe(el);
 
@@ -155,6 +165,7 @@
 
     return () => {
       disposed = true;
+      offInfra();
       resizeObserver.disconnect();
       unregister();
       prompts.dispose();
@@ -231,6 +242,13 @@
     };
   }
 
+  /** Works out the shell's cloud/cluster context from what it last reported. */
+  function refreshContext() {
+    if (reportedEnv && settings.config.contextBadges) {
+      resolveContext(pane.id, reportedEnv, (ctx) => tabs.setInfra(pane.id, ctx));
+    }
+  }
+
   function send(bytes: Uint8Array) {
     if (ws?.readyState === WebSocket.OPEN) ws.send(bytes);
   }
@@ -269,6 +287,8 @@
     if (visible) {
       attachWebgl(term);
       scheduleFit();
+      // Another tab may have switched the shared kubeconfig meanwhile.
+      untrack(refreshContext);
     } else if (webgl) {
       webgl.dispose();
       webgl = null;
@@ -277,6 +297,11 @@
 
   $effect(() => {
     if (term && focused && search.paneId !== pane.id) term.focus();
+  });
+
+  $effect(() => {
+    if (settings.config.contextBadges) untrack(refreshContext);
+    else untrack(() => tabs.setInfra(pane.id, null));
   });
 
   $effect(() => {

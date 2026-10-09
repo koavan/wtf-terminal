@@ -16,20 +16,16 @@ Status legend: ☐ not started · ◐ in progress · ☑ done
 
 ## Tier 1 — build first
 
-### 1. Context badges and prod guard ☐ (start here)
+### 1. Context badges ☑
 
-- Show the active **kube context/namespace, AWS profile/region, gcloud project,
-  Terraform workspace** as a small pill on each tab.
-- Config marks contexts as dangerous, e.g. `danger = ["*prod*"]`. A tab in a
-  dangerous context gets a red border/tint.
-- Optional guard: confirm before running destructive commands (`kubectl delete`,
-  `terraform apply`/`destroy`, `helm uninstall`, …) in a dangerous context.
-- Approach: extend the shell-integration scripts to report context via a custom OSC
-  sequence on each prompt (cheap, no polling), with a fallback of reading
-  `~/.kube/config` / env for the session.
+The address bar shows the Kubernetes cluster/namespace, AWS account/profile/
+region, gcloud project and Terraform workspace of the focused shell (see README,
+"Context badges"). Reported by the shell at each prompt; no polling.
 
-Why: running a command against the wrong context is the classic DevOps outage.
-This is the headline reason to pick wtf over iTerm2/Ghostty.
+Decided against (2026-10-09): flagging "production" contexts and a
+confirm-before-destructive-command guard. Detection by name patterns isn't
+fool-proof, and a warning that is sometimes wrong is worse than none. Revisit
+only with a reliable signal.
 
 ### 2. SSH host manager (side-pane tab) ☐
 
@@ -44,7 +40,11 @@ This is the headline reason to pick wtf over iTerm2/Ghostty.
   (right-click group → "Broadcast input").
 - Loud, always-visible indicator while active; one shortcut to stop.
 
-### 4. Command blocks ☐ (second priority)
+### 4. Command blocks ◐ (second priority)
+
+Already there: ✓/✗ marks, jump between prompts (⌘↑/⌘↓), copy last output,
+long-command notifications. Still to do: duration in the gutter, copy/re-run
+for any command (not just the last).
 
 - Using OSC 133 marks: ✓/✗ gutter mark with exit status and duration per command.
 - Actions: copy this command's output, jump to previous/next command, re-run.

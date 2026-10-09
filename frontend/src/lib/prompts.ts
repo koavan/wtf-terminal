@@ -20,6 +20,8 @@ export interface PromptEvents {
   /** `id` identifies the command for reveal(). */
   onCommandStart(text: string, id: number): void;
   onCommandEnd(exitCode: number, durationMs: number): void;
+  /** The variables that pick the shell's cloud and cluster context, at each prompt. */
+  onEnv?(env: string): void;
 }
 
 const MAX_RECORDS = 1000;
@@ -47,6 +49,7 @@ export class PromptTracker implements IDisposable {
       term.parser.registerOscHandler(133, (data) => this.#on133(data)),
       term.parser.registerOscHandler(633, (data) => {
         if (data.startsWith('E;')) this.#pendingText = unescapeCommand(data.slice(2));
+        else if (data.startsWith('P;WtfEnv=')) this.#events.onEnv?.(unescapeCommand(data.slice(9)));
         return true;
       }),
     ];

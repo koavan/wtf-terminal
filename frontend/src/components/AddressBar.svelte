@@ -1,6 +1,7 @@
 <script lang="ts">
   import Icon, { iconForProcess } from './Icon.svelte';
   import { prettyPath } from '../lib/backend';
+  import { badges } from '../lib/infra';
   import { tabs } from '../lib/tabs.svelte';
   import { formatDuration } from '../lib/toast.svelte';
 
@@ -8,6 +9,9 @@
   const pane = $derived(tabs.activePane);
   const path = $derived(pane ? prettyPath(pane.cwd) : '');
   const group = $derived(tabs.group(tab?.groupId ?? null));
+  const contexts = $derived(badges(pane?.infra));
+
+  const KIND_LABEL = { kube: 'k8s', aws: 'aws', gcp: 'gcp', tf: 'tf' } as const;
 
   /** "~/src/wtf" → ["~", "src", "wtf"], "/etc/ssh" → ["/", "etc", "ssh"] */
   const crumbs = $derived.by(() => {
@@ -37,6 +41,17 @@
           <span class="crumb" class:last={i === crumbs.length - 1}>{crumb}</span>
         {/each}
       </span>
+
+      {#if contexts.length}
+        <span class="contexts">
+          {#each contexts as b (b.kind)}
+            <span class="ctx" title={b.title}>
+              <span class="kind">{KIND_LABEL[b.kind]}</span>
+              <span class="value">{b.label}</span>
+            </span>
+          {/each}
+        </span>
+      {/if}
 
       <!-- What the shell is doing, when shell integration reports it. -->
       {#if pane.running && pane.command}
@@ -134,6 +149,47 @@
     white-space: nowrap;
     mask-image: linear-gradient(to right, #000 calc(100% - 24px), transparent);
   }
+  .contexts {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex: 0 1 auto;
+    min-width: 0;
+    margin-left: auto;
+    overflow: hidden;
+  }
+  /* The command status sits right after the badges, not pushed apart. */
+  .contexts + .status {
+    margin-left: 0;
+  }
+  .ctx {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    flex: 0 1 auto;
+    min-width: 0;
+    height: 20px;
+    padding: 0 8px 0 6px;
+    border-radius: 6px;
+    background: var(--identity);
+    color: var(--text);
+    font-size: 11.5px;
+    font-weight: 500;
+    white-space: nowrap;
+  }
+  .ctx .kind {
+    flex: none;
+    color: var(--text-muted);
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+  }
+  .ctx .value {
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
   .status {
     display: flex;
     align-items: center;

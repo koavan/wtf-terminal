@@ -20,6 +20,7 @@ export interface Config {
     "unfocusedSplitDim": number;
     "sidebarAutoRefresh": boolean;
     "sidebarRefreshInterval": number;
+    "contextBadges": boolean;
 }
 
 /**

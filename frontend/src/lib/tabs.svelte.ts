@@ -1,4 +1,5 @@
 import type { Info } from '../../bindings/github.com/dayanraj/wtf/internal/terminal';
+import type { InfraContext } from './infra';
 import {
   clampRatio, findPane, leaves, neighbor, place, removePane, splitPane,
   type Direction, type LayoutNode, type Pane, type SplitDir,
@@ -430,6 +431,11 @@ class Tabs {
     if (tab && tab.id !== this.activeId) tab.finished = exitCode === 0 ? 'ok' : 'fail';
   }
 
+  setInfra(paneId: number, ctx: InfraContext | null) {
+    const pane = this.#pane(paneId);
+    if (pane) pane.infra = ctx;
+  }
+
   markActivity(id: number) {
     const tab = this.get(id);
     if (tab && id !== this.activeId && !tab.activity) tab.activity = true;
@@ -643,6 +649,7 @@ class Tabs {
       running: false,
       command: '',
       lastCommand: null,
+      infra: null,
     };
   }
 

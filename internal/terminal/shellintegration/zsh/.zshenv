@@ -18,8 +18,8 @@ if [[ -o interactive && -n "$WTF_SHELL_INTEGRATION" && -z "$__wtf_loaded" ]]; th
   typeset -g __wtf_loaded=1
   typeset -gi __wtf_running=0
 
-  # Semantic prompt marks (OSC 133) and the command line (OSC 633;E);
-  # see wtf.bash for the protocol.
+  # Semantic prompt marks (OSC 133), the command line (OSC 633;E) and the
+  # cloud/cluster variables (OSC 633;P;WtfEnv); see wtf.bash for the protocol.
   # wtf's "clear history" sends Ctrl-X Ctrl-]: it removes the commands run
   # in this session from the history (↑ / Ctrl-R), without a visible
   # command. It switches to a fresh list loaded from the history file, so
@@ -44,7 +44,32 @@ if [[ -o interactive && -n "$WTF_SHELL_INTEGRATION" && -z "$__wtf_loaded" ]]; th
     for map in emacs viins vicmd; do
       bindkey -M $map '^X^]' __wtf_clear_history
     done
+    # Report the environment after the user's own hooks (direnv and the
+    # like) have changed it. zsh runs this prompt's hooks from a copy of the
+    # list, so the new order holds from the next prompt on.
+    add-zsh-hook -d precmd __wtf_report_env
+    add-zsh-hook precmd __wtf_report_env
     add-zsh-hook -d precmd __wtf_bind_keys
+  }
+
+  typeset -ga __wtf_env_names=(
+    PWD KUBECONFIG AWS_PROFILE AWS_DEFAULT_PROFILE AWS_VAULT
+    AWS_REGION AWS_DEFAULT_REGION AWS_CONFIG_FILE AWS_SHARED_CREDENTIALS_FILE CLOUDSDK_CONFIG
+    CLOUDSDK_ACTIVE_CONFIG_NAME CLOUDSDK_CORE_PROJECT TF_WORKSPACE TF_DATA_DIR
+  )
+  __wtf_report_env() {
+    local out= name
+    for name in $__wtf_env_names; do
+      [[ -n ${(P)name} ]] && out+="$name=${(P)name}"$'\n'
+    done
+    # Whether AWS keys are exported, never the keys themselves.
+    [[ -n $AWS_ACCESS_KEY_ID ]] && out+="WTF_AWS_ENV_KEYS=1"$'\n'
+    out=${out//\\/\\\\}
+    out=${out//;/\\x3b}
+    out=${out//$'\n'/\\x0a}
+    out=${out//$'\a'/}
+    out=${out//$'\e'/}
+    builtin printf '\e]633;P;WtfEnv=%s\a' "$out"
   }
 
   __wtf_precmd() {
@@ -70,5 +95,6 @@ if [[ -o interactive && -n "$WTF_SHELL_INTEGRATION" && -z "$__wtf_loaded" ]]; th
   autoload -Uz add-zsh-hook
   add-zsh-hook precmd __wtf_precmd
   add-zsh-hook precmd __wtf_bind_keys
+  add-zsh-hook precmd __wtf_report_env
   add-zsh-hook preexec __wtf_preexec
 fi

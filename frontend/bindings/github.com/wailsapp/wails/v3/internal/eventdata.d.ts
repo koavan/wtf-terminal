@@ -21,6 +21,7 @@ declare module "@wailsio/runtime" {
             "app:command": windows$0.Command;
             "app:quitRequested": windows$0.QuitRequest;
             "config:changed": config$0.Resolved;
+            "infra:changed": string;
             "terminal:exit": terminal$0.ExitEvent;
             "terminal:info": terminal$0.Info;
             "window:adopt": windows$0.Adoption;

@@ -73,8 +73,30 @@ func runIntegratedHome(t *testing.T, shell string, home map[string]string, input
 	return out.String(), homeDir, sess
 }
 
-// marks extracts the OSC 133/633 sequences, in order.
+// marks extracts the OSC 133/633 prompt and command marks, in order.
 func marks(out string) []string {
+	var got []string
+	for _, m := range allMarks(out) {
+		if !strings.HasPrefix(m, "633;P;") {
+			got = append(got, m)
+		}
+	}
+	return got
+}
+
+// envReports returns the context variables reported at each prompt.
+func envReports(out string) []string {
+	var got []string
+	for _, m := range allMarks(out) {
+		if v, ok := strings.CutPrefix(m, "633;P;WtfEnv="); ok {
+			got = append(got, v)
+		}
+	}
+	return got
+}
+
+// allMarks extracts the OSC 133/633 sequences, in order.
+func allMarks(out string) []string {
 	var got []string
 	for {
 		i := strings.Index(out, "\x1b]")
@@ -123,6 +145,32 @@ func TestBashEscapesCommandLine(t *testing.T) {
 		}
 	}
 	t.Fatalf("no command line mark in %q", out)
+}
+
+func TestBashReportsEnv(t *testing.T) {
+	out, home, _ := runIntegratedHome(t, "/bin/bash",
+		map[string]string{".bash_profile": "export AWS_PROFILE='a;b' AWS_ACCESS_KEY_ID=AKIASECRET\n"},
+		"export KUBECONFIG=/k\r",
+		`KUBECONFIG=/k\x0a`, // only in a report; the echoed input has no \x0a
+	)
+	reports := envReports(out)
+	home, _ = filepath.EvalSymlinks(home) // /var → /private/var on macOS
+	want := `PWD=` + home + `\x0aKUBECONFIG=/k\x0aAWS_PROFILE=a\x3bb\x0aWTF_AWS_ENV_KEYS=1\x0a`
+	if reports[len(reports)-1] != want {
+		t.Fatalf("reports %q\nwant last %q", reports, want)
+	}
+}
+
+func TestZshReportsEnvAfterUserHooks(t *testing.T) {
+	// A precmd hook from .zshrc that changes the environment, like direnv's.
+	zshrc := "autoload -Uz add-zsh-hook\nlate() { export TF_WORKSPACE=late }\nadd-zsh-hook precmd late\n"
+	out, home, _ := runIntegratedHome(t, "/bin/zsh", map[string]string{".zshrc": zshrc}, "true\r", `TF_WORKSPACE=late\x0a`)
+	reports := envReports(out)
+	home, _ = filepath.EvalSymlinks(home) // /var → /private/var on macOS
+	want := `PWD=` + home + `\x0aTF_WORKSPACE=late\x0a`
+	if reports[len(reports)-1] != want {
+		t.Fatalf("reports %q\nwant last %q", reports, want)
+	}
 }
 
 func TestZshIntegration(t *testing.T) {

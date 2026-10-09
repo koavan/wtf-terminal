@@ -162,6 +162,16 @@ func TestSidebarRefreshInterval(t *testing.T) {
 	}
 }
 
+func TestContextBadgesDefaultOn(t *testing.T) {
+	cfg, _, _ := Parse("")
+	if !cfg.ContextBadges {
+		t.Error("context badges should default to on")
+	}
+	if cfg, _, _ = Parse("context-badges = false\n"); cfg.ContextBadges {
+		t.Error("context-badges = false was ignored")
+	}
+}
+
 func TestServiceSetSidebarAutoRefresh(t *testing.T) {
 	s := NewService(t.TempDir())
 	if !s.Current().Config.SidebarAutoRefresh {

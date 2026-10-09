@@ -24,6 +24,7 @@ Requires Go 1.25+, Node 20+, and `wails3` (`go install github.com/wailsapp/wails
 - `internal/config`: config file, themes (built-in, Ghostty, iTerm2), live reload.
 - `internal/terminal/shellintegration`: the bash/zsh scripts.
 - `internal/notify`: desktop notifications.
+- `internal/infra`: Kubernetes/AWS/gcloud/Terraform context for the context badges.
 - `internal/files`: directory listings (with git ignore rules) for the file tree.
 - `internal/netconn`: connections and listening ports, attributed to terminal sessions.
 - `internal/procs`: the user's processes, attributed to terminal sessions.
@@ -135,6 +136,29 @@ files. That enables ✓/✗ marks beside commands, ⌘↑/⌘↓ between prompts
 a command's output, the command status in the address bar, and a notification
 when a long command finishes out of sight. Turn it off with
 `shell-integration = false`.
+
+## Context badges
+
+With shell integration, the address bar shows what the focused shell is pointed
+at: the Kubernetes cluster and namespace of the current context, the AWS
+account, profile and region, the gcloud project, and the Terraform workspace.
+At each prompt the shell reports the few environment variables involved
+(`KUBECONFIG`, `AWS_PROFILE`, `CLOUDSDK_*`, `TF_WORKSPACE`, …, and whether AWS
+keys are exported, never the keys); wtf reads the rest from the tools' own files
+(`~/.kube/config`, `~/.aws/config`, gcloud's configurations,
+`.terraform/environment`), without running any of the tools and without polling.
+
+The AWS profile is the one the shell chose (`AWS_PROFILE`, aws-vault), else
+`default` when that profile exists. Its account is the one the profile's config
+names: the account of its `role_arn`, else `sso_account_id`, else
+`aws_account_id`. When the config doesn't say (static keys,
+`credential_process`), wtf asks AWS once in the background with
+`aws sts get-caller-identity` (needs the aws CLI and no permissions) and keeps
+the answer until `~/.aws/config` or `~/.aws/credentials` changes; a failed
+lookup is retried after two minutes and its error shown on hover. From the
+credentials file wtf reads only the profile names. Exported access keys, which
+override any profile, show as "env credentials" with no account.
+Hover a badge for the full names. Turn badges off with `context-badges = false`.
 
 ## Session
 

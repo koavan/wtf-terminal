@@ -1,5 +1,7 @@
 // Split-pane layout: a binary tree of panes, and the geometry derived from it.
 
+import type { InfraContext } from './infra';
+
 export interface Pane {
   id: number;
   /** Backend session id; null until the shell has been spawned. */
@@ -18,6 +20,8 @@ export interface Pane {
   running: boolean;
   command: string;
   lastCommand: FinishedCommand | null;
+  /** Cloud and cluster context the shell reported at its last prompt. */
+  infra: InfraContext | null;
   /** Typed into the shell once it starts, e.g. to open a file in $EDITOR. */
   initialCommand?: string;
   /** Scrollback carried over from another window, written once on mount. */

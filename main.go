@@ -10,6 +10,7 @@ import (
 
 	"github.com/dayanraj/wtf/internal/config"
 	"github.com/dayanraj/wtf/internal/files"
+	"github.com/dayanraj/wtf/internal/infra"
 	"github.com/dayanraj/wtf/internal/netconn"
 	"github.com/dayanraj/wtf/internal/notify"
 	"github.com/dayanraj/wtf/internal/procs"
@@ -50,6 +51,7 @@ func main() {
 			application.NewService(state.NewService(store)),
 			application.NewService(notify.NewService()),
 			application.NewService(files.NewService()),
+			application.NewService(infra.NewService()),
 			application.NewService(netconn.NewService(term.ShellPIDs)),
 			application.NewService(procs.NewService(term.ShellPIDs)),
 			application.NewService(windows.Service()),
