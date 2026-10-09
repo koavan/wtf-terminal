@@ -14,6 +14,11 @@ cd frontend && npm test
 ```
 
 Requires Go 1.25+, Node 20+, and `wails3` (`go install github.com/wailsapp/wails/v3/cmd/wails3@v3.0.0-beta.28`).
+On Linux, wtf uses GTK 4 and WebKitGTK 6.0 (Debian 13, Ubuntu 24.04, Fedora 40
+or newer): install `libgtk-4-dev libwebkitgtk-6.0-dev` (Debian/Ubuntu) or
+`gtk4-devel webkitgtk6.0-devel` (Fedora) to build. At run time it uses `ss`
+(or `lsof`) for the Network tab, `notify-send` for notifications and
+`xdg-open` to open files.
 
 ## Layout
 
@@ -49,7 +54,7 @@ its shortcuts come from the app's own command list. The pages are Markdown
 in `frontend/src/manual/` (see `lib/manual.ts` for the subset they use);
 tests check that every command and page they mention exists.
 
-**wtf → About wtf** shows the version, the commit and date of the build
+**About wtf** (the **wtf** menu on macOS, the command palette anywhere) shows the version, the commit and date of the build
 (`wails3 build` stamps them in from git), the system, the shell and whether
 shell integration is on, and where settings, snippets, the session and
 backups live. **Copy Diagnostics** copies the version and system facts, with

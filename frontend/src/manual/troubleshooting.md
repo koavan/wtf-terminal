@@ -36,4 +36,4 @@ Actions that type into your shell (cd from the Files tab, switching a profile or
 
 ## Reporting a problem
 
-**wtf → About wtf** (or "About" in the command palette) shows the version, the commit it was built from, your system, your shell and whether shell integration is on. **Copy Diagnostics** copies those facts (no file paths, profiles or hosts) to paste into a bug report. The same window shows where your settings, snippets, saved session and backups live: click a path to show it in {{mac:Finder|other:the file manager}}.
+**About wtf** ({{mac:in the **wtf** menu, or|other:type "About" in}} the command palette) shows the version, the commit it was built from, your system, your shell and whether shell integration is on. **Copy Diagnostics** copies those facts (no file paths, profiles or hosts) to paste into a bug report. The same window shows where your settings, snippets, saved session and backups live: click a path to show it in {{mac:Finder|other:the file manager}}.

@@ -99,7 +99,7 @@ func (s *Service) lsof(ctx context.Context) ([]Conn, error) {
 	if err != nil {
 		return nil, errors.New("lsof is not installed")
 	}
-	out, err := exec.CommandContext(ctx, path, "-nP", "-i", "-F", "pcPnTt", "-w").Output()
+	out, err := exec.CommandContext(ctx, path, "-nP", "-i", "-F", "fpcPnTt", "-w").Output()
 	// Exit status 1 means nothing was found, or some processes couldn't be
 	// inspected; either way the output is usable.
 	var exit *exec.ExitError
@@ -120,7 +120,8 @@ func (s *Service) Kill(pid int) error {
 	return syscall.Kill(pid, syscall.SIGTERM)
 }
 
-// parseLsof reads `lsof -F pcPnTt` output: a "p<pid>" and "c<command>"
+// parseLsof reads `lsof -F fpcPnTt` output (macOS lsof adds the "f"
+// lines unasked, Linux lsof only when asked): a "p<pid>" and "c<command>"
 // line per process, then per open file "f<fd>", "t<IPv4|IPv6>",
 // "P<TCP|UDP>", "n<addresses>" and "TST=<state>" lines.
 func parseLsof(out []byte) []Conn {

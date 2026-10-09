@@ -186,13 +186,19 @@ func TestZshIntegration(t *testing.T) {
 	}
 }
 
-var oscSeq = regexp.MustCompile("\x1b\\][^\x07]*\x07")
+var (
+	oscSeq = regexp.MustCompile("\x1b\\][^\x07]*\x07")
+	csiSeq = regexp.MustCompile("\x1b\\[[0-9;?]*[a-zA-Z]")
+)
 
 // historyLines returns the lines `listHistory` printed (tagged "H:"). The
-// invisible prompt marks can share a line with output, so drop them first.
+// invisible prompt marks can share a line with output, and so can bash 5's
+// bracketed-paste switch (ESC[?2004l, then CR), so drop them first.
 func historyLines(out string) []string {
 	var lines []string
-	for _, l := range strings.Split(oscSeq.ReplaceAllString(out, ""), "\n") {
+	out = csiSeq.ReplaceAllString(oscSeq.ReplaceAllString(out, ""), "")
+	for _, l := range strings.Split(strings.ReplaceAll(out, "\r\n", "\n"), "\n") {
+		l = l[strings.LastIndex(l, "\r")+1:]
 		if rest, ok := strings.CutPrefix(strings.TrimSpace(l), "H:"); ok {
 			lines = append(lines, strings.TrimSpace(rest))
 		}

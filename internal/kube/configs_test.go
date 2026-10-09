@@ -336,8 +336,13 @@ users:
 func TestEKSClusters(t *testing.T) {
 	s, _ := configService(t)
 	f := &fakeKubectl{answers: map[string]string{"eks": `{"clusters":["sales","production"]}`}}
-	f.install(t)
-	got, err := s.EKSClusters(map[string]string{}, "devops", "us-east-1")
+	// An aws the lookup can find on the shell's PATH (runs are faked).
+	bin := f.install(t)
+	if err := os.WriteFile(filepath.Join(bin, "aws"), []byte("#!/bin/sh\nexit 99\n"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	env := map[string]string{"PATH": bin}
+	got, err := s.EKSClusters(env, "devops", "us-east-1")
 	if err != nil || strings.Join(got, ",") != "production,sales" {
 		t.Fatalf("clusters %v %v", got, err)
 	}
@@ -345,7 +350,7 @@ func TestEKSClusters(t *testing.T) {
 		t.Errorf("call %v", c)
 	}
 	for _, bad := range [][2]string{{"devops", "Mars"}, {"-x", "us-east-1"}} {
-		if _, err := s.EKSClusters(map[string]string{}, bad[0], bad[1]); err == nil {
+		if _, err := s.EKSClusters(env, bad[0], bad[1]); err == nil {
 			t.Errorf("%v should be refused", bad)
 		}
 	}
@@ -372,8 +377,7 @@ users:
 	os.MkdirAll(filepath.Join(dir, "cache", "discovery"), 0o700)
 	os.WriteFile(filepath.Join(dir, "cache", "x.yaml"), []byte("contexts:\n- name: cached\n"), 0o600)
 	f := &fakeKubectl{answers: map[string]string{"config": "", "version": `{"serverVersion":{"gitVersion":"v1.30.1"}}`, "auth": `{}`}}
-	f.install(t)
-	env := map[string]string{}
+	env := map[string]string{"PATH": f.install(t)}
 
 	l := s.Contexts(env)
 	qeFile := filepath.Join(dir, "qe.yaml")
