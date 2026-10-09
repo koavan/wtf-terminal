@@ -2,6 +2,8 @@
 
 A browser-like terminal for macOS and Linux. Go + Wails v3 + Svelte 5 + xterm.js.
 
+What's next: see [ROADMAP.md](ROADMAP.md).
+
 ## Run
 
 ```sh
