@@ -58,7 +58,7 @@ Every command is also in the command palette.
 | Command palette | ⌘⇧P | Ctrl+Shift+P |
 | Manual (at the page for the side-pane tab on screen) | ⌘? | F1 |
 | Toggle sidebar | ⌘B | Ctrl+Shift+B |
-| Sidebar: files / SSH / AWS / Kubernetes / network / processes / history | ⌘⇧E / ⌘⇧S / ⌘⇧U / ⌘⇧K / ⌘⇧O / ⌘⇧A / ⌘⇧H | Ctrl+Shift+Alt+E / S / U / K / O / A / H |
+| Sidebar: files / SSH / AWS / Kubernetes / snippets / network / processes / history | ⌘⇧E / ⌘⇧S / ⌘⇧U / ⌘⇧K / ⌘⇧Y / ⌘⇧O / ⌘⇧A / ⌘⇧H | Ctrl+Shift+Alt+E / S / U / K / Y / O / A / H |
 | New tab | ⌘T | Ctrl+Shift+T |
 | New window | ⌘N | Ctrl+Shift+N |
 | Show all tabs | ⌘⇧\ | Ctrl+Shift+\ |
@@ -72,6 +72,7 @@ Every command is also in the command palette.
 | Next / previous pane | ⌘] / ⌘[ | — |
 | Add tab to new group | ⌥⌘G | Ctrl+Shift+G |
 | Broadcast input (group, or split panes) | ⌥⌘B | Ctrl+Shift+Alt+B |
+| Run Snippet… | ⌘⇧R | Ctrl+Shift+Alt+R |
 | Next / previous tab | ⌘⇧] / ⌘⇧[, Ctrl+Tab | Ctrl+PgDn / Ctrl+PgUp, Ctrl+Tab |
 | Go to tab 1–8 / last | ⌘1–⌘8 / ⌘9 | Alt+1–8 / Alt+9 |
 | Move tab | ⌘⇧← / ⌘⇧→ | Ctrl+Shift+PgUp / PgDn |
@@ -285,6 +286,30 @@ To stop background updates entirely, press ⏸ in any side pane tab (or set
 `sidebar-auto-refresh = false`): tabs then load when opened and refresh only
 when you press ↻. `sidebar-refresh-interval` sets how often they update
 otherwise (default 3 seconds).
+
+## Snippets and runbooks
+
+**Run Snippet…** (⌘⇧R; also in the command palette) lists commands with
+blanks to fill in, e.g. `kubectl -n {{ns=$kube_namespace}} rollout restart
+deploy/{{name}}`, from `~/.config/wtf/snippets.toml` (**Open Snippets File**
+creates it with examples), every `*.toml` in `~/.config/wtf/snippets/`, and
+`.wtf/snippets.toml` in the shell's folder or any parent up to home — so a
+repo can carry its own runbooks for everyone working in it. A form asks for
+the values (defaults may follow the shell: `$kube_namespace`,
+`$kube_context`, `$aws_profile`, `$aws_region`, `$cwd`), shows the exact
+command, and inserts it at the prompt (Enter), runs it (⌘↩) or runs it in a
+new tab; values are shell-quoted unless a param is `raw`. A runbook's steps
+run one at a time.
+
+The **Snippets** side-pane tab (⌘⇧Y) lists them by file (this project, yours,
+team files) and manages them with a form: **+** / Edit / Duplicate / Delete,
+a command or a runbook of steps (add, remove, reorder), and per-placeholder
+description, default, choices and raw. **Review…** shows the exact TOML block
+and file before anything is written; an edit replaces only that snippet's
+block, keeping the file's other snippets and comments; a project file is
+created at the repository root when there's none. **Save as Snippet…** on a
+command (or in History) opens the same editor. The manual's Snippets page
+documents the format.
 
 ## Windows
 

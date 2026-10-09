@@ -70,11 +70,16 @@ aws-iam-authenticator auth). See README.
   startup command (e.g. "payments-oncall": 3 SSH tabs + log tail + kubectl watch).
 - Open from the command palette. Builds on session restore.
 
-### 7. Snippets / runbooks ☐
+### 7. Snippets / runbooks ☑
 
-- Parameterized commands, e.g. `kubectl -n {{ns}} rollout restart deploy/{{name}}`,
-  filled in from the command palette.
-- Stored in a plain file so a team can share them via git.
+Run Snippet… (⌘⇧R) and the palette list snippets from
+`~/.config/wtf/snippets.toml`, `~/.config/wtf/snippets/*.toml` and the
+project's `.wtf/snippets.toml` (shell's folder and up); `{{name}}` /
+`{{name=default}}` placeholders (defaults can be `$kube_namespace`, …) are
+filled in a form with a live preview, then inserted, run, or run in a new
+tab; runbooks run step by step; Save as Snippet… from a command or History.
+The Snippets side-pane tab (⌘⇧Y) manages them with a form editor (reviewed
+TOML, block-level edits that keep the rest of the file).
 
 ### 8. Port-forward and tunnel manager ◐
 

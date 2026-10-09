@@ -12,6 +12,7 @@ export interface BlockActions {
   copyBoth(): void;
   selectOutput(): void;
   runAgain(): void;
+  saveSnippet(): void;
 }
 
 /** "kubectl get pods · ✗ exit 1 · 3.2s": what the command was and how it went. */
@@ -31,6 +32,7 @@ export function blockMenu(b: BlockInfo, a: BlockActions): MenuEntry[] {
     entries.push({ label: 'Select Output', action: a.selectOutput });
   }
   if (b.text && !b.running) entries.push('separator', { label: 'Run Again', action: a.runAgain });
+  if (b.text) entries.push({ label: 'Save as Snippet…', action: a.saveSnippet });
   return entries;
 }
 

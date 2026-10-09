@@ -19,6 +19,7 @@ import sessions from './sessions.md?raw';
 import settings from './settings.md?raw';
 import shellIntegration from './shell-integration.md?raw';
 import shortcuts from './shortcuts.md?raw';
+import snippetsPage from './snippets.md?raw';
 import sideP from './side-pane.md?raw';
 import sshFiles from './ssh-files.md?raw';
 import sshHostKeys from './ssh-host-keys.md?raw';
@@ -45,6 +46,7 @@ export const TOPICS: Topic[] = [
   t('Basics', 'find', 'Find', find),
   t('Basics', 'context-badges', 'Address bar and context badges', contextBadges),
   t('Basics', 'broadcast', 'Broadcast input', broadcast),
+  t('Basics', 'snippets', 'Snippets and runbooks', snippetsPage),
   t('Side pane', 'side-pane', 'The side pane', sideP),
   t('Side pane', 'files', 'Files', files),
   t('Side pane', 'network', 'Network', network),
@@ -71,6 +73,7 @@ export const SIDEBAR_TOPIC: Record<string, string> = {
   ssh: 'ssh-hosts',
   aws: 'aws',
   kube: 'kubernetes',
+  snippets: 'snippets',
   network: 'network',
   processes: 'processes',
   history: 'history',

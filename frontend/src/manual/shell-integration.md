@@ -23,6 +23,7 @@ Click a command's ✓/✗ mark, or right-click in its output. The command's bloc
 - **Copy Command and Output** — both, as they looked: `$ command` followed by the output. Handy for pasting into a ticket or chat.
 - **Select Output** — selects it in the terminal.
 - **Run Again** — types it at the prompt and runs it (when the shell is at its prompt), in this pane only.
+- **Save as Snippet…** — keep it, with blanks to fill in next time. See [Snippets and runbooks](#snippets).
 
 Right-clicking also offers **Copy** (with a selection), **Paste**, **Select All**, **Find…** and **Clear**. {{cmd:term.copyOutput}} still copies the last command's output from the keyboard.
 

@@ -1,4 +1,6 @@
 <script lang="ts">
+  import { Service as SnippetsService } from '../../bindings/github.com/dayanraj/wtf/internal/snippets';
+  import { isRunbook, openSnippet, snippets } from '../lib/snippets.svelte';
   import { onMount, tick } from 'svelte';
   import { cubicOut } from 'svelte/easing';
   import Icon, { iconForProcess, type IconName } from './Icon.svelte';
@@ -22,7 +24,7 @@
     color?: GroupColor;
     /** In theme mode: the theme to preview while this row is selected. */
     theme?: Theme;
-    section: 'Tabs' | 'Groups' | 'Commands' | 'Themes';
+    section: 'Tabs' | 'Groups' | 'Commands' | 'Snippets' | 'Themes';
     run: () => void;
   }
 
@@ -58,8 +60,32 @@
   let query = $state('');
   let selected = $state(0);
 
+  const snippetEntries = $derived.by((): Entry[] => {
+    const out: Entry[] = snippets.list.map((s) => ({
+      key: `snippet:${s.id}`,
+      label: s.name,
+      detail: s.description || (isRunbook(s) ? `${s.steps.length} steps` : s.command),
+      hint: [isRunbook(s) ? 'runbook' : '', s.project ? 'project' : ''].filter(Boolean).join(' · '),
+      icon: 'terminal',
+      section: 'Snippets',
+      run: () => openSnippet(s),
+    }));
+    if (mode === 'snippets') {
+      out.push({
+        key: 'snippets:open',
+        label: 'Open Snippets File…',
+        detail: 'Add your own; examples included',
+        icon: 'file',
+        section: 'Snippets',
+        run: () => SnippetsService.OpenUserFile().catch((e) => toast.show(`Couldn't open the snippets file: ${e}`)),
+      });
+    }
+    return out;
+  });
+
   const entries = $derived.by((): Entry[] => {
     if (mode === 'themes') return themeEntries;
+    if (mode === 'snippets') return snippetEntries;
     const out: Entry[] = [];
     for (const tab of tabs.list) {
       const pane = focusedPane(tab);
@@ -88,6 +114,7 @@
       if (c.id === 'palette' || (c.available && !c.available())) continue;
       out.push({ key: c.id, label: c.label, hint: shortcutLabel(c), icon: 'command', section: 'Commands', run: c.run });
     }
+    out.push(...snippetEntries);
     return out;
   });
 
@@ -95,7 +122,7 @@
   const results = $derived.by(() => {
     if (!query.trim() && mode === 'themes') return entries.map((e) => ({ e, indices: [] as number[] }));
     if (!query.trim()) {
-      const order = { Commands: 0, Tabs: 1, Groups: 2, Themes: 3 };
+      const order = { Commands: 0, Tabs: 1, Groups: 2, Snippets: 3, Themes: 4 };
       return [...entries].sort((a, b) => order[a.section] - order[b.section]).map((e) => ({ e, indices: [] as number[] }));
     }
     return entries
@@ -112,6 +139,7 @@
 
   onMount(() => {
     input?.focus();
+    if (mode !== 'themes') snippets.load(); // small local files, read fresh
     if (mode === 'themes') {
       ConfigService.Themes().then(async (all) => {
         themes = all ?? [];
@@ -201,7 +229,7 @@
     <input
       bind:this={input}
       bind:value={query}
-      placeholder={mode === 'themes' ? 'Search themes…' : 'Search commands and tabs…'}
+      placeholder={mode === 'themes' ? 'Search themes…' : mode === 'snippets' ? 'Search snippets…' : 'Search commands, tabs and snippets…'}
       spellcheck="false"
       autocomplete="off"
       role="combobox"

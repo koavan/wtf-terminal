@@ -6,16 +6,18 @@
   import ProcessView from './ProcessView.svelte';
   import AwsView from './AwsView.svelte';
   import KubeView from './KubeView.svelte';
+  import SnippetsView from './SnippetsView.svelte';
   import SshView from './SshView.svelte';
   import { isMac } from '../lib/platform';
   import { openManual } from '../lib/help';
-  import { sidebar, type SidebarTab } from '../lib/sidebar.svelte';
+  import { DEFAULT_WIDTH, sidebar, type SidebarTab } from '../lib/sidebar.svelte';
 
   const TABS: { id: SidebarTab; label: string; icon: IconName; key: string }[] = [
     { id: 'files', label: 'Files', icon: 'folder', key: isMac ? '⌘⇧E' : 'Ctrl+Shift+Alt+E' },
     { id: 'ssh', label: 'SSH Hosts', icon: 'server', key: isMac ? '⌘⇧S' : 'Ctrl+Shift+Alt+S' },
     { id: 'aws', label: 'AWS Profiles', icon: 'cloud', key: isMac ? '⌘⇧U' : 'Ctrl+Shift+Alt+U' },
     { id: 'kube', label: 'Kubernetes', icon: 'wheel', key: isMac ? '⌘⇧K' : 'Ctrl+Shift+Alt+K' },
+    { id: 'snippets', label: 'Snippets', icon: 'scroll', key: isMac ? '⌘⇧Y' : 'Ctrl+Shift+Alt+Y' },
     { id: 'network', label: 'Network', icon: 'network', key: isMac ? '⌘⇧O' : 'Ctrl+Shift+Alt+O' },
     { id: 'processes', label: 'Processes', icon: 'cpu', key: isMac ? '⌘⇧A' : 'Ctrl+Shift+Alt+A' },
     { id: 'history', label: 'History', icon: 'history', key: isMac ? '⌘⇧H' : 'Ctrl+Shift+Alt+H' },
@@ -40,7 +42,8 @@
 </script>
 
 <aside class="sidebar" style:width="{sidebar.width}px" aria-label="Side pane">
-  <div class="tabs" role="tablist" aria-label="Side pane">
+  <!-- A vertical rail of tab icons, like VS Code's activity bar; help at the bottom. -->
+  <div class="tabs" role="tablist" aria-label="Side pane" aria-orientation="vertical">
     {#each TABS as t (t.id)}
       <!-- Icons only, like VS Code; the name is in the tooltip and label. -->
       <button
@@ -68,6 +71,8 @@
       <AwsView />
     {:else if sidebar.tab === 'kube'}
       <KubeView />
+    {:else if sidebar.tab === 'snippets'}
+      <SnippetsView />
     {:else if sidebar.tab === 'network'}
       <NetworkView />
     {:else if sidebar.tab === 'processes'}
@@ -87,7 +92,7 @@
     onpointermove={onResize}
     onpointerup={() => (resizing = false)}
     onpointercancel={() => (resizing = false)}
-    ondblclick={() => sidebar.setWidth(260)}
+    ondblclick={() => sidebar.setWidth(DEFAULT_WIDTH)}
   ></div>
 </aside>
 
@@ -96,23 +101,25 @@
     --wails-draggable: no-drag;
     position: relative;
     display: flex;
-    flex-direction: column;
     flex: none;
     min-height: 0;
     margin: 0 0 8px 8px;
   }
   .tabs {
     display: flex;
+    flex-direction: column;
+    align-items: center;
     gap: 2px;
     flex: none;
-    padding: 0 8px 6px;
+    padding: 0 6px 0 0;
+    border-right: 1px solid var(--hairline);
   }
   .tabs button {
     position: relative;
     display: grid;
     place-items: center;
     width: 32px;
-    height: 28px;
+    height: 32px;
     padding: 0;
     border: 0;
     border-radius: 7px;
@@ -126,14 +133,17 @@
   .tabs button.on {
     color: var(--accent);
   }
-  /* The active tab's marker: a short bar under its icon. */
+  .tabs button.on {
+    background: var(--accent-soft);
+  }
+  /* The active tab's marker: a short bar beside its icon. */
   .tabs button.on::after {
     content: '';
     position: absolute;
-    left: 9px;
-    right: 9px;
-    bottom: -3px;
-    height: 2px;
+    top: 8px;
+    bottom: 8px;
+    left: -6px;
+    width: 2px;
     border-radius: 1px;
     background: var(--accent);
   }
@@ -142,13 +152,16 @@
     flex: 1;
   }
   .tabs button.help {
-    width: 24px;
+    height: 28px;
+    margin-bottom: 2px;
     font-size: 13px;
     font-weight: 700;
   }
   .content {
     flex: 1;
+    min-width: 0;
     min-height: 0;
+    padding-left: 4px;
   }
 
   /* The grab area sits in the gap between the side pane and the card. */

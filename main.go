@@ -16,6 +16,7 @@ import (
 	"github.com/dayanraj/wtf/internal/netconn"
 	"github.com/dayanraj/wtf/internal/notify"
 	"github.com/dayanraj/wtf/internal/procs"
+	"github.com/dayanraj/wtf/internal/snippets"
 	"github.com/dayanraj/wtf/internal/sshhosts"
 	"github.com/dayanraj/wtf/internal/state"
 	"github.com/dayanraj/wtf/internal/terminal"
@@ -57,6 +58,7 @@ func main() {
 			application.NewService(infra.NewService()),
 			application.NewService(awsprofiles.NewService()),
 			application.NewService(kube.NewService(stateDir)),
+			application.NewService(snippets.NewService(configDir)),
 			application.NewService(sshhosts.NewService(stateDir)),
 			application.NewService(netconn.NewService(term.ShellPIDs)),
 			application.NewService(procs.NewService(term.ShellPIDs)),
@@ -134,6 +136,7 @@ func buildMenu(windows *wtfwindows.Manager) *application.Menu {
 	cmd(shell, "Split Right", "CmdOrCtrl+d", "pane.splitRight")
 	cmd(shell, "Split Down", "CmdOrCtrl+shift+d", "pane.splitDown")
 	cmd(shell, "Duplicate Tab", "", "tab.duplicate")
+	cmd(shell, "Run Snippet…", "CmdOrCtrl+shift+r", "snippets.run")
 	shell.AddSeparator()
 	cmd(shell, "Broadcast Input", "CmdOrCtrl+OptionOrAlt+b", "broadcast.toggle")
 	cmd(shell, "Move Tab to New Window", "", "tab.toNewWindow")
@@ -166,6 +169,7 @@ func buildMenu(windows *wtfwindows.Manager) *application.Menu {
 	cmd(view, "Show SSH Hosts", "CmdOrCtrl+shift+s", "sidebar.ssh")
 	cmd(view, "Show AWS Profiles", "CmdOrCtrl+shift+u", "sidebar.aws")
 	cmd(view, "Show Kubernetes", "CmdOrCtrl+shift+k", "sidebar.kube")
+	cmd(view, "Show Snippets", "CmdOrCtrl+shift+y", "sidebar.snippets")
 	view.AddSeparator()
 	cmd(view, "Previous Prompt", "CmdOrCtrl+up", "prompt.prev")
 	cmd(view, "Next Prompt", "CmdOrCtrl+down", "prompt.next")

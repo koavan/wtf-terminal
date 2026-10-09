@@ -1,6 +1,6 @@
 # The side pane
 
-{{cmd:sidebar.toggle}} (or the button next to the window controls) shows the side pane. Its tabs, left to right:
+{{cmd:sidebar.toggle}} (or the button next to the window controls) shows the side pane. Its tabs are icons down its left edge, top to bottom:
 
 | Tab | Shortcut | What it's for |
 |---|---|---|
@@ -8,11 +8,12 @@
 | [SSH](#ssh-hosts) | {{key:sidebar.ssh}} | hosts, keys, tunnels |
 | [AWS Profiles](#aws) | {{key:sidebar.aws}} | AWS CLI profiles |
 | [Kubernetes](#kubernetes) | {{key:sidebar.kube}} | cluster resources and kubeconfig contexts |
+| [Snippets](#snippets) | {{key:sidebar.snippets}} | saved commands and runbooks |
 | [Network](#network) | {{key:sidebar.network}} | listening ports and connections |
 | [Processes](#processes) | {{key:sidebar.processes}} | what's running in your terminals |
 | [History](#history) | {{key:sidebar.history}} | commands run in a shell |
 
-Pressing a tab's shortcut again closes the pane. Drag its right edge to resize it; double-click the edge for the default width. The **?** at the top right opens this manual at the page for the tab you're on.
+Hover an icon for the tab's name and shortcut. Pressing a tab's shortcut again closes the pane. Drag its right edge to resize it; double-click the edge for the default width. The **?** at the bottom of the icons opens this manual at the page for the tab you're on.
 
 ## Most tabs follow the focused shell
 

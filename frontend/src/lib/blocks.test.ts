@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import { blockMenu, blockSummary, commandAndOutput, terminalMenu } from './blocks';
 
-const actions = () => ({ copyCommand: vi.fn(), copyOutput: vi.fn(), copyBoth: vi.fn(), selectOutput: vi.fn(), runAgain: vi.fn() });
+const actions = () => ({ copyCommand: vi.fn(), copyOutput: vi.fn(), copyBoth: vi.fn(), selectOutput: vi.fn(), runAgain: vi.fn(), saveSnippet: vi.fn() });
 const labels = (entries: ReturnType<typeof blockMenu>) => entries.map((e) => (typeof e === 'string' ? e : 'label' in e ? e.label : `# ${e.heading}`));
 
 describe('command block menus', () => {
@@ -15,11 +15,11 @@ describe('command block menus', () => {
 
   it('offers what applies to the command', () => {
     const done = blockMenu({ id: 1, text: 'ls', running: false, exitCode: 0, durationMs: 5, hasOutput: true }, actions());
-    expect(labels(done)).toEqual(['# ls · ✓ · 0.0s', 'Copy Command', 'Copy Output', 'Copy Command and Output', 'Select Output', 'separator', 'Run Again']);
+    expect(labels(done)).toEqual(['# ls · ✓ · 0.0s', 'Copy Command', 'Copy Output', 'Copy Command and Output', 'Select Output', 'separator', 'Run Again', 'Save as Snippet…']);
     const running = blockMenu({ id: 1, text: 'make', running: true, hasOutput: true }, actions());
     expect(labels(running)).not.toContain('Run Again');
     const gone = blockMenu({ id: 1, text: 'ls', running: false, exitCode: 0, hasOutput: false }, actions());
-    expect(labels(gone)).toEqual(['# ls · ✓', 'Copy Command', 'separator', 'Run Again']);
+    expect(labels(gone)).toEqual(['# ls · ✓', 'Copy Command', 'separator', 'Run Again', 'Save as Snippet…']);
   });
 
   it('has the general terminal actions, Copy only with a selection', () => {

@@ -325,6 +325,7 @@
             send(encoder.encode(`\x15${info.text}\r`));
             t.focus();
           },
+          saveSnippet: () => overlay.show({ kind: 'snippetEdit', snippet: null, command: info.text }),
         }),
       );
       unhighlight?.();

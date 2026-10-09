@@ -90,7 +90,8 @@ describe('the manual pages', async () => {
     const r = renderManual(t.source, real);
     expect(r.missing, `unknown commands in ${t.id}`).toEqual([]);
     for (const link of r.links) expect(ids.has(link), `${t.id} links to #${link}`).toBe(true);
-    expect(r.html).not.toMatch(/\{\{|\}\}/); // no placeholder left unfilled
+    // No manual placeholder left unfilled (a page may show {{snippet}} placeholders as text).
+    expect(r.html).not.toMatch(/\{\{(cmd|key|mac):/);
   });
 
   it('cover every side-pane tab', () => {

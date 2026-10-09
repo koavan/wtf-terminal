@@ -74,6 +74,8 @@
       'separator',
       { label: 'Copy Command', action: () => Clipboard.SetText(e.command).then(() => toast.show('Copied command')) },
       { label: 'Copy Folder', action: () => Clipboard.SetText(e.cwd).then(() => toast.show('Copied folder')) },
+      'separator',
+      { label: 'Save as Snippet…', action: () => overlay.show({ kind: 'snippetEdit', snippet: null, command: e.command }) },
     ];
     overlay.openMenu(ev.clientX, ev.clientY, entries);
   }
