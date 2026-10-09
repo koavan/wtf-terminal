@@ -41,11 +41,13 @@ download, sftp; tunnels (see #8). See README.
   (right-click group → "Broadcast input").
 - Loud, always-visible indicator while active; one shortcut to stop.
 
-### 4. Command blocks ◐ (second priority)
+### 4. Command blocks ☑
 
-Already there: ✓/✗ marks, jump between prompts (⌘↑/⌘↓), copy last output,
-long-command notifications. Still to do: duration in the gutter, copy/re-run
-for any command (not just the last).
+✓/✗ marks with exit code, duration and finish time on hover; the duration of
+slow commands (≥1s) at the end of their prompt line; jump between prompts
+(⌘↑/⌘↓); for any command, from its mark or a right-click in its output:
+copy command / output / both, select output, run again (block highlighted
+while the menu is open); long-command notifications.
 
 - Using OSC 133 marks: ✓/✗ gutter mark with exit status and duration per command.
 - Actions: copy this command's output, jump to previous/next command, re-run.
@@ -56,10 +58,11 @@ for any command (not just the last).
 
 ### 5. Kubernetes side-pane tab ☑
 
-- Pods, deployments, recent events for the current context/namespace.
-- Click a pod → logs / exec / describe, each opening a new tab with the real
-  `kubectl` command (so it lands in history and is reproducible).
-- Polls only while visible. A lightweight, built-in k9s.
+Resources (14 kinds in groups, each loaded only when its section is open;
+actions as real kubectl commands in tabs, changes confirmed; secret values
+on request, masked), and Contexts (every kubeconfig in ~/.kube, per-shell
+switching, rename/delete/namespace/merge, Add EKS Cluster, fix
+aws-iam-authenticator auth). See README.
 
 ### 6. Workspaces / launch profiles ☐
 

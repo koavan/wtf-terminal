@@ -151,13 +151,19 @@ button:focus-visible {
 /* ✓/✗ marks beside finished commands (see lib/prompts.ts). xterm.js
    positions the decoration on the prompt's first cell; the mark itself is
    drawn in the pane's left padding so it never covers text. */
+/* A command's ✓/✗ mark: a bar in the left margin. The decoration sits on
+   the prompt's first cell; it's moved into the margin so clicking it opens
+   the command's menu without covering the prompt. */
 .cmd-mark {
-  pointer-events: none;
+  pointer-events: auto;
+  cursor: pointer;
+  margin-left: -13px;
+  width: 12px !important;
 }
 .cmd-mark::before {
   content: '';
   position: absolute;
-  left: -9px;
+  left: 4px;
   top: 22%;
   width: 3px;
   height: 56%;
@@ -168,6 +174,27 @@ button:focus-visible {
 .cmd-mark.fail::before {
   background: var(--danger);
   opacity: 0.95;
+}
+.cmd-mark:hover::before {
+  left: 3px;
+  width: 5px;
+  opacity: 1;
+}
+
+/* How long a slow command took, at the end of its prompt line. */
+.cmd-duration {
+  pointer-events: none;
+  color: var(--chrome-muted);
+  font-size: 0.85em;
+  text-align: right;
+  opacity: 0.8;
+}
+
+/* The command a menu is about, while the menu is open. */
+.cmd-block-highlight {
+  pointer-events: none;
+  background: var(--accent-soft);
+  border-radius: 4px;
 }
 
 .startup-error {

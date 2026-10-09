@@ -10,7 +10,10 @@
   import { Browser, Clipboard, Events } from '@wailsio/runtime';
   import SearchBar from './SearchBar.svelte';
   import { Service, endpoint } from '../lib/backend';
+  import { blockMenu, commandAndOutput, terminalMenu } from '../lib/blocks';
   import { broadcast, isTerminalReport } from '../lib/broadcast.svelte';
+  import { overlay, type MenuEntry } from '../lib/overlay.svelte';
+  import { toast } from '../lib/toast.svelte';
   import { history } from '../lib/history.svelte';
   import { parseEnv, resolveContext } from '../lib/infra';
   import { notifyCommandDone } from '../lib/notify';
@@ -115,6 +118,7 @@
     });
     t.onResize(({ cols, rows }) => {
       if (sessionId) Service.Resize(sessionId, cols, rows);
+      tracker?.relayout();
     });
     t.onTitleChange((title) => tabs.setOscTitle(pane.id, title));
     t.onSelectionChange(() => {
@@ -123,7 +127,7 @@
     // Clicking into a pane focuses it.
     t.textarea?.addEventListener('focus', () => tabs.focusPane(tabId, pane.id));
 
-    const prompts = new PromptTracker(t, {
+    const prompts = (tracker = new PromptTracker(t, {
       onPrompt: () => tabs.markIntegrated(pane.id),
       onCommandStart: (text, id) => {
         tabs.commandStarted(pane.id, text);
@@ -135,12 +139,13 @@
         notifyCommandDone(pane, exitCode, durationMs, visible);
         commandFinished(pane.command, exitCode);
       },
+      onMark: (id, e) => openMenu(e.clientX, e.clientY, id, false),
       onEnv: (text) => {
         reportedEnv = parseEnv(text);
         tabs.setEnv(pane.id, reportedEnv);
         refreshContext();
       },
-    });
+    }));
 
     const unregister = registerTerminal(pane.id, {
       focus: () => t.focus(),
@@ -259,6 +264,95 @@
     if (reportedEnv && settings.config.contextBadges) {
       resolveContext(pane.id, reportedEnv, (ctx) => tabs.setInfra(pane.id, ctx));
     }
+  }
+
+  /** The command-block tracker, once the terminal exists. */
+  let tracker: PromptTracker | undefined;
+  /** Undoes the highlight of the block a menu is about. */
+  let unhighlight: (() => void) | null = null;
+
+  // The highlight goes when the menu does.
+  $effect(() => {
+    if (overlay.current?.kind !== 'menu' && unhighlight) {
+      unhighlight();
+      unhighlight = null;
+    }
+  });
+
+  /** The buffer line under the mouse. */
+  function lineAt(clientY: number): number | null {
+    const screen = el?.querySelector('.xterm-screen');
+    if (!term || !screen) return null;
+    const r = screen.getBoundingClientRect();
+    const row = Math.floor(((clientY - r.top) / r.height) * term.rows);
+    if (row < 0 || row >= term.rows) return null;
+    return term.buffer.active.viewportY + row;
+  }
+
+  function copyText(text: string, what: string) {
+    Clipboard.SetText(text).then(() => {
+      const lines = text ? text.split('\n').length : 0;
+      toast.show(lines > 1 ? `Copied ${what} (${lines} lines)` : `Copied ${what}`);
+    });
+  }
+
+  /**
+   * The terminal's menu: the actions of the command block at a point (from
+   * its mark, or a right-click in its output), then — for a right-click —
+   * copy, paste and the rest.
+   */
+  function openMenu(x: number, y: number, id: number | null, general: boolean) {
+    const t = term;
+    if (!t || !tracker) return;
+    const p = tracker;
+    const entries: MenuEntry[] = [];
+    const info = id !== null ? p.info(id) : null;
+    if (info) {
+      entries.push(
+        ...blockMenu(info, {
+          copyCommand: () => copyText(info.text, 'command'),
+          copyOutput: () => copyText(p.output(info.id) ?? '', 'output'),
+          copyBoth: () => copyText(commandAndOutput(info.text, p.output(info.id) ?? ''), 'command and output'),
+          selectOutput: () => {
+            if (!p.selectOutput(info.id)) toast.show('Its output has left the scrollback');
+          },
+          runAgain: () => {
+            if (!pane.isShell || pane.running) {
+              toast.show('The shell is busy — finish the running program first');
+              return;
+            }
+            // Ctrl-U clears anything half-typed first. Sent to this pane only.
+            send(encoder.encode(`\x15${info.text}\r`));
+            t.focus();
+          },
+        }),
+      );
+      unhighlight?.();
+      unhighlight = p.highlight(info.id);
+    }
+    if (general) {
+      if (entries.length) entries.push('separator');
+      entries.push(
+        ...terminalMenu(t.hasSelection(), {
+          copy: () => Clipboard.SetText(t.getSelection()),
+          paste: () => Clipboard.Text().then((text) => text && t.paste(text)),
+          selectAll: () => t.selectAll(),
+          clear: () => t.clear(),
+          find: () => {
+            tabs.focusPane(tabId, pane.id);
+            search.open();
+          },
+        }),
+      );
+    }
+    if (entries.length) overlay.openMenu(x, y, entries);
+  }
+
+  function onContextMenu(e: MouseEvent) {
+    e.preventDefault();
+    tabs.focusPane(tabId, pane.id);
+    const line = lineAt(e.clientY);
+    openMenu(e.clientX, e.clientY, line === null || !tracker ? null : tracker.blockAt(line), true);
   }
 
   function send(bytes: Uint8Array) {
@@ -391,7 +485,7 @@
     term.focus();
   }}
 >
-  <div class="host" bind:this={el}></div>
+  <div class="host" bind:this={el} oncontextmenu={onContextMenu} role="presentation"></div>
   {#if searchAddon && search.paneId === pane.id}
     <SearchBar addon={searchAddon} />
   {/if}

@@ -308,9 +308,14 @@ The window chrome takes its colors from the theme.
 
 bash (3.2+) and zsh load a small script (installed to the user cache dir) that
 reports prompts and commands with OSC 133 marks, after your usual startup
-files. That enables ✓/✗ marks beside commands, ⌘↑/⌘↓ between prompts, copying
-a command's output, the command status in the address bar, and a notification
-when a long command finishes out of sight. Turn it off with
+files. That makes each command a block: a ✓/✗ mark in the margin (hover for
+exit code, duration and finish time), the duration of slow commands (1s or
+more) at the end of the prompt line when it has room, ⌘↑/⌘↓ between prompts,
+the command status in the address bar, and a notification when a long
+command finishes out of sight. Click a command's mark, or right-click in its
+output, to copy the command, its output or both, select the output, or run it
+again; the block is highlighted while the menu is open. Right-click also has
+Copy, Paste, Select All, Find and Clear. Turn it off with
 `shell-integration = false`.
 
 ## Context badges

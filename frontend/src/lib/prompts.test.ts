@@ -103,3 +103,44 @@ describe('helpers', () => {
     expect(formatDuration(3_780_000)).toBe('1h 3m');
   });
 });
+
+describe('command blocks', () => {
+  it('finds the command a line belongs to, from its prompt to the next', async () => {
+    const { tracker, write } = setup(10);
+    await write(run('ls', 'a\r\nb\r\n') + run('false', 'oops\r\n', 1) + A + '$ ');
+    // Lines: 0 "$ ls", 1 a, 2 b, 3 "$ false", 4 oops, 5 "$ "
+    expect(tracker.blockAt(0)).toBe(1);
+    expect(tracker.blockAt(2)).toBe(1);
+    expect(tracker.blockAt(3)).toBe(2);
+    expect(tracker.blockAt(4)).toBe(2);
+    expect(tracker.blockAt(5)).toBeNull(); // the prompt waiting for a command
+  });
+
+  it('knows each command’s text, status and output', async () => {
+    const { tracker, write } = setup(10);
+    await write(run('ls', 'a\r\nb\r\n') + run('false', 'oops\r\n', 1) + A + '$ ');
+    expect(tracker.info(1)).toMatchObject({ text: 'ls', running: false, exitCode: 0, hasOutput: true });
+    expect(tracker.info(2)).toMatchObject({ text: 'false', exitCode: 1 });
+    expect(tracker.info(2)!.durationMs).toBeGreaterThanOrEqual(0);
+    expect(tracker.info(2)!.finishedAt).toBeInstanceOf(Date);
+    expect(tracker.output(1)).toBe('a\nb');
+    expect(tracker.output(2)).toBe('oops');
+    expect(tracker.info(99)).toBeNull();
+  });
+
+  it('gives a running command’s output so far', async () => {
+    const { tracker, write } = setup(10);
+    await write(`${A}$ make\r\n${E('make')}${C}step 1\r\nstep 2`);
+    expect(tracker.info(1)).toMatchObject({ text: 'make', running: true });
+    expect(tracker.output(1)).toBe('step 1\nstep 2');
+  });
+
+  it('selects a command’s output lines', async () => {
+    const { term, tracker, write } = setup(10);
+    const selectLines = vi.fn();
+    (term as unknown as { selectLines: typeof selectLines }).selectLines = selectLines;
+    await write(run('ls', 'a\r\nb\r\n') + A + '$ ');
+    expect(tracker.selectOutput(1)).toBe(true);
+    expect(selectLines).toHaveBeenCalledWith(1, 2);
+  });
+});
