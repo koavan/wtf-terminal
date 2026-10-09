@@ -1,8 +1,11 @@
-import { Service, type Host } from '../../bindings/github.com/dayanraj/wtf/internal/sshhosts';
+import { Service, type Host, type List, type Option } from '../../bindings/github.com/dayanraj/wtf/internal/sshhosts';
+import { prettyPath } from './backend';
+import { overlay } from './overlay.svelte';
 import { shellQuote } from './shell';
 import { tabs } from './tabs.svelte';
+import { toast } from './toast.svelte';
 
-export type { Host } from '../../bindings/github.com/dayanraj/wtf/internal/sshhosts';
+export type { Host, Option } from '../../bindings/github.com/dayanraj/wtf/internal/sshhosts';
 
 // The SSH side pane: hosts from ~/.ssh/config and known_hosts (see
 // internal/sshhosts), opened as tabs, splits or a tab group.
@@ -33,18 +36,87 @@ export function matchesFilter(h: Host, query: string): boolean {
   return q.split(/\s+/).every((word) => text.includes(word));
 }
 
+/** A host entry as the editor fills it in. */
+export interface HostDraft {
+  /** Host line patterns, space-separated: "web1 web2". */
+  name: string;
+  hostName: string;
+  user: string;
+  port: string;
+  identityFile: string;
+  proxyJump: string;
+  /** Any other settings, one "Key value" per line. */
+  more: string;
+}
+
+/** The settings with their own fields in the editor, in the order they're written. */
+const FIELDS = [
+  ['hostName', 'HostName'],
+  ['user', 'User'],
+  ['port', 'Port'],
+  ['identityFile', 'IdentityFile'],
+  ['proxyJump', 'ProxyJump'],
+] as const;
+
+const unquote = (v: string) => (v.length > 1 && v.startsWith('"') && v.endsWith('"') ? v.slice(1, -1) : v);
+
+/** An entry's own settings, split into the editor's fields. */
+export function draftOf(h: Host | null, prefill: Partial<HostDraft> = {}): HostDraft {
+  const d: HostDraft = { name: '', hostName: '', user: '', port: '', identityFile: '', proxyJump: '', more: '', ...prefill };
+  if (!h) return d;
+  d.name = (h.patterns ?? [h.alias]).join(' ');
+  const more: string[] = [];
+  for (const o of h.options ?? []) {
+    const field = FIELDS.find(([, key]) => key.toLowerCase() === o.key.toLowerCase());
+    // The first of each goes to its field; repeats (a second IdentityFile) stay below.
+    if (field && !d[field[0]]) d[field[0]] = unquote(o.value);
+    else more.push(`${o.key} ${o.value}`);
+  }
+  d.more = more.join('\n');
+  return d;
+}
+
+/**
+ * The settings to write for a draft. Empty fields are left out (and so
+ * removed); a line under "more" without a value is a mistake and throws.
+ */
+export function optionsOf(d: HostDraft): Option[] {
+  const out: Option[] = FIELDS.map(([field, key]) => ({ key, value: d[field].trim() })).filter((o) => o.value);
+  for (const line of d.more.split('\n')) {
+    const m = /^\s*([^\s=]+)\s*(?:=\s*|\s+)(.*)$/.exec(line);
+    if (m && m[2].trim()) out.push({ key: m[1], value: m[2].trim() });
+    else if (line.trim()) throw new Error(`${line.trim()} needs a value, like “ForwardAgent yes”`);
+  }
+  return out;
+}
+
 class SshHosts {
   hosts = $state.raw<Host[]>([]);
   problems = $state.raw<string[]>([]);
   loaded = $state(false);
   loading = $state(false);
+  /** Private keys in ~/.ssh, for the IdentityFile field. */
+  keys = $state.raw<string[]>([]);
+  #versions: Record<string, string | undefined> = {};
+  #mainConfig = '';
+
+  /** Where new hosts go: ~/.ssh/config. */
+  get mainConfig(): string {
+    return this.#mainConfig;
+  }
+
+  #apply(list: List) {
+    this.hosts = list.hosts ?? [];
+    this.problems = list.problems ?? [];
+    this.#versions = list.versions ?? {};
+    this.#mainConfig = list.mainConfig;
+  }
 
   async load() {
     this.loading = true;
     try {
-      const list = await Service.List();
-      this.hosts = list.hosts ?? [];
-      this.problems = list.problems ?? [];
+      this.#apply(await Service.List());
+      Service.Keys().then((k) => (this.keys = k ?? []));
     } catch (e) {
       this.problems = [String(e)];
     } finally {
@@ -52,9 +124,48 @@ class SshHosts {
       this.loaded = true;
     }
   }
+
+  /** Adds a host (`host` null) or changes its entry. Throws the backend's message. */
+  async save(host: Host | null, draft: HostDraft) {
+    const file = host?.source ?? this.#mainConfig;
+    this.#apply(
+      await Service.Save({
+        file: host?.source ?? '',
+        line: host?.line ?? 0,
+        version: this.#versions[file] ?? '',
+        patterns: draft.name.trim().split(/\s+/),
+        options: optionsOf(draft),
+      }),
+    );
+  }
+
+  async remove(host: Host) {
+    this.#apply(await Service.Delete(host.source, host.line, this.#versions[host.source] ?? ''));
+  }
 }
 
 export const ssh = new SshHosts();
+
+const message = (e: unknown) => (e instanceof Error ? e.message : String(e));
+
+/** Asks, then removes a host's entry from its config file. */
+export function confirmDeleteHost(h: Host) {
+  const others = (h.patterns ?? []).filter((p) => p !== h.alias);
+  overlay.confirm({
+    title: `Delete ${h.alias}?`,
+    message:
+      `Removes its entry from ${prettyPath(h.source)} (line ${h.line}).` +
+      (others.length ? ` The entry also names ${others.join(', ')}, which go with it.` : '') +
+      ` A copy of the file is kept in wtf’s cache folder.`,
+    items: [],
+    confirmLabel: 'Delete Host',
+    onConfirm: () =>
+      ssh
+        .remove(h)
+        .then(() => toast.show(`Deleted ${h.alias}`))
+        .catch((e) => toast.show(`Couldn’t delete ${h.alias}: ${message(e)}`, 6000)),
+  });
+}
 
 /** The name for a tab group of hosts: their shared config file, else "SSH". */
 export function groupName(hosts: Host[]): string {

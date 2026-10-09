@@ -1,4 +1,5 @@
 import { tick } from 'svelte';
+import type { Host, HostDraft } from './ssh.svelte';
 import type { GroupColor } from './tabs.svelte';
 import { activeTerminal } from './terminals';
 
@@ -12,7 +13,8 @@ export type OverlayState =
   | { kind: 'group'; groupId: number; anchor: DOMRect }
   | { kind: 'palette'; mode: PaletteMode }
   | { kind: 'overview' }
-  | ({ kind: 'confirm' } & ConfirmRequest);
+  | ({ kind: 'confirm' } & ConfirmRequest)
+  | { kind: 'sshHost'; host: Host | null; prefill?: Partial<HostDraft> };
 
 export interface ConfirmRequest {
   title: string;
@@ -41,6 +43,11 @@ class Overlay {
 
   confirm(request: ConfirmRequest) {
     this.current = { kind: 'confirm', ...request };
+  }
+
+  /** The SSH host editor: a new host (`host` null, maybe prefilled) or an entry to change. */
+  editSshHost(host: Host | null, prefill?: Partial<HostDraft>) {
+    this.current = { kind: 'sshHost', host, prefill };
   }
 
   openMenu(x: number, y: number, entries: MenuEntry[]) {

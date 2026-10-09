@@ -10,9 +10,31 @@ import { Call as $Call, CancellablePromise as $CancellablePromise } from "@wails
 import * as $models from "./models.js";
 
 /**
+ * Delete removes the Host entry at a line (1-based) of a config file.
+ */
+export function Delete(file: string, line: number, version: string): $CancellablePromise<$models.List> {
+    return $Call.ByID(1025413122, file, line, version);
+}
+
+/**
+ * Keys lists the private keys in ~/.ssh (files with a .pub next to them),
+ * as ~/.ssh/… paths, for the IdentityFile field.
+ */
+export function Keys(): $CancellablePromise<string[] | null> {
+    return $Call.ByID(3912646933);
+}
+
+/**
  * List reads the hosts afresh: the files are small, and this runs only
  * when the SSH view opens or is refreshed.
  */
 export function List(): $CancellablePromise<$models.List> {
     return $Call.ByID(3864215017);
+}
+
+/**
+ * Save adds a Host entry or changes one, and returns the new list.
+ */
+export function Save(e: $models.Entry): $CancellablePromise<$models.List> {
+    return $Call.ByID(1075195760, e);
 }

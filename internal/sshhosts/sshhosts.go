@@ -2,15 +2,15 @@
 // the Host entries of ~/.ssh/config (and the files it includes), then the
 // servers in ~/.ssh/known_hosts that the config doesn't already name.
 //
-// Only what's needed to show and open a host is read. Settings are worked
-// out the way ssh does for Host blocks: the first value found wins, and
-// blocks with wildcards (Host *) contribute to every host they match.
-// Match blocks can't be evaluated without connecting, so they're skipped.
+// Settings are worked out the way ssh does for Host blocks: the first value
+// found wins, and blocks with wildcards (Host *) contribute to every host
+// they match. Match blocks can't be evaluated without connecting, so
+// they're skipped. Entries in files under ~/.ssh can be edited (edit.go).
 package sshhosts
 
 import (
-	"bufio"
-	"bytes"
+	"crypto/sha256"
+	"encoding/hex"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -31,12 +31,27 @@ type Host struct {
 	Source string `json:"source"`
 	// Only in known_hosts: connected to before, but not configured.
 	Known bool `json:"known"`
+
+	// The entry that declares the host: its Host line (1-based), the
+	// patterns on it, and its own settings as written. Settings it gets
+	// from other entries (Host *) show in HostName, User, … only.
+	Line     int      `json:"line"`
+	Patterns []string `json:"patterns"`
+	Options  []Option `json:"options"`
+	// In a file under ~/.ssh, which wtf may change. Other files belong to
+	// other programs (OrbStack, Colima…) that rewrite them.
+	Editable bool `json:"editable"`
 }
 
 type List struct {
 	Hosts []Host `json:"hosts"`
 	// Files that couldn't be read, and other things worth knowing.
 	Problems []string `json:"problems"`
+	// Each config file's contents as listed, so an edit can tell whether
+	// the file changed since (see Save). Missing files have "".
+	Versions map[string]string `json:"versions"`
+	// Where new hosts go: ~/.ssh/config.
+	MainConfig string `json:"mainConfig"`
 }
 
 // Hosts used for git, not for a shell: listing them would only be noise.
@@ -52,26 +67,60 @@ const maxDepth = 16
 
 type Service struct {
 	home string
+	// Where copies of config files are kept before wtf changes them.
+	backupDir string
 }
 
 func NewService() *Service {
 	home, _ := os.UserHomeDir()
-	return &Service{home: home}
+	s := &Service{home: home}
+	if cache, err := os.UserCacheDir(); err == nil {
+		s.backupDir = filepath.Join(cache, "wtf", "ssh-backups")
+	}
+	return s
+}
+
+func (s *Service) sshDir() string     { return filepath.Join(s.home, ".ssh") }
+func (s *Service) mainConfig() string { return filepath.Join(s.sshDir(), "config") }
+
+// editable says whether wtf may change a config file: only the user's own,
+// under ~/.ssh.
+func (s *Service) editable(path string) bool {
+	rel, err := filepath.Rel(s.sshDir(), path)
+	return err == nil && !strings.HasPrefix(rel, "..") && !filepath.IsAbs(rel)
+}
+
+func version(data []byte) string {
+	sum := sha256.Sum256(data)
+	return hex.EncodeToString(sum[:12])
 }
 
 // List reads the hosts afresh: the files are small, and this runs only
 // when the SSH view opens or is refreshed.
 func (s *Service) List() List {
-	p := parser{home: s.home, seen: map[string]bool{}}
-	p.parseFile(filepath.Join(s.home, ".ssh", "config"), 0)
+	p := parser{home: s.home, seen: map[string]bool{}, contents: map[string][]byte{}}
+	p.parseFile(s.mainConfig(), 0)
 
-	out := List{Hosts: []Host{}, Problems: p.problems}
+	out := List{Hosts: []Host{}, Problems: p.problems, Versions: map[string]string{}, MainConfig: s.mainConfig()}
+	out.Versions[s.mainConfig()] = ""
+	entries := map[string][]*entry{}
+	for path, data := range p.contents {
+		out.Versions[path] = version(data)
+		entries[path] = parseEntries(splitLines(data))
+	}
 	configured := map[string]bool{}
 	for _, alias := range p.aliases {
 		h := p.resolve(alias)
 		if gitHosts[strings.ToLower(h.HostName)] {
 			continue
 		}
+		line := p.lines[strings.ToLower(alias)]
+		for _, e := range entries[h.Source] {
+			if e.line == line {
+				h.Line, h.Patterns, h.Options = line+1, e.patterns, e.options()
+			}
+		}
+		h.Editable = s.editable(h.Source)
 		out.Hosts = append(out.Hosts, h)
 		configured[strings.ToLower(alias)] = true
 		configured[endpoint(h.HostName, h.Port)] = true
@@ -107,8 +156,20 @@ type parser struct {
 	blocks   []*block
 	aliases  []string
 	sources  map[string]string // alias → file it was declared in
+	lines    map[string]int    // alias → its Host line, 0-based
 	seen     map[string]bool
+	contents map[string][]byte
 	problems []string
+}
+
+// splitLines splits a file into lines without their line endings.
+func splitLines(data []byte) []string {
+	s := strings.ReplaceAll(string(data), "\r\n", "\n")
+	s = strings.TrimSuffix(s, "\n")
+	if s == "" {
+		return nil
+	}
+	return strings.Split(s, "\n")
 }
 
 // parseFile reads one config file. The user's main config may be missing;
@@ -125,17 +186,17 @@ func (p *parser) parseFile(path string, depth int) {
 		}
 		return
 	}
+	p.contents[path] = data
 	if p.sources == nil {
 		p.sources = map[string]string{}
+		p.lines = map[string]int{}
 	}
 	// Lines before the first Host apply to every host.
 	cur := &block{patterns: []string{"*"}, options: map[string]string{}, source: path}
 	p.blocks = append(p.blocks, cur)
 
-	sc := bufio.NewScanner(bytes.NewReader(data))
-	sc.Buffer(make([]byte, 64*1024), 1024*1024)
-	for sc.Scan() {
-		key, args := splitLine(sc.Text())
+	for i, text := range splitLines(data) {
+		key, args := splitLine(text)
 		switch key {
 		case "":
 		case "host":
@@ -147,6 +208,7 @@ func (p *parser) parseFile(path string, depth int) {
 				}
 				if _, dup := p.sources[strings.ToLower(pat)]; !dup {
 					p.sources[strings.ToLower(pat)] = path
+					p.lines[strings.ToLower(pat)] = i
 					p.aliases = append(p.aliases, pat)
 				}
 			}

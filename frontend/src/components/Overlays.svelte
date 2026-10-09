@@ -2,6 +2,7 @@
   import Confirm from './Confirm.svelte';
   import ContextMenu from './ContextMenu.svelte';
   import GroupEditor from './GroupEditor.svelte';
+  import HostEditor from './HostEditor.svelte';
   import Palette from './Palette.svelte';
   import TabOverview from './TabOverview.svelte';
   import { overlay } from '../lib/overlay.svelte';
@@ -18,6 +19,8 @@
   {#key overlay.current.mode}
     <Palette mode={overlay.current.mode} />
   {/key}
+{:else if overlay.current?.kind === 'sshHost'}
+  <HostEditor host={overlay.current.host} prefill={overlay.current.prefill} />
 {:else if overlay.current?.kind === 'group'}
   {#key overlay.current.groupId}
     <GroupEditor groupId={overlay.current.groupId} anchor={overlay.current.anchor} />

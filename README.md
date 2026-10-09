@@ -83,11 +83,23 @@ The **SSH Hosts** tab lists the `Host` entries of `~/.ssh/config` and the
 files it `Include`s (grouped by file, with each host's user, address, port
 and jump host worked out as ssh would), then **Known hosts**: servers in
 `~/.ssh/known_hosts` your config doesn't name, most recent first. Git hosts
-such as github.com are left out. Double-click a host to connect in a new tab,
-or right-click to open it in a split or copy its `ssh` command. ⌘-click or
-shift-click to select several, then **Open as Tab Group** (or ↩) to connect
-to each in its own tab, grouped and named after their config file. The list
-is read when the tab opens; ↻ reads it again.
+such as github.com are left out. Double-click a host (or press ▶ on it) to
+connect in a new tab, or right-click to open it in a split or copy its `ssh`
+command. ⌘-click or shift-click to select several, then **Open as Tab Group**
+(or ↩) to connect to each in its own tab, grouped and named after their config
+file. The list is read when the tab opens; ↻ reads it again.
+
+**+** adds a host (name, address, user, port, key file, jump host, and any
+other settings); right-click a host to edit or delete it, or a known host to
+**Save as Host**. New hosts go into `~/.ssh/config`, before any `Host *` block
+(ssh takes the first value it finds, so a host after `Host *` would get its
+defaults instead). Edits change only the lines involved, keeping comments and
+indentation. Before writing, wtf checks that the file hasn't changed since it
+was listed and that `ssh -G` accepts the result, so a typo can't break ssh;
+writes are atomic, follow a symlinked config, and keep a copy of the old file
+in wtf's cache folder (`ssh-backups`, last 30). Hosts in files outside
+`~/.ssh`, such as OrbStack's, belong to the program that writes them and are
+read-only.
 
 The **Network** tab lists listening ports and open connections — by default
 those from programs in your terminals, labeled with their tab (click to jump

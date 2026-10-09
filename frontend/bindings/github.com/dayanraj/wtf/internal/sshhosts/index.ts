@@ -7,6 +7,8 @@ export {
 };
 
 export type {
+    Entry,
     Host,
-    List
+    List,
+    Option
 } from "./models.js";

@@ -6,7 +6,10 @@
   import { prettyPath } from '../lib/backend';
   import { overlay, type MenuEntry } from '../lib/overlay.svelte';
   import { isMac } from '../lib/platform';
-  import { groupName, hostDetail, hostKey, matchesFilter, openHosts, ssh, sshCommand, type Host, type OpenWhere } from '../lib/ssh.svelte';
+  import {
+    confirmDeleteHost, groupName, hostDetail, hostKey, matchesFilter, openHosts, ssh, sshCommand,
+    type Host, type OpenWhere,
+  } from '../lib/ssh.svelte';
   import { toast } from '../lib/toast.svelte';
 
   let filter = $state('');
@@ -98,8 +101,27 @@
           'separator',
           { label: 'Copy ssh Command', action: () => copy(sshCommand(h), 'ssh command') },
           { label: 'Copy Host Name', action: () => copy(h.hostName || h.alias, 'host name') },
+          'separator',
+          ...manage(h),
         ];
     overlay.openMenu(e.clientX, e.clientY, entries);
+  }
+
+  /** Editing entries for a host, or why it can't be edited. */
+  function manage(h: Host): MenuEntry[] {
+    if (h.known) {
+      return [
+        {
+          label: 'Save as Host…',
+          action: () => overlay.editSshHost(null, { name: h.alias, hostName: h.alias, port: h.port }),
+        },
+      ];
+    }
+    if (!h.editable) return [{ heading: `Managed by ${prettyPath(h.source)}` }];
+    return [
+      { label: 'Edit Host…', action: () => overlay.editSshHost(h) },
+      { label: 'Delete Host…', danger: true, action: () => confirmDeleteHost(h) },
+    ];
   }
 
   function keydown(e: KeyboardEvent) {
@@ -118,6 +140,9 @@
       <Icon name="search" size={12} stroke={2} />
       <input bind:value={filter} placeholder="Filter hosts" spellcheck="false" autocomplete="off" onkeydown={keydown} />
     </div>
+    <button class="tool" title="Add host" aria-label="Add host" onclick={() => overlay.editSshHost(null)}>
+      <Icon name="plus" size={14} />
+    </button>
     <button class="tool" title="Reload ~/.ssh/config" aria-label="Reload" disabled={ssh.loading} onclick={() => ssh.load()}>
       <Icon name="refresh" size={13} />
     </button>
@@ -145,6 +170,18 @@
             <span class="alias">{h.alias}</span>
             {#if detail}<span class="sub">{detail}</span>{/if}
           </span>
+          <button
+            class="connect"
+            title="Connect in a new tab"
+            aria-label="Connect to {h.alias}"
+            onclick={(e) => {
+              e.stopPropagation();
+              open([h], 'tab');
+            }}
+            ondblclick={(e) => e.stopPropagation()}
+          >
+            <Icon name="play" size={11} stroke={2} />
+          </button>
         </div>
       {/each}
     {:else}
@@ -155,7 +192,7 @@
           {:else}
             <strong>No SSH hosts</strong>
             Hosts from <code>~/.ssh/config</code> (and the files it includes) show here, along with servers
-            you’ve connected to before.
+            you’ve connected to before. Press + to add one.
           {/if}
         </div>
       {/if}
@@ -282,6 +319,28 @@
   }
   .row:focus {
     outline: none;
+  }
+
+  /* Connect: shown on hover, like a browser tab's close button. */
+  .connect {
+    display: grid;
+    place-items: center;
+    flex: none;
+    width: 22px;
+    height: 22px;
+    padding: 0;
+    border: 0;
+    border-radius: 6px;
+    background: transparent;
+    color: var(--accent);
+    opacity: 0;
+  }
+  .row:hover .connect,
+  .row.on .connect {
+    opacity: 1;
+  }
+  .connect:hover {
+    background: var(--accent-soft);
   }
 
   .icon {
