@@ -7,9 +7,13 @@ export {
 };
 
 export type {
+    ConfigList,
+    Connection,
     Container,
     Deployment,
     Event,
+    KubeContext,
+    Op,
     Pod,
     Request,
     Table,

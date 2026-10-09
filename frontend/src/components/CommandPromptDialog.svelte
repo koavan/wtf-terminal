@@ -22,8 +22,24 @@
     }
   });
 
-  function run() {
-    if (!result.command) return;
+  let busy = $state(false);
+  let failed = $state('');
+
+  async function run() {
+    if (!result.command || busy) return;
+    if (r.submit) {
+      busy = true;
+      failed = '';
+      try {
+        await r.submit(values);
+        overlay.close();
+      } catch (e) {
+        failed = e instanceof Error ? e.message : String(e);
+      } finally {
+        busy = false;
+      }
+      return;
+    }
     const command = result.command;
     overlay.close();
     tabs.open({ command });
@@ -45,14 +61,15 @@
   </div>
   {#if result.command}
     <div class="command">{result.command}</div>
-    <p class="hint">Runs in a new tab.</p>
+    <p class="hint">{r.note ?? (r.submit ? 'wtf runs this.' : 'Runs in a new tab.')}</p>
   {:else if result.error}
     <div class="error" role="alert">{result.error}</div>
   {/if}
+  {#if failed}<div class="error" role="alert">{failed}</div>{/if}
 
   {#snippet buttons()}
     <span class="spacer"></span>
     <button class="secondary" onclick={() => overlay.close()}>Cancel</button>
-    <button class="primary" onclick={run} disabled={!result.command}>{r.confirmLabel}</button>
+    <button class="primary" onclick={run} disabled={!result.command || busy}>{r.confirmLabel}</button>
   {/snippet}
 </Dialog>

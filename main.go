@@ -56,7 +56,7 @@ func main() {
 			application.NewService(files.NewService()),
 			application.NewService(infra.NewService()),
 			application.NewService(awsprofiles.NewService()),
-			application.NewService(kube.NewService()),
+			application.NewService(kube.NewService(stateDir)),
 			application.NewService(sshhosts.NewService(stateDir)),
 			application.NewService(netconn.NewService(term.ShellPIDs)),
 			application.NewService(procs.NewService(term.ShellPIDs)),

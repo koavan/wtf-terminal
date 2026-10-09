@@ -13,6 +13,8 @@ export const SIDEBAR_TABS = ['files', 'ssh', 'aws', 'kube', 'network', 'processe
 export type SidebarTab = (typeof SIDEBAR_TABS)[number];
 
 export const SSH_SECTIONS = ['hosts', 'keys', 'tunnels'] as const;
+export const KUBE_VIEWS = ['cluster', 'contexts'] as const;
+export type KubeView = (typeof KUBE_VIEWS)[number];
 export type SshSection = (typeof SSH_SECTIONS)[number];
 
 export interface SavedSidebar {
@@ -25,6 +27,7 @@ export interface SavedSidebar {
   processSort?: ProcessSort;
   historyScope?: 'pane' | 'all';
   sshSection?: SshSection;
+  kubeView?: KubeView;
 }
 
 /** The window's side pane: whether it shows, how wide, which tab. */
@@ -38,6 +41,8 @@ class Sidebar {
   historyScope = $state<'pane' | 'all'>('pane');
   /** Which part of the SSH tab shows. */
   sshSection = $state<SshSection>('hosts');
+  /** Which part of the Kubernetes tab shows. */
+  kubeView = $state<KubeView>('cluster');
 
   toggle() {
     this.open = !this.open;
@@ -67,6 +72,7 @@ class Sidebar {
       processSort: processes.sort,
       historyScope: this.historyScope,
       sshSection: this.sshSection,
+      kubeView: this.kubeView,
     };
   }
 
@@ -81,6 +87,7 @@ class Sidebar {
     if (v.processScope === 'terminals' || v.processScope === 'all') processes.scope = v.processScope;
     if (v.historyScope === 'pane' || v.historyScope === 'all') this.historyScope = v.historyScope;
     if (SSH_SECTIONS.includes(v.sshSection as SshSection)) this.sshSection = v.sshSection as SshSection;
+    if (KUBE_VIEWS.includes(v.kubeView as KubeView)) this.kubeView = v.kubeView as KubeView;
     if (v.processSort === 'cpu' || v.processSort === 'memory' || v.processSort === 'name') processes.sort = v.processSort;
   }
 }

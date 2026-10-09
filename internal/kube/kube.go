@@ -24,6 +24,8 @@ import (
 	"sort"
 	"strings"
 	"time"
+
+	"github.com/wailsapp/wails/v3/pkg/application"
 )
 
 // Request says whose view of the cluster to take.
@@ -119,11 +121,22 @@ var runKubectl = func(ctx context.Context, bin string, env []string, args ...str
 
 type Service struct {
 	home string
+	// Where per-shell kubeconfig files go (see configs.go).
+	stateDir string
+	// Overrides the cache folder for backups; tests set it.
+	cacheDir string
 }
 
-func NewService() *Service {
+// NewService keeps per-shell kubeconfig files in stateDir.
+func NewService(stateDir string) *Service {
 	home, _ := os.UserHomeDir()
-	return &Service{home: home}
+	return &Service{home: home, stateDir: stateDir}
+}
+
+// ServiceStartup clears the per-shell files of an earlier run.
+func (s *Service) ServiceStartup(context.Context, application.ServiceOptions) error {
+	s.ClearShellConfigs()
+	return nil
 }
 
 // Variables taken from the shell rather than wtf's own environment.

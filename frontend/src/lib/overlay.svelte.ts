@@ -24,7 +24,8 @@ export type OverlayState =
   | { kind: 'transfer'; host: Host; direction: 'upload' | 'download'; locals: string[] }
   | { kind: 'awsProfile'; profile: Profile | null }
   | { kind: 'awsRotate'; profile: Profile }
-  | ({ kind: 'commandPrompt' } & CommandPrompt);
+  | ({ kind: 'commandPrompt' } & CommandPrompt)
+  | { kind: 'eksAdd' };
 
 /** A dialog that fills in a command (e.g. kubectl scale) and runs it in a new tab. */
 export interface CommandPrompt {
@@ -35,6 +36,10 @@ export interface CommandPrompt {
   /** The command for the field values; throws a message for bad input. */
   command: (values: string[]) => string;
   confirmLabel: string;
+  /** Does the change itself instead of running the command in a tab; throws to show an error. */
+  submit?: (values: string[]) => Promise<void>;
+  /** Said under the command, instead of where it runs. */
+  note?: string;
 }
 
 export interface ConfirmRequest {

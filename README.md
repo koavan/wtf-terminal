@@ -206,6 +206,37 @@ restart a deployment, StatefulSet or DaemonSet, scale a deployment or
 StatefulSet, run a CronJob now — show the exact command, context, cluster and
 namespace and run only when you confirm.
 
+The Kubernetes tab's **Contexts** view lists the contexts of the focused
+shell's kubeconfig files (its `$KUBECONFIG`, else `~/.kube/config`) under
+"Used by this shell", then those of every other kubeconfig in `~/.kube`
+(any file there that is one; kubectl's cache folders are skipped), each file
+on its own: cluster (an EKS cluster's name and region), namespace, how it logs
+in (aws-iam-authenticator, `aws eks get-token`, certificate, token…) and
+with which AWS profile — never tokens or certificates. A login helper that
+isn't on the shell's PATH is said so. **Test Connection** asks the cluster
+for its version and who you are, only when you click it.
+
+Double-click (or ▶) switches the focused shell — only that shell — to a
+context: wtf writes a small file holding just that context's name, cluster,
+user and namespace (no credentials) and types `export KUBECONFIG=<that
+file>:<your files>` at the prompt, so `kubectl` there uses it while other
+tabs keep theirs, and `kubectl config` commands run there change that small
+file, not your shared kubeconfig. These files go when wtf restarts. Picking a context from another file in
+`~/.kube` points the shell at that file only, so same-named entries in
+different files can't mix; editing or testing it works on that file. A
+context's **default** pill marks the kubeconfig's `current-context`, which
+new shells start with.
+
+Rename, set the default namespace, and delete (with its cluster and user
+when no other context uses them) run `kubectl config` after showing the
+exact commands; **+** merges a kubeconfig file (adding only names not
+already defined) or adds an EKS cluster with `aws eks update-kubeconfig`
+for one of your AWS profiles (its cluster list fetched when you ask). For a
+context that logs in with aws-iam-authenticator, **Log In with aws eks
+get-token…** rewrites its user to need only the aws CLI, keeping its AWS
+profile. Each change is confirmed first, and a copy of the kubeconfig is
+kept in wtf's cache folder (`kube-backups`, last 20).
+
 The **Network** tab lists listening ports and open connections — by default
 those from programs in your terminals, labeled with their tab (click to jump
 there); switch to **All** for everything you own. Listeners reachable from

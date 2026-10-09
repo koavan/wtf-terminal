@@ -10,10 +10,51 @@ import { Call as $Call, CancellablePromise as $CancellablePromise } from "@wails
 import * as $models from "./models.js";
 
 /**
+ * ApplyEdit makes a planned change: files unchanged since listing, backed
+ * up first, then the kubectl commands run or the new contents written.
+ */
+export function ApplyEdit(env: { [_ in string]?: string } | null, op: $models.Op, versions: { [_ in string]?: string } | null): $CancellablePromise<$models.ConfigList> {
+    return $Call.ByID(2367820719, env, op, versions);
+}
+
+/**
+ * BackupConfigs keeps a copy of the shell's kubeconfig files, before a
+ * command run in a terminal (aws eks update-kubeconfig) changes them.
+ */
+export function BackupConfigs(env: { [_ in string]?: string } | null): $CancellablePromise<void> {
+    return $Call.ByID(1389741938, env);
+}
+
+/**
+ * ClearShellConfigs removes the per-shell files of an earlier run: their
+ * shells ended with it.
+ */
+export function ClearShellConfigs(): $CancellablePromise<void> {
+    return $Call.ByID(2314009307);
+}
+
+/**
+ * Contexts lists the contexts of the shell's kubeconfig files, merged the
+ * way kubectl merges them, then those of the other kubeconfigs in ~/.kube,
+ * each file on its own. It reads files only.
+ */
+export function Contexts(env: { [_ in string]?: string } | null): $CancellablePromise<$models.ConfigList> {
+    return $Call.ByID(2662423573, env);
+}
+
+/**
  * Deployments lists a namespace's deployments.
  */
 export function Deployments(r: $models.Request): $CancellablePromise<$models.Deployment[] | null> {
     return $Call.ByID(946367391, r);
+}
+
+/**
+ * EKSClusters lists the EKS clusters an AWS profile sees in a region, for
+ * the Add EKS Cluster dialog (when asked).
+ */
+export function EKSClusters(env: { [_ in string]?: string } | null, profile: string, region: string): $CancellablePromise<string[] | null> {
+    return $Call.ByID(531062369, env, profile, region);
 }
 
 /**
@@ -33,11 +74,29 @@ export function Namespaces(r: $models.Request): $CancellablePromise<string[] | n
 }
 
 /**
+ * PlanEdit lists what a change would do, without doing it.
+ */
+export function PlanEdit(env: { [_ in string]?: string } | null, op: $models.Op): $CancellablePromise<string[] | null> {
+    return $Call.ByID(2393255830, env, op);
+}
+
+/**
  * Pods lists a namespace's pods; with a selector (a deployment's labels),
  * only those the cluster says match.
  */
 export function Pods(r: $models.Request, selector: { [_ in string]?: string } | null): $CancellablePromise<$models.Pod[] | null> {
     return $Call.ByID(827067877, r, selector);
+}
+
+/**
+ * ShellConfig writes a per-shell file for a context and returns the
+ * command that points a shell at it:
+ * export KUBECONFIG='<that file>:<the shell's files>' — or, for a context
+ * from another kubeconfig in ~/.kube, '<that file>:<its file>', so that
+ * shell sees only that file (names in different files can't mix).
+ */
+export function ShellConfig(env: { [_ in string]?: string } | null, name: string, file: string, $namespace: string): $CancellablePromise<string> {
+    return $Call.ByID(1382157723, env, name, file, $namespace);
 }
 
 /**
@@ -56,4 +115,12 @@ export function Table(r: $models.Request, kind: string): $CancellablePromise<$mo
  */
 export function Target(r: $models.Request): $CancellablePromise<$models.Target> {
     return $Call.ByID(442848656, r);
+}
+
+/**
+ * TestConnection asks a context's cluster who you are and its version.
+ * Only on request: it reaches the cluster.
+ */
+export function TestConnection(env: { [_ in string]?: string } | null, name: string, file: string): $CancellablePromise<$models.Connection> {
+    return $Call.ByID(723094305, env, name, file);
 }
