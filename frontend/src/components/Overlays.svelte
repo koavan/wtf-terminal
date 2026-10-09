@@ -3,6 +3,11 @@
   import ContextMenu from './ContextMenu.svelte';
   import GroupEditor from './GroupEditor.svelte';
   import HostEditor from './HostEditor.svelte';
+  import HostKeysDialog from './HostKeysDialog.svelte';
+  import KeyGenerator from './KeyGenerator.svelte';
+  import KeyInstall from './KeyInstall.svelte';
+  import TransferDialog from './TransferDialog.svelte';
+  import TunnelEditor from './TunnelEditor.svelte';
   import Palette from './Palette.svelte';
   import TabOverview from './TabOverview.svelte';
   import { overlay } from '../lib/overlay.svelte';
@@ -21,6 +26,16 @@
   {/key}
 {:else if overlay.current?.kind === 'sshHost'}
   <HostEditor host={overlay.current.host} prefill={overlay.current.prefill} />
+{:else if overlay.current?.kind === 'keyGen'}
+  <KeyGenerator />
+{:else if overlay.current?.kind === 'keyInstall'}
+  <KeyInstall key={overlay.current.key} host={overlay.current.host} />
+{:else if overlay.current?.kind === 'hostKeys'}
+  <HostKeysDialog host={overlay.current.host} />
+{:else if overlay.current?.kind === 'tunnel'}
+  <TunnelEditor tunnel={overlay.current.tunnel} host={overlay.current.host} />
+{:else if overlay.current?.kind === 'transfer'}
+  <TransferDialog host={overlay.current.host} direction={overlay.current.direction} locals={overlay.current.locals} />
 {:else if overlay.current?.kind === 'group'}
   {#key overlay.current.groupId}
     <GroupEditor groupId={overlay.current.groupId} anchor={overlay.current.anchor} />

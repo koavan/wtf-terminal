@@ -66,6 +66,123 @@ export interface Host {
     "editable": boolean;
 }
 
+/**
+ * HostKey is one server key.
+ */
+export interface HostKey {
+    "type": string;
+    "bits": number;
+    "fingerprint": string;
+
+    /**
+     * Where it is stored (known_hosts file and 1-based line); empty for a
+     * key just scanned from the server.
+     */
+    "file": string;
+    "line": number;
+
+    /**
+     * Marked @revoked or @cert-authority.
+     */
+    "marker": string;
+}
+
+/**
+ * HostKeys is what's known about one host's keys.
+ */
+export interface HostKeys {
+    /**
+     * The name known_hosts files it under: "host" or "[host]:port".
+     */
+    "target": string;
+
+    /**
+     * The address ssh connects to, and the port.
+     */
+    "hostName": string;
+    "port": string;
+
+    /**
+     * The user's known_hosts files ssh checks (existing or not).
+     */
+    "files": string[] | null;
+    "stored": HostKey[] | null;
+
+    /**
+     * A jump host or proxy command the connection goes through. The
+     * server can't be scanned directly then.
+     */
+    "via": string;
+}
+
+/**
+ * Key is a key pair in ~/.ssh, or a key only the agent holds.
+ */
+export interface Key {
+    /**
+     * The private key file; "" for a key that is only in the agent.
+     */
+    "path": string;
+
+    /**
+     * ~/.ssh/… for files, the key's comment for agent-only keys.
+     */
+    "name": string;
+
+    /**
+     * ED25519, RSA, ECDSA, ED25519-SK…
+     */
+    "type": string;
+    "bits": number;
+
+    /**
+     * SHA256:…
+     */
+    "fingerprint": string;
+    "comment": string;
+
+    /**
+     * Protected by a passphrase. Unknown (false) for formats that don't say.
+     */
+    "encrypted": boolean;
+
+    /**
+     * Loaded in ssh-agent.
+     */
+    "inAgent": boolean;
+
+    /**
+     * The private key file can be read by other users, so ssh refuses it:
+     * its permissions, e.g. "0644".
+     */
+    "unprotected": string;
+
+    /**
+     * Has a .pub file next to it.
+     */
+    "hasPub": boolean;
+
+    /**
+     * Hosts whose IdentityFile is this key.
+     */
+    "usedBy": string[] | null;
+}
+
+export interface KeyList {
+    "keys": Key[] | null;
+
+    /**
+     * Why the agent couldn't be asked, e.g. none is running; "" when fine.
+     */
+    "agentError": string;
+
+    /**
+     * The agent's socket (SSH_AUTH_SOCK).
+     */
+    "agentSocket": string;
+    "problems": string[] | null;
+}
+
 export interface List {
     "hosts": Host[] | null;
 
@@ -96,4 +213,62 @@ export interface Option {
      * Everything after the keyword, quotes included, e.g. `"~/my key"`.
      */
     "value": string;
+}
+
+export interface Tunnel {
+    "id": string;
+    "name": string;
+
+    /**
+     * The host as given to ssh (a config alias or an address), and a port
+     * for hosts that aren't in the config.
+     */
+    "host": string;
+    "port": string;
+
+    /**
+     * local (-L), remote (-R) or dynamic (-D, a SOCKS proxy).
+     */
+    "kind": string;
+
+    /**
+     * ssh's forward spec: "8080:localhost:80", or "1080" for dynamic.
+     */
+    "spec": string;
+    "autoStart": boolean;
+}
+
+export interface TunnelStatus {
+    "id": string;
+    "name": string;
+
+    /**
+     * The host as given to ssh (a config alias or an address), and a port
+     * for hosts that aren't in the config.
+     */
+    "host": string;
+    "port": string;
+
+    /**
+     * local (-L), remote (-R) or dynamic (-D, a SOCKS proxy).
+     */
+    "kind": string;
+
+    /**
+     * ssh's forward spec: "8080:localhost:80", or "1080" for dynamic.
+     */
+    "spec": string;
+    "autoStart": boolean;
+    "state": string;
+    "error": string;
+
+    /**
+     * When the state last changed (Unix ms).
+     */
+    "since": number;
+
+    /**
+     * The ssh command line, to show or run by hand.
+     */
+    "command": string;
 }

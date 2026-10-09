@@ -10,6 +10,7 @@
   import { Browser, Clipboard, Events } from '@wailsio/runtime';
   import SearchBar from './SearchBar.svelte';
   import { Service, endpoint } from '../lib/backend';
+  import { broadcast, isTerminalReport } from '../lib/broadcast.svelte';
   import { history } from '../lib/history.svelte';
   import { parseEnv, resolveContext } from '../lib/infra';
   import { notifyCommandDone } from '../lib/notify';
@@ -18,7 +19,7 @@
   import { search } from '../lib/search.svelte';
   import { settings } from '../lib/settings.svelte';
   import { detachedSessions, tabs, type Pane } from '../lib/tabs.svelte';
-  import { registerTerminal } from '../lib/terminals';
+  import { commandFinished, registerTerminal, terminalFor } from '../lib/terminals';
   import { xtermTheme } from '../lib/themes';
   import { thisWindow } from '../lib/window';
 
@@ -102,8 +103,16 @@
     // ⌘-combos belong to the app menu; don't let xterm swallow them.
     t.attachCustomKeyEventHandler((e) => !(isMac && e.metaKey));
 
-    t.onData((data) => send(encoder.encode(data)));
-    t.onBinary((data) => send(Uint8Array.from(data, (c) => c.charCodeAt(0))));
+    t.onData((data) => {
+      const bytes = encoder.encode(data);
+      send(bytes);
+      fanOut(t, data, bytes);
+    });
+    t.onBinary((data) => {
+      const bytes = Uint8Array.from(data, (c) => c.charCodeAt(0));
+      send(bytes);
+      fanOut(t, data, bytes);
+    });
     t.onResize(({ cols, rows }) => {
       if (sessionId) Service.Resize(sessionId, cols, rows);
     });
@@ -124,6 +133,7 @@
         history.finished(pane.id, exitCode, durationMs);
         tabs.commandFinished(pane.id, exitCode, durationMs);
         notifyCommandDone(pane, exitCode, durationMs, visible);
+        commandFinished(pane.command, exitCode);
       },
       onEnv: (text) => {
         reportedEnv = parseEnv(text);
@@ -138,6 +148,7 @@
       getSelection: () => t.getSelection(),
       paste: (text) => t.paste(text),
       type: (text) => t.input(text),
+      sendInput: (bytes) => send(bytes),
       jumpPrompt: (direction) => prompts.jump(direction),
       lastOutput: () => prompts.lastOutput(),
       revealCommand: (id) => prompts.reveal(id),
@@ -253,6 +264,18 @@
     if (ws?.readyState === WebSocket.OPEN) ws.send(bytes);
   }
 
+  /**
+   * Broadcast input: what the user types here also goes to the other panes
+   * of the broadcast. Only typing — not replies xterm sends for the program
+   * — and only from the pane with keyboard focus.
+   */
+  function fanOut(t: Terminal, data: string, bytes: Uint8Array) {
+    if (!broadcast.on || document.activeElement !== t.textarea || isTerminalReport(data)) return;
+    for (const id of broadcast.targets(pane.id)) terminalFor(id)?.sendInput(bytes);
+  }
+
+  const broadcasting = $derived(broadcast.on && broadcast.includes(pane.id));
+
   let fitQueued = false;
   function scheduleFit() {
     if (fitQueued) return;
@@ -348,6 +371,7 @@
   class="pane"
   class:dimmed
   class:drop-target={dropping}
+  class:broadcasting
   role="presentation"
   ondragover={(e) => {
     if (!e.dataTransfer?.types.includes('application/x-wtf-path')) return;
@@ -396,6 +420,17 @@
     background: var(--accent-soft);
     box-shadow: inset 0 0 0 2px var(--accent);
     border-radius: 8px;
+  }
+
+  /* Part of a broadcast: every keystroke here goes to the other panes too. */
+  .pane.broadcasting::before {
+    content: '';
+    position: absolute;
+    inset: 2px;
+    border: 1.5px solid var(--g-orange);
+    border-radius: 8px;
+    pointer-events: none;
+    z-index: 1;
   }
 
   /* FitAddon measures the terminal's parent, so padding lives on .pane. */

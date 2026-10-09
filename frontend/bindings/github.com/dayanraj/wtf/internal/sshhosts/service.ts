@@ -10,10 +10,73 @@ import { Call as $Call, CancellablePromise as $CancellablePromise } from "@wails
 import * as $models from "./models.js";
 
 /**
+ * AgentRemove unloads one key from the agent, by fingerprint.
+ */
+export function AgentRemove(fp: string): $CancellablePromise<void> {
+    return $Call.ByID(133966890, fp);
+}
+
+/**
+ * AgentRemoveAll unloads every key from the agent (ssh-add -D).
+ */
+export function AgentRemoveAll(): $CancellablePromise<void> {
+    return $Call.ByID(658629265);
+}
+
+/**
  * Delete removes the Host entry at a line (1-based) of a config file.
  */
 export function Delete(file: string, line: number, version: string): $CancellablePromise<$models.List> {
     return $Call.ByID(1025413122, file, line, version);
+}
+
+/**
+ * DeleteKey moves a key pair out of ~/.ssh into wtf's cache folder
+ * (ssh-backups/keys), where it can still be recovered.
+ */
+export function DeleteKey(path: string): $CancellablePromise<void> {
+    return $Call.ByID(814185865, path);
+}
+
+export function DeleteTunnel(id: string): $CancellablePromise<$models.TunnelStatus[] | null> {
+    return $Call.ByID(686265516, id);
+}
+
+/**
+ * ForgetHostKeys removes a host's entries from the user's known_hosts
+ * files (ssh-keygen -R, which keeps the old file as known_hosts.old).
+ */
+export function ForgetHostKeys(alias: string, port: string): $CancellablePromise<void> {
+    return $Call.ByID(91244282, alias, port);
+}
+
+/**
+ * HostKeys lists the keys known_hosts holds for a host. port is for known
+ * hosts listed by address; config hosts pass "".
+ */
+export function HostKeys(alias: string, port: string): $CancellablePromise<$models.HostKeys> {
+    return $Call.ByID(2579125255, alias, port);
+}
+
+/**
+ * KeyBackupDir is where deleted keys go.
+ */
+export function KeyBackupDir(): $CancellablePromise<string> {
+    return $Call.ByID(65128961);
+}
+
+/**
+ * KeyList reads the key pairs in ~/.ssh and asks the agent what it holds.
+ */
+export function KeyList(): $CancellablePromise<$models.KeyList> {
+    return $Call.ByID(3096178828);
+}
+
+/**
+ * KeyNameFree says whether ~/.ssh/<name> (and .pub) can be created.
+ */
+export function KeyNameFree(name: string): $CancellablePromise<boolean> {
+    return $Call.ByID(226943389, name);
 }
 
 /**
@@ -33,8 +96,68 @@ export function List(): $CancellablePromise<$models.List> {
 }
 
 /**
+ * ProtectKey makes a private key readable by its owner only (chmod 600),
+ * which ssh requires before it will use the key.
+ */
+export function ProtectKey(path: string): $CancellablePromise<void> {
+    return $Call.ByID(608479603, path);
+}
+
+/**
+ * PublicKey returns a key's public half as one authorized_keys line.
+ */
+export function PublicKey(path: string): $CancellablePromise<string> {
+    return $Call.ByID(1005844087, path);
+}
+
+/**
  * Save adds a Host entry or changes one, and returns the new list.
  */
 export function Save(e: $models.Entry): $CancellablePromise<$models.List> {
     return $Call.ByID(1075195760, e);
+}
+
+/**
+ * SaveTunnel adds a tunnel (empty ID) or changes one; a running tunnel
+ * whose connection changed restarts.
+ */
+export function SaveTunnel(t: $models.Tunnel): $CancellablePromise<$models.TunnelStatus[] | null> {
+    return $Call.ByID(4176135850, t);
+}
+
+/**
+ * ScanHostKeys asks the server for its keys now (ssh-keyscan). It can't
+ * go through a jump host.
+ */
+export function ScanHostKeys(alias: string, port: string): $CancellablePromise<$models.HostKey[] | null> {
+    return $Call.ByID(2989703454, alias, port);
+}
+
+export function StartTunnel(id: string): $CancellablePromise<$models.TunnelStatus[] | null> {
+    return $Call.ByID(4155843801, id);
+}
+
+export function StopTunnel(id: string): $CancellablePromise<$models.TunnelStatus[] | null> {
+    return $Call.ByID(22889375, id);
+}
+
+/**
+ * TrustHostKeys stores the server's current keys in known_hosts — those
+ * whose fingerprints the user saw — replacing any it had. The server is
+ * scanned again so that only keys matching what was shown get stored.
+ */
+export function TrustHostKeys(alias: string, port: string, fingerprints: string[] | null): $CancellablePromise<void> {
+    return $Call.ByID(3206928231, alias, port, fingerprints);
+}
+
+export function Tunnels(): $CancellablePromise<$models.TunnelStatus[] | null> {
+    return $Call.ByID(1892103732);
+}
+
+/**
+ * WritePublicKey creates the missing .pub file for a key, as ssh-copy-id
+ * and some tools need one.
+ */
+export function WritePublicKey(path: string): $CancellablePromise<void> {
+    return $Call.ByID(3141582028, path);
 }

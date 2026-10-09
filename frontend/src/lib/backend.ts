@@ -16,6 +16,10 @@ export async function loadHome(): Promise<void> {
   home = await Service.Home();
 }
 
+export function homeDir(): string {
+  return home;
+}
+
 /** "/Users/me/src/wtf" → "~/src/wtf" */
 export function prettyPath(path: string): string {
   if (!path) return '';

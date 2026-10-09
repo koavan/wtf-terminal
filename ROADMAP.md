@@ -29,11 +29,13 @@ only with a reliable signal.
 
 ### 2. SSH host manager (side-pane tab) ☑
 
-The SSH Hosts tab (⌘⇧S): `~/.ssh/config` hosts (with `Include`, grouped by
+The SSH tab (⌘⇧S): `~/.ssh/config` hosts (with `Include`, grouped by
 file) plus known_hosts servers; filter, double-click to connect, open in a
-split, or multi-select and open as a named tab group (see README).
+split, or multi-select and open as a named tab group; add/edit/delete hosts;
+keys and ssh-agent; server host keys (forget, scan, trust); scp upload and
+download, sftp; tunnels (see #8). See README.
 
-### 3. Broadcast input ☐
+### 3. Broadcast input ☑
 
 - Send keystrokes to all panes in a split, or all tabs in a tab group
   (right-click group → "Broadcast input").
@@ -71,7 +73,10 @@ for any command (not just the last).
   filled in from the command palette.
 - Stored in a plain file so a team can share them via git.
 
-### 8. Port-forward and tunnel manager ☐
+### 8. Port-forward and tunnel manager ◐
+
+ssh tunnels done (SSH tab → Tunnels). Still to do: `kubectl port-forward`,
+and linking tunnels with the Network tab's listening ports.
 
 - Start/stop/monitor `kubectl port-forward` and `ssh -L` tunnels from the Network
   tab, which already lists listening ports.

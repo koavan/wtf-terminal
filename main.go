@@ -53,7 +53,7 @@ func main() {
 			application.NewService(notify.NewService()),
 			application.NewService(files.NewService()),
 			application.NewService(infra.NewService()),
-			application.NewService(sshhosts.NewService()),
+			application.NewService(sshhosts.NewService(stateDir)),
 			application.NewService(netconn.NewService(term.ShellPIDs)),
 			application.NewService(procs.NewService(term.ShellPIDs)),
 			application.NewService(windows.Service()),
@@ -130,6 +130,8 @@ func buildMenu(windows *wtfwindows.Manager) *application.Menu {
 	cmd(shell, "Split Right", "CmdOrCtrl+d", "pane.splitRight")
 	cmd(shell, "Split Down", "CmdOrCtrl+shift+d", "pane.splitDown")
 	cmd(shell, "Duplicate Tab", "", "tab.duplicate")
+	shell.AddSeparator()
+	cmd(shell, "Broadcast Input", "CmdOrCtrl+OptionOrAlt+b", "broadcast.toggle")
 	cmd(shell, "Move Tab to New Window", "", "tab.toNewWindow")
 	shell.AddSeparator()
 	cmd(shell, "Close", "CmdOrCtrl+w", "pane.close")

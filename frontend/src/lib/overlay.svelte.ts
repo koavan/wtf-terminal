@@ -1,5 +1,6 @@
 import { tick } from 'svelte';
 import type { Host, HostDraft } from './ssh.svelte';
+import type { Key, TunnelStatus } from './sshAdmin.svelte';
 import type { GroupColor } from './tabs.svelte';
 import { activeTerminal } from './terminals';
 
@@ -14,7 +15,12 @@ export type OverlayState =
   | { kind: 'palette'; mode: PaletteMode }
   | { kind: 'overview' }
   | ({ kind: 'confirm' } & ConfirmRequest)
-  | { kind: 'sshHost'; host: Host | null; prefill?: Partial<HostDraft> };
+  | { kind: 'sshHost'; host: Host | null; prefill?: Partial<HostDraft> }
+  | { kind: 'keyGen' }
+  | { kind: 'keyInstall'; key: Key | null; host: Host | null }
+  | { kind: 'hostKeys'; host: Host }
+  | { kind: 'tunnel'; tunnel: TunnelStatus | null; host: Host | null }
+  | { kind: 'transfer'; host: Host; direction: 'upload' | 'download'; locals: string[] };
 
 export interface ConfirmRequest {
   title: string;
@@ -48,6 +54,11 @@ class Overlay {
   /** The SSH host editor: a new host (`host` null, maybe prefilled) or an entry to change. */
   editSshHost(host: Host | null, prefill?: Partial<HostDraft>) {
     this.current = { kind: 'sshHost', host, prefill };
+  }
+
+  /** Opens one of the SSH admin dialogs. */
+  show(state: Exclude<OverlayState, { kind: 'menu' | 'group' | 'palette' | 'overview' | 'confirm' | 'sshHost' }>) {
+    this.current = state;
   }
 
   openMenu(x: number, y: number, entries: MenuEntry[]) {

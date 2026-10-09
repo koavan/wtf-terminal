@@ -23,7 +23,7 @@ const HistoryView = (await import('./HistoryView.svelte')).default;
 const Overlays = (await import('./Overlays.svelte')).default;
 
 const handle = () => ({
-  focus: vi.fn(), clear: vi.fn(), selectAll: vi.fn(), getSelection: () => '', paste: vi.fn(), type: vi.fn(),
+  focus: vi.fn(), clear: vi.fn(), selectAll: vi.fn(), getSelection: () => '', paste: vi.fn(), type: vi.fn(), sendInput: vi.fn(),
   jumpPrompt: vi.fn(), lastOutput: () => null, revealCommand: vi.fn(() => true), serialize: () => '', snapshot: () => [],
 });
 let apiTerm: ReturnType<typeof handle>;

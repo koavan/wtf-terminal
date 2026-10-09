@@ -1,5 +1,6 @@
 import { Clipboard } from '@wailsio/runtime';
 import { Service as ConfigService } from '../../bindings/github.com/dayanraj/wtf/internal/config';
+import { broadcast } from './broadcast.svelte';
 import { closeActivePane, closeTab, closeWindow } from './closing';
 import { overlay } from './overlay.svelte';
 import { isMac } from './platform';
@@ -76,6 +77,15 @@ export const commands: Command[] = [
   { id: 'tab.prev', label: 'Previous Tab', mac: '⌘⇧[', other: 'Ctrl+PgUp', run: () => tabs.cycle(-1) },
   { id: 'tab.moveRight', label: 'Move Tab Right', mac: '⌘⇧→', other: 'Ctrl+Shift+PgDn', run: () => tabs.moveActive(1) },
   { id: 'tab.moveLeft', label: 'Move Tab Left', mac: '⌘⇧←', other: 'Ctrl+Shift+PgUp', run: () => tabs.moveActive(-1) },
+  {
+    id: 'broadcast.toggle',
+    label: 'Toggle Broadcast Input',
+    mac: '⌥⌘B',
+    other: 'Ctrl+Shift+Alt+B',
+    run: () => {
+      if (!broadcast.toggleActive()) toast.show('Broadcast needs a tab group or split panes');
+    },
+  },
   { id: 'tab.group', label: 'Add Tab to New Group', mac: '⌥⌘G', other: 'Ctrl+Shift+G', run: createGroupForActive },
 
   { id: 'pane.splitRight', label: 'Split Right', mac: '⌘D', other: 'Ctrl+Shift+E', run: () => tabs.split('row') },
@@ -168,6 +178,7 @@ function shortcutFor(e: KeyboardEvent): string | null {
   if (e.ctrlKey && e.shiftKey && e.altKey && e.code === 'KeyA') return 'sidebar.processes';
   if (e.ctrlKey && e.shiftKey && e.altKey && e.code === 'KeyH') return 'sidebar.history';
   if (e.ctrlKey && e.shiftKey && e.altKey && e.code === 'KeyS') return 'sidebar.ssh';
+  if (e.ctrlKey && e.shiftKey && e.altKey && e.code === 'KeyB') return 'broadcast.toggle';
   if (e.ctrlKey && !e.shiftKey && !e.altKey && e.code === 'Comma') return 'config.open';
   if (e.ctrlKey && e.shiftKey && !e.altKey) {
     switch (e.code) {

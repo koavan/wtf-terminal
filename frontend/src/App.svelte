@@ -3,6 +3,7 @@
   import { Events, Window } from '@wailsio/runtime';
   import AddressBar from './components/AddressBar.svelte';
   import Icon from './components/Icon.svelte';
+  import BroadcastBar from './components/BroadcastBar.svelte';
   import Sidebar from './components/Sidebar.svelte';
   import Overlays from './components/Overlays.svelte';
   import TabPanes from './components/TabPanes.svelte';
@@ -107,6 +108,7 @@
       <div onmousedown={keepFocus} role="presentation">
         <AddressBar />
       </div>
+      <BroadcastBar />
       <div class="terminals">
         {#each tabs.list as tab (tab.id)}
           <TabPanes {tab} visible={tab.id === tabs.activeId} />

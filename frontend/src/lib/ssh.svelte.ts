@@ -2,6 +2,7 @@ import { Service, type Host, type List, type Option } from '../../bindings/githu
 import { prettyPath } from './backend';
 import { overlay } from './overlay.svelte';
 import { shellQuote } from './shell';
+import { broadcast } from './broadcast.svelte';
 import { tabs } from './tabs.svelte';
 import { toast } from './toast.svelte';
 
@@ -175,7 +176,8 @@ export function groupName(hosts: Host[]): string {
   return only && base !== 'config' ? base : 'SSH';
 }
 
-export type OpenWhere = 'tab' | 'group' | 'right' | 'down';
+/** group: a tab group; broadcast: a tab group whose input is broadcast to every host. */
+export type OpenWhere = 'tab' | 'group' | 'broadcast' | 'right' | 'down';
 
 /** Connects to hosts: each in a new tab (optionally grouped), or one in a split. */
 export function openHosts(hosts: Host[], where: OpenWhere = 'tab') {
@@ -185,11 +187,12 @@ export function openHosts(hosts: Host[], where: OpenWhere = 'tab') {
     return;
   }
   const ids = hosts.map((h) => tabs.open({ command: sshCommand(h) }));
-  if (where === 'group' && ids.length > 1) {
+  if ((where === 'group' || where === 'broadcast') && ids.length > 1) {
     const group = tabs.createGroup(ids[0]);
     if (group) {
       group.name = groupName(hosts);
       for (const id of ids.slice(1)) tabs.addToGroup(id, group.id);
+      if (where === 'broadcast') broadcast.groups.add(group.id);
     }
     tabs.activate(ids[0]);
   }

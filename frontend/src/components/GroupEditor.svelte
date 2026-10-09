@@ -2,6 +2,7 @@
   import { onMount } from 'svelte';
   import Popover from './Popover.svelte';
   import Icon from './Icon.svelte';
+  import { broadcast } from '../lib/broadcast.svelte';
   import { closeGroup } from '../lib/closing';
   import { overlay } from '../lib/overlay.svelte';
   import { GROUP_COLORS, tabs } from '../lib/tabs.svelte';
@@ -63,6 +64,10 @@
 
       <button class="action" onclick={() => act((id) => tabs.newTabInGroup(id))}>
         <Icon name="plus" size={14} /> New tab in group
+      </button>
+      <button class="action" onclick={() => act((id) => broadcast.toggleGroup(id))}>
+        <Icon name="radio" size={14} />
+        {broadcast.groups.has(groupId) ? 'Stop broadcasting input' : 'Broadcast input to group'}
       </button>
       <button class="action" onclick={() => act((id) => tabs.ungroup(id))}>
         <Icon name="ungroup" size={14} /> Ungroup

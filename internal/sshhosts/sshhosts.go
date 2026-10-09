@@ -9,6 +9,7 @@
 package sshhosts
 
 import (
+	"context"
 	"crypto/sha256"
 	"encoding/hex"
 	"os"
@@ -16,6 +17,8 @@ import (
 	"regexp"
 	"sort"
 	"strings"
+
+	"github.com/wailsapp/wails/v3/pkg/application"
 )
 
 // Host is one entry of the list.
@@ -69,15 +72,37 @@ type Service struct {
 	home string
 	// Where copies of config files are kept before wtf changes them.
 	backupDir string
+	tunnels   *tunnelManager
 }
 
-func NewService() *Service {
+func init() {
+	application.RegisterEvent[[]TunnelStatus](EventTunnels)
+}
+
+// NewService keeps its saved tunnels in stateDir.
+func NewService(stateDir string) *Service {
 	home, _ := os.UserHomeDir()
 	s := &Service{home: home}
 	if cache, err := os.UserCacheDir(); err == nil {
 		s.backupDir = filepath.Join(cache, "wtf", "ssh-backups")
 	}
+	s.tunnels = newTunnelManager(filepath.Join(stateDir, "ssh-tunnels.json"), func(list []TunnelStatus) {
+		if app := application.Get(); app != nil {
+			app.Event.Emit(EventTunnels, list)
+		}
+	})
 	return s
+}
+
+func (s *Service) ServiceStartup(context.Context, application.ServiceOptions) error {
+	s.tunnels.StartAuto()
+	return nil
+}
+
+// ServiceShutdown stops the tunnels: they belong to this run of wtf.
+func (s *Service) ServiceShutdown() error {
+	s.tunnels.Close()
+	return nil
 }
 
 func (s *Service) sshDir() string     { return filepath.Join(s.home, ".ssh") }
@@ -148,7 +173,9 @@ type block struct {
 	patterns []string
 	match    bool // a Match block: never applies here
 	options  map[string]string
-	source   string
+	// IdentityFile may be given several times; ssh tries each.
+	identities []string
+	source     string
 }
 
 type parser struct {
@@ -229,6 +256,9 @@ func (p *parser) parseFile(path string, depth int) {
 			p.blocks = append(p.blocks, cont)
 			cur = cont
 		default:
+			if key == "identityfile" && len(args) > 0 {
+				cur.identities = append(cur.identities, args[0])
+			}
 			if len(args) > 0 {
 				if _, set := cur.options[key]; !set {
 					cur.options[key] = args[0]
@@ -281,6 +311,17 @@ func (p *parser) resolve(alias string) Host {
 		h.ProxyJump = j
 	}
 	return h
+}
+
+// identities lists every IdentityFile that applies to a host, in order.
+func (p *parser) identities(alias string) []string {
+	var out []string
+	for _, b := range p.blocks {
+		if !b.match && matches(b.patterns, alias) {
+			out = append(out, b.identities...)
+		}
+	}
+	return out
 }
 
 // splitLine returns a config line's lowercased keyword and its arguments.

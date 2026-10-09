@@ -2,14 +2,14 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, fireEvent, render, waitFor } from '@testing-library/svelte';
 
-vi.mock('../lib/backend', () => ({ prettyPath: (p: string) => p.replace('/home/me', '~'), Service: {}, endpoint: vi.fn() }));
+vi.mock('../lib/backend', () => ({ prettyPath: (p: string) => p.replace('/home/me', '~'), homeDir: () => '/home/me', Service: {}, endpoint: vi.fn() }));
 vi.mock('../lib/window', () => ({ thisWindow: { name: 'main' } }));
 vi.mock('@wailsio/runtime', async (original) => ({
   ...(await original<object>()),
   Clipboard: { SetText: vi.fn(async () => {}) },
 }));
 vi.mock('../../bindings/github.com/dayanraj/wtf/internal/sshhosts', () => ({
-  Service: { List: vi.fn(), Keys: vi.fn(async () => ['~/.ssh/id_ed25519']), Save: vi.fn(), Delete: vi.fn() },
+  Service: { List: vi.fn(), Keys: vi.fn(async () => ['~/.ssh/id_ed25519']), Save: vi.fn(), Delete: vi.fn(), Tunnels: vi.fn(async () => []) },
 }));
 window.matchMedia ??= ((q: string) => ({ matches: false, media: q, addEventListener() {}, removeEventListener() {} })) as never;
 Element.prototype.animate ??= function () {

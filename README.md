@@ -24,7 +24,8 @@ Requires Go 1.25+, Node 20+, and `wails3` (`go install github.com/wailsapp/wails
 - `internal/config`: config file, themes (built-in, Ghostty, iTerm2), live reload.
 - `internal/terminal/shellintegration`: the bash/zsh scripts.
 - `internal/notify`: desktop notifications.
-- `internal/sshhosts`: hosts from `~/.ssh/config` and `known_hosts` for the SSH tab.
+- `internal/sshhosts`: the SSH tab: hosts from `~/.ssh/config` and `known_hosts`, keys
+  and ssh-agent, server host keys, and background tunnels.
 - `internal/infra`: Kubernetes/AWS/gcloud/Terraform context for the context badges.
 - `internal/files`: directory listings (with git ignore rules) for the file tree.
 - `internal/netconn`: connections and listening ports, attributed to terminal sessions.
@@ -56,6 +57,7 @@ Every command is also in the command palette.
 | Focus pane in a direction | ⌥⌘ + arrows | Ctrl+Alt + arrows |
 | Next / previous pane | ⌘] / ⌘[ | — |
 | Add tab to new group | ⌥⌘G | Ctrl+Shift+G |
+| Broadcast input (group, or split panes) | ⌥⌘B | Ctrl+Shift+Alt+B |
 | Next / previous tab | ⌘⇧] / ⌘⇧[, Ctrl+Tab | Ctrl+PgDn / Ctrl+PgUp, Ctrl+Tab |
 | Go to tab 1–8 / last | ⌘1–⌘8 / ⌘9 | Alt+1–8 / Alt+9 |
 | Move tab | ⌘⇧← / ⌘⇧→ | Ctrl+Shift+PgUp / PgDn |
@@ -100,6 +102,46 @@ writes are atomic, follow a symlinked config, and keep a copy of the old file
 in wtf's cache folder (`ssh-backups`, last 30). Hosts in files outside
 `~/.ssh`, such as OrbStack's, belong to the program that writes them and are
 read-only.
+
+Right-click a host for the rest: **Upload Files…** and **Download…** (scp, in
+a new tab; you can also drop a file from the file tree onto a host), **Open
+sftp Session**, **New Tunnel…**, **Install Public Key…** (ssh-copy-id) and
+**Host Keys…**. Host Keys shows the keys `known_hosts` holds for the server
+(looked up the way ssh does, hashed entries and `HostKeyAlias` included),
+asks the server which keys it presents now (ssh-keyscan), and says which
+match. From there you can forget the stored keys (`ssh-keygen -R`, the fix
+for "REMOTE HOST IDENTIFICATION HAS CHANGED") or store the server's keys; wtf
+scans again before storing and keeps only the keys you were shown. A server
+behind a jump host can't be scanned directly.
+
+**Keys** lists the key pairs in `~/.ssh` (type, size, comment, fingerprint,
+whether a passphrase protects it, which hosts use it) and keys only ssh-agent
+holds, such as a password manager's. Keys other users can read are marked
+with their permissions, since ssh refuses them; **Make Private** fixes that.
+**+** generates a key, and the menu loads a key into the agent (on macOS also
+with its passphrase in the Keychain), unloads it, changes its passphrase,
+copies the public key (double-click), installs it on a host, or deletes it —
+moving the pair to wtf's cache folder (`ssh-backups/keys`), not erasing it.
+Anything that can ask for a passphrase or password (ssh-keygen, ssh-add,
+ssh-copy-id, scp) runs as a real command in a new tab, so it's in your shell
+history and the secret never passes through wtf.
+
+**Tunnels** are saved port forwards: local (`-L`, reach a database behind a
+bastion on localhost), remote (`-R`) and SOCKS (`-D`). Each runs as its own
+background `ssh -N` while it's on, with its own connection, and reconnects if
+a working connection drops; one that never connects shows ssh's error. They
+run without prompts, so the host must accept a key from ssh-agent or one
+without a passphrase. They stop when wtf quits and can start when it opens.
+Saved in `ssh-tunnels.json` in wtf's config folder.
+
+**Broadcast input** sends what you type in one pane to every pane of its tab
+group (right-click a tab, or the group's chip) or of its tab's splits — run
+the same commands on several hosts at once. Select hosts and choose **Open …
+in a Tab Group with Broadcast Input** to start that way. While it's on, a bar
+above the terminals says where your typing goes, the panes are outlined and
+the tabs marked; ⌥⌘B (or Stop) ends it. Replies the terminal sends for a
+program (cursor position, mouse reports) aren't broadcast, and it never
+survives a restart.
 
 The **Network** tab lists listening ports and open connections — by default
 those from programs in your terminals, labeled with their tab (click to jump

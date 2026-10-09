@@ -12,6 +12,9 @@ const DEFAULT_WIDTH = 260;
 export const SIDEBAR_TABS = ['files', 'ssh', 'network', 'processes', 'history'] as const;
 export type SidebarTab = (typeof SIDEBAR_TABS)[number];
 
+export const SSH_SECTIONS = ['hosts', 'keys', 'tunnels'] as const;
+export type SshSection = (typeof SSH_SECTIONS)[number];
+
 export interface SavedSidebar {
   open: boolean;
   width: number;
@@ -21,6 +24,7 @@ export interface SavedSidebar {
   processScope?: 'terminals' | 'all';
   processSort?: ProcessSort;
   historyScope?: 'pane' | 'all';
+  sshSection?: SshSection;
 }
 
 /** The window's side pane: whether it shows, how wide, which tab. */
@@ -32,6 +36,8 @@ class Sidebar {
   pinned = $state<string | null>(null);
   /** History of the focused pane, or of every pane in the window. */
   historyScope = $state<'pane' | 'all'>('pane');
+  /** Which part of the SSH tab shows. */
+  sshSection = $state<SshSection>('hosts');
 
   toggle() {
     this.open = !this.open;
@@ -60,6 +66,7 @@ class Sidebar {
       processScope: processes.scope,
       processSort: processes.sort,
       historyScope: this.historyScope,
+      sshSection: this.sshSection,
     };
   }
 
@@ -73,6 +80,7 @@ class Sidebar {
     if (v.networkScope === 'terminals' || v.networkScope === 'all') network.scope = v.networkScope;
     if (v.processScope === 'terminals' || v.processScope === 'all') processes.scope = v.processScope;
     if (v.historyScope === 'pane' || v.historyScope === 'all') this.historyScope = v.historyScope;
+    if (SSH_SECTIONS.includes(v.sshSection as SshSection)) this.sshSection = v.sshSection as SshSection;
     if (v.processSort === 'cpu' || v.processSort === 'memory' || v.processSort === 'name') processes.sort = v.processSort;
   }
 }

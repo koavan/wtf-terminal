@@ -9,6 +9,12 @@ export {
 export type {
     Entry,
     Host,
+    HostKey,
+    HostKeys,
+    Key,
+    KeyList,
     List,
-    Option
+    Option,
+    Tunnel,
+    TunnelStatus
 } from "./models.js";

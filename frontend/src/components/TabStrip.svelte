@@ -4,6 +4,7 @@
   import { cubicOut } from 'svelte/easing';
   import Icon, { iconForProcess } from './Icon.svelte';
   import { prettyPath } from '../lib/backend';
+  import { broadcast } from '../lib/broadcast.svelte';
   import { closeTab, closeTabs } from '../lib/closing';
   import { overlay, type MenuEntry } from '../lib/overlay.svelte';
   import { renaming, startRename } from '../lib/rename.svelte';
@@ -202,6 +203,20 @@
     if (tab.groupId !== null) {
       entries.push({ label: 'Remove from group', action: () => tabs.removeFromGroup(tab.id) });
     }
+    if (tab.groupId !== null) {
+      const id = tab.groupId;
+      entries.push({
+        label: broadcast.groups.has(id) ? 'Stop Broadcasting Input' : 'Broadcast Input to Group',
+        hint: hint('⌥⌘B', 'Ctrl+Shift+Alt+B'),
+        action: () => broadcast.toggleGroup(id),
+      });
+    }
+    if (tab.root.kind === 'split' && !(tab.groupId !== null && broadcast.groups.has(tab.groupId))) {
+      entries.push({
+        label: broadcast.tabs.has(tab.id) ? 'Stop Broadcasting to Panes' : 'Broadcast Input to Panes',
+        action: () => broadcast.toggleTab(tab.id),
+      });
+    }
     entries.push(
       'separator',
       { label: 'Duplicate', action: () => tabs.openNextTo(tab.id, true) },
@@ -306,6 +321,9 @@
           <span class="icon" class:activity={tab.activity} class:ok={tab.finished === 'ok'} class:fail={tab.finished === 'fail'}>
             <Icon name={iconForProcess(pane.process, pane.isShell)} size={13} />
           </span>
+          {#if broadcast.on && broadcast.scope(tab).length}
+            <span class="broadcast" title="Input to this tab is broadcast"><Icon name="radio" size={11} stroke={2.2} /></span>
+          {/if}
           {#if renaming.tabId === tab.id}
             <input
               class="rename"
@@ -461,6 +479,14 @@
   }
 
   /* A command finished in the background: the dot says how it went. */
+  .broadcast {
+    display: grid;
+    place-items: center;
+    flex: none;
+    margin-left: -2px;
+    color: var(--g-orange);
+  }
+
   .icon.ok::after,
   .icon.fail::after {
     content: '';

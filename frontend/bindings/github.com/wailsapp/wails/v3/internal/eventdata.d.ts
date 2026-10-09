@@ -10,6 +10,9 @@ import type { Events } from "@wailsio/runtime";
 import type * as config$0 from "../../../../dayanraj/wtf/internal/config/models.js";
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore: Unused imports
+import type * as sshhosts$0 from "../../../../dayanraj/wtf/internal/sshhosts/models.js";
+// eslint-disable-next-line @typescript-eslint/ban-ts-comment
+// @ts-ignore: Unused imports
 import type * as terminal$0 from "../../../../dayanraj/wtf/internal/terminal/models.js";
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore: Unused imports
@@ -22,6 +25,7 @@ declare module "@wailsio/runtime" {
             "app:quitRequested": windows$0.QuitRequest;
             "config:changed": config$0.Resolved;
             "infra:changed": string;
+            "ssh:tunnels": sshhosts$0.TunnelStatus[] | null;
             "terminal:exit": terminal$0.ExitEvent;
             "terminal:info": terminal$0.Info;
             "window:adopt": windows$0.Adoption;

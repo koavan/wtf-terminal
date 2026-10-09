@@ -9,6 +9,8 @@ export interface TerminalHandle {
   paste(text: string): void;
   /** Sends keystrokes to the shell, as if typed. */
   type(text: string): void;
+  /** Sends bytes straight to the shell, bypassing xterm (broadcast input). */
+  sendInput(bytes: Uint8Array): void;
   /** Scroll to the previous (-1) or next (1) prompt. Needs shell integration. */
   jumpPrompt(direction: -1 | 1): void;
   /** Scrolls to a command from the history; false if it left the scrollback. */
@@ -36,4 +38,17 @@ export function terminalFor(paneId: number): TerminalHandle | undefined {
 export function activeTerminal(): TerminalHandle | undefined {
   const pane = tabs.activePane;
   return pane && handles.get(pane.id);
+}
+
+type FinishedListener = (command: string, exitCode: number) => void;
+const finishedListeners = new Set<FinishedListener>();
+
+/** Calls `fn` whenever a command finishes in any pane (needs shell integration). */
+export function onCommandFinished(fn: FinishedListener): () => void {
+  finishedListeners.add(fn);
+  return () => finishedListeners.delete(fn);
+}
+
+export function commandFinished(command: string, exitCode: number) {
+  for (const fn of finishedListeners) fn(command, exitCode);
 }
