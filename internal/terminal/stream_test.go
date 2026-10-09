@@ -146,8 +146,13 @@ func TestSessionInfoAndExit(t *testing.T) {
 	}
 	defer c.CloseNow()
 
-	// Idle shell: the foreground process is the shell itself.
-	info, err := sess.info()
+	// Idle shell: the foreground process is the shell itself. The service
+	// answers for its sessions, by ID.
+	svc := &Service{sessions: map[string]*Session{sess.ID: sess}}
+	if _, err := svc.Info("nope"); err == nil {
+		t.Error("info for a session that doesn't exist")
+	}
+	info, err := svc.Info(sess.ID)
 	if err != nil {
 		t.Fatal(err)
 	}

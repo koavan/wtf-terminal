@@ -48,6 +48,15 @@ export function Home(): $CancellablePromise<string> {
     return $Call.ByID(3935032321);
 }
 
+/**
+ * Info is what a session runs and where, right now. The poller only sends
+ * changes, and one sent before the frontend linked the session to its pane
+ * is lost (a slow first launch), so a pane asks once it's linked.
+ */
+export function Info(id: string): $CancellablePromise<$models.Info> {
+    return $Call.ByID(638065582, id);
+}
+
 export function Resize(id: string, cols: number, rows: number): $CancellablePromise<void> {
     return $Call.ByID(1837780578, id, cols, rows);
 }

@@ -210,6 +210,7 @@
       await Service.Adopt(id, thisWindow.name);
       await Service.Resize(id, t.cols, t.rows);
       connect(t, id);
+      syncInfo(id);
       return;
     }
     const id = await Service.Create(thisWindow.name, t.cols, t.rows, pane.initialCwd);
@@ -220,6 +221,15 @@
     sessionId = id;
     tabs.setSession(pane.id, id);
     connect(t, id);
+    syncInfo(id);
+  }
+
+  /** The folder and program now: the backend reports only changes, and one
+   *  sent before this pane knew its session (a slow first launch) was lost. */
+  function syncInfo(id: string) {
+    Service.Info(id)
+      .then((info) => tabs.applyInfo(info))
+      .catch(() => {});
   }
 
   async function connect(t: Terminal, id: string, attempt = 0) {

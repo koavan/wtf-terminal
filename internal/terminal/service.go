@@ -279,6 +279,17 @@ func (s *Service) Close(id string) {
 	}
 }
 
+// Info is what a session runs and where, right now. The poller only sends
+// changes, and one sent before the frontend linked the session to its pane
+// is lost (a slow first launch), so a pane asks once it's linked.
+func (s *Service) Info(id string) (Info, error) {
+	sess := s.get(id)
+	if sess == nil {
+		return Info{}, fmt.Errorf("no session %q", id)
+	}
+	return sess.info()
+}
+
 func (s *Service) get(id string) *Session {
 	s.mu.Lock()
 	defer s.mu.Unlock()
