@@ -4,7 +4,8 @@
   import PausedNote from './PausedNote.svelte';
   import RefreshControls from './RefreshControls.svelte';
   import { prettyPath } from '../lib/backend';
-  import { cdTo, entryMenu, insertPath, pathForShell } from '../lib/fileActions';
+  import { cdTo, entryMenu, insertPath, pathForShell, shellIdle } from '../lib/fileActions';
+  import { toast } from '../lib/toast.svelte';
   import { overlay } from '../lib/overlay.svelte';
   import { settings } from '../lib/settings.svelte';
   import { baseName, parentOf, REMOTE_PROCESSES } from '../lib/shell';
@@ -26,6 +27,33 @@
   $effect(() => {
     if (root) fileTree.load(root);
   });
+
+  /** Whose history Back walks: the pinned root's, or this pane's. */
+  const historyKey = $derived(sidebar.pinned ? 'pinned' : pane ? `pane:${pane.id}` : '');
+  $effect(() => {
+    if (root && historyKey) untrack(() => fileTree.visit(historyKey, root));
+  });
+  const previous = $derived(historyKey ? fileTree.previous(historyKey) : null);
+
+  /**
+   * Shows another folder the way double-click does: pinned, the pin moves;
+   * otherwise the shell cds there (or says it's busy) and the tree follows.
+   */
+  function go(path: string) {
+    if (sidebar.pinned) sidebar.pinned = path;
+    else cdTo(path);
+  }
+
+  function goBack() {
+    if (!previous || remote) return;
+    // Forget the step only when the move can happen.
+    if (sidebar.pinned || shellIdle()) go(fileTree.back(historyKey)!);
+    else toast.show('The shell is busy — finish the running program first');
+  }
+
+  function goUp() {
+    if (root && root !== '/' && !remote) go(parentOf(root));
+  }
 
   // Commands change files (touch, git checkout…), so refresh after each
   // one — unless auto-refresh is off.
@@ -95,6 +123,11 @@
   }
 
   function onKeydown(e: KeyboardEvent) {
+    if (e.key === 'ArrowUp' && e.altKey) {
+      e.preventDefault();
+      goUp();
+      return;
+    }
     const i = entryRows.findIndex((r) => r.entry.path === fileTree.selected);
     const current = entryRows[i]?.entry;
     switch (e.key) {
@@ -124,7 +157,12 @@
         e.preventDefault();
         activeTerminal()?.focus();
         break;
+      case 'Backspace':
+        e.preventDefault();
+        goBack();
+        break;
     }
+
   }
 
   function togglePin() {
@@ -132,8 +170,14 @@
   }
 </script>
 
-<div class="tree">
+<div class="tree" role="presentation" onmouseup={(e) => e.button === 3 && goBack()}>
   <header>
+    <button class="tool" title={previous ? `Back to ${prettyPath(previous)} (⌫)` : 'Back'} aria-label="Back" disabled={!previous || remote} onclick={goBack}>
+      <Icon name="arrowLeft" size={13} />
+    </button>
+    <button class="tool" title={root && root !== '/' ? `Up to ${prettyPath(parentOf(root))} (⌥↑)` : 'Up'} aria-label="Up" disabled={!root || root === '/' || remote} onclick={goUp}>
+      <Icon name="arrowUp" size={13} />
+    </button>
     <span class="root" title={root}>{root ? baseName(prettyPath(root)) || '/' : ''}</span>
     <button
       class="tool"
@@ -232,6 +276,10 @@
     font-weight: 650;
     letter-spacing: 0.02em;
     text-transform: uppercase;
+  }
+  .tool:disabled {
+    opacity: 0.35;
+    pointer-events: none;
   }
   .tool {
     display: grid;

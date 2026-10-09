@@ -209,8 +209,19 @@
         break;
       }
     }
+    if (kind === 'secrets') {
+      entries.push(
+        {
+          label: 'View Decoded Values…',
+          hint: 'double-click',
+          action: () => overlay.show({ kind: 'secretView', name: r.name, context: ct.context, namespace: ct.namespace, env: ct.env }),
+        },
+        { label: 'Decode in Terminal', action: () => run(kc.decodeSecret(ct, r.name)) },
+        'separator',
+      );
+    }
     entries.push({ label: 'Describe', action: () => run(kc.describe(ct, k, r.name)) });
-    // A secret's YAML holds its values: not offered (kubectl can still be asked directly).
+    // A secret's YAML holds its values base64-encoded; the viewer above decodes them.
     if (kind !== 'secrets') entries.push({ label: 'View YAML', action: () => run(kc.yaml(ct, k, r.name)) });
     entries.push('separator', { label: 'Copy Name', action: () => copy(r.name, `${k} name`) });
     overlay.openMenu(e.clientX, e.clientY, entries);
@@ -350,7 +361,14 @@
   {@const rows = (kube.tables[kind].items ?? []).filter((r) => match(`${r.name} ${Object.values(r.cells).join(' ')}`))}
   {#each rows as r (r.name)}
     {@const tone = rowTone(kind, r)}
-    <div class="row" role="listitem" title={rowTooltip(r)} oncontextmenu={(e) => rowMenu(e, kind, r)}>
+    <div
+      class="row"
+      role="listitem"
+      title={rowTooltip(r)}
+      oncontextmenu={(e) => rowMenu(e, kind, r)}
+      ondblclick={() => kind === 'secrets' && kube.commandTarget &&
+        overlay.show({ kind: 'secretView', name: r.name, ...kube.commandTarget })}
+    >
       <span class="dot {tone ?? 'none'}"></span>
       <span class="main">
         <span class="name">{r.name}</span>

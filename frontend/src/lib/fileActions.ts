@@ -22,7 +22,7 @@ export function insertPath(path: string) {
 }
 
 /** Whether the focused pane's shell is sitting at its prompt. */
-function shellIdle(): boolean {
+export function shellIdle(): boolean {
   const pane = tabs.activePane;
   return !!pane && pane.isShell && !pane.running;
 }

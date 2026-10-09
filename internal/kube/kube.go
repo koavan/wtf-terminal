@@ -14,6 +14,7 @@ package kube
 import (
 	"bytes"
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -24,6 +25,7 @@ import (
 	"sort"
 	"strings"
 	"time"
+	"unicode/utf8"
 
 	"github.com/wailsapp/wails/v3/pkg/application"
 )
@@ -751,4 +753,51 @@ func lastLine(s, fallback string) string {
 		line = line[:300] + "…"
 	}
 	return line
+}
+
+// ── Secret values ────────────────────────────────────────────────────────
+
+// SecretEntry is one key of a secret, decoded.
+type SecretEntry struct {
+	Key string `json:"key"`
+	// The decoded value, when it's text; for binary data, its base64.
+	Value  string `json:"value"`
+	Binary bool   `json:"binary"`
+	Size   int    `json:"size"`
+}
+
+// SecretValues reads one secret and decodes its values — only when the
+// user asks to see that secret. Nothing is kept: the values go to the
+// dialog that asked, and nowhere else.
+func (s *Service) SecretValues(r Request, name string) ([]SecretEntry, error) {
+	if name == "" || validName("secret", name) != nil {
+		return nil, fmt.Errorf("%q isn't a secret name", name)
+	}
+	out, err := s.get(r, "secret/"+name)
+	if err != nil {
+		return nil, err
+	}
+	var sec struct {
+		Data map[string]string `json:"data"`
+	}
+	if err := json.Unmarshal(out, &sec); err != nil {
+		return nil, fmt.Errorf("couldn't read the secret: %v", err)
+	}
+	entries := []SecretEntry{}
+	for k, v := range sec.Data {
+		raw, err := base64.StdEncoding.DecodeString(v)
+		if err != nil {
+			entries = append(entries, SecretEntry{Key: k, Value: v, Binary: true, Size: len(v)})
+			continue
+		}
+		e := SecretEntry{Key: k, Size: len(raw)}
+		if utf8.Valid(raw) && !bytes.ContainsRune(raw, 0) {
+			e.Value = string(raw)
+		} else {
+			e.Value, e.Binary = v, true
+		}
+		entries = append(entries, e)
+	}
+	sort.Slice(entries, func(i, j int) bool { return entries[i].Key < entries[j].Key })
+	return entries, nil
 }

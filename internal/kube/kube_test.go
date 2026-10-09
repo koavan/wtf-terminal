@@ -305,3 +305,42 @@ func TestTableKinds(t *testing.T) {
 		t.Error("refused requests must not run kubectl")
 	}
 }
+
+func TestSecretValues(t *testing.T) {
+	f := &fakeKubectl{answers: map[string]string{
+		"get secret/db": `{"kind":"Secret","type":"Opaque","data":{"password":"aHVudGVyMg==","url":"cG9zdGdyZXM6Ly91QGRiOjU0MzIvYXBw","keystore":"AAECA/8=","note":"bGluZSAxCmxpbmUgMg=="}}`,
+	}}
+	dir := f.install(t)
+	s := &Service{home: "/home/me"}
+
+	got, err := s.SecretValues(resolved(dir), "db")
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := []SecretEntry{
+		{Key: "keystore", Value: "AAECA/8=", Binary: true, Size: 5},
+		{Key: "note", Value: "line 1\nline 2", Size: 13},
+		{Key: "password", Value: "hunter2", Size: 7},
+		{Key: "url", Value: "postgres://u@db:5432/app", Size: 24},
+	}
+	if len(got) != len(want) {
+		t.Fatalf("got %+v", got)
+	}
+	for i := range want {
+		if got[i] != want[i] {
+			t.Errorf("entry %d = %+v, want %+v", i, got[i], want[i])
+		}
+	}
+	c := f.calls[0]
+	if strings.Join(c[:2], " ") != "get secret/db" || c[slices.Index(c, "--namespace")+1] != "shop" || c[slices.Index(c, "-o")+1] != "json" {
+		t.Errorf("call %v", c)
+	}
+	for _, bad := range []string{"", "-o", "a b", "db --all-namespaces"} {
+		if _, err := s.SecretValues(resolved(dir), bad); err == nil {
+			t.Errorf("%q should be refused", bad)
+		}
+	}
+	if len(f.calls) != 1 {
+		t.Errorf("refused names must not run kubectl: %v", f.calls)
+	}
+}

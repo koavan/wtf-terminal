@@ -10,7 +10,7 @@ vi.mock('@wailsio/runtime', async (original) => ({
   Browser: { OpenURL: vi.fn() },
 }));
 vi.mock('../../bindings/github.com/dayanraj/wtf/internal/kube', () => ({
-  Service: { Target: vi.fn(), Deployments: vi.fn(), Pods: vi.fn(), Events: vi.fn(), Namespaces: vi.fn(), Table: vi.fn() },
+  Service: { Target: vi.fn(), Deployments: vi.fn(), Pods: vi.fn(), Events: vi.fn(), Namespaces: vi.fn(), Table: vi.fn(), SecretValues: vi.fn() },
 }));
 vi.mock('../../bindings/github.com/dayanraj/wtf/internal/config', () => ({ Service: { SetSidebarAutoRefresh: vi.fn() } }));
 window.matchMedia ??= ((q: string) => ({ matches: false, media: q, addEventListener() {}, removeEventListener() {} })) as never;
@@ -265,13 +265,47 @@ describe('KubeView', () => {
     view.getByText('Opaque · 2 · 40d');
   });
 
-  it('never offers a secret’s YAML, which holds its values', async () => {
+  it('reads a secret’s values only when asked, masked until revealed', async () => {
+    vi.mocked(Service.SecretValues).mockResolvedValue([
+      { key: 'password', value: 'hunter2', binary: false, size: 7 },
+      { key: 'keystore', value: 'AAECA/8=', binary: true, size: 5 },
+    ]);
+    const { Clipboard } = await import('@wailsio/runtime');
+    const view = await show([]);
+    await fireEvent.click(view.getByTitle(/^Show Secrets/));
+    expect(view.getByTitle(/^Collapse Secrets/).title).toMatch(/values are read only when you open that secret/);
+    await fireEvent.contextMenu(await view.findByText('db-password'));
+    expect(Service.SecretValues).not.toHaveBeenCalled();
+    expect(menuLabels()).not.toContain('View YAML');
+    pick('View Decoded Values…');
+
+    await view.findByText('password');
+    expect(Service.SecretValues).toHaveBeenCalledWith({ env: ENV, context: 'prod', namespace: 'shop' }, 'db-password');
+    expect(view.queryByText('hunter2')).toBeNull();
+    view.getByText('binary · 5 B');
+
+    await fireEvent.click(view.getByLabelText('Reveal password'));
+    view.getByText('hunter2');
+    await fireEvent.click(view.getByLabelText('Copy keystore'));
+    expect(Clipboard.SetText).toHaveBeenCalledWith('AAECA/8=');
+
+    // Losing focus (switching to a screen share) masks everything again.
+    window.dispatchEvent(new Event('blur'));
+    await waitFor(() => expect(view.queryByText('hunter2')).toBeNull());
+    await fireEvent.click(view.getByText('Reveal All'));
+    view.getByText('hunter2');
+    view.getByText('AAECA/8=');
+  });
+
+  it('decodes a secret in a terminal with kubectl’s own template', async () => {
     const view = await show([]);
     await fireEvent.click(view.getByTitle(/^Show Secrets/));
     await fireEvent.contextMenu(await view.findByText('db-password'));
-    expect(menuLabels()).toContain('Describe');
-    expect(menuLabels()).not.toContain('View YAML');
-    expect(view.getByTitle(/^Collapse Secrets/).title).toMatch(/secret values are never read/);
+    pick('Decode in Terminal');
+    expect(commands().at(-1)).toBe(
+      `KUBECONFIG='/work/kube config' AWS_PROFILE=devops kubectl --context prod -n shop get secret db-password -o 'go-template={{range $k, $v := .data}}{{$k}}={{$v | base64decode}}{{"\\n"}}{{end}}'`,
+    );
+    expect(Service.SecretValues).not.toHaveBeenCalled();
   });
 
   it('runs a CronJob only after confirming', async () => {

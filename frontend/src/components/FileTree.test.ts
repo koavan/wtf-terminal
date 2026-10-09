@@ -58,6 +58,7 @@ beforeEach(() => {
   fileTree.folders.clear();
   fileTree.expanded.clear();
   fileTree.selected = null;
+  fileTree.history.clear();
   sidebar.pinned = null;
   vi.clearAllMocks();
 });
@@ -144,6 +145,61 @@ describe('FileTree', () => {
     expect(fileTree.selected).toBe('/w/proj/src/main.go');
     await fireEvent.keyDown(tree, { key: 'Enter' });
     expect(term.paste).toHaveBeenCalledWith('src/main.go ');
+  });
+});
+
+describe('back and up', () => {
+  const moveTo = async (cwd: string) => {
+    tabs.activePane!.cwd = cwd;
+    await waitFor(() => expect(fileTree.history.get(`pane:${tabs.activePane!.id}`)?.at(-1)).toBe(cwd));
+  };
+
+  it('goes up by cd-ing the shell, which the tree follows', async () => {
+    const view = render(FileTree);
+    await view.findByText('src');
+    await fireEvent.click(view.getByLabelText('Up'));
+    expect(term.type).toHaveBeenLastCalledWith('\x15cd /w\r');
+  });
+
+  it('goes back to the folder shown before, per pane', async () => {
+    const view = render(FileTree);
+    await view.findByText('src');
+    expect((view.getByLabelText('Back') as HTMLButtonElement).disabled).toBe(true);
+    await moveTo('/w/proj/src');
+    await waitFor(() => expect((view.getByLabelText('Back') as HTMLButtonElement).disabled).toBe(false));
+    expect(view.getByLabelText('Back').title).toBe('Back to /w/proj (⌫)');
+    await fireEvent.click(view.getByLabelText('Back'));
+    expect(term.type).toHaveBeenLastCalledWith('\x15cd /w/proj\r');
+    await moveTo('/w/proj');
+    // Back used up its step: no ping-pong between the two folders.
+    expect(fileTree.history.get(`pane:${tabs.activePane!.id}`)).toEqual(['/w/proj']);
+    await waitFor(() => expect((view.getByLabelText('Back') as HTMLButtonElement).disabled).toBe(true));
+  });
+
+  it('keeps the step when the shell is busy', async () => {
+    const view = render(FileTree);
+    await view.findByText('src');
+    await moveTo('/w/proj/src');
+    tabs.activePane!.running = true;
+    term.type.mockClear();
+    await fireEvent.click(view.getByLabelText('Back'));
+    expect(term.type).not.toHaveBeenCalled();
+    expect(fileTree.history.get(`pane:${tabs.activePane!.id}`)).toEqual(['/w/proj', '/w/proj/src']);
+    tabs.activePane!.running = false;
+  });
+
+  it('moves a pinned tree without touching the shell, with keys too', async () => {
+    sidebar.pinned = '/w/proj/src';
+    const view = render(FileTree);
+    await view.findByText('main.go');
+    const tree = view.container.querySelector('.rows') as HTMLElement;
+    await fireEvent.keyDown(tree, { key: 'ArrowUp', altKey: true });
+    expect(sidebar.pinned).toBe('/w/proj');
+    await view.findByText('src');
+    await fireEvent.keyDown(view.container.querySelector('.rows') as HTMLElement, { key: 'Backspace' });
+    expect(sidebar.pinned).toBe('/w/proj/src');
+    expect(term.type).not.toHaveBeenCalledWith(expect.stringContaining('cd '));
+    sidebar.pinned = null;
   });
 });
 

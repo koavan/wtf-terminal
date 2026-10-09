@@ -207,6 +207,20 @@ export interface Request {
 }
 
 /**
+ * SecretEntry is one key of a secret, decoded.
+ */
+export interface SecretEntry {
+    "key": string;
+
+    /**
+     * The decoded value, when it's text; for binary data, its base64.
+     */
+    "value": string;
+    "binary": boolean;
+    "size": number;
+}
+
+/**
  * Table is a resource list as kubectl prints it: its columns (NAME, TYPE,
  * AGE…) and one row of cells per resource.
  */

@@ -66,6 +66,9 @@ export const commands = {
   rolloutHistory: (t: Target, kind: string, name: string) => kubectl(t, 'rollout history', q(`${kind}/${name}`)),
   restart: (t: Target, kind: string, name: string) => kubectl(t, 'rollout restart', q(`${kind}/${name}`)),
   scale: (t: Target, kind: string, name: string, replicas: number) => kubectl(t, 'scale', q(`${kind}/${name}`), `--replicas=${replicas}`),
+  /** A secret's values, decoded by kubectl's own template (no jq needed): "key=value" per line. */
+  decodeSecret: (t: Target, name: string) =>
+    kubectl(t, 'get secret', q(name), '-o', q('go-template={{range $k, $v := .data}}{{$k}}={{$v | base64decode}}{{"\\n"}}{{end}}')),
   /** A one-off run of a CronJob, named so it's clearly manual. */
   triggerCronJob: (t: Target, name: string, now = Date.now()) =>
     kubectl(t, 'create job', `--from=${q(`cronjob/${name}`)}`, q(`${name.slice(0, 40)}-manual-${now.toString(36)}`)),
@@ -133,7 +136,7 @@ export const TABLE_KINDS: Record<TableKind, TableKindInfo> = {
   configmaps: { id: 'configmaps', label: 'ConfigMaps', kind: 'configmap', summary: ['DATA'] },
   secrets: {
     id: 'secrets', label: 'Secrets', kind: 'secret', summary: ['TYPE', 'DATA'],
-    note: 'Names, types and key counts only: secret values are never read into wtf',
+    note: 'Listed by name, type and key count; a secret’s values are read only when you open that secret',
   },
   pvcs: { id: 'pvcs', label: 'PersistentVolumeClaims', kind: 'pvc', summary: ['STATUS', 'CAPACITY', 'STORAGECLASS'] },
   hpas: { id: 'hpas', label: 'HorizontalPodAutoscalers', kind: 'hpa', summary: ['REFERENCE', 'TARGETS', 'REPLICAS'] },

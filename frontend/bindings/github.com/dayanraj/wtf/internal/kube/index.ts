@@ -16,6 +16,7 @@ export type {
     Op,
     Pod,
     Request,
+    SecretEntry,
     Table,
     Target
 } from "./models.js";

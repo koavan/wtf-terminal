@@ -101,7 +101,12 @@ export interface Folder {
 }
 
 /** Folder listings and which folders are expanded. Folders load on demand. */
+/** Folders a tree went through, per pane (or for the pinned root), for Back. */
+const MAX_HISTORY = 50;
+
 class FileTree {
+  /** Visited roots by key, the current one last. */
+  history = new SvelteMap<string, string[]>();
   folders = new SvelteMap<string, Folder>();
   expanded = new SvelteSet<string>();
   /** The row with keyboard selection. */
@@ -143,6 +148,29 @@ class FileTree {
 
   collapseAll() {
     this.expanded.clear();
+  }
+
+  /** Records that the tree now shows `root` (however it got there). */
+  visit(key: string, root: string) {
+    const h = this.history.get(key) ?? [];
+    if (h.at(-1) === root) return;
+    this.history.set(key, [...h, root].slice(-MAX_HISTORY));
+  }
+
+  /** The folder Back goes to, if any. */
+  previous(key: string): string | null {
+    const h = this.history.get(key) ?? [];
+    return h.length > 1 ? h[h.length - 2] : null;
+  }
+
+  /**
+   * Steps back: forgets the current root and returns the one before. The
+   * caller then shows it, and visit() finds it already last.
+   */
+  back(key: string): string | null {
+    const prev = this.previous(key);
+    if (prev) this.history.set(key, (this.history.get(key) ?? []).slice(0, -1));
+    return prev;
   }
 }
 

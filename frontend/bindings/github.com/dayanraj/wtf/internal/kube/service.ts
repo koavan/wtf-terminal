@@ -89,6 +89,15 @@ export function Pods(r: $models.Request, selector: { [_ in string]?: string } | 
 }
 
 /**
+ * SecretValues reads one secret and decodes its values — only when the
+ * user asks to see that secret. Nothing is kept: the values go to the
+ * dialog that asked, and nowhere else.
+ */
+export function SecretValues(r: $models.Request, name: string): $CancellablePromise<$models.SecretEntry[] | null> {
+    return $Call.ByID(2712441679, r, name);
+}
+
+/**
  * ShellConfig writes a per-shell file for a context and returns the
  * command that points a shell at it:
  * export KUBECONFIG='<that file>:<the shell's files>' — or, for a context

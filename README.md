@@ -80,8 +80,11 @@ goes back to the automatic one (folder or program). Right-click a tab or a group
 ⌘B (or the button next to the traffic lights) toggles a side pane with a file
 tree of the focused pane's folder — pin it to keep a folder. Click a file to
 insert its path at the prompt, double-click a folder to `cd` there (when the
-shell is idle), drag a file into a terminal to paste its path, and right-click
-for more (open in `$EDITOR` in a split, reveal in Finder, copy path…). Folders
+shell is idle), and use ← (Back, or ⌫ in the tree, or the mouse's back
+button) and ↑ (Up, or ⌥↑) to return to the folder shown before — each pane
+keeps its own history — or go to the parent. Like double-click, they `cd` the
+shell, or move the pinned folder when the tree is pinned. Drag a file into a
+terminal to paste its path, and right-click for more (open in `$EDITOR` in a split, reveal in Finder, copy path…). Folders
 load on demand, git-ignored files are dimmed, and the tree refreshes after
 each command.
 
@@ -192,9 +195,13 @@ namespace without changing the shell. Pods show kubectl's STATUS, readiness,
 restarts (with why the last run ended) and age; click a deployment to fetch
 only its pods (by its label selector). Kinds other than deployments, pods
 and events are listed the way `kubectl get` prints them (the cluster works
-out the columns), which keeps answers small — and for Secrets means names,
-types and key counts only: their values are never read into wtf, and the
-menu offers Describe (key names and sizes) but not View YAML.
+out the columns), which keeps answers small — Secrets are listed by name, type and key
+count. A secret's values are read only when you ask: **View Decoded
+Values…** (or double-click) opens that one secret with each key masked
+until you reveal it, a copy button per key (base64 for binary data), and
+everything masked again when wtf loses focus; the values live only in that
+dialog. **Decode in Terminal** prints them in a new tab instead, with
+kubectl's own `base64decode` template.
 
 Everything else is a real kubectl command run in a new tab — with the
 shell's `KUBECONFIG` and AWS profile and an explicit `--context` and `-n`,
