@@ -4,6 +4,7 @@ import {
   clampRatio, findPane, leaves, neighbor, place, removePane, splitPane,
   type Direction, type LayoutNode, type Pane, type SplitDir,
 } from './layout';
+import { redaction } from './redaction.svelte';
 
 export type { Pane } from './layout';
 
@@ -751,7 +752,7 @@ export function paneTitle(pane: Pane, pretty: (p: string) => string): string {
   if (!pane.isShell && pane.process) {
     // "ssh web1" says more than "ssh" when the remote doesn't set a title.
     const ssh = pane.process === 'ssh' && pane.running && pane.command.startsWith('ssh ') ? pane.command : '';
-    return pane.oscTitle || ssh || pane.process;
+    return redaction.text(pane.oscTitle || ssh || pane.process);
   }
   const path = pretty(pane.cwd);
   if (!path) return 'Terminal';

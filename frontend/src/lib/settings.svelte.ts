@@ -5,6 +5,7 @@ import {
   type Resolved,
   type Theme,
 } from '../../bindings/github.com/dayanraj/wtf/internal/config';
+import { redaction } from './redaction.svelte';
 import { toast } from './toast.svelte';
 
 export type { Theme } from '../../bindings/github.com/dayanraj/wtf/internal/config';
@@ -42,6 +43,8 @@ class Settings {
 
   #apply(r: Resolved, initial: boolean) {
     const sizeChanged = !initial && r.config.fontSize !== this.config.fontSize;
+    // Hide Secrets follows the setting when it's changed; the toggle overrides it until then.
+    if (initial || r.config.redactSecrets !== this.config.redactSecrets) redaction.on = r.config.redactSecrets;
     this.config = r.config;
     this.#dark = r.dark;
     this.#light = r.light;

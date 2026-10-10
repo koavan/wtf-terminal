@@ -190,6 +190,13 @@ button:focus-visible {
   opacity: 0.8;
 }
 
+/* A secret covered while Hide Secrets is on; the cells under it are drawn in one solid color. */
+.secret-cover {
+  pointer-events: none;
+  border-radius: 2px;
+  background: repeating-linear-gradient(135deg, transparent 0 3px, rgba(0, 0, 0, 0.14) 3px 6px);
+}
+
 /* The command a menu is about, while the menu is open. */
 .cmd-block-highlight {
   pointer-events: none;

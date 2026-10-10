@@ -183,6 +183,7 @@ func buildMenu(windows *wtfwindows.Manager) *application.Menu {
 	cmd(view, "Show Kubernetes", "CmdOrCtrl+shift+k", "sidebar.kube")
 	cmd(view, "Show Snippets", "CmdOrCtrl+shift+y", "sidebar.snippets")
 	cmd(view, "Show Workspaces", "CmdOrCtrl+shift+l", "sidebar.workspaces")
+	cmd(view, "Hide Secrets", "CmdOrCtrl+OptionOrAlt+r", "secrets.toggle")
 	view.AddSeparator()
 	cmd(view, "Previous Prompt", "CmdOrCtrl+up", "prompt.prev")
 	cmd(view, "Next Prompt", "CmdOrCtrl+down", "prompt.next")

@@ -5,6 +5,7 @@
   import { history, type HistoryEntry } from '../lib/history.svelte';
   import { leaves } from '../lib/layout';
   import { overlay, type MenuEntry } from '../lib/overlay.svelte';
+  import { redaction } from '../lib/redaction.svelte';
   import { sidebar } from '../lib/sidebar.svelte';
   import { CLEAR_HISTORY_KEYS } from '../lib/shell';
   import { type Pane, paneTitle, tabs, tabTitle } from '../lib/tabs.svelte';
@@ -72,7 +73,7 @@
       { label: 'Insert at Prompt', hint: 'click', action: () => insert(e) },
       { label: 'Show in Terminal', action: () => reveal(e) },
       'separator',
-      { label: 'Copy Command', action: () => Clipboard.SetText(e.command).then(() => toast.show('Copied command')) },
+      { label: 'Copy Command', action: () => Clipboard.SetText(redaction.text(e.command)).then(() => toast.show('Copied command')) },
       { label: 'Copy Folder', action: () => Clipboard.SetText(e.cwd).then(() => toast.show('Copied folder')) },
       'separator',
       { label: 'Save as Snippet…', action: () => overlay.show({ kind: 'snippetEdit', snippet: null, command: e.command }) },
@@ -148,7 +149,7 @@
       <div
         class="row"
         role="button"
-        title="{e.command}&#10;in {prettyPath(e.cwd)}&#10;started {time(e.startedAt)}"
+        title="{redaction.text(e.command)}&#10;in {prettyPath(e.cwd)}&#10;started {time(e.startedAt)}"
         onclick={(ev) => ev.detail === 1 && insert(e)}
         ondblclick={() => runAgain(e)}
         oncontextmenu={(ev) => menu(ev, e)}
@@ -159,7 +160,7 @@
           {#if s === 'running'}<span class="pulse"></span>{:else}<Icon name={s === 'ok' ? 'check' : 'x'} size={11} stroke={2.6} />{/if}
         </span>
         <span class="main">
-          <span class="cmd">{e.command}</span>
+          <span class="cmd">{redaction.text(e.command)}</span>
           <span class="sub">
             {#if e.finishedAt !== null}
               <span>{time(e.finishedAt)}</span>

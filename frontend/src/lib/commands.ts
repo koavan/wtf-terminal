@@ -7,6 +7,7 @@ import { captureWindow } from './workspaces.svelte';
 import { closeActivePane, closeTab, closeWindow } from './closing';
 import { overlay } from './overlay.svelte';
 import { isMac } from './platform';
+import { redaction } from './redaction.svelte';
 import { search } from './search.svelte';
 import { settings } from './settings.svelte';
 import { sidebar } from './sidebar.svelte';
@@ -124,6 +125,13 @@ export const commands: Command[] = [
   { id: 'prompt.prev', label: 'Jump to Previous Prompt', mac: '⌘↑', other: 'Ctrl+Shift+↑', run: () => activeTerminal()?.jumpPrompt(-1), available: integrated },
   { id: 'prompt.next', label: 'Jump to Next Prompt', mac: '⌘↓', other: 'Ctrl+Shift+↓', run: () => activeTerminal()?.jumpPrompt(1), available: integrated },
   {
+    id: 'secrets.toggle', label: 'Hide Secrets (toggle)', mac: '⌥⌘R', other: 'Ctrl+Shift+Alt+X',
+    run: () => {
+      redaction.on = !redaction.on;
+      toast.show(redaction.on ? 'Secrets hidden — on screen and when copied' : 'Secrets shown');
+    },
+  },
+  {
     id: 'term.pinOutput', label: 'Pin Last Command Output', available: integrated,
     run: () => {
       if (!activeTerminal()?.pinLastOutput()) toast.show('No finished command to pin yet');
@@ -204,6 +212,7 @@ function shortcutFor(e: KeyboardEvent): string | null {
   if (e.ctrlKey && e.shiftKey && e.altKey && e.code === 'KeyA') return 'sidebar.processes';
   if (e.ctrlKey && e.shiftKey && e.altKey && e.code === 'KeyH') return 'sidebar.history';
   if (e.ctrlKey && e.shiftKey && e.altKey && e.code === 'KeyI') return 'sidebar.pins';
+  if (e.ctrlKey && e.shiftKey && e.altKey && e.code === 'KeyX') return 'secrets.toggle';
   if (e.ctrlKey && e.shiftKey && e.altKey && e.code === 'KeyS') return 'sidebar.ssh';
   if (e.ctrlKey && e.shiftKey && e.altKey && e.code === 'KeyU') return 'sidebar.aws';
   if (e.ctrlKey && e.shiftKey && e.altKey && e.code === 'KeyK') return 'sidebar.kube';

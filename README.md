@@ -400,6 +400,18 @@ namespace (secrets open the masked viewer instead); a `file:line` that exists
 on this machine opens in `$EDITOR +line`. Right-click a line holding JSON for
 **Pretty-print JSON**. Turn colors off with `log-highlighting = false`.
 
+## Hide Secrets
+
+For screen sharing: ⌥⌘R (View → Hide Secrets; Ctrl+Shift+Alt+X on Linux)
+covers access keys, tokens, JWTs, passwords in URLs and in `password=` /
+`token:`-style settings, base64 data in YAML, and private keys wherever they
+appear in a terminal — from the first frame, through selections and full-screen
+programs — and copies get `[REDACTED]` in their place. The address bar's
+command, tab titles, History, pins, the tab overview and notifications are
+redacted too; the output itself is untouched. A "Secrets hidden" label shows
+while it's on. Best effort: it can miss a secret it doesn't recognize.
+`redact-secrets = true` turns it on at startup.
+
 ## Context badges
 
 With shell integration, the address bar shows what the focused shell is pointed

@@ -7,6 +7,7 @@
   import { broadcast } from '../lib/broadcast.svelte';
   import { closeTab, closeTabs } from '../lib/closing';
   import { overlay, type MenuEntry } from '../lib/overlay.svelte';
+  import { redaction } from '../lib/redaction.svelte';
   import { renaming, startRename } from '../lib/rename.svelte';
   import { activeTerminal } from '../lib/terminals';
   import { isMac } from '../lib/platform';
@@ -307,7 +308,7 @@
           role="tab"
           tabindex="-1"
           aria-selected={tab.id === tabs.activeId}
-          title={pane.oscTitle || prettyPath(pane.cwd)}
+          title={redaction.text(pane.oscTitle) || prettyPath(pane.cwd)}
           onpointerdown={(e) => onPointerDown(e, tab)}
           onpointermove={onPointerMove}
           onpointerup={endDrag}
@@ -324,6 +325,7 @@
           {#if broadcast.on && broadcast.scope(tab).length}
             <span class="broadcast" title="Input to this tab is broadcast"><Icon name="radio" size={11} stroke={2.2} /></span>
           {/if}
+
           {#if renaming.tabId === tab.id}
             <input
               class="rename"

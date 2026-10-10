@@ -115,8 +115,9 @@ and key age, rotate access keys with rollback. See README.
 - ☑ **Pin output:** the Pinned side-pane tab (⌘⇧I): Pin Output from a command's
   menu, Pin Selection, Pin Last Command Output; running commands' pins follow
   them; in memory only.
-- ☐ **Secret redaction:** mask AWS keys, tokens, JWTs on screen and on copy — for
-  screen-sharing during incidents.
+- ☑ **Secret redaction:** Hide Secrets (⌥⌘R): covers AWS keys, tokens, JWTs,
+  passwords and private keys on screen (before the frame is drawn) and redacts
+  them on copy and in the window's other text; `redact-secrets`.
 - ☐ **Session recording:** export a tab as asciinema/text for postmortems.
 - ☐ **Git status in the file tree** (previously deferred).
 

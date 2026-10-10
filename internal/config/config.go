@@ -35,6 +35,7 @@ type Config struct {
 	ContextBadges bool `toml:"context-badges" json:"contextBadges"`
 
 	LogHighlighting bool `toml:"log-highlighting" json:"logHighlighting"`
+	RedactSecrets   bool `toml:"redact-secrets" json:"redactSecrets"`
 }
 
 func Defaults() Config {
@@ -120,6 +121,12 @@ const template = `# wtf settings. Changes apply as soon as you save.
 # Kubernetes resources in output — only text the program left uncolored,
 # and never in full-screen programs. ⌘-click (Ctrl-click) works either way.
 # log-highlighting = true
+
+# Start with Hide Secrets on: access keys, tokens, passwords and private keys
+# in output are covered on screen and replaced with [REDACTED] when copied —
+# for sharing your screen. Best effort: it can miss a secret it doesn't
+# recognize. Toggle it any time with ⌥⌘R (Ctrl+Shift+Alt+X).
+# redact-secrets = false
 `
 
 // Dir is $XDG_CONFIG_HOME/wtf, or ~/.config/wtf, on every platform.

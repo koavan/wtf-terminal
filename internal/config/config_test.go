@@ -182,6 +182,16 @@ func TestLogHighlightingDefaultOn(t *testing.T) {
 	}
 }
 
+func TestRedactSecretsDefaultOff(t *testing.T) {
+	cfg, _, _ := Parse("")
+	if cfg.RedactSecrets {
+		t.Error("redact-secrets should be off by default")
+	}
+	if cfg, _, _ = Parse("redact-secrets = true\n"); !cfg.RedactSecrets {
+		t.Error("redact-secrets = true was ignored")
+	}
+}
+
 func TestServiceSetSidebarAutoRefresh(t *testing.T) {
 	s := NewService(t.TempDir())
 	if !s.Current().Config.SidebarAutoRefresh {

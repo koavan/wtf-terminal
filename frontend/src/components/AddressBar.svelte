@@ -2,6 +2,8 @@
   import Icon, { iconForProcess } from './Icon.svelte';
   import { prettyPath } from '../lib/backend';
   import { badges } from '../lib/infra';
+  import { isMac } from '../lib/platform';
+  import { redaction } from '../lib/redaction.svelte';
   import { tabs } from '../lib/tabs.svelte';
   import { formatDuration } from '../lib/toast.svelte';
 
@@ -55,22 +57,34 @@
 
       <!-- What the shell is doing, when shell integration reports it. -->
       {#if pane.running && pane.command}
-        <span class="status running" title={pane.command}>
+        {@const command = redaction.text(pane.command)}
+        <span class="status running" title={command}>
           <span class="pulse"></span>
-          <span class="cmd">{pane.command}</span>
+          <span class="cmd">{command}</span>
         </span>
       {:else if pane.lastCommand}
         {@const last = pane.lastCommand}
         <span
           class="status"
           class:fail={last.exitCode !== 0}
-          title="{last.text} — {last.exitCode === 0 ? 'succeeded' : `exit code ${last.exitCode}`}"
+          title="{redaction.text(last.text)} — {last.exitCode === 0 ? 'succeeded' : `exit code ${last.exitCode}`}"
         >
           <Icon name={last.exitCode === 0 ? 'check' : 'x'} size={11} stroke={2.5} />
           {#if last.exitCode !== 0}<span>exit {last.exitCode}</span>{/if}
           <span class="took">{formatDuration(last.durationMs)}</span>
         </span>
       {/if}
+    {/if}
+    {#if redaction.on}
+      <!-- Always in view while on, so it's never on (or off) by surprise. -->
+      <button
+        class="secrets"
+        title="Secrets in the output are covered, and replaced with [REDACTED] when copied. Click to show them ({isMac ? '⌥⌘R' : 'Ctrl+Shift+Alt+X'})"
+        onclick={() => (redaction.on = false)}
+      >
+        <Icon name="shield" size={12} stroke={2.2} />
+        <span>Secrets hidden</span>
+      </button>
     {/if}
   </div>
 </div>
@@ -96,6 +110,27 @@
     background: var(--omnibox);
     font-size: 12.5px;
     color: var(--text-muted);
+  }
+
+  .secrets {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    flex: none;
+    height: 20px;
+    margin-left: auto;
+    padding: 0 8px 0 7px;
+    border: 0;
+    border-radius: 6px;
+    background: color-mix(in srgb, var(--g-green) 22%, transparent);
+    color: var(--text);
+    font: inherit;
+    font-size: 11.5px;
+    font-weight: 600;
+    white-space: nowrap;
+  }
+  .secrets :global(svg) {
+    color: var(--g-green);
   }
 
   .identity {

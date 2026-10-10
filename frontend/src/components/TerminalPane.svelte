@@ -19,6 +19,8 @@
   import { LogView, logColors, readLogicalLine, tokenAt } from '../lib/logview';
   import { overlay, type MenuEntry } from '../lib/overlay.svelte';
   import { pins } from '../lib/pins.svelte';
+  import { redaction } from '../lib/redaction.svelte';
+  import { SecretMask, coverColor } from '../lib/secretmask';
   import { sidebar } from '../lib/sidebar.svelte';
   import { toast } from '../lib/toast.svelte';
   import { history } from '../lib/history.svelte';
@@ -68,6 +70,8 @@
   let reportedEnv: Record<string, string> | null = null;
   /** Colors and ⌘-click actions for logs (see lib/logview). */
   let logView: LogView | undefined;
+  /** Covers secrets on screen while Hide Secrets is on (see lib/redaction). */
+  let secretMask: SecretMask | undefined;
 
   const encoder = new TextEncoder();
 
@@ -118,6 +122,17 @@
       resolveFile,
       isLinkClick: (e) => (isMac ? e.metaKey : e.ctrlKey),
     });
+    secretMask = new SecretMask(t, coverColor(settings.theme));
+    secretMask.on = redaction.on;
+
+    // ⌘C (the Edit menu's Copy) copies through xterm's own handler; with secrets hidden, copy the redacted text instead.
+    const onCopy = (e: ClipboardEvent) => {
+      if (!redaction.on || !t.hasSelection() || !e.clipboardData) return;
+      e.preventDefault();
+      e.stopImmediatePropagation();
+      e.clipboardData.setData('text/plain', redaction.text(t.getSelection()));
+    };
+    el.addEventListener('copy', onCopy, true);
 
     // ⌘-combos belong to the app menu; don't let xterm swallow them.
     t.attachCustomKeyEventHandler((e) => !(isMac && e.metaKey));
@@ -138,7 +153,7 @@
     });
     t.onTitleChange((title) => tabs.setOscTitle(pane.id, title));
     t.onSelectionChange(() => {
-      if (settings.config.copyOnSelect && t.hasSelection()) Clipboard.SetText(t.getSelection());
+      if (settings.config.copyOnSelect && t.hasSelection()) Clipboard.SetText(redaction.text(t.getSelection()));
     });
     // Clicking into a pane focuses it.
     t.textarea?.addEventListener('focus', () => tabs.focusPane(tabId, pane.id));
@@ -171,12 +186,15 @@
       focus: () => t.focus(),
       clear: () => t.clear(),
       selectAll: () => t.selectAll(),
-      getSelection: () => t.getSelection(),
+      getSelection: () => redaction.text(t.getSelection()),
       paste: (text) => t.paste(text),
       type: (text) => t.input(text),
       sendInput: (bytes) => send(bytes),
       jumpPrompt: (direction) => prompts.jump(direction),
-      lastOutput: () => prompts.lastOutput(),
+      lastOutput: () => {
+        const out = prompts.lastOutput();
+        return out === null ? null : redaction.text(out);
+      },
       blockOutput: (id) => prompts.output(id),
       pinLastOutput: () => {
         const id = prompts.lastFinished();
@@ -193,7 +211,7 @@
         while (end > 0 && !buf.getLine(end - 1)?.translateToString(true).trim()) end--;
         const lines: string[] = [];
         for (let y = Math.max(0, end - rows); y < end; y++) lines.push(buf.getLine(y)?.translateToString(true) ?? '');
-        return lines;
+        return redaction.on ? redaction.text(lines.join('\n')).split('\n') : lines;
       },
     });
 
@@ -214,6 +232,8 @@
       unregister();
       prompts.dispose();
       logView?.dispose();
+      secretMask?.dispose();
+      el.removeEventListener('copy', onCopy, true);
       pins.paneGone(pane.id);
       // The history belongs to this shell; a tab moving windows starts fresh there.
       history.clear(pane.id);
@@ -361,6 +381,7 @@
   }
 
   function copyText(text: string, what: string) {
+    text = redaction.text(text);
     Clipboard.SetText(text).then(() => {
       const lines = text ? text.split('\n').length : 0;
       toast.show(lines > 1 ? `Copied ${what} (${lines} lines)` : `Copied ${what}`);
@@ -381,7 +402,8 @@
     if (info) {
       if (entries.length) entries.push('separator');
       entries.push(
-        ...blockMenu(info, {
+        // The menu's heading shows the command; its actions use it as typed.
+        ...blockMenu({ ...info, text: redaction.text(info.text) }, {
           copyCommand: () => copyText(info.text, 'command'),
           copyOutput: () => copyText(p.output(info.id) ?? '', 'output'),
           copyBoth: () => copyText(commandAndOutput(info.text, p.output(info.id) ?? ''), 'command and output'),
@@ -408,7 +430,7 @@
       if (entries.length) entries.push('separator');
       entries.push(
         ...terminalMenu(t.hasSelection(), {
-          copy: () => Clipboard.SetText(t.getSelection()),
+          copy: () => Clipboard.SetText(redaction.text(t.getSelection())),
           pinSelection: () => pinSelection(t.getSelection()),
           paste: () => Clipboard.Text().then((text) => text && t.paste(text)),
           selectAll: () => t.selectAll(),
@@ -450,7 +472,7 @@
     if (!t || line === null) return [];
     const buf = t.buffer.active;
     const entries: MenuEntry[] = [];
-    const json = findJson(t.hasSelection() ? t.getSelection() : (readLogicalLine(buf, line)?.text ?? ''));
+    const json = findJson(redaction.text(t.hasSelection() ? t.getSelection() : (readLogicalLine(buf, line)?.text ?? '')));
     let token = col === null ? null : (tokenAt(buf, line, col)?.token ?? null);
     // file:line has actions only for a file on this machine.
     if (token?.kind === 'path') {
@@ -576,6 +598,11 @@
     if (!term) return;
     term.options.theme = xtermTheme(settings.theme);
     if (logView) logView.colors = logColors(settings.theme);
+    if (secretMask) secretMask.color = coverColor(settings.theme);
+  });
+
+  $effect(() => {
+    if (secretMask) secretMask.on = redaction.on;
   });
 
   $effect(() => {

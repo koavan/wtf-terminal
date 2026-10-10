@@ -22,6 +22,7 @@ export interface Config {
     "sidebarRefreshInterval": number;
     "contextBadges": boolean;
     "logHighlighting": boolean;
+    "redactSecrets": boolean;
 }
 
 /**

@@ -29,6 +29,7 @@
     { label: 'Command blocks', topic: 'shell-integration' },
     { label: 'Log-friendly output', topic: 'logs' },
     { label: 'Pinned output', topic: 'pins' },
+    { label: 'Hide Secrets', topic: 'secrets' },
     { label: 'SSH', topic: 'ssh-hosts' },
     { label: 'AWS profiles', topic: 'aws' },
     { label: 'Kubernetes', topic: 'kubernetes' },

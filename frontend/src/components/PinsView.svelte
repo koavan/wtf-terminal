@@ -5,6 +5,7 @@
   import { leaves } from '../lib/layout';
   import { overlay, type MenuEntry } from '../lib/overlay.svelte';
   import { pins, type Pin } from '../lib/pins.svelte';
+  import { redaction } from '../lib/redaction.svelte';
   import { tabs, tabTitle } from '../lib/tabs.svelte';
   import { terminalFor } from '../lib/terminals';
   import { formatDuration, toast } from '../lib/toast.svelte';
@@ -38,7 +39,7 @@
   const status = (p: Pin) => (p.blockId === null ? 'selection' : p.running ? 'running' : p.exitCode === 0 ? 'ok' : 'fail');
 
   function copy(p: Pin) {
-    Clipboard.SetText(p.text).then(() => toast.show('Copied pinned output'));
+    Clipboard.SetText(redaction.text(p.text)).then(() => toast.show('Copied pinned output'));
   }
 
   function reveal(p: Pin) {
@@ -56,7 +57,7 @@
     entries.push({ label: 'Copy Output', action: () => copy(p) });
     if (p.blockId !== null) {
       entries.push(
-        { label: 'Copy Command', action: () => Clipboard.SetText(p.title).then(() => toast.show('Copied command')) },
+        { label: 'Copy Command', action: () => Clipboard.SetText(redaction.text(p.title)).then(() => toast.show('Copied command')) },
         { label: 'Save as Snippet…', action: () => overlay.show({ kind: 'snippetEdit', snippet: null, command: p.title }) },
       );
     }
@@ -89,7 +90,7 @@
     {#each pins.list as p (p.id)}
       {@const s = status(p)}
       {@const tab = whereIs(p)}
-      <section class="pin" aria-label="Pinned: {p.title}">
+      <section class="pin" aria-label="Pinned: {redaction.text(p.title)}">
         <div class="head" role="presentation" oncontextmenu={(ev) => menu(ev, p)} ondblclick={() => (p.collapsed = !p.collapsed)}>
           <span class="mark {s}" aria-label={s === 'selection' ? 'selection' : s === 'running' ? 'running' : s === 'ok' ? 'succeeded' : `failed with exit code ${p.exitCode}`}>
             {#if s === 'running'}<span class="pulse"></span>
@@ -97,7 +98,7 @@
             {:else}<Icon name={s === 'ok' ? 'check' : 'x'} size={11} stroke={2.6} />{/if}
           </span>
           <span class="main">
-            <span class="cmd" class:sel={s === 'selection'} title={p.title}>{p.title}</span>
+            <span class="cmd" class:sel={s === 'selection'} title={redaction.text(p.title)}>{redaction.text(p.title)}</span>
             <span class="sub">
               {#if s === 'running'}
                 <span>running · following it</span>
@@ -119,7 +120,7 @@
         {#if !p.collapsed}
           {#if p.truncated}<div class="cut">Showing the last {Math.round(p.text.length / 1000)}k characters</div>{/if}
           {#if p.text}
-            <pre class="out">{p.text}</pre>
+            <pre class="out">{redaction.text(p.text)}</pre>
           {:else}
             <div class="empty">{s === 'running' ? 'No output yet' : 'No output'}</div>
           {/if}

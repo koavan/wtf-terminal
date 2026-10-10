@@ -16,6 +16,7 @@ Settings live in `~/.config/wtf/config.toml` (or `$XDG_CONFIG_HOME/wtf/config.to
 | `unfocused-split-dim` | how much unfocused panes are dimmed |
 | `sidebar-auto-refresh`, `sidebar-refresh-interval` | side pane updates — see [The side pane](#side-pane) |
 | `context-badges` | the address bar's Kubernetes/AWS/gcloud/Terraform badges |
+| `redact-secrets` | start with Hide Secrets on — see [Hide Secrets](#secrets) |
 | `log-highlighting` | colors for log levels, timestamps, URLs, IPs and Kubernetes resources — see [Logs in the output](#logs) |
 
 ## Themes
