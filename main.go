@@ -167,6 +167,7 @@ func buildMenu(windows *wtfwindows.Manager) *application.Menu {
 	cmd(edit, "Find Previous", "CmdOrCtrl+shift+g", "find.prev")
 	edit.AddSeparator()
 	cmd(edit, "Copy Last Command Output", "CmdOrCtrl+OptionOrAlt+c", "term.copyOutput")
+	cmd(edit, "Pin Last Command Output", "", "term.pinOutput")
 	cmd(edit, "Clear Buffer", "CmdOrCtrl+k", "term.clear")
 
 	view := menu.AddSubmenu("View")
@@ -176,6 +177,7 @@ func buildMenu(windows *wtfwindows.Manager) *application.Menu {
 	cmd(view, "Show Network Connections", "CmdOrCtrl+shift+o", "sidebar.network")
 	cmd(view, "Show Processes", "CmdOrCtrl+shift+a", "sidebar.processes")
 	cmd(view, "Show Command History", "CmdOrCtrl+shift+h", "sidebar.history")
+	cmd(view, "Show Pinned Output", "CmdOrCtrl+shift+i", "sidebar.pins")
 	cmd(view, "Show SSH Hosts", "CmdOrCtrl+shift+s", "sidebar.ssh")
 	cmd(view, "Show AWS Profiles", "CmdOrCtrl+shift+u", "sidebar.aws")
 	cmd(view, "Show Kubernetes", "CmdOrCtrl+shift+k", "sidebar.kube")

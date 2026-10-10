@@ -56,7 +56,7 @@ beforeEach(() => {
   registerTerminal(pane.id, {
     focus() {}, clear() {}, selectAll() {}, getSelection: () => '', paste() {}, sendInput() {},
     type: (t) => typed.push(t),
-    jumpPrompt() {}, revealCommand: () => true, lastOutput: () => null, serialize: () => '', snapshot: () => [],
+    jumpPrompt() {}, revealCommand: () => true, lastOutput: () => null, blockOutput: () => null, pinLastOutput: () => false, serialize: () => '', snapshot: () => [],
   });
   vi.clearAllMocks();
   vi.mocked(Service.List).mockResolvedValue(structuredClone(LIST) as never);

@@ -11,6 +11,7 @@ export interface BlockActions {
   copyOutput(): void;
   copyBoth(): void;
   selectOutput(): void;
+  pinOutput(): void;
   runAgain(): void;
   saveSnippet(): void;
 }
@@ -30,6 +31,7 @@ export function blockMenu(b: BlockInfo, a: BlockActions): MenuEntry[] {
     entries.push({ label: 'Copy Output', action: a.copyOutput });
     if (b.text) entries.push({ label: 'Copy Command and Output', action: a.copyBoth });
     entries.push({ label: 'Select Output', action: a.selectOutput });
+    entries.push({ label: b.running ? 'Pin Output (follows it)' : 'Pin Output', action: a.pinOutput });
   }
   if (b.text && !b.running) entries.push('separator', { label: 'Run Again', action: a.runAgain });
   if (b.text) entries.push({ label: 'Save as Snippet…', action: a.saveSnippet });
@@ -38,6 +40,7 @@ export function blockMenu(b: BlockInfo, a: BlockActions): MenuEntry[] {
 
 export interface TerminalActions {
   copy(): void;
+  pinSelection(): void;
   paste(): void;
   selectAll(): void;
   clear(): void;
@@ -47,7 +50,10 @@ export interface TerminalActions {
 export function terminalMenu(hasSelection: boolean, a: TerminalActions): MenuEntry[] {
   const key = (mac: string, other: string) => (isMac ? mac : other);
   const entries: MenuEntry[] = [];
-  if (hasSelection) entries.push({ label: 'Copy', hint: key('⌘C', 'Ctrl+Shift+C'), action: a.copy });
+  if (hasSelection) {
+    entries.push({ label: 'Copy', hint: key('⌘C', 'Ctrl+Shift+C'), action: a.copy });
+    entries.push({ label: 'Pin Selection', action: a.pinSelection });
+  }
   entries.push(
     { label: 'Paste', hint: key('⌘V', 'Ctrl+Shift+V'), action: a.paste },
     { label: 'Select All', hint: key('⌘A', 'Ctrl+Shift+A'), action: a.selectAll },

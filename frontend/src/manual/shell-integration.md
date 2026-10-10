@@ -22,6 +22,7 @@ Click a command's ✓/✗ mark, or right-click in its output. The command's bloc
 - **Copy Output** — everything it printed (soft-wrapped lines joined back together). For a command still running, what it has printed so far.
 - **Copy Command and Output** — both, as they looked: `$ command` followed by the output. Handy for pasting into a ticket or chat.
 - **Select Output** — selects it in the terminal.
+- **Pin Output** — keeps a copy in the side pane's Pinned tab while you work on; a running command's pin follows it. See [Pinned output](#pins).
 - **Run Again** — types it at the prompt and runs it (when the shell is at its prompt), in this pane only.
 - **Save as Snippet…** — keep it, with blanks to fill in next time. See [Snippets and runbooks](#snippets).
 

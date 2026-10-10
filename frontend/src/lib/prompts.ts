@@ -212,8 +212,13 @@ export class PromptTracker implements IDisposable {
 
   /** The output of the most recent finished command, or null. */
   lastOutput(): string | null {
-    const rec = this.#records.findLast((r) => r.output && r.end && !r.output.isDisposed && r.output.line >= 0);
-    return rec ? this.#outputOf(rec) : null;
+    const id = this.lastFinished();
+    return id === null ? null : this.output(id);
+  }
+
+  /** The most recent finished command whose output is still in the scrollback, or null. */
+  lastFinished(): number | null {
+    return this.#records.findLast((r) => r.output && r.end && !r.output.isDisposed && r.output.line >= 0)?.id ?? null;
   }
 
   /** The command whose block holds a buffer line: from its prompt to the next prompt. */

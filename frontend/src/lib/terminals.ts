@@ -17,6 +17,10 @@ export interface TerminalHandle {
   revealCommand(id: number): boolean;
   /** Output of the last finished command, or null. Needs shell integration. */
   lastOutput(): string | null;
+  /** A command's output so far, or null once it has left the scrollback. */
+  blockOutput(id: number): string | null;
+  /** Pins the last finished command's output to the side pane; false if there's none. */
+  pinLastOutput(): boolean;
   /** Scrollback with colors, to carry a tab to another window. */
   serialize(): string;
   /** The last `rows` lines on screen, as plain text (tab overview). */

@@ -24,7 +24,7 @@ const Overlays = (await import('./Overlays.svelte')).default;
 
 const handle = () => ({
   focus: vi.fn(), clear: vi.fn(), selectAll: vi.fn(), getSelection: () => '', paste: vi.fn(), type: vi.fn(), sendInput: vi.fn(),
-  jumpPrompt: vi.fn(), lastOutput: () => null, revealCommand: vi.fn(() => true), serialize: () => '', snapshot: () => [],
+  jumpPrompt: vi.fn(), lastOutput: () => null, blockOutput: () => null, pinLastOutput: () => false, revealCommand: vi.fn(() => true), serialize: () => '', snapshot: () => [],
 });
 let apiTerm: ReturnType<typeof handle>;
 let webTerm: ReturnType<typeof handle>;

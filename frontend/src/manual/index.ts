@@ -13,6 +13,7 @@ import kubeContexts from './kube-contexts.md?raw';
 import kubernetes from './kubernetes.md?raw';
 import logs from './logs.md?raw';
 import network from './network.md?raw';
+import pinsPage from './pins.md?raw';
 import panes from './panes.md?raw';
 import privacy from './privacy.md?raw';
 import processes from './processes.md?raw';
@@ -56,6 +57,7 @@ export const TOPICS: Topic[] = [
   t('Side pane', 'network', 'Network', network),
   t('Side pane', 'processes', 'Processes', processes),
   t('Side pane', 'history', 'History', history),
+  t('Side pane', 'pins', 'Pinned output', pinsPage),
   t('SSH', 'ssh-hosts', 'SSH hosts', sshHosts),
   t('SSH', 'ssh-keys', 'SSH keys and ssh-agent', sshKeys),
   t('SSH', 'ssh-host-keys', 'Host keys (known_hosts)', sshHostKeys),
@@ -82,4 +84,5 @@ export const SIDEBAR_TOPIC: Record<string, string> = {
   network: 'network',
   processes: 'processes',
   history: 'history',
+  pins: 'pins',
 };

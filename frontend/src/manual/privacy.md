@@ -24,6 +24,7 @@ Backups are readable only by you. wtf's cache folder is {{mac:`~/Library/Caches/
 - **SSH**: passphrases and passwords are typed into real ssh-keygen / ssh-add / ssh-copy-id commands in a terminal, never into wtf.
 - **Kubernetes**: tokens and certificates in kubeconfigs are never read out. Secret values are read only when you open one secret, masked until you reveal them, and dropped when the dialog closes.
 - **Context badges**: the shell reports whether AWS keys are exported, never the keys.
+- **Pinned output** stays in memory and is never written to disk.
 
 ## It only talks to servers when you ask
 

@@ -299,6 +299,14 @@ up (Ctrl-X Ctrl-]); nothing is typed into the terminal. History from earlier
 sessions stays, and the history file is never rewritten without it. Busy
 shells are left alone (only their list is cleared).
 
+The **Pinned** tab (⌘⇧I) keeps output in view while you work: **Pin Output**
+from a command's mark or right-click menu (or **Pin Last Command Output** in
+the palette), or **Pin Selection** with text selected. A pin is a copy of the
+text that outlives the scrollback and its tab; a command still running keeps
+its pin up to date (refreshed only while the tab is on screen, and once more
+when it finishes). Copy, collapse, unpin, or right-click for Show in Terminal.
+Pins stay in memory, per window, and are never written to disk.
+
 Nothing in the side pane runs while it's closed, only the visible tab
 updates, and Network/Processes pause while the window is in the background.
 To stop background updates entirely, press ⏸ in any side pane tab (or set

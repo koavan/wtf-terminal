@@ -1,6 +1,7 @@
 <script lang="ts">
   import FileTree from './FileTree.svelte';
   import HistoryView from './HistoryView.svelte';
+  import PinsView from './PinsView.svelte';
   import Icon, { type IconName } from './Icon.svelte';
   import NetworkView from './NetworkView.svelte';
   import ProcessView from './ProcessView.svelte';
@@ -22,6 +23,7 @@
     { id: 'network', label: 'Network', icon: 'network', key: isMac ? '⌘⇧O' : 'Ctrl+Shift+Alt+O' },
     { id: 'processes', label: 'Processes', icon: 'cpu', key: isMac ? '⌘⇧A' : 'Ctrl+Shift+Alt+A' },
     { id: 'history', label: 'History', icon: 'history', key: isMac ? '⌘⇧H' : 'Ctrl+Shift+Alt+H' },
+    { id: 'pins', label: 'Pinned Output', icon: 'pin', key: isMac ? '⌘⇧I' : 'Ctrl+Shift+Alt+I' },
   ];
 
   let resizing = $state(false);
@@ -82,6 +84,8 @@
       <ProcessView />
     {:else if sidebar.tab === 'history'}
       <HistoryView />
+    {:else if sidebar.tab === 'pins'}
+      <PinsView />
     {/if}
   </div>
 

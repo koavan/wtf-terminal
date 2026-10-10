@@ -112,7 +112,9 @@ and key age, rotate access keys with rollback. See README.
   right-click actions for timestamps (local/UTC/relative, copy), IPs (ssh,
   browser), k8s resources (logs/describe/YAML in a new tab), `file:line`
   (editor at line, local files only); "Pretty-print JSON" on a line or selection.
-- ☐ **Pin output:** pin a command's output to a side panel while you keep working.
+- ☑ **Pin output:** the Pinned side-pane tab (⌘⇧I): Pin Output from a command's
+  menu, Pin Selection, Pin Last Command Output; running commands' pins follow
+  them; in memory only.
 - ☐ **Secret redaction:** mask AWS keys, tokens, JWTs on screen and on copy — for
   screen-sharing during incidents.
 - ☐ **Session recording:** export a tab as asciinema/text for postmortems.

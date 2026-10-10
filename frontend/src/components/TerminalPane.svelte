@@ -18,6 +18,8 @@
   import { findJson, type LogToken } from '../lib/logs';
   import { LogView, logColors, readLogicalLine, tokenAt } from '../lib/logview';
   import { overlay, type MenuEntry } from '../lib/overlay.svelte';
+  import { pins } from '../lib/pins.svelte';
+  import { sidebar } from '../lib/sidebar.svelte';
   import { toast } from '../lib/toast.svelte';
   import { history } from '../lib/history.svelte';
   import { parseEnv, resolveContext } from '../lib/infra';
@@ -144,10 +146,14 @@
     const prompts = (tracker = new PromptTracker(t, {
       onPrompt: () => tabs.markIntegrated(pane.id),
       onCommandStart: (text, id) => {
+        runningBlock = id;
         tabs.commandStarted(pane.id, text);
         history.started(pane.id, id, text, pane.cwd);
       },
       onCommandEnd: (exitCode, durationMs) => {
+        // A pin following this command gets its final output.
+        if (runningBlock !== null) pins.update(pane.id, runningBlock, prompts.output(runningBlock) ?? '', { exitCode, durationMs });
+        runningBlock = null;
         history.finished(pane.id, exitCode, durationMs);
         tabs.commandFinished(pane.id, exitCode, durationMs);
         notifyCommandDone(pane, exitCode, durationMs, visible);
@@ -171,6 +177,13 @@
       sendInput: (bytes) => send(bytes),
       jumpPrompt: (direction) => prompts.jump(direction),
       lastOutput: () => prompts.lastOutput(),
+      blockOutput: (id) => prompts.output(id),
+      pinLastOutput: () => {
+        const id = prompts.lastFinished();
+        if (id === null) return false;
+        pinBlock(id);
+        return true;
+      },
       revealCommand: (id) => prompts.reveal(id),
       serialize: () => serializer.serialize({ scrollback: 5000 }),
       snapshot: (rows) => {
@@ -201,6 +214,7 @@
       unregister();
       prompts.dispose();
       logView?.dispose();
+      pins.paneGone(pane.id);
       // The history belongs to this shell; a tab moving windows starts fresh there.
       history.clear(pane.id);
       if (search.paneId === pane.id) search.close();
@@ -293,6 +307,38 @@
 
   /** The command-block tracker, once the terminal exists. */
   let tracker: PromptTracker | undefined;
+  /** The command running now, for a pin that follows it. */
+  let runningBlock: number | null = null;
+
+  /** Pins a command's output to the side pane, and shows it there. */
+  function pinBlock(id: number) {
+    const info = tracker?.info(id);
+    if (!info) return;
+    pins.add({
+      title: info.text || 'Command output',
+      text: tracker?.output(id) ?? '',
+      paneId: pane.id,
+      blockId: id,
+      cwd: pane.cwd,
+      running: info.running,
+      exitCode: info.exitCode,
+      durationMs: info.durationMs,
+    });
+    showPins();
+  }
+
+  function pinSelection(text: string) {
+    if (!text) return;
+    pins.add({ title: 'Selection', text, paneId: pane.id, blockId: null, cwd: pane.cwd, running: false });
+    showPins();
+  }
+
+  /** Brings up the Pinned tab, keeping the keyboard in the terminal. */
+  function showPins() {
+    sidebar.tab = 'pins';
+    sidebar.open = true;
+    term?.focus();
+  }
   /** Undoes the highlight of the block a menu is about. */
   let unhighlight: (() => void) | null = null;
 
@@ -342,6 +388,7 @@
           selectOutput: () => {
             if (!p.selectOutput(info.id)) toast.show('Its output has left the scrollback');
           },
+          pinOutput: () => pinBlock(info.id),
           runAgain: () => {
             if (!pane.isShell || pane.running) {
               toast.show('The shell is busy — finish the running program first');
@@ -362,6 +409,7 @@
       entries.push(
         ...terminalMenu(t.hasSelection(), {
           copy: () => Clipboard.SetText(t.getSelection()),
+          pinSelection: () => pinSelection(t.getSelection()),
           paste: () => Clipboard.Text().then((text) => text && t.paste(text)),
           selectAll: () => t.selectAll(),
           clear: () => t.clear(),

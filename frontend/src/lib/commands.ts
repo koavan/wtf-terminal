@@ -76,6 +76,7 @@ export const commands: Command[] = [
       ),
   },
   { id: 'sidebar.history', label: 'Show Command History', mac: '⌘⇧H', other: 'Ctrl+Shift+Alt+H', run: () => sidebar.show('history') },
+  { id: 'sidebar.pins', label: 'Show Pinned Output', mac: '⌘⇧I', other: 'Ctrl+Shift+Alt+I', run: () => sidebar.show('pins') },
   { id: 'sidebar.ssh', label: 'Show SSH Hosts', mac: '⌘⇧S', other: 'Ctrl+Shift+Alt+S', run: () => sidebar.show('ssh') },
   { id: 'sidebar.aws', label: 'Show AWS Profiles', mac: '⌘⇧U', other: 'Ctrl+Shift+Alt+U', run: () => sidebar.show('aws') },
   { id: 'sidebar.kube', label: 'Show Kubernetes', mac: '⌘⇧K', other: 'Ctrl+Shift+Alt+K', run: () => sidebar.show('kube') },
@@ -122,6 +123,12 @@ export const commands: Command[] = [
   { id: 'find.prev', label: 'Find Previous', mac: '⌘⇧G', run: () => search.step(-1) },
   { id: 'prompt.prev', label: 'Jump to Previous Prompt', mac: '⌘↑', other: 'Ctrl+Shift+↑', run: () => activeTerminal()?.jumpPrompt(-1), available: integrated },
   { id: 'prompt.next', label: 'Jump to Next Prompt', mac: '⌘↓', other: 'Ctrl+Shift+↓', run: () => activeTerminal()?.jumpPrompt(1), available: integrated },
+  {
+    id: 'term.pinOutput', label: 'Pin Last Command Output', available: integrated,
+    run: () => {
+      if (!activeTerminal()?.pinLastOutput()) toast.show('No finished command to pin yet');
+    },
+  },
   { id: 'term.copyOutput', label: 'Copy Last Command Output', mac: '⌥⌘C', other: 'Ctrl+Shift+Alt+C', run: copyLastOutput, available: integrated },
   { id: 'term.clear', label: 'Clear Buffer', mac: '⌘K', other: 'Ctrl+Shift+K', run: () => activeTerminal()?.clear() },
   {
@@ -196,6 +203,7 @@ function shortcutFor(e: KeyboardEvent): string | null {
   if (e.ctrlKey && e.shiftKey && e.altKey && e.code === 'KeyO') return 'sidebar.network';
   if (e.ctrlKey && e.shiftKey && e.altKey && e.code === 'KeyA') return 'sidebar.processes';
   if (e.ctrlKey && e.shiftKey && e.altKey && e.code === 'KeyH') return 'sidebar.history';
+  if (e.ctrlKey && e.shiftKey && e.altKey && e.code === 'KeyI') return 'sidebar.pins';
   if (e.ctrlKey && e.shiftKey && e.altKey && e.code === 'KeyS') return 'sidebar.ssh';
   if (e.ctrlKey && e.shiftKey && e.altKey && e.code === 'KeyU') return 'sidebar.aws';
   if (e.ctrlKey && e.shiftKey && e.altKey && e.code === 'KeyK') return 'sidebar.kube';

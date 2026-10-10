@@ -13,6 +13,7 @@
 | [Network](#network) | {{key:sidebar.network}} | listening ports and connections |
 | [Processes](#processes) | {{key:sidebar.processes}} | what's running in your terminals |
 | [History](#history) | {{key:sidebar.history}} | commands run in a shell |
+| [Pinned output](#pins) | {{key:sidebar.pins}} | output you pinned to keep in view |
 
 Hover an icon for the tab's name and shortcut. Pressing a tab's shortcut again closes the pane. Drag its right edge to resize it; double-click the edge for the default width. The **?** at the bottom of the icons opens this manual at the page for the tab you're on.
 
