@@ -30,6 +30,8 @@ The tab follows the focused shell's context and namespace. Pick another namespac
 
 ## Acting on resources
 
+Resources named in terminal output (`pod/web-1`, `deployment.apps/api`) have the same Logs, Describe and YAML actions: {{mac:⌘-click|other:Ctrl-click}} or right-click them. See [Logs in the output](#logs).
+
 Right-click for actions. They run as real `kubectl` commands in a new tab, carrying the shell's `KUBECONFIG` and AWS profile and naming the context and namespace, so they do exactly what you were looking at:
 
 - **Pods**: **Logs** (double-click; per container, or from before the last restart), **Shell (exec)**, **Describe**, **Port Forward…**.

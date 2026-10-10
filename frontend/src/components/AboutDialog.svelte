@@ -27,6 +27,7 @@
   const FEATURES: { label: string; topic: string }[] = [
     { label: 'Tabs, groups & splits', topic: 'tabs' },
     { label: 'Command blocks', topic: 'shell-integration' },
+    { label: 'Log-friendly output', topic: 'logs' },
     { label: 'SSH', topic: 'ssh-hosts' },
     { label: 'AWS profiles', topic: 'aws' },
     { label: 'Kubernetes', topic: 'kubernetes' },

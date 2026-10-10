@@ -39,8 +39,10 @@ export function cdTo(path: string) {
   term.focus();
 }
 
-export function openInEditor(path: string) {
-  tabs.split('row', { cwd: path.slice(0, path.lastIndexOf('/')) || '/', command: `\${EDITOR:-vi} ${shellQuote(path)}` });
+/** Opens a file in $EDITOR in a new split; at a line with +N, which vi, nano, emacs and micro understand. */
+export function openInEditor(path: string, line?: number) {
+  const at = line ? `+${line} ` : '';
+  tabs.split('row', { cwd: path.slice(0, path.lastIndexOf('/')) || '/', command: `\${EDITOR:-vi} ${at}${shellQuote(path)}` });
 }
 
 function copy(text: string, what: string) {

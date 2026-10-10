@@ -25,7 +25,7 @@ Click a command's ✓/✗ mark, or right-click in its output. The command's bloc
 - **Run Again** — types it at the prompt and runs it (when the shell is at its prompt), in this pane only.
 - **Save as Snippet…** — keep it, with blanks to fill in next time. See [Snippets and runbooks](#snippets).
 
-Right-clicking also offers **Copy** (with a selection), **Paste**, **Select All**, **Find…** and **Clear**. {{cmd:term.copyOutput}} still copies the last command's output from the keyboard.
+Right-clicking a timestamp, address, resource or file:line puts its actions first, and a line holding JSON offers **Pretty-print JSON** — see [Logs in the output](#logs). Right-clicking also offers **Copy** (with a selection), **Paste**, **Select All**, **Find…** and **Clear**. {{cmd:term.copyOutput}} still copies the last command's output from the keyboard.
 
 Output that has scrolled out of the scrollback (`scrollback` in [Settings](#settings)) can't be copied any more; the command itself still can.
 
@@ -34,6 +34,6 @@ Output that has scrolled out of the scrollback (`scrollback` in [Settings](#sett
 - Copy and paste: {{cmd:term.copy}}, {{cmd:term.paste}}. Set `copy-on-select = true` to copy whatever you select.
 - {{cmd:term.selectAll}} selects the whole scrollback.
 - {{cmd:term.clear}} clears the screen and scrollback.
-- {{mac:⌘-click|other:Ctrl-click}} a link to open it in your browser.
+- {{mac:⌘-click|other:Ctrl-click}} a link to open it in your browser. Timestamps, IP addresses, Kubernetes resources and file:line references have actions too — see [Logs in the output](#logs).
 - Text size: {{cmd:font.bigger}}, {{cmd:font.smaller}}, {{cmd:font.reset}}.
 - Drop a file from the Files tab onto a terminal to paste its path.

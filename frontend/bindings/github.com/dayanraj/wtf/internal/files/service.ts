@@ -25,6 +25,16 @@ export function Open(path: string): $CancellablePromise<void> {
 }
 
 /**
+ * ResolveFile turns a file name printed in a terminal (absolute, ~/…, or
+ * relative to the shell's folder) into the absolute path of a regular file
+ * on this machine, or "" when there's no such file — so output from another
+ * host, or a host:port that looks like a file:line, gets no link.
+ */
+export function ResolveFile(dir: string, name: string): $CancellablePromise<string> {
+    return $Call.ByID(4053985517, dir, name);
+}
+
+/**
  * Reveal shows a file in Finder (or the file manager, on Linux).
  */
 export function Reveal(path: string): $CancellablePromise<void> {

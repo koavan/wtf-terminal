@@ -133,3 +133,28 @@ func TestListTruncates(t *testing.T) {
 		t.Fatalf("got %d entries, truncated=%v", len(l.Entries), l.Truncated)
 	}
 }
+
+func TestResolveFile(t *testing.T) {
+	s := NewService()
+	dir := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(dir, "src"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	file := filepath.Join(dir, "src", "main.go")
+	if err := os.WriteFile(file, []byte("package main\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	for _, c := range []struct{ dir, name, want string }{
+		{dir, "src/main.go", file},
+		{dir, "./src/../src/main.go", file},
+		{"/elsewhere", file, file},
+		{dir, "src", ""},            // a folder
+		{dir, "src/missing.go", ""}, // no such file
+		{"", "src/main.go", ""},     // relative with no folder to resolve against
+		{dir, "example.com", ""},    // a host, not a file
+	} {
+		if got := s.ResolveFile(c.dir, c.name); got != c.want {
+			t.Errorf("ResolveFile(%q, %q) = %q, want %q", c.dir, c.name, got, c.want)
+		}
+	}
+}

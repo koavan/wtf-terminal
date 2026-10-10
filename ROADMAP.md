@@ -106,9 +106,12 @@ and key age, rotate access keys with rollback. See README.
 
 ## Tier 3 — polish
 
-- ☐ **Log-friendly rendering:** highlight and make clickable timestamps, levels
-  (ERROR/WARN), IPs, URLs, `file:line`, k8s resource names; "pretty-print JSON"
-  on a selected line.
+- ☑ **Log-friendly rendering:** colors for log levels, timestamps, URLs, IPs
+  and k8s resources (on-screen rows only, after output settles; programs' own
+  colors and full-screen apps untouched; `log-highlighting`); ⌘-click or
+  right-click actions for timestamps (local/UTC/relative, copy), IPs (ssh,
+  browser), k8s resources (logs/describe/YAML in a new tab), `file:line`
+  (editor at line, local files only); "Pretty-print JSON" on a line or selection.
 - ☐ **Pin output:** pin a command's output to a side panel while you keep working.
 - ☐ **Secret redaction:** mask AWS keys, tokens, JWTs on screen and on copy — for
   screen-sharing during incidents.
@@ -117,5 +120,5 @@ and key age, rotate access keys with rollback. See README.
 
 ## Previously deferred (not DevOps-specific)
 
-- Packaging (.app / DMG / AppImage).
+- Packaging: .app / DMG and .deb done (v0.1.0); AppImage not.
 - Dropping a tab onto another window's tab strip (today: "Move to window" menu).

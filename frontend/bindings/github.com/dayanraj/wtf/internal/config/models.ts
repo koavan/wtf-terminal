@@ -21,6 +21,7 @@ export interface Config {
     "sidebarAutoRefresh": boolean;
     "sidebarRefreshInterval": number;
     "contextBadges": boolean;
+    "logHighlighting": boolean;
 }
 
 /**

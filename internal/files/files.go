@@ -166,6 +166,33 @@ func (s *Service) Open(path string) error {
 	return exec.Command("xdg-open", path).Start()
 }
 
+// ResolveFile turns a file name printed in a terminal (absolute, ~/…, or
+// relative to the shell's folder) into the absolute path of a regular file
+// on this machine, or "" when there's no such file — so output from another
+// host, or a host:port that looks like a file:line, gets no link.
+func (s *Service) ResolveFile(dir, name string) string {
+	switch {
+	case name == "":
+		return ""
+	case name == "~" || strings.HasPrefix(name, "~/"):
+		home, err := os.UserHomeDir()
+		if err != nil {
+			return ""
+		}
+		name = filepath.Join(home, name[1:])
+	case !filepath.IsAbs(name):
+		if !filepath.IsAbs(dir) {
+			return ""
+		}
+		name = filepath.Join(dir, name)
+	}
+	name = filepath.Clean(name)
+	if fi, err := os.Stat(name); err != nil || !fi.Mode().IsRegular() {
+		return ""
+	}
+	return name
+}
+
 // Reveal shows a file in Finder (or the file manager, on Linux).
 func (s *Service) Reveal(path string) error {
 	if err := exists(path); err != nil {

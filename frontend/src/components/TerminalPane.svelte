@@ -9,9 +9,14 @@
   import { Unicode11Addon } from '@xterm/addon-unicode11';
   import { Browser, Clipboard, Events } from '@wailsio/runtime';
   import SearchBar from './SearchBar.svelte';
+  import { Service as Files } from '../../bindings/github.com/dayanraj/wtf/internal/files';
   import { Service, endpoint } from '../lib/backend';
   import { blockMenu, commandAndOutput, terminalMenu } from '../lib/blocks';
   import { broadcast, isTerminalReport } from '../lib/broadcast.svelte';
+  import { openInEditor } from '../lib/fileActions';
+  import { tokenMenu } from '../lib/logActions';
+  import { findJson, type LogToken } from '../lib/logs';
+  import { LogView, logColors, readLogicalLine, tokenAt } from '../lib/logview';
   import { overlay, type MenuEntry } from '../lib/overlay.svelte';
   import { toast } from '../lib/toast.svelte';
   import { history } from '../lib/history.svelte';
@@ -59,6 +64,8 @@
   let dropping = $state(false);
   /** Context variables from the shell's last prompt (see lib/infra). */
   let reportedEnv: Record<string, string> | null = null;
+  /** Colors and ⌘-click actions for logs (see lib/logview). */
+  let logView: LogView | undefined;
 
   const encoder = new TextEncoder();
 
@@ -102,6 +109,13 @@
     );
 
     t.open(el);
+
+    logView = new LogView(t, {
+      colors: logColors(settings.theme),
+      onActivate: (token, e) => openTokenMenu(token, e.clientX, e.clientY),
+      resolveFile,
+      isLinkClick: (e) => (isMac ? e.metaKey : e.ctrlKey),
+    });
 
     // ⌘-combos belong to the app menu; don't let xterm swallow them.
     t.attachCustomKeyEventHandler((e) => !(isMac && e.metaKey));
@@ -186,6 +200,7 @@
       resizeObserver.disconnect();
       unregister();
       prompts.dispose();
+      logView?.dispose();
       // The history belongs to this shell; a tab moving windows starts fresh there.
       history.clear(pane.id);
       if (search.paneId === pane.id) search.close();
@@ -311,13 +326,14 @@
    * its mark, or a right-click in its output), then — for a right-click —
    * copy, paste and the rest.
    */
-  function openMenu(x: number, y: number, id: number | null, general: boolean) {
+  function openMenu(x: number, y: number, id: number | null, general: boolean, first: MenuEntry[] = []) {
     const t = term;
     if (!t || !tracker) return;
     const p = tracker;
-    const entries: MenuEntry[] = [];
+    const entries: MenuEntry[] = [...first];
     const info = id !== null ? p.info(id) : null;
     if (info) {
+      if (entries.length) entries.push('separator');
       entries.push(
         ...blockMenu(info, {
           copyCommand: () => copyText(info.text, 'command'),
@@ -359,11 +375,86 @@
     if (entries.length) overlay.openMenu(x, y, entries);
   }
 
-  function onContextMenu(e: MouseEvent) {
+  /** The buffer column under the mouse. */
+  function columnAt(clientX: number): number | null {
+    const screen = el?.querySelector('.xterm-screen');
+    if (!term || !screen) return null;
+    const r = screen.getBoundingClientRect();
+    const col = Math.floor(((clientX - r.left) / r.width) * term.cols);
+    return col < 0 || col >= term.cols ? null : col;
+  }
+
+  async function onContextMenu(e: MouseEvent) {
     e.preventDefault();
     tabs.focusPane(tabId, pane.id);
     const line = lineAt(e.clientY);
-    openMenu(e.clientX, e.clientY, line === null || !tracker ? null : tracker.blockAt(line), true);
+    const first = await outputEntries(line, columnAt(e.clientX));
+    openMenu(e.clientX, e.clientY, line === null || !tracker ? null : tracker.blockAt(line), true, first);
+  }
+
+  /**
+   * For a right-click in the output: the actions of the token under the
+   * mouse (a timestamp, IP, pod…), and Pretty-print JSON when the selection
+   * or the line holds JSON.
+   */
+  async function outputEntries(line: number | null, col: number | null): Promise<MenuEntry[]> {
+    const t = term;
+    if (!t || line === null) return [];
+    const buf = t.buffer.active;
+    const entries: MenuEntry[] = [];
+    const json = findJson(t.hasSelection() ? t.getSelection() : (readLogicalLine(buf, line)?.text ?? ''));
+    let token = col === null ? null : (tokenAt(buf, line, col)?.token ?? null);
+    // file:line has actions only for a file on this machine.
+    if (token?.kind === 'path') {
+      const path = await resolveFile(token.path);
+      token = path ? { ...token, path } : null;
+    }
+    if (token) entries.push(...tokenMenu(token, kubeTarget(), tokenActions));
+    if (json) {
+      if (entries.length) entries.push('separator');
+      entries.push({ label: 'Pretty-print JSON', action: () => overlay.show({ kind: 'json', text: json }) });
+    }
+    return entries;
+  }
+
+  /** The cluster and namespace this shell reported, for kubectl commands from its output. */
+  function kubeTarget() {
+    return { context: pane.infra?.kubeContext ?? '', namespace: pane.infra?.kubeNamespace ?? '', env: pane.env ?? {} };
+  }
+
+  const tokenActions = {
+    copy: copyText,
+    openUrl: (url: string) => Browser.OpenURL(url),
+    runInTab: (command: string) => tabs.open({ command, cwd: pane.cwd || undefined }),
+    openInEditor,
+    openFile: (path: string) => Files.Open(path).catch((err: unknown) => toast.show(`Couldn't open it: ${err}`)),
+    reveal: (path: string) => Files.Reveal(path).catch((err: unknown) => toast.show(`Couldn't reveal it: ${err}`)),
+    showSecret: (name: string) => {
+      const k = kubeTarget();
+      overlay.show({ kind: 'secretView', name, ...k });
+    },
+  };
+
+  function openTokenMenu(token: LogToken, x: number, y: number) {
+    if (token.kind === 'url') {
+      Browser.OpenURL(token.text);
+      return;
+    }
+    tabs.focusPane(tabId, pane.id);
+    const entries = tokenMenu(token, kubeTarget(), tokenActions);
+    if (entries.length) overlay.openMenu(x, y, entries);
+  }
+
+  /** Files that file:line references name, briefly remembered: the mouse asks again and again. */
+  const resolved = new Map<string, { path: string | null; at: number }>();
+  async function resolveFile(name: string): Promise<string | null> {
+    const key = `${pane.cwd}\0${name}`;
+    const hit = resolved.get(key);
+    if (hit && performance.now() - hit.at < 5000) return hit.path;
+    const path = (await Files.ResolveFile(pane.cwd, name).catch(() => '')) || null;
+    if (resolved.size > 200) resolved.clear();
+    resolved.set(key, { path, at: performance.now() });
+    return path;
   }
 
   function send(bytes: Uint8Array) {
@@ -436,6 +527,13 @@
   $effect(() => {
     if (!term) return;
     term.options.theme = xtermTheme(settings.theme);
+    if (logView) logView.colors = logColors(settings.theme);
+  });
+
+  $effect(() => {
+    if (!term || !logView) return;
+    logView.highlight = settings.config.logHighlighting;
+    logView.visible = visible;
   });
 
   $effect(() => {

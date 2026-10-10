@@ -33,6 +33,8 @@ type Config struct {
 	SidebarRefreshInterval float64 `toml:"sidebar-refresh-interval" json:"sidebarRefreshInterval"`
 
 	ContextBadges bool `toml:"context-badges" json:"contextBadges"`
+
+	LogHighlighting bool `toml:"log-highlighting" json:"logHighlighting"`
 }
 
 func Defaults() Config {
@@ -52,6 +54,8 @@ func Defaults() Config {
 		SidebarRefreshInterval: 3,
 
 		ContextBadges: true,
+
+		LogHighlighting: true,
 	}
 }
 
@@ -111,6 +115,11 @@ const template = `# wtf settings. Changes apply as soon as you save.
 # region, gcloud project and Terraform workspace each shell is pointed at,
 # next to the folder in the address bar. Needs shell integration.
 # context-badges = true
+
+# Color log levels (ERROR, WARN…), timestamps, URLs, IP addresses and
+# Kubernetes resources in output — only text the program left uncolored,
+# and never in full-screen programs. ⌘-click (Ctrl-click) works either way.
+# log-highlighting = true
 `
 
 // Dir is $XDG_CONFIG_HOME/wtf, or ~/.config/wtf, on every platform.

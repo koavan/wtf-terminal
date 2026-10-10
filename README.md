@@ -377,6 +377,21 @@ again; the block is highlighted while the menu is open. Right-click also has
 Copy, Paste, Select All, Find and Clear. Turn it off with
 `shell-integration = false`.
 
+## Log-friendly output
+
+Output is scanned, only on the screen you're looking at and only once it
+settles, for log levels (ERROR red, WARN yellow, INFO green, DEBUG faded),
+timestamps (faded), URLs, IP addresses and Kubernetes resources
+(`pod/web-1`, `deployment.apps/api`), which get colors from the theme. The
+output itself is untouched. Text a program colored keeps its colors, and
+full-screen programs are left alone. ⌘-click (Ctrl-click) or right-click one
+for actions: a timestamp in your time zone and UTC, with copy as ISO/Unix time;
+an IP's ssh or `http://ip:port`; a resource's logs, describe or YAML as
+kubectl commands in a new tab, against the shell's reported context and
+namespace (secrets open the masked viewer instead); a `file:line` that exists
+on this machine opens in `$EDITOR +line`. Right-click a line holding JSON for
+**Pretty-print JSON**. Turn colors off with `log-highlighting = false`.
+
 ## Context badges
 
 With shell integration, the address bar shows what the focused shell is pointed

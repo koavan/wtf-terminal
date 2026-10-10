@@ -48,7 +48,9 @@ export interface Target {
  */
 export function kubectl(t: Target, ...args: string[]): string {
   const vars = CARRIED.filter((v) => t.env[v]).map((v) => `${v}=${shellQuote(t.env[v])}`);
-  return [...vars, 'kubectl', '--context', shellQuote(t.context), '-n', shellQuote(t.namespace), ...args].join(' ');
+  // Left out when unknown, kubectl uses the kubeconfig's own.
+  const where = [...(t.context ? ['--context', shellQuote(t.context)] : []), ...(t.namespace ? ['-n', shellQuote(t.namespace)] : [])];
+  return [...vars, 'kubectl', ...where, ...args].join(' ');
 }
 
 const q = shellQuote;

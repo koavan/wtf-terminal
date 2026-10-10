@@ -172,6 +172,16 @@ func TestContextBadgesDefaultOn(t *testing.T) {
 	}
 }
 
+func TestLogHighlightingDefaultOn(t *testing.T) {
+	cfg, _, _ := Parse("")
+	if !cfg.LogHighlighting {
+		t.Error("log highlighting should be on by default")
+	}
+	if cfg, _, _ = Parse("log-highlighting = false\n"); cfg.LogHighlighting {
+		t.Error("log-highlighting = false was ignored")
+	}
+}
+
 func TestServiceSetSidebarAutoRefresh(t *testing.T) {
 	s := NewService(t.TempDir())
 	if !s.Current().Config.SidebarAutoRefresh {

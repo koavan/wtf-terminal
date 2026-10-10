@@ -11,6 +11,7 @@ import gettingStarted from './getting-started.md?raw';
 import history from './history.md?raw';
 import kubeContexts from './kube-contexts.md?raw';
 import kubernetes from './kubernetes.md?raw';
+import logs from './logs.md?raw';
 import network from './network.md?raw';
 import panes from './panes.md?raw';
 import privacy from './privacy.md?raw';
@@ -44,6 +45,7 @@ export const TOPICS: Topic[] = [
   t('Basics', 'tabs', 'Tabs and tab groups', tabs),
   t('Basics', 'panes', 'Split panes', panes),
   t('Basics', 'shell-integration', 'Commands, prompts and output', shellIntegration),
+  t('Basics', 'logs', 'Logs in the output', logs),
   t('Basics', 'find', 'Find', find),
   t('Basics', 'context-badges', 'Address bar and context badges', contextBadges),
   t('Basics', 'broadcast', 'Broadcast input', broadcast),

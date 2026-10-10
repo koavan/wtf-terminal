@@ -30,6 +30,8 @@ export type OverlayState =
   | { kind: 'secretView'; name: string; context: string; namespace: string; env: Record<string, string> }
   | { kind: 'manual'; topic: string }
   | { kind: 'about' }
+  /** JSON from a line of output, pretty-printed. */
+  | { kind: 'json'; text: string }
   | { kind: 'snippet'; snippet: Snippet }
   | { kind: 'snippetEdit'; snippet: Snippet | null; command?: string; duplicate?: boolean }
   | { kind: 'workspaceOpen'; workspace: Workspace }
