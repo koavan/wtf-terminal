@@ -2,6 +2,7 @@
   import FileTree from './FileTree.svelte';
   import HistoryView from './HistoryView.svelte';
   import PinsView from './PinsView.svelte';
+  import ShareView from './ShareView.svelte';
   import Icon, { type IconName } from './Icon.svelte';
   import NetworkView from './NetworkView.svelte';
   import ProcessView from './ProcessView.svelte';
@@ -24,6 +25,7 @@
     { id: 'processes', label: 'Processes', icon: 'cpu', key: isMac ? '⌘⇧A' : 'Ctrl+Shift+Alt+A' },
     { id: 'history', label: 'History', icon: 'history', key: isMac ? '⌘⇧H' : 'Ctrl+Shift+Alt+H' },
     { id: 'pins', label: 'Pinned Output', icon: 'pin', key: isMac ? '⌘⇧I' : 'Ctrl+Shift+Alt+I' },
+    { id: 'share', label: 'Share & Record', icon: 'shield', key: isMac ? '⌘⇧J' : 'Ctrl+Shift+Alt+J' },
   ];
 
   let resizing = $state(false);
@@ -86,6 +88,8 @@
       <HistoryView />
     {:else if sidebar.tab === 'pins'}
       <PinsView />
+    {:else if sidebar.tab === 'share'}
+      <ShareView />
     {/if}
   </div>
 

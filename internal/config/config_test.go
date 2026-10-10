@@ -205,6 +205,16 @@ func TestServiceSetSidebarAutoRefresh(t *testing.T) {
 	}
 }
 
+func TestServiceSetRedactSecrets(t *testing.T) {
+	s := NewService(t.TempDir())
+	if err := s.SetRedactSecrets(true); err != nil {
+		t.Fatal(err)
+	}
+	if !s.Current().Config.RedactSecrets {
+		t.Error("still off after turning it on")
+	}
+}
+
 func TestGhosttyTheme(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "My Theme")

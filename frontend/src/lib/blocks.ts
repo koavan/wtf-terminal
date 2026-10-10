@@ -41,13 +41,21 @@ export function blockMenu(b: BlockInfo, a: BlockActions): MenuEntry[] {
 export interface TerminalActions {
   copy(): void;
   pinSelection(): void;
+  toggleSecrets(): void;
+  toggleRecording(): void;
   paste(): void;
   selectAll(): void;
   clear(): void;
   find(): void;
 }
 
-export function terminalMenu(hasSelection: boolean, a: TerminalActions): MenuEntry[] {
+/** What the terminal menu's toggles say. */
+export interface TerminalState {
+  secretsHidden: boolean;
+  recording: boolean;
+}
+
+export function terminalMenu(hasSelection: boolean, a: TerminalActions, state: TerminalState = { secretsHidden: false, recording: false }): MenuEntry[] {
   const key = (mac: string, other: string) => (isMac ? mac : other);
   const entries: MenuEntry[] = [];
   if (hasSelection) {
@@ -60,6 +68,9 @@ export function terminalMenu(hasSelection: boolean, a: TerminalActions): MenuEnt
     'separator',
     { label: 'Find…', hint: key('⌘F', 'Ctrl+Shift+F'), action: a.find },
     { label: 'Clear', hint: key('⌘K', 'Ctrl+Shift+K'), action: a.clear },
+    'separator',
+    { label: state.secretsHidden ? 'Show Secrets' : 'Hide Secrets', hint: key('⌥⌘R', 'Ctrl+Shift+Alt+X'), action: a.toggleSecrets },
+    { label: state.recording ? 'Stop Recording' : 'Start Recording…', hint: key('⌥⌘S', 'Ctrl+Shift+Alt+M'), action: a.toggleRecording },
   );
   return entries;
 }

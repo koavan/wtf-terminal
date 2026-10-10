@@ -26,7 +26,7 @@ Click a command's ✓/✗ mark, or right-click in its output. The command's bloc
 - **Run Again** — types it at the prompt and runs it (when the shell is at its prompt), in this pane only.
 - **Save as Snippet…** — keep it, with blanks to fill in next time. See [Snippets and runbooks](#snippets).
 
-Right-clicking a timestamp, address, resource or file:line puts its actions first, and a line holding JSON offers **Pretty-print JSON** — see [Logs in the output](#logs). Right-clicking also offers **Copy** (with a selection), **Paste**, **Select All**, **Find…** and **Clear**. {{cmd:term.copyOutput}} still copies the last command's output from the keyboard.
+Right-clicking a timestamp, address, resource or file:line puts its actions first, and a line holding JSON offers **Pretty-print JSON** — see [Logs in the output](#logs). Right-clicking also offers **Hide Secrets** and **Start Recording…** (see [Share & Record](#share)), and **Copy** (with a selection), **Paste**, **Select All**, **Find…** and **Clear**. {{cmd:term.copyOutput}} still copies the last command's output from the keyboard.
 
 Output that has scrolled out of the scrollback (`scrollback` in [Settings](#settings)) can't be copied any more; the command itself still can.
 

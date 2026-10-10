@@ -37,6 +37,13 @@ export function OpenThemesFolder(): $CancellablePromise<void> {
 }
 
 /**
+ * SetRedactSecrets sets whether Hide Secrets is on when wtf starts.
+ */
+export function SetRedactSecrets(on: boolean): $CancellablePromise<void> {
+    return $Call.ByID(2561619310, on);
+}
+
+/**
  * SetSidebarAutoRefresh turns the side pane's background updates on or off.
  */
 export function SetSidebarAutoRefresh(on: boolean): $CancellablePromise<void> {

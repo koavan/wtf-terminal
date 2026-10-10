@@ -1,6 +1,6 @@
 # Hide Secrets
 
-Turn on **Hide Secrets** ({{cmd:secrets.toggle}}, or **View → Hide Secrets**) before you share your screen, during an incident call say, and access keys, tokens and passwords that show up in your terminals are covered. While it's on, a green **Secrets hidden** label sits in the address bar. Click it, or use the shortcut again, to show them.
+Turn on **Hide Secrets** with the switch in the side pane's [Share & Record](#share) tab (or right-click a terminal → **Hide Secrets**, {{cmd:secrets.toggle}}, or **View → Hide Secrets**) before you share your screen, during an incident call say, and access keys, tokens and passwords that show up in your terminals are covered. While it's on, a green **Secrets hidden** label sits in the address bar. Click it, or use the shortcut again, to show them.
 
 ## What it covers
 
@@ -22,4 +22,4 @@ The output itself isn't changed. Turn Hide Secrets off and everything is there a
 
 This is **best effort**. It errs on the side of hiding: a harmless value named like a password gets covered too. It can still miss a secret it doesn't recognize, like a password printed on its own with no name next to it. Don't rely on it alone for something you can't afford to show.
 
-To start every session with it on, set `redact-secrets = true` in [Settings](#settings). The shortcut still turns it off and on.
+To start every session with it on, tick **Turn on whenever wtf starts** in the Share & Record tab, or set `redact-secrets = true` in [Settings](#settings). You can still turn it off and on any time.

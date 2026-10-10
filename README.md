@@ -402,6 +402,13 @@ on this machine opens in `$EDITOR +line`. Right-click a line holding JSON for
 
 ## Recording and saving
 
+The side pane's **Share & Record** tab (⌘⇧J, shield icon) has all of this —
+and Hide Secrets — as buttons: a Hide Secrets switch (and "turn on whenever
+wtf starts"), Start/Stop Recording for the terminal in front with its elapsed
+time and file, Save Output as Text / Commands as Markdown, the other terminals
+being recorded, and the files saved in this window. A terminal's right-click
+menu also has Hide Secrets and Start Recording….
+
 ⌥⌘S (Shell → Start or Stop Recording…, or a tab's right-click menu) records a
 terminal to an asciinema `.cast` file (asciicast v2: output with its timing and
 resizes, never what you type), written by the backend as output arrives and

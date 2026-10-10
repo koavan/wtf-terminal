@@ -24,12 +24,17 @@ describe('command block menus', () => {
   });
 
   it('has the general terminal actions, Copy only with a selection', () => {
-    const a = { copy: vi.fn(), pinSelection: vi.fn(), paste: vi.fn(), selectAll: vi.fn(), clear: vi.fn(), find: vi.fn() };
+    const a = { copy: vi.fn(), pinSelection: vi.fn(), toggleSecrets: vi.fn(), toggleRecording: vi.fn(), paste: vi.fn(), selectAll: vi.fn(), clear: vi.fn(), find: vi.fn() };
     const has = (sel: boolean, label: string) => terminalMenu(sel, a).some((e) => typeof e !== 'string' && 'label' in e && e.label === label);
     expect(has(false, 'Copy')).toBe(false);
     expect(has(false, 'Pin Selection')).toBe(false);
     expect(terminalMenu(true, a)[0]).toMatchObject({ label: 'Copy' });
     expect(has(true, 'Pin Selection')).toBe(true);
+    // Hide Secrets and recording are always there, saying what they'd do.
+    expect(has(false, 'Hide Secrets') && has(false, 'Start Recording…')).toBe(true);
+    const on = terminalMenu(false, a, { secretsHidden: true, recording: true }).map((e) => (typeof e !== 'string' && 'label' in e ? e.label : ''));
+    expect(on).toContain('Show Secrets');
+    expect(on).toContain('Stop Recording');
   });
 
   it('copies a command with its output as it looked', () => {

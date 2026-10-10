@@ -453,6 +453,11 @@
         ...terminalMenu(t.hasSelection(), {
           copy: () => Clipboard.SetText(redaction.text(t.getSelection())),
           pinSelection: () => pinSelection(t.getSelection()),
+          toggleSecrets: () => {
+            redaction.on = !redaction.on;
+            toast.show(redaction.on ? 'Secrets hidden — on screen and when copied' : 'Secrets shown');
+          },
+          toggleRecording: () => recordings.toggle(pane),
           paste: () => Clipboard.Text().then((text) => text && t.paste(text)),
           selectAll: () => t.selectAll(),
           clear: () => t.clear(),
@@ -460,7 +465,7 @@
             tabs.focusPane(tabId, pane.id);
             search.open();
           },
-        }),
+        }, { secretsHidden: redaction.on, recording: !!recordings.of(pane.id) }),
       );
     }
     if (entries.length) overlay.openMenu(x, y, entries);

@@ -43,8 +43,10 @@ class Settings {
 
   #apply(r: Resolved, initial: boolean) {
     const sizeChanged = !initial && r.config.fontSize !== this.config.fontSize;
-    // Hide Secrets follows the setting when it's changed; the toggle overrides it until then.
-    if (initial || r.config.redactSecrets !== this.config.redactSecrets) redaction.on = r.config.redactSecrets;
+    // Hide Secrets starts as the setting says, and turns on when it's switched on. Switching it
+    // off only changes the next start: secrets never show by surprise in the middle of a share.
+    if (initial) redaction.on = r.config.redactSecrets;
+    else if (r.config.redactSecrets && !this.config.redactSecrets) redaction.on = true;
     this.config = r.config;
     this.#dark = r.dark;
     this.#light = r.light;

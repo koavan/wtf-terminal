@@ -182,6 +182,7 @@ func buildMenu(windows *wtfwindows.Manager) *application.Menu {
 	cmd(view, "Show Processes", "CmdOrCtrl+shift+a", "sidebar.processes")
 	cmd(view, "Show Command History", "CmdOrCtrl+shift+h", "sidebar.history")
 	cmd(view, "Show Pinned Output", "CmdOrCtrl+shift+i", "sidebar.pins")
+	cmd(view, "Show Share & Record", "CmdOrCtrl+shift+j", "sidebar.share")
 	cmd(view, "Show SSH Hosts", "CmdOrCtrl+shift+s", "sidebar.ssh")
 	cmd(view, "Show AWS Profiles", "CmdOrCtrl+shift+u", "sidebar.aws")
 	cmd(view, "Show Kubernetes", "CmdOrCtrl+shift+k", "sidebar.kube")

@@ -79,6 +79,7 @@ export const commands: Command[] = [
   },
   { id: 'sidebar.history', label: 'Show Command History', mac: '⌘⇧H', other: 'Ctrl+Shift+Alt+H', run: () => sidebar.show('history') },
   { id: 'sidebar.pins', label: 'Show Pinned Output', mac: '⌘⇧I', other: 'Ctrl+Shift+Alt+I', run: () => sidebar.show('pins') },
+  { id: 'sidebar.share', label: 'Show Share & Record', mac: '⌘⇧J', other: 'Ctrl+Shift+Alt+J', run: () => sidebar.show('share') },
   { id: 'sidebar.ssh', label: 'Show SSH Hosts', mac: '⌘⇧S', other: 'Ctrl+Shift+Alt+S', run: () => sidebar.show('ssh') },
   { id: 'sidebar.aws', label: 'Show AWS Profiles', mac: '⌘⇧U', other: 'Ctrl+Shift+Alt+U', run: () => sidebar.show('aws') },
   { id: 'sidebar.kube', label: 'Show Kubernetes', mac: '⌘⇧K', other: 'Ctrl+Shift+Alt+K', run: () => sidebar.show('kube') },
@@ -219,6 +220,7 @@ function shortcutFor(e: KeyboardEvent): string | null {
   if (e.ctrlKey && e.shiftKey && e.altKey && e.code === 'KeyA') return 'sidebar.processes';
   if (e.ctrlKey && e.shiftKey && e.altKey && e.code === 'KeyH') return 'sidebar.history';
   if (e.ctrlKey && e.shiftKey && e.altKey && e.code === 'KeyI') return 'sidebar.pins';
+  if (e.ctrlKey && e.shiftKey && e.altKey && e.code === 'KeyJ') return 'sidebar.share';
   if (e.ctrlKey && e.shiftKey && e.altKey && e.code === 'KeyX') return 'secrets.toggle';
   if (e.ctrlKey && e.shiftKey && e.altKey && e.code === 'KeyM') return 'record.toggle';
   if (e.ctrlKey && e.shiftKey && e.altKey && e.code === 'KeyS') return 'sidebar.ssh';

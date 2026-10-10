@@ -31,9 +31,25 @@ async function pickFile(title: string, name: string, ext: string, kind: string):
   return typeof path === 'string' ? path : '';
 }
 
+/** A file saved from a terminal in this window, for the Share & Record tab. */
+export interface SavedFile {
+  path: string;
+  kind: 'recording' | 'text' | 'markdown';
+  at: number;
+}
+
+/** How many saved files the tab lists. */
+const MAX_SAVED = 20;
+
 class Recordings {
   /** Panes being recorded: where to, and since when (ms). */
   active = new SvelteMap<number, { path: string; since: number }>();
+  /** Files saved in this window, newest first. */
+  saved = $state<SavedFile[]>([]);
+
+  remember(path: string, kind: SavedFile['kind']) {
+    this.saved = [{ path, kind, at: Date.now() }, ...this.saved.filter((f) => f.path !== path)].slice(0, MAX_SAVED);
+  }
 
   /** Whether a pane is being recorded. */
   of(paneId: number) {
@@ -74,6 +90,7 @@ class Recordings {
     if (!pane.sessionId || !rec) return;
     try {
       const st = await Service.StopRecording(pane.sessionId);
+      this.remember(rec.path, 'recording');
       toast.show(`Saved recording to ${prettyPath(rec.path)} (${formatDuration(st.seconds * 1000)})`, 5000);
     } catch (e) {
       toast.show(`The recording ended with an error: ${message(e)}`);
@@ -85,6 +102,7 @@ class Recordings {
     const rec = this.active.get(paneId);
     if (!rec) return;
     this.active.delete(paneId);
+    this.remember(rec.path, 'recording');
     toast.show(`Saved recording to ${prettyPath(rec.path)}`, 5000);
   }
 }
@@ -99,6 +117,7 @@ export async function saveOutputAsText(pane: Pane | undefined = tabs.activePane)
   if (!path) return;
   try {
     await Files.SaveText(path, redaction.text(term.plainText()) + '\n');
+    recordings.remember(path, 'text');
     toast.show(`Saved output to ${prettyPath(path)}`);
   } catch (e) {
     toast.show(`Couldn't save: ${message(e)}`);
@@ -120,6 +139,7 @@ export async function saveTranscript(pane: Pane | undefined = tabs.activePane) {
   try {
     const md = markdownTranscript(blocks, { title, cwd: prettyPath(pane.cwd), exportedAt: new Date() });
     await Files.SaveText(path, redaction.text(md));
+    recordings.remember(path, 'markdown');
     toast.show(`Saved ${blocks.length} ${blocks.length === 1 ? 'command' : 'commands'} to ${prettyPath(path)}`);
   } catch (e) {
     toast.show(`Couldn't save: ${message(e)}`);

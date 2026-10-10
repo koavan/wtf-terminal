@@ -19,6 +19,8 @@ export function testConfig(over: Partial<Config> = {}): Config {
     sidebarAutoRefresh: true,
     sidebarRefreshInterval: 3,
     contextBadges: true,
+    logHighlighting: true,
+    redactSecrets: false,
     ...over,
-  } as Config;
+  };
 }

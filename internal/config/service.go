@@ -82,6 +82,11 @@ func (s *Service) SetSidebarAutoRefresh(on bool) error {
 	return s.set("sidebar-auto-refresh", strconv.FormatBool(on))
 }
 
+// SetRedactSecrets sets whether Hide Secrets is on when wtf starts.
+func (s *Service) SetRedactSecrets(on bool) error {
+	return s.set("redact-secrets", strconv.FormatBool(on))
+}
+
 // set writes one setting into the config file, creating it if needed.
 func (s *Service) set(key, value string) error {
 	if err := os.MkdirAll(s.dir, 0o755); err != nil {
