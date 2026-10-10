@@ -57,6 +57,14 @@ export function Info(id: string): $CancellablePromise<$models.Info> {
     return $Call.ByID(638065582, id);
 }
 
+/**
+ * Recording reports whether a session is being recorded, for a pane that
+ * takes the session over (a tab moved windows).
+ */
+export function Recording(id: string): $CancellablePromise<$models.RecordingStatus> {
+    return $Call.ByID(4076328349, id);
+}
+
 export function Resize(id: string, cols: number, rows: number): $CancellablePromise<void> {
     return $Call.ByID(1837780578, id, cols, rows);
 }
@@ -85,4 +93,19 @@ export function ShellInfo(): $CancellablePromise<[string, boolean]> {
  */
 export function ShellPIDs(): $CancellablePromise<{ [_ in `${number}`]?: string } | null> {
     return $Call.ByID(3510656666);
+}
+
+/**
+ * StartRecording records a session's output to an asciicast v2 file
+ * (asciinema) at path, until StopRecording or the shell exits.
+ */
+export function StartRecording(id: string, path: string, title: string): $CancellablePromise<void> {
+    return $Call.ByID(438072973, id, path, title);
+}
+
+/**
+ * StopRecording ends a session's recording and reports what was saved.
+ */
+export function StopRecording(id: string): $CancellablePromise<$models.RecordingStatus> {
+    return $Call.ByID(3827981205, id);
 }

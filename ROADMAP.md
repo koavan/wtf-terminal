@@ -118,7 +118,9 @@ and key age, rotate access keys with rollback. See README.
 - ☑ **Secret redaction:** Hide Secrets (⌥⌘R): covers AWS keys, tokens, JWTs,
   passwords and private keys on screen (before the frame is drawn) and redacts
   them on copy and in the window's other text; `redact-secrets`.
-- ☐ **Session recording:** export a tab as asciinema/text for postmortems.
+- ☑ **Session recording:** record a terminal to asciicast v2 (⌥⌘S, written by the
+  backend as output arrives); save the scrollback as text or the commands as a
+  Markdown transcript.
 - ☐ **Git status in the file tree** (previously deferred).
 
 ## Previously deferred (not DevOps-specific)

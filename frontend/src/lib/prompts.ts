@@ -1,5 +1,6 @@
 import type { IDecoration, IDisposable, IMarker, Terminal } from '@xterm/xterm';
 import { formatDuration } from './toast.svelte';
+import type { TranscriptBlock } from './transcript';
 
 // Tracks the prompts and commands a shell reports through OSC 133 (see
 // internal/terminal/shellintegration) and turns each into a command block:
@@ -15,6 +16,8 @@ interface CommandRecord {
   output?: IMarker;
   end?: IMarker;
   startedAt?: number;
+  /** Wall-clock start, for transcripts. */
+  startedWall?: Date;
   decoration?: IDecoration;
   /** The duration label at the end of the prompt line. */
   durationLabel?: IDecoration;
@@ -100,6 +103,7 @@ export class PromptTracker implements IDisposable {
         if (rec && !rec.output) {
           rec.output = this.#term.registerMarker(0);
           rec.startedAt = performance.now();
+          rec.startedWall = new Date();
           rec.text = this.#pendingText;
         }
         this.#events.onCommandStart(this.#pendingText, rec?.id ?? 0);
@@ -219,6 +223,20 @@ export class PromptTracker implements IDisposable {
   /** The most recent finished command whose output is still in the scrollback, or null. */
   lastFinished(): number | null {
     return this.#records.findLast((r) => r.output && r.end && !r.output.isDisposed && r.output.line >= 0)?.id ?? null;
+  }
+
+  /** Every command run in this terminal, oldest first, for a transcript. */
+  transcript(): TranscriptBlock[] {
+    return this.#records
+      .filter((r) => r.output)
+      .map((r) => ({
+        text: r.text,
+        output: this.output(r.id),
+        startedAt: r.startedWall,
+        finishedAt: r.finishedAt,
+        exitCode: r.exitCode,
+        durationMs: r.durationMs,
+      }));
   }
 
   /** The command whose block holds a buffer line: from its prompt to the next prompt. */

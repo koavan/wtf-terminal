@@ -193,6 +193,16 @@ func (s *Service) ResolveFile(dir, name string) string {
 	return name
 }
 
+// SaveText writes text the user chose to save (a terminal's output, a
+// transcript) to the file they picked. New files are 0600: output can
+// hold secrets.
+func (s *Service) SaveText(path, text string) error {
+	if !filepath.IsAbs(path) {
+		return fmt.Errorf("not an absolute path: %q", path)
+	}
+	return os.WriteFile(path, []byte(text), 0o600)
+}
+
 // Reveal shows a file in Finder (or the file manager, on Linux).
 func (s *Service) Reveal(path string) error {
 	if err := exists(path); err != nil {

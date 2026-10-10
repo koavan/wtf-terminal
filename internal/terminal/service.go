@@ -272,6 +272,34 @@ func (s *Service) Resize(id string, cols, rows int) error {
 	return sess.Resize(clampDim(cols), clampDim(rows))
 }
 
+// StartRecording records a session's output to an asciicast v2 file
+// (asciinema) at path, until StopRecording or the shell exits.
+func (s *Service) StartRecording(id, path, title string) error {
+	sess := s.get(id)
+	if sess == nil {
+		return fmt.Errorf("no session %q", id)
+	}
+	return sess.StartRecording(path, title)
+}
+
+// StopRecording ends a session's recording and reports what was saved.
+func (s *Service) StopRecording(id string) (RecordingStatus, error) {
+	sess := s.get(id)
+	if sess == nil {
+		return RecordingStatus{}, fmt.Errorf("no session %q", id)
+	}
+	return sess.StopRecording()
+}
+
+// Recording reports whether a session is being recorded, for a pane that
+// takes the session over (a tab moved windows).
+func (s *Service) Recording(id string) RecordingStatus {
+	if sess := s.get(id); sess != nil {
+		return sess.Recording()
+	}
+	return RecordingStatus{}
+}
+
 // Close hangs up a session. The exit event follows once the shell is gone.
 func (s *Service) Close(id string) {
 	if sess := s.get(id); sess != nil {

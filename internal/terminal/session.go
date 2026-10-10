@@ -9,6 +9,7 @@ import (
 	"sync"
 	"sync/atomic"
 	"syscall"
+	"time"
 
 	"github.com/creack/pty"
 	"golang.org/x/sys/unix"
@@ -37,6 +38,11 @@ type Session struct {
 
 	// Window that shows this session; guarded by Service.mu.
 	window string
+
+	// The terminal's size, cols<<16 | rows, for a recording's header.
+	size atomic.Uint32
+	// Set while the session is being recorded (see record.go).
+	rec atomic.Pointer[recorder]
 }
 
 type spawnOptions struct {
@@ -73,6 +79,7 @@ func startSession(id string, opts spawnOptions) (*Session, error) {
 		Output: make(chan []byte, 256),
 		Done:   make(chan struct{}),
 	}
+	s.size.Store(uint32(opts.Cols)<<16 | uint32(opts.Rows))
 	go s.readLoop()
 	go s.wait()
 	return s, nil
@@ -80,12 +87,17 @@ func startSession(id string, opts spawnOptions) (*Session, error) {
 
 func (s *Session) readLoop() {
 	defer close(s.Output)
+	// The shell is gone: a recording ends with it.
+	defer func() { _, _ = s.StopRecording() }()
 	buf := make([]byte, readBufSize)
 	for {
 		n, err := s.pty.Read(buf)
 		if n > 0 {
 			chunk := make([]byte, n)
 			copy(chunk, buf[:n])
+			if rec := s.rec.Load(); rec != nil {
+				rec.output(chunk, time.Now())
+			}
 			// Blocks when nobody is draining output: that stalls the shell,
 			// which is exactly the backpressure we want.
 			s.Output <- chunk
@@ -116,7 +128,49 @@ func (s *Session) ExitCode() int { return s.exitCode }
 func (s *Session) Write(p []byte) (int, error) { return s.pty.Write(p) }
 
 func (s *Session) Resize(cols, rows uint16) error {
+	if s.size.Swap(uint32(cols)<<16|uint32(rows)) != uint32(cols)<<16|uint32(rows) {
+		if rec := s.rec.Load(); rec != nil {
+			rec.resize(cols, rows, time.Now())
+		}
+	}
 	return pty.Setsize(s.pty, &pty.Winsize{Cols: cols, Rows: rows})
+}
+
+// StartRecording records the session's output to an asciicast file at path.
+func (s *Session) StartRecording(path, title string) error {
+	if s.closed.Load() {
+		return errors.New("the shell has exited")
+	}
+	size := s.size.Load()
+	rec, err := newRecorder(path, uint16(size>>16), uint16(size), title, s.Shell, time.Now())
+	if err != nil {
+		return err
+	}
+	if !s.rec.CompareAndSwap(nil, rec) {
+		rec.close()
+		return errors.New("this terminal is already being recorded")
+	}
+	return nil
+}
+
+// StopRecording ends a recording, if there is one, and says how it went.
+func (s *Session) StopRecording() (RecordingStatus, error) {
+	rec := s.rec.Swap(nil)
+	if rec == nil {
+		return RecordingStatus{}, nil
+	}
+	st := rec.status(time.Now())
+	err := rec.close()
+	st.Active = false
+	return st, err
+}
+
+// Recording is the session's recording now; Active is false when there's none.
+func (s *Session) Recording() RecordingStatus {
+	if rec := s.rec.Load(); rec != nil {
+		return rec.status(time.Now())
+	}
+	return RecordingStatus{}
 }
 
 // Close hangs up the terminal, which makes the shell and its jobs exit.

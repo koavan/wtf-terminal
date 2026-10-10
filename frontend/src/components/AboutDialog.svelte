@@ -30,6 +30,7 @@
     { label: 'Log-friendly output', topic: 'logs' },
     { label: 'Pinned output', topic: 'pins' },
     { label: 'Hide Secrets', topic: 'secrets' },
+    { label: 'Recording', topic: 'recording' },
     { label: 'SSH', topic: 'ssh-hosts' },
     { label: 'AWS profiles', topic: 'aws' },
     { label: 'Kubernetes', topic: 'kubernetes' },

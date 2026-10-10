@@ -400,6 +400,17 @@ namespace (secrets open the masked viewer instead); a `file:line` that exists
 on this machine opens in `$EDITOR +line`. Right-click a line holding JSON for
 **Pretty-print JSON**. Turn colors off with `log-highlighting = false`.
 
+## Recording and saving
+
+⌥⌘S (Shell → Start or Stop Recording…, or a tab's right-click menu) records a
+terminal to an asciinema `.cast` file (asciicast v2: output with its timing and
+resizes, never what you type), written by the backend as output arrives and
+flushed every second; a red dot on the tab and **REC m:ss** in the address bar
+show it's on. **Save Output as Text…** saves the scrollback; **Save Commands
+as Markdown…** saves a postmortem-ready transcript — each command with its exit
+status, start time, duration and output. Files are 0600; saved text (not
+recordings) honors Hide Secrets.
+
 ## Hide Secrets
 
 For screen sharing: ⌥⌘R (View → Hide Secrets; Ctrl+Shift+Alt+X on Linux)

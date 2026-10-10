@@ -1,4 +1,5 @@
 import { tabs } from './tabs.svelte';
+import type { TranscriptBlock } from './transcript';
 
 /** What app-level commands can do to a mounted terminal. */
 export interface TerminalHandle {
@@ -19,6 +20,10 @@ export interface TerminalHandle {
   lastOutput(): string | null;
   /** A command's output so far, or null once it has left the scrollback. */
   blockOutput(id: number): string | null;
+  /** The whole scrollback as plain text (soft-wrapped lines joined). */
+  plainText(): string;
+  /** Every command with its output, for a Markdown transcript; null without shell integration. */
+  transcript(): TranscriptBlock[] | null;
   /** Pins the last finished command's output to the side pane; false if there's none. */
   pinLastOutput(): boolean;
   /** Scrollback with colors, to carry a tab to another window. */

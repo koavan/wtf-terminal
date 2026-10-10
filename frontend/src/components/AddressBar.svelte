@@ -3,6 +3,7 @@
   import { prettyPath } from '../lib/backend';
   import { badges } from '../lib/infra';
   import { isMac } from '../lib/platform';
+  import { recordings } from '../lib/recording.svelte';
   import { redaction } from '../lib/redaction.svelte';
   import { tabs } from '../lib/tabs.svelte';
   import { formatDuration } from '../lib/toast.svelte';
@@ -12,6 +13,21 @@
   const path = $derived(pane ? prettyPath(pane.cwd) : '');
   const group = $derived(tabs.group(tab?.groupId ?? null));
   const contexts = $derived(badges(pane?.infra));
+
+  const recording = $derived(pane ? recordings.of(pane.id) : undefined);
+  /** Ticks once a second while the pane is recorded, for the elapsed time. */
+  let now = $state(Date.now());
+  $effect(() => {
+    if (!recording) return;
+    now = Date.now();
+    const timer = setInterval(() => (now = Date.now()), 1000);
+    return () => clearInterval(timer);
+  });
+  const elapsed = (ms: number) => {
+    const s = Math.max(0, Math.floor(ms / 1000));
+    const p = (n: number) => String(n).padStart(2, '0');
+    return s >= 3600 ? `${Math.floor(s / 3600)}:${p(Math.floor(s / 60) % 60)}:${p(s % 60)}` : `${Math.floor(s / 60)}:${p(s % 60)}`;
+  };
 
   const KIND_LABEL = { kube: 'k8s', aws: 'aws', gcp: 'gcp', tf: 'tf' } as const;
 
@@ -75,6 +91,16 @@
         </span>
       {/if}
     {/if}
+    {#if pane && recording}
+      <button
+        class="rec"
+        title="Recording to {prettyPath(recording.path)}. Click to stop ({isMac ? '⌥⌘S' : 'Ctrl+Shift+Alt+M'})"
+        onclick={() => recordings.stop(pane)}
+      >
+        <span class="dot"></span>
+        <span>REC {elapsed(now - recording.since)}</span>
+      </button>
+    {/if}
     {#if redaction.on}
       <!-- Always in view while on, so it's never on (or off) by surprise. -->
       <button
@@ -128,6 +154,40 @@
     font-size: 11.5px;
     font-weight: 600;
     white-space: nowrap;
+  }
+  .rec {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex: none;
+    height: 20px;
+    margin-left: auto;
+    padding: 0 8px 0 7px;
+    border: 0;
+    border-radius: 6px;
+    background: color-mix(in srgb, var(--danger) 18%, transparent);
+    color: var(--text);
+    font: inherit;
+    font-size: 11.5px;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+  }
+  .rec .dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: var(--danger);
+    animation: rec 1.6s ease-in-out infinite;
+  }
+  @keyframes rec {
+    50% {
+      opacity: 0.35;
+    }
+  }
+  /* Both labels: the second one follows the first instead of pushing right. */
+  .rec + .secrets {
+    margin-left: 0;
   }
   .secrets :global(svg) {
     color: var(--g-green);

@@ -43,7 +43,7 @@ const FileTree = (await import('./FileTree.svelte')).default;
 
 const term = {
   focus: vi.fn(), clear: vi.fn(), selectAll: vi.fn(), getSelection: () => '',
-  paste: vi.fn(), type: vi.fn(), sendInput: vi.fn(), jumpPrompt: vi.fn(), lastOutput: () => null, blockOutput: () => null, pinLastOutput: () => false, revealCommand: () => true, serialize: () => '', snapshot: () => [],
+  paste: vi.fn(), type: vi.fn(), sendInput: vi.fn(), jumpPrompt: vi.fn(), lastOutput: () => null, blockOutput: () => null, pinLastOutput: () => false, plainText: () => '', transcript: () => null, revealCommand: () => true, serialize: () => '', snapshot: () => [],
 };
 
 beforeEach(() => {

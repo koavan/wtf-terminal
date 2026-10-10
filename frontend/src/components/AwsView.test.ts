@@ -62,7 +62,7 @@ beforeEach(() => {
   registerTerminal(pane.id, {
     focus() {}, clear() {}, selectAll() {}, getSelection: () => '', paste() {}, type() {},
     sendInput: (b) => sent.push(new TextDecoder().decode(b)),
-    jumpPrompt() {}, revealCommand: () => true, lastOutput: () => null, blockOutput: () => null, pinLastOutput: () => false, serialize: () => '', snapshot: () => [],
+    jumpPrompt() {}, revealCommand: () => true, lastOutput: () => null, blockOutput: () => null, pinLastOutput: () => false, plainText: () => '', transcript: () => null, serialize: () => '', snapshot: () => [],
   });
 });
 afterEach(cleanup);

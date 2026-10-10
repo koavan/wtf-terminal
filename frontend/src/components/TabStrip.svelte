@@ -6,7 +6,9 @@
   import { prettyPath } from '../lib/backend';
   import { broadcast } from '../lib/broadcast.svelte';
   import { closeTab, closeTabs } from '../lib/closing';
+  import { leaves } from '../lib/layout';
   import { overlay, type MenuEntry } from '../lib/overlay.svelte';
+  import { recordings, saveOutputAsText, saveTranscript } from '../lib/recording.svelte';
   import { redaction } from '../lib/redaction.svelte';
   import { renaming, startRename } from '../lib/rename.svelte';
   import { activeTerminal } from '../lib/terminals';
@@ -218,6 +220,17 @@
         action: () => broadcast.toggleTab(tab.id),
       });
     }
+    const pane = focusedPane(tab);
+    entries.push(
+      'separator',
+      {
+        label: recordings.of(pane.id) ? 'Stop Recording' : 'Start Recording…',
+        hint: hint('⌥⌘S', 'Ctrl+Shift+Alt+M'),
+        action: () => recordings.toggle(pane),
+      },
+      { label: 'Save Output as Text…', action: () => saveOutputAsText(pane) },
+    );
+    if (pane.integrated) entries.push({ label: 'Save Commands as Markdown…', action: () => saveTranscript(pane) });
     entries.push(
       'separator',
       { label: 'Duplicate', action: () => tabs.openNextTo(tab.id, true) },
@@ -325,7 +338,9 @@
           {#if broadcast.on && broadcast.scope(tab).length}
             <span class="broadcast" title="Input to this tab is broadcast"><Icon name="radio" size={11} stroke={2.2} /></span>
           {/if}
-
+          {#if leaves(tab.root).some((p) => recordings.of(p.id))}
+            <span class="rec" title="Being recorded"></span>
+          {/if}
           {#if renaming.tabId === tab.id}
             <input
               class="rename"
@@ -478,6 +493,16 @@
     border-radius: 50%;
     background: var(--accent);
     box-shadow: 0 0 0 2px var(--chrome-solid);
+  }
+
+  /* Recording: a red dot, like a camera's. */
+  .rec {
+    flex: none;
+    width: 7px;
+    height: 7px;
+    margin-left: -1px;
+    border-radius: 50%;
+    background: var(--danger);
   }
 
   /* A command finished in the background: the dot says how it went. */

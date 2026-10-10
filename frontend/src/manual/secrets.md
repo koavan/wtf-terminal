@@ -5,6 +5,7 @@ Turn on **Hide Secrets** ({{cmd:secrets.toggle}}, or **View → Hide Secrets**) 
 ## What it covers
 
 - **On screen**: each secret is drawn over with a solid bar, from the first frame it appears in, including in full-screen programs like `less` and `vim`. The covers stay on through selections and search highlights, and when you scroll back.
+- **When saved**: Save Output as Text and Save Commands as Markdown. Recordings keep output as is, see [Recording](#recording).
 - **When copied**: secrets become `[REDACTED]`. That goes for {{cmd:term.copy}}, copy-on-select, every copy in the right-click and command menus, {{cmd:term.copyOutput}}, and Pretty-print JSON.
 - **Elsewhere in the window**: the command in the address bar, tab titles, the History tab, pinned output, the tab overview, and desktop notifications.
 

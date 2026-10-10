@@ -16,6 +16,7 @@ import network from './network.md?raw';
 import pinsPage from './pins.md?raw';
 import panes from './panes.md?raw';
 import privacy from './privacy.md?raw';
+import recording from './recording.md?raw';
 import secrets from './secrets.md?raw';
 import processes from './processes.md?raw';
 import sessions from './sessions.md?raw';
@@ -49,6 +50,7 @@ export const TOPICS: Topic[] = [
   t('Basics', 'shell-integration', 'Commands, prompts and output', shellIntegration),
   t('Basics', 'logs', 'Logs in the output', logs),
   t('Basics', 'secrets', 'Hide Secrets (screen sharing)', secrets),
+  t('Basics', 'recording', 'Recording and saving a terminal', recording),
   t('Basics', 'find', 'Find', find),
   t('Basics', 'context-badges', 'Address bar and context badges', contextBadges),
   t('Basics', 'broadcast', 'Broadcast input', broadcast),

@@ -28,6 +28,24 @@ export interface Info {
 }
 
 /**
+ * RecordingStatus describes a session's recording.
+ */
+export interface RecordingStatus {
+    "active": boolean;
+    "path": string;
+
+    /**
+     * Seconds since the recording started.
+     */
+    "seconds": number;
+
+    /**
+     * Bytes of output recorded.
+     */
+    "bytes": number;
+}
+
+/**
  * Running describes a program other than the shell running in a session.
  */
 export interface Running {

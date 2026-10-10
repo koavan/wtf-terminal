@@ -40,3 +40,12 @@ export function ResolveFile(dir: string, name: string): $CancellablePromise<stri
 export function Reveal(path: string): $CancellablePromise<void> {
     return $Call.ByID(2994898304, path);
 }
+
+/**
+ * SaveText writes text the user chose to save (a terminal's output, a
+ * transcript) to the file they picked. New files are 0600: output can
+ * hold secrets.
+ */
+export function SaveText(path: string, text: string): $CancellablePromise<void> {
+    return $Call.ByID(2487679679, path, text);
+}

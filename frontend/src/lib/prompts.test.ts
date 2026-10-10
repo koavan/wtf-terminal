@@ -36,6 +36,17 @@ describe('PromptTracker', () => {
     expect(tracker.lastOutput()).toBe(`${long}\nend`);
   });
 
+  it('lists every command with its output and how it went, for a transcript', async () => {
+    const { tracker, write } = setup();
+    await write(run('ls', 'a\r\nb\r\n') + run('false', '', 1) + A + '$ ');
+    const t = tracker.transcript();
+    expect(t.map((b) => [b.text, b.output, b.exitCode])).toEqual([
+      ['ls', 'a\nb', 0],
+      ['false', '', 1],
+    ]);
+    expect(t[0].startedAt).toBeInstanceOf(Date);
+  });
+
   it('reports the context variables the shell sends with a prompt', async () => {
     const { term, write } = setup();
     const onEnv = vi.fn();

@@ -10,7 +10,9 @@
 - Rename: double-click the tab, or {{cmd:tab.rename}}. An empty name goes back to the automatic one (the folder, or the running program).
 - See every tab at once: {{cmd:tab.overview}} shows live previews of each tab; click one to go there.
 
-A tab's icon shows what's running in it. A dot appears when a background tab has new output, and a ✓ or ✗ when a command finished there while you were elsewhere.
+A tab's icon shows what's running in it. A dot appears when a background tab has new output, and a ✓ or ✗ when a command finished there while you were elsewhere. A red dot means the tab is being recorded (see [Recording and saving a terminal](#recording)).
+
+Right-click a tab to record it, or to save its output as text or its commands as Markdown.
 
 ## Tab groups
 

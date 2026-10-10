@@ -158,3 +158,20 @@ func TestResolveFile(t *testing.T) {
 		}
 	}
 }
+
+func TestSaveText(t *testing.T) {
+	s := NewService()
+	path := filepath.Join(t.TempDir(), "out.txt")
+	if err := s.SaveText(path, "hello\n"); err != nil {
+		t.Fatal(err)
+	}
+	if b, _ := os.ReadFile(path); string(b) != "hello\n" {
+		t.Errorf("wrote %q", b)
+	}
+	if fi, _ := os.Stat(path); fi.Mode().Perm() != 0o600 {
+		t.Errorf("mode %v, want 0600", fi.Mode().Perm())
+	}
+	if err := s.SaveText("relative.txt", "x"); err == nil {
+		t.Error("a relative path was accepted")
+	}
+}

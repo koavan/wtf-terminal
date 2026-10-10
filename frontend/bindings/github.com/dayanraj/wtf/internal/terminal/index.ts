@@ -10,5 +10,6 @@ export type {
     Endpoint,
     ExitEvent,
     Info,
+    RecordingStatus,
     Running
 } from "./models.js";

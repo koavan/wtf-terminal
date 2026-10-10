@@ -25,6 +25,7 @@ Backups are readable only by you. wtf's cache folder is {{mac:`~/Library/Caches/
 - **Kubernetes**: tokens and certificates in kubeconfigs are never read out. Secret values are read only when you open one secret, masked until you reveal them, and dropped when the dialog closes.
 - **Context badges**: the shell reports whether AWS keys are exported, never the keys.
 - **Pinned output** stays in memory and is never written to disk.
+- **Recordings and saved output** are written only where you choose, readable only by you. Recordings have what the terminal shows, never what you type.
 - **Sharing your screen**: [Hide Secrets](#secrets) covers keys, tokens and passwords in the output, and redacts them when copied.
 
 ## It only talks to servers when you ask

@@ -7,6 +7,7 @@ import { captureWindow } from './workspaces.svelte';
 import { closeActivePane, closeTab, closeWindow } from './closing';
 import { overlay } from './overlay.svelte';
 import { isMac } from './platform';
+import { recordings, saveOutputAsText, saveTranscript } from './recording.svelte';
 import { redaction } from './redaction.svelte';
 import { search } from './search.svelte';
 import { settings } from './settings.svelte';
@@ -125,6 +126,12 @@ export const commands: Command[] = [
   { id: 'prompt.prev', label: 'Jump to Previous Prompt', mac: '⌘↑', other: 'Ctrl+Shift+↑', run: () => activeTerminal()?.jumpPrompt(-1), available: integrated },
   { id: 'prompt.next', label: 'Jump to Next Prompt', mac: '⌘↓', other: 'Ctrl+Shift+↓', run: () => activeTerminal()?.jumpPrompt(1), available: integrated },
   {
+    id: 'record.toggle', label: 'Start or Stop Recording…', mac: '⌥⌘S', other: 'Ctrl+Shift+Alt+M',
+    run: () => recordings.toggle(),
+  },
+  { id: 'export.text', label: 'Save Output as Text…', run: () => saveOutputAsText() },
+  { id: 'export.markdown', label: 'Save Commands as Markdown…', run: () => saveTranscript(), available: integrated },
+  {
     id: 'secrets.toggle', label: 'Hide Secrets (toggle)', mac: '⌥⌘R', other: 'Ctrl+Shift+Alt+X',
     run: () => {
       redaction.on = !redaction.on;
@@ -213,6 +220,7 @@ function shortcutFor(e: KeyboardEvent): string | null {
   if (e.ctrlKey && e.shiftKey && e.altKey && e.code === 'KeyH') return 'sidebar.history';
   if (e.ctrlKey && e.shiftKey && e.altKey && e.code === 'KeyI') return 'sidebar.pins';
   if (e.ctrlKey && e.shiftKey && e.altKey && e.code === 'KeyX') return 'secrets.toggle';
+  if (e.ctrlKey && e.shiftKey && e.altKey && e.code === 'KeyM') return 'record.toggle';
   if (e.ctrlKey && e.shiftKey && e.altKey && e.code === 'KeyS') return 'sidebar.ssh';
   if (e.ctrlKey && e.shiftKey && e.altKey && e.code === 'KeyU') return 'sidebar.aws';
   if (e.ctrlKey && e.shiftKey && e.altKey && e.code === 'KeyK') return 'sidebar.kube';

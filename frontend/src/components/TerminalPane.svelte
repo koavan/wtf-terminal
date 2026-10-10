@@ -19,6 +19,7 @@
   import { LogView, logColors, readLogicalLine, tokenAt } from '../lib/logview';
   import { overlay, type MenuEntry } from '../lib/overlay.svelte';
   import { pins } from '../lib/pins.svelte';
+  import { recordings } from '../lib/recording.svelte';
   import { redaction } from '../lib/redaction.svelte';
   import { SecretMask, coverColor } from '../lib/secretmask';
   import { sidebar } from '../lib/sidebar.svelte';
@@ -196,6 +197,21 @@
         return out === null ? null : redaction.text(out);
       },
       blockOutput: (id) => prompts.output(id),
+      plainText: () => {
+        const buf = t.buffer.active;
+        const lines: string[] = [];
+        for (let y = 0; y < buf.length; y++) {
+          const line = buf.getLine(y);
+          if (!line) continue;
+          const text = line.translateToString(true);
+          // A soft-wrapped row continues the one before it.
+          if (line.isWrapped && lines.length) lines[lines.length - 1] += text;
+          else lines.push(text);
+        }
+        while (lines.length && !lines[lines.length - 1].trim()) lines.pop();
+        return lines.join('\n');
+      },
+      transcript: () => (pane.integrated ? prompts.transcript() : null),
       pinLastOutput: () => {
         const id = prompts.lastFinished();
         if (id === null) return false;
@@ -239,8 +255,12 @@
       history.clear(pane.id);
       if (search.paneId === pane.id) search.close();
       ws?.close();
-      // A tab moving to another window keeps its shells running.
-      if (sessionId && !detachedSessions.delete(sessionId)) Service.Close(sessionId);
+      // A tab moving to another window keeps its shells running (and recording, which that window picks up).
+      if (sessionId && detachedSessions.delete(sessionId)) recordings.active.delete(pane.id);
+      else if (sessionId) {
+        Service.Close(sessionId);
+        recordings.ended(pane.id);
+      }
       webgl?.dispose();
       t.dispose();
     };
@@ -260,6 +280,7 @@
       await Service.Resize(id, t.cols, t.rows);
       connect(t, id);
       syncInfo(id);
+      recordings.sync(pane);
       return;
     }
     const id = await Service.Create(thisWindow.name, t.cols, t.rows, pane.initialCwd);
