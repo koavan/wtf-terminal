@@ -127,5 +127,5 @@ and key age, rotate access keys with rollback. See README.
 
 ## Previously deferred (not DevOps-specific)
 
-- Packaging: .app / DMG and .deb done (v0.1.0); AppImage not.
+- Packaging: .app / DMG and .deb done (v0.1.0, v0.2.0); AppImage not.
 - Dropping a tab onto another window's tab strip (today: "Move to window" menu).

@@ -1,0 +1,12 @@
+[Desktop Entry]
+Version=1.0
+Name=wtf
+GenericName=Terminal
+Comment=A terminal for all the What-The-Fuck moments
+Exec=/usr/local/bin/wtf
+Terminal=false
+Type=Application
+Icon=wtf
+Categories=System;TerminalEmulator;Utility;
+Keywords=terminal;shell;ssh;kubernetes;aws;
+StartupWMClass=wtf
