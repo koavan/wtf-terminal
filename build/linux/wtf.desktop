@@ -7,6 +7,6 @@ Exec=/usr/local/bin/wtf
 Terminal=false
 Type=Application
 Icon=wtf
-Categories=System;TerminalEmulator;Utility;
+Categories=System;TerminalEmulator;
 Keywords=terminal;shell;ssh;kubernetes;aws;
 StartupWMClass=wtf
