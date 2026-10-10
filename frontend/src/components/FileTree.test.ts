@@ -19,8 +19,15 @@ vi.mock('../../bindings/github.com/dayanraj/wtf/internal/files', () => ({
     }),
     Open: vi.fn(async () => {}),
     Reveal: vi.fn(async () => {}),
+    GitStatus: vi.fn(async (dir: string) => gitStatus(dir)),
   },
 }));
+/** The fake repository's status; outside /w/proj there's none. */
+let gitChanges: { path: string; status: string; staged: boolean; unstaged: boolean }[] = [];
+function gitStatus(dir: string) {
+  if (!dir.startsWith('/w/proj')) return { root: '', branch: '', detached: false, upstream: '', ahead: 0, behind: 0, changes: [], truncated: false, error: '' };
+  return { root: '/w/proj', branch: 'main', detached: false, upstream: 'origin/main', ahead: 1, behind: 0, changes: gitChanges, truncated: false, error: '' };
+}
 const setAutoRefresh = vi.fn(async (_on: boolean) => {});
 vi.mock('../../bindings/github.com/dayanraj/wtf/internal/config', () => ({
   Service: { SetSidebarAutoRefresh: (on: boolean) => setAutoRefresh(on) },
@@ -60,6 +67,9 @@ beforeEach(() => {
   fileTree.selected = null;
   fileTree.history.clear();
   sidebar.pinned = null;
+  fileTree.git = null;
+  fileTree.changesOnly = false;
+  gitChanges = [];
   vi.clearAllMocks();
 });
 afterEach(cleanup);
@@ -239,5 +249,32 @@ describe('sidebar state', () => {
     expect(sidebar.pinned).toBeNull();
     sidebar.restore('garbage');
     expect(sidebar.width).toBe(300);
+  });
+
+  it("shows the repository's branch and marks changed files and the folders holding them", async () => {
+    gitChanges = [
+      { path: '/w/proj/src/main.go', status: 'modified', staged: false, unstaged: true },
+      { path: '/w/proj/My Notes.md', status: 'untracked', staged: false, unstaged: true },
+      { path: '/w/proj/old.go', status: 'deleted', staged: true, unstaged: false },
+    ];
+    const { container, getByText, getByRole } = render(FileTree);
+    await waitFor(() => expect(getByText('main ↑1')).toBeTruthy());
+    const rows = () => [...container.querySelectorAll('.row')];
+    await waitFor(() => expect(rows()[0].classList.contains('git-modified')).toBe(true)); // src holds a change
+    expect(rows()[0].querySelector('.gitdot')).toBeTruthy();
+    expect(rows()[2].querySelector('.letter')?.textContent).toBe('U');
+
+    // The changes list, deleted files included.
+    await fireEvent.click(getByRole('button', { name: /3 changes/ }));
+    await waitFor(() => expect(rowNames(container)).toEqual(['My Notes.md', 'old.go', 'main.go']));
+    expect(container.querySelector('.row.gone .name')?.textContent).toBe('old.go');
+  });
+
+  it('shows nothing about git outside a repository', async () => {
+    tabs.activePane!.cwd = '/w';
+    fs['/w'] = [{ name: 'proj', dir: true }];
+    const { container } = render(FileTree);
+    await waitFor(() => expect(rowNames(container)).toEqual(['proj']));
+    expect(container.querySelector('.gitbar')).toBeNull();
   });
 });

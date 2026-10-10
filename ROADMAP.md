@@ -121,7 +121,9 @@ and key age, rotate access keys with rollback. See README.
 - ☑ **Session recording:** record a terminal to asciicast v2 (⌥⌘S, written by the
   backend as output arrives); save the scrollback as text or the commands as a
   Markdown transcript.
-- ☐ **Git status in the file tree** (previously deferred).
+- ☑ **Git status in the file tree:** branch with ahead/behind, changed files
+  colored with M/A/U/D/R/! and folders dotted, a changes list (deleted files
+  too), and read-only Show Changes / Show History in a new tab.
 
 ## Previously deferred (not DevOps-specific)
 

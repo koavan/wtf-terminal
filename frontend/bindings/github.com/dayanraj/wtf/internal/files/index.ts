@@ -8,5 +8,7 @@ export {
 
 export type {
     Entry,
+    GitChange,
+    GitStatus,
     Listing
 } from "./models.js";

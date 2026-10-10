@@ -1,5 +1,6 @@
 import { SvelteMap, SvelteSet } from 'svelte/reactivity';
 import { Service as Files, type Entry } from '../../bindings/github.com/dayanraj/wtf/internal/files';
+import { GitIndex } from './gitstatus';
 import { network } from './network.svelte';
 import { processes, type ProcessSort } from './processes.svelte';
 
@@ -111,7 +112,29 @@ class FileTree {
   expanded = new SvelteSet<string>();
   /** The row with keyboard selection. */
   selected = $state<string | null>(null);
+  /** Git status of the repository the root is in; null outside one (or not loaded yet). */
+  git = $state.raw<GitIndex | null>(null);
+  /** Show the list of changed files instead of the tree. */
+  changesOnly = $state(false);
   #pending = new Map<string, Promise<void>>();
+  #gitSeq = 0;
+  #gitFor = '';
+
+  /** Asks git about the repository `dir` is in; the newest answer wins. */
+  async loadGit(dir: string) {
+    const seq = ++this.#gitSeq;
+    if (this.#gitFor !== dir) {
+      this.#gitFor = dir;
+      // A folder in another repository (or none): don't show the old one's status meanwhile.
+      if (this.git && !(dir === this.git.status.root || dir.startsWith(this.git.status.root + '/'))) this.git = null;
+    }
+    try {
+      const st = await Files.GitStatus(dir);
+      if (seq === this.#gitSeq) this.git = st.root ? new GitIndex(st) : null;
+    } catch {
+      if (seq === this.#gitSeq) this.git = null;
+    }
+  }
 
   async load(path: string) {
     const running = this.#pending.get(path);
@@ -143,7 +166,7 @@ class FileTree {
   /** Re-lists the root and every expanded folder, e.g. after a command ran. */
   refresh(root: string) {
     const paths = new Set([root, ...[...this.expanded].filter((p) => p.startsWith(root === '/' ? '/' : root + '/'))]);
-    return Promise.all([...paths].map((p) => this.load(p)));
+    return Promise.all([...paths].map((p) => this.load(p)).concat(this.loadGit(root)));
   }
 
   collapseAll() {

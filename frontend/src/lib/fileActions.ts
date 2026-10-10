@@ -1,5 +1,6 @@
 import { Clipboard } from '@wailsio/runtime';
 import { Service as Files } from '../../bindings/github.com/dayanraj/wtf/internal/files';
+import { LABEL, type ChangeKind, type GitChange, type GitIndex } from './gitstatus';
 import type { MenuEntry } from './overlay.svelte';
 import { isMac } from './platform';
 import { relativeTo, shellQuote } from './shell';
@@ -78,4 +79,46 @@ export function entryMenu(entry: Entry): MenuEntry[] {
     'separator',
     ...common,
   ];
+}
+
+/** "Modified · staged and unstaged": what git says about a change. */
+export function changeSummary(c: GitChange): string {
+  const where = c.status === 'untracked' || c.status === 'conflict' ? '' : c.staged && c.unstaged ? ' · staged and unstaged' : c.staged ? ' · staged' : ' · not staged';
+  return LABEL[c.status as ChangeKind] + where;
+}
+
+/**
+ * Git's read-only views of a path: its changes and its history, as git
+ * commands in a new tab at the repository's root. Nothing here stages,
+ * commits or discards.
+ */
+export function gitMenu(path: string, dir: boolean, git: GitIndex, run = (command: string, cwd: string) => tabs.open({ command, cwd })): MenuEntry[] {
+  const root = git.status.root;
+  if (path !== root && !path.startsWith(root + '/')) return [];
+  const rel = shellQuote(relativeTo(root, path));
+  const entries: MenuEntry[] = [];
+  if (dir) {
+    const kind = git.folder(path);
+    if (kind) {
+      entries.push({ heading: 'Git: changes inside' });
+      entries.push({ label: 'Show Status of Folder', action: () => run(`git status -- ${rel}`, root) });
+      entries.push({ label: 'Show Changes in Folder', action: () => run(`git diff HEAD -- ${rel}`, root) });
+    }
+    entries.push({ label: 'Show Folder History', action: () => run(`git log --oneline -- ${rel}`, root) });
+    return entries;
+  }
+  const c = git.file(path);
+  if (c) {
+    entries.push({ heading: `Git: ${changeSummary(c)}` });
+    const diff =
+      c.status === 'untracked' ? `git diff --no-index -- /dev/null ${rel}`
+      : c.status === 'conflict' ? `git diff -- ${rel}`
+      : c.staged && !c.unstaged ? `git diff --cached -- ${rel}`
+      : `git diff HEAD -- ${rel}`;
+    entries.push({ label: 'Show Changes', action: () => run(diff, root) });
+  }
+  if (c?.status !== 'untracked' && c?.status !== 'added') {
+    entries.push({ label: 'Show History', action: () => run(`git log --follow --oneline -- ${rel}`, root) });
+  }
+  return entries;
 }

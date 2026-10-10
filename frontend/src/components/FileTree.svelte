@@ -4,7 +4,8 @@
   import PausedNote from './PausedNote.svelte';
   import RefreshControls from './RefreshControls.svelte';
   import { prettyPath } from '../lib/backend';
-  import { cdTo, entryMenu, insertPath, pathForShell, shellIdle } from '../lib/fileActions';
+  import { cdTo, changeSummary, entryMenu, gitMenu, insertPath, pathForShell, shellIdle } from '../lib/fileActions';
+  import { LETTER, branchLabel, type ChangeKind, type GitChange } from '../lib/gitstatus';
   import { toast } from '../lib/toast.svelte';
   import { overlay } from '../lib/overlay.svelte';
   import { settings } from '../lib/settings.svelte';
@@ -23,10 +24,22 @@
   const remote = $derived(!sidebar.pinned && !!pane && REMOTE_PROCESSES.has(pane.process));
   const rootFolder = $derived(root ? fileTree.folders.get(root) : undefined);
 
-  // A new root lists right away.
+  // A new root lists right away, with its git status.
   $effect(() => {
     if (root) fileTree.load(root);
   });
+  $effect(() => {
+    if (root && !remote) untrack(() => fileTree.loadGit(root));
+    else untrack(() => (fileTree.git = null));
+  });
+
+  const git = $derived(fileTree.git);
+  /** Changed files, by path, for the changes list. */
+  const changes = $derived(git ? [...(git.status.changes ?? [])].sort((a, b) => a.path.localeCompare(b.path)) : []);
+  const relative = (path: string) => (git && path.startsWith(git.status.root + '/') ? path.slice(git.status.root.length + 1) : path);
+  /** A tree row's git state: a file's change, or the kind of change inside a folder. */
+  const rowGit = (e: Entry): ChangeKind | null =>
+    !git ? null : e.dir ? git.folder(e.path) : ((git.file(e.path)?.status as ChangeKind | undefined) ?? null);
 
   /** Whose history Back walks: the pinned root's, or this pane's. */
   const historyKey = $derived(sidebar.pinned ? 'pinned' : pane ? `pane:${pane.id}` : '');
@@ -106,7 +119,28 @@
   function onContextMenu(e: MouseEvent, entry: Entry) {
     e.preventDefault();
     fileTree.selected = entry.path;
-    overlay.openMenu(e.clientX, e.clientY, entryMenu(entry));
+    const g = git ? gitMenu(entry.path, entry.dir, git) : [];
+    overlay.openMenu(e.clientX, e.clientY, g.length ? [...entryMenu(entry), 'separator', ...g] : entryMenu(entry));
+  }
+
+  /** A row of the changes list. Deleted files only have git's views. */
+  function changeMenu(e: MouseEvent, c: GitChange) {
+    e.preventDefault();
+    if (!git) return;
+    const dir = c.path.endsWith('/');
+    const path = dir ? c.path.slice(0, -1) : c.path;
+    const g = gitMenu(path, dir, git);
+    if (c.status === 'deleted') {
+      overlay.openMenu(e.clientX, e.clientY, g);
+      return;
+    }
+    const entry: Entry = { name: baseName(path), path, dir, symlink: false, hidden: false, ignored: false };
+    overlay.openMenu(e.clientX, e.clientY, [...entryMenu(entry), 'separator', ...g]);
+  }
+
+  function openChange(c: GitChange) {
+    if (c.status === 'deleted') return;
+    insertPath(c.path.endsWith('/') ? c.path.slice(0, -1) : c.path);
   }
 
   function onDragStart(e: DragEvent, entry: Entry) {
@@ -192,6 +226,31 @@
 
   <PausedNote updatedAt={null} />
 
+  {#if git && !remote}
+    <!-- The repository the folder is in: branch, and a way to the changed files. -->
+    <div class="gitbar">
+      <span class="branch" title={git.status.upstream ? `Tracking ${git.status.upstream}` : 'No upstream branch'}>
+        <Icon name="branch" size={12} stroke={2} />
+        <span>{branchLabel(git.status)}</span>
+      </span>
+      {#if git.status.error}
+        <span class="giterr" title={git.status.error}>status unavailable</span>
+      {:else if git.count}
+        <button
+          class="changes-btn"
+          class:on={fileTree.changesOnly}
+          aria-pressed={fileTree.changesOnly}
+          title={fileTree.changesOnly ? 'Back to the folder tree' : 'List the changed files'}
+          onclick={() => (fileTree.changesOnly = !fileTree.changesOnly)}
+        >
+          {git.count}{git.status.truncated ? '+' : ''} {git.count === 1 ? 'change' : 'changes'}
+        </button>
+      {:else}
+        <span class="clean">no changes</span>
+      {/if}
+    </div>
+  {/if}
+
   <div class="filter">
     <Icon name="search" size={12} stroke={2} />
     <input bind:value={filter} placeholder="Filter" spellcheck="false" autocomplete="off" onkeydown={(e) => {
@@ -207,6 +266,30 @@
     </div>
   {:else if !root}
     <div class="note">Waiting for the shell…</div>
+  {:else if git && fileTree.changesOnly && git.count}
+    <div class="rows" role="group" aria-label="Changed files">
+      {#each changes as c (c.path)}
+        {@const rel = relative(c.path)}
+        {@const slash = rel.replace(/\/$/, '').lastIndexOf('/')}
+        <div
+          class="row change git-{c.status}"
+          class:gone={c.status === 'deleted'}
+          role="button"
+          tabindex="-1"
+          title="{rel} — {changeSummary(c)}{c.from ? ` (was ${relative(c.from)})` : ''}"
+          draggable={c.status !== 'deleted'}
+          onclick={() => openChange(c)}
+          oncontextmenu={(ev) => changeMenu(ev, c)}
+          ondragstart={(ev) => c.status !== 'deleted' && onDragStart(ev, { name: baseName(c.path), path: c.path.replace(/\/$/, ''), dir: c.path.endsWith('/'), symlink: false, hidden: false, ignored: false })}
+          onkeydown={() => {}}
+        >
+          <span class="icon"><Icon name={c.path.endsWith('/') ? 'folder' : 'file'} size={13} /></span>
+          <span class="name">{rel.slice(slash + 1).replace(/\/$/, '')}</span>
+          {#if slash > 0}<span class="dir">{rel.slice(0, slash)}</span>{/if}
+          <span class="letter" aria-label={changeSummary(c)}>{LETTER[c.status as ChangeKind]}</span>
+        </div>
+      {/each}
+    </div>
   {:else if rootFolder?.error}
     <div class="note"><strong>Can't show {prettyPath(root)}</strong>{rootFolder.error}</div>
   {:else}
@@ -218,11 +301,12 @@
         {:else}
           {@const e = row.entry}
           {@const open = e.dir && fileTree.expanded.has(e.path)}
+          {@const g = rowGit(e)}
           <div
-            class="row"
             class:selected={fileTree.selected === e.path}
             class:dim={e.ignored || e.hidden}
             class:link={e.symlink}
+            class={g ? `row git-${g}` : 'row'}
             style:padding-left="{row.depth * 14 + 6}px"
             role="treeitem"
             aria-selected={fileTree.selected === e.path}
@@ -238,6 +322,11 @@
             <span class="chevron" class:open class:hidden={!e.dir}><Icon name="chevron" size={11} stroke={2.2} /></span>
             <span class="icon" class:folder={e.dir}><Icon name={e.dir ? (open ? 'folderOpen' : 'folder') : 'file'} size={13} /></span>
             <span class="name">{e.name}</span>
+            {#if g && !e.dir}
+              <span class="letter" title={changeSummary(git!.file(e.path)!)}>{LETTER[g]}</span>
+            {:else if g}
+              <span class="gitdot" title="Changes inside"></span>
+            {/if}
           </div>
         {/if}
       {:else}
@@ -397,6 +486,114 @@
   }
   .name {
     overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  /* Git: changed files colored by what changed, a letter at the end; folders with changes get a dot. */
+  .gitbar {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex: none;
+    height: 22px;
+    margin: 0 8px 4px 12px;
+    color: var(--chrome-muted);
+    font-size: 11.5px;
+  }
+  .branch {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+    font-variant-numeric: tabular-nums;
+  }
+  .changes-btn {
+    flex: none;
+    height: 20px;
+    padding: 0 8px;
+    border: 0;
+    border-radius: 6px;
+    background: color-mix(in srgb, var(--g-yellow) 22%, transparent);
+    color: var(--chrome-text);
+    font: inherit;
+    font-size: 11px;
+    font-weight: 600;
+  }
+  .changes-btn.on {
+    background: var(--accent);
+    color: var(--on-accent);
+  }
+  .clean,
+  .giterr {
+    flex: none;
+    font-size: 11px;
+  }
+  .row.git-modified .name,
+  .row.git-renamed .name {
+    color: var(--g-yellow);
+  }
+  .row.git-added .name,
+  .row.git-untracked .name {
+    color: var(--g-green);
+  }
+  .row.git-deleted .name,
+  .row.git-conflict .name {
+    color: var(--danger);
+  }
+  .rows:focus-within .row.selected .name {
+    color: inherit;
+  }
+  .letter {
+    flex: none;
+    margin-left: auto;
+    padding-left: 6px;
+    font: 600 10.5px 'JetBrains Mono Variable', monospace;
+    opacity: 0.85;
+  }
+  .row.git-modified .letter,
+  .row.git-renamed .letter {
+    color: var(--g-yellow);
+  }
+  .row.git-added .letter,
+  .row.git-untracked .letter {
+    color: var(--g-green);
+  }
+  .row.git-deleted .letter,
+  .row.git-conflict .letter {
+    color: var(--danger);
+  }
+  .gitdot {
+    flex: none;
+    width: 6px;
+    height: 6px;
+    margin-left: auto;
+    border-radius: 50%;
+    background: var(--g-yellow);
+    opacity: 0.8;
+  }
+  .row.git-conflict .gitdot,
+  .row.git-deleted .gitdot {
+    background: var(--danger);
+  }
+  .row.git-added .gitdot,
+  .row.git-untracked .gitdot {
+    background: var(--g-green);
+  }
+  .row.change {
+    padding-left: 6px;
+  }
+  .row.change.gone .name {
+    text-decoration: line-through;
+  }
+  .dir {
+    min-width: 0;
+    overflow: hidden;
+    color: var(--chrome-muted);
+    font-size: 11px;
     text-overflow: ellipsis;
   }
 

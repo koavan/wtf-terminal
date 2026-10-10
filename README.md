@@ -108,7 +108,11 @@ keeps its own history — or go to the parent. Like double-click, they `cd` the
 shell, or move the pinned folder when the tree is pinned. Drag a file into a
 terminal to paste its path, and right-click for more (open in `$EDITOR` in a split, reveal in Finder, copy path…). Folders
 load on demand, git-ignored files are dimmed, and the tree refreshes after
-each command.
+each command. In a git repository the tree shows the branch (↑/↓ against its
+upstream), colors changed files with M/A/U/D/R/! and dots folders holding
+changes; **N changes** lists them all (deleted ones too), and right-click has
+Show Changes (`git diff`) and Show History (`git log`) in a new tab. Read-only:
+`git status` runs with optional locks off, only when the tree refreshes.
 
 The **SSH Hosts** tab lists the `Host` entries of `~/.ssh/config` and the
 files it `Include`s (grouped by file, with each host's user, address, port

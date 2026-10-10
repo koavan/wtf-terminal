@@ -10,6 +10,13 @@ import { Call as $Call, CancellablePromise as $CancellablePromise } from "@wails
 import * as $models from "./models.js";
 
 /**
+ * GitStatus reports the repository dir is in, if any.
+ */
+export function GitStatus(dir: string): $CancellablePromise<$models.GitStatus> {
+    return $Call.ByID(348669005, dir);
+}
+
+/**
  * List returns a directory's entries: folders first, then files, each
  * sorted case-insensitively.
  */

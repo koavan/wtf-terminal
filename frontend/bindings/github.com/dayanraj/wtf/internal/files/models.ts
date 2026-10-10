@@ -18,6 +18,51 @@ export interface Entry {
     "ignored": boolean;
 }
 
+/**
+ * GitChange is one changed path.
+ */
+export interface GitChange {
+    /**
+     * Absolute path. An untracked folder ends in "/" (everything in it is new).
+     */
+    "path": string;
+
+    /**
+     * "modified", "added", "deleted", "renamed", "untracked" or "conflict".
+     */
+    "status": string;
+
+    /**
+     * Staged: the change is in the index (git add). Unstaged: in the working tree.
+     */
+    "staged": boolean;
+    "unstaged": boolean;
+
+    /**
+     * For a rename, the old path.
+     */
+    "from"?: string;
+}
+
+/**
+ * GitStatus is a repository's state. Root is "" outside a repository.
+ */
+export interface GitStatus {
+    "root": string;
+    "branch": string;
+    "detached": boolean;
+    "upstream": string;
+    "ahead": number;
+    "behind": number;
+    "changes": GitChange[] | null;
+
+    /**
+     * More changes than maxChanges, or git took too long (then Changes is empty).
+     */
+    "truncated": boolean;
+    "error": string;
+}
+
 export interface Listing {
     "path": string;
     "entries": Entry[] | null;
