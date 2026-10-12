@@ -44,7 +44,7 @@
 {:else if overlay.current?.kind === 'keyInstall'}
   <KeyInstall key={overlay.current.key} host={overlay.current.host} />
 {:else if overlay.current?.kind === 'gitIdentity'}
-  <GitIdentityEditor identity={overlay.current.identity} />
+  <GitIdentityEditor identity={overlay.current.identity} keyPath={overlay.current.keyPath} />
 {:else if overlay.current?.kind === 'hostKeys'}
   <HostKeysDialog host={overlay.current.host} />
 {:else if overlay.current?.kind === 'tunnel'}

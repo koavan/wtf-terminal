@@ -183,9 +183,16 @@ describe('keys', () => {
     await waitFor(() => expect(Service.DeleteKey).toHaveBeenCalledWith('/home/me/.ssh/id_ed25519'));
   });
 
-  it('generates a key in a tab', async () => {
+  it('opens the Generate tab from +', async () => {
     const view = await showKeys();
     await fireEvent.click(view.getByLabelText('New key'));
+    expect(sidebar.tab).toBe('generate');
+    expect(sidebar.generateSection).toBe('key');
+  });
+
+  it('generates a key in a tab', async () => {
+    const view = await showKeys();
+    overlay.show({ kind: 'keyGen' }); // "Generate in a terminal instead"
     const name = (await view.findByDisplayValue('id_ed25519_2')) as HTMLInputElement;
     await fireEvent.input(name, { target: { value: 'deploy' } });
     await fireEvent.click(view.getByLabelText(/Load it into ssh-agent/));
@@ -197,7 +204,7 @@ describe('keys', () => {
   it('refuses a key name that exists', async () => {
     vi.mocked(Service.KeyNameFree).mockResolvedValue(false);
     const view = await showKeys();
-    await fireEvent.click(view.getByLabelText('New key'));
+    overlay.show({ kind: 'keyGen' });
     await fireEvent.click(await view.findByText('Generate in Terminal'));
     await view.findByText(/already exists/);
     expect(tabs.list.length).toBe(1);

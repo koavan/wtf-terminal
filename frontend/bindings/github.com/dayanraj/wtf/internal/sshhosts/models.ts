@@ -210,6 +210,43 @@ export interface Key {
     "usedBy": string[] | null;
 }
 
+/**
+ * KeyGenRequest is the form.
+ */
+export interface KeyGenRequest {
+    /**
+     * "ed25519", "rsa" (4096 bits) or "ecdsa" (P-521).
+     */
+    "type": string;
+    "name": string;
+    "comment": string;
+
+    /**
+     * Empty for none.
+     */
+    "passphrase": string;
+
+    /**
+     * Load the new key into ssh-agent (until it restarts).
+     */
+    "addToAgent": boolean;
+}
+
+/**
+ * KeyGenResult is the new key.
+ */
+export interface KeyGenResult {
+    "path": string;
+    "publicKey": string;
+    "fingerprint": string;
+    "inAgent": boolean;
+
+    /**
+     * Why loading into the agent failed; the key files are fine regardless.
+     */
+    "agentError": string;
+}
+
 export interface KeyList {
     "keys": Key[] | null;
 

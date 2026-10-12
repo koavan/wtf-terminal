@@ -151,13 +151,28 @@ behind a jump host can't be scanned directly.
 whether a passphrase protects it, which hosts use it) and keys only ssh-agent
 holds, such as a password manager's. Keys other users can read are marked
 with their permissions, since ssh refuses them; **Make Private** fixes that.
-**+** generates a key, and the menu loads a key into the agent (on macOS also
+**+** opens the Generate tab's key form (below), and the menu loads a key into the agent (on macOS also
 with its passphrase in the Keychain), unloads it, changes its passphrase,
 copies the public key (double-click), installs it on a host, or deletes it —
 moving the pair to wtf's cache folder (`ssh-backups/keys`), not erasing it.
-Anything that can ask for a passphrase or password (ssh-keygen, ssh-add,
-ssh-copy-id, scp) runs as a real command in a new tab, so it's in your shell
-history and the secret never passes through wtf.
+Anything else that can ask for a passphrase or password (ssh-add,
+ssh-copy-id, scp, changing a passphrase) runs as a real command in a new tab,
+so it's in your shell history and the secret never passes through wtf.
+
+The **Generate** tab (⌘⇧N, key icon) makes SSH keys and passwords from a
+form. **SSH Key**: type (Ed25519, RSA 4096, ECDSA P-521), file name (never
+replacing a file), comment and passphrase (typed twice, or **Suggest one**);
+wtf makes the key with Go's crypto and `golang.org/x/crypto/ssh` and writes
+it in OpenSSH's format (encrypted with bcrypt-pbkdf and AES-256 like
+ssh-keygen, `0600`), and can load it into ssh-agent. The passphrase is used
+once in memory and never stored; **Generate in a terminal instead** runs
+ssh-keygen in a tab. The result shows the fingerprint and public key, with
+Copy Public Key, Add to GitHub…, Install on Host… and Use for a Git
+Identity…. **Password**: length 4–128, lowercase/uppercase/digits/symbols
+(each at least once; no quotes, spaces, backslashes or backticks), leave out
+look-alikes, and roughly how many bits of randomness it has. Made with
+`crypto.getRandomValues`, never saved; copying clears the clipboard after 30
+seconds, and Hide Secrets shows it as dots until you click Show.
 
 **Git** holds git identities, for working on GitHub as more than one user:
 each pairs an SSH key with the name and email to commit as. Using one in a tab

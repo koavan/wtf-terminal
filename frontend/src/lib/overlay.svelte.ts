@@ -21,7 +21,7 @@ export type OverlayState =
   | { kind: 'sshHost'; host: Host | null; prefill?: Partial<HostDraft> }
   | { kind: 'keyGen' }
   | { kind: 'keyInstall'; key: Key | null; host: Host | null }
-  | { kind: 'gitIdentity'; identity: GitIdentity | null }
+  | { kind: 'gitIdentity'; identity: GitIdentity | null; keyPath?: string }
   | { kind: 'hostKeys'; host: Host }
   | { kind: 'tunnel'; tunnel: TunnelStatus | null; host: Host | null; prefill?: Partial<TunnelDraft> }
   | { kind: 'transfer'; host: Host; direction: 'upload' | 'download'; locals: string[] }

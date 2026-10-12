@@ -21,7 +21,8 @@ Backups are readable only by you. wtf's cache folder is {{mac:`~/Library/Caches/
 ## Secrets stay where they are
 
 - **AWS**: saved secret keys and session tokens are never shown or sent to the window; the field is write-only. During rotation, the new secret goes from AWS straight into your credentials file.
-- **SSH**: passphrases and passwords are typed into real ssh-keygen / ssh-add / ssh-copy-id commands in a terminal, never into wtf.
+- **SSH**: passphrases and passwords are typed into real ssh-add / ssh-copy-id / ssh-keygen commands in a terminal, never into wtf. The exception is a new key's passphrase in the [Generate](#generate) tab's form: wtf uses it once, in memory, to encrypt the key, and never saves, logs or sends it. **Generate in a terminal instead** keeps it out of wtf too.
+- **Generated passwords** are made on this computer and never saved, logged or sent. Copying one clears the clipboard after 30 seconds.
 - **Kubernetes**: tokens and certificates in kubeconfigs are never read out. Secret values are read only when you open one secret, masked until you reveal them, and dropped when the dialog closes.
 - **Context badges**: the shell reports whether AWS keys are exported, never the keys. The git badge drops any user or token from a remote's URL before showing it.
 - **Git identities**: kept in `git-identities.json` in wtf's config folder (names, emails and key paths, never keys). **Test GitHub Login** connects to github.com only when you ask.

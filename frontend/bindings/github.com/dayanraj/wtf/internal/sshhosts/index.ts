@@ -14,6 +14,8 @@ export type {
     HostKey,
     HostKeys,
     Key,
+    KeyGenRequest,
+    KeyGenResult,
     KeyList,
     List,
     Option,

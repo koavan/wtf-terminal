@@ -10,13 +10,15 @@ export const MIN_WIDTH = 220;
 export const MAX_WIDTH = 520;
 export const DEFAULT_WIDTH = 300;
 
-export const SIDEBAR_TABS = ['files', 'ssh', 'aws', 'kube', 'snippets', 'workspaces', 'network', 'processes', 'history', 'pins', 'share'] as const;
+export const SIDEBAR_TABS = ['files', 'ssh', 'aws', 'kube', 'snippets', 'workspaces', 'network', 'processes', 'history', 'pins', 'share', 'generate'] as const;
 export type SidebarTab = (typeof SIDEBAR_TABS)[number];
 
 export const SSH_SECTIONS = ['hosts', 'keys', 'git', 'tunnels'] as const;
 export const KUBE_VIEWS = ['cluster', 'contexts'] as const;
 export type KubeView = (typeof KUBE_VIEWS)[number];
 export type SshSection = (typeof SSH_SECTIONS)[number];
+export const GENERATE_SECTIONS = ['key', 'password'] as const;
+export type GenerateSection = (typeof GENERATE_SECTIONS)[number];
 
 export interface SavedSidebar {
   open: boolean;
@@ -29,6 +31,7 @@ export interface SavedSidebar {
   historyScope?: 'pane' | 'all';
   sshSection?: SshSection;
   kubeView?: KubeView;
+  generateSection?: GenerateSection;
 }
 
 /** The window's side pane: whether it shows, how wide, which tab. */
@@ -44,6 +47,8 @@ class Sidebar {
   sshSection = $state<SshSection>('hosts');
   /** Which part of the Kubernetes tab shows. */
   kubeView = $state<KubeView>('cluster');
+  /** Which generator the Generate tab shows. */
+  generateSection = $state<GenerateSection>('key');
 
   toggle() {
     this.open = !this.open;
@@ -56,6 +61,13 @@ class Sidebar {
       this.tab = tab;
       this.open = true;
     }
+  }
+
+  /** Opens the Generate tab at a generator (never closes it, unlike show). */
+  openGenerator(section: GenerateSection) {
+    this.generateSection = section;
+    this.tab = 'generate';
+    this.open = true;
   }
 
   setWidth(w: number) {
@@ -74,6 +86,7 @@ class Sidebar {
       historyScope: this.historyScope,
       sshSection: this.sshSection,
       kubeView: this.kubeView,
+      generateSection: this.generateSection,
     };
   }
 
@@ -89,6 +102,7 @@ class Sidebar {
     if (v.historyScope === 'pane' || v.historyScope === 'all') this.historyScope = v.historyScope;
     if (SSH_SECTIONS.includes(v.sshSection as SshSection)) this.sshSection = v.sshSection as SshSection;
     if (KUBE_VIEWS.includes(v.kubeView as KubeView)) this.kubeView = v.kubeView as KubeView;
+    if (GENERATE_SECTIONS.includes(v.generateSection as GenerateSection)) this.generateSection = v.generateSection as GenerateSection;
     if (v.processSort === 'cpu' || v.processSort === 'memory' || v.processSort === 'name') processes.sort = v.processSort;
   }
 }

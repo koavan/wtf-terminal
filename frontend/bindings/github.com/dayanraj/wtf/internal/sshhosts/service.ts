@@ -59,6 +59,13 @@ export function ForgetHostKeys(alias: string, port: string): $CancellablePromise
 }
 
 /**
+ * GenerateKey makes a key pair as ~/.ssh/<name> and <name>.pub.
+ */
+export function GenerateKey(req: $models.KeyGenRequest): $CancellablePromise<$models.KeyGenResult> {
+    return $Call.ByID(4264179777, req);
+}
+
+/**
  * GitIdentities lists the saved identities.
  */
 export function GitIdentities(): $CancellablePromise<$models.GitIdentity[] | null> {

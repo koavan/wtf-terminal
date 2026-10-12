@@ -12,7 +12,7 @@ Keys only the agent holds (from a password manager or a security key) are listed
 
 ## Doing things with keys
 
-- **Generate**: **+** → choose a type (Ed25519 unless an old server needs RSA), a file name and a comment. ssh-keygen runs in a new tab and asks for a passphrase there; it can load the new key into the agent afterwards{{mac:, remembering the passphrase in the Keychain|other:}}.
+- **Generate**: **+** opens the [Generate](#generate) tab's key form: type, file name, comment and passphrase, and the key is made right there. To have ssh-keygen ask for the passphrase in a terminal instead, use the form's **Generate in a terminal instead**.
 - **Copy the public key**: double-click a key.
 - **Install on a server**: right-click → **Install on Host…** (or a host's **Install Public Key…**). ssh-copy-id runs in a tab and asks for your password on the server once.
 - **Load / unload**: **Load into Agent**{{mac: (or **Load into Agent and Keychain**)|other:}}, **Unload from Agent**.
@@ -20,6 +20,6 @@ Keys only the agent holds (from a password manager or a security key) are listed
 - **Missing .pub**: **Create .pub File** writes it from the private key.
 - **Delete**: moves the key pair out of `~/.ssh` into wtf's cache folder (`ssh-backups/keys`) — not erased, so you can get it back.
 
-Everything that can ask for a passphrase or password (ssh-keygen, ssh-add, ssh-copy-id) runs as a real command in a terminal tab: it's in your shell history and the secret never passes through wtf. The list refreshes when those commands finish.
+Everything else that can ask for a passphrase or password (ssh-add, ssh-copy-id, changing a passphrase) runs as a real command in a terminal tab: it's in your shell history and the secret never passes through wtf. The one exception is the passphrase you type into the Generate tab's form, which wtf uses once to encrypt the new key and doesn't keep. The list refreshes when those commands finish.
 
 More than one GitHub account? Pair each key with an account in [Git identities](#git-identities) and pick one per tab.

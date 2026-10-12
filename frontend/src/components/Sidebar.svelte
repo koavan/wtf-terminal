@@ -3,6 +3,7 @@
   import HistoryView from './HistoryView.svelte';
   import PinsView from './PinsView.svelte';
   import ShareView from './ShareView.svelte';
+  import GenerateView from './GenerateView.svelte';
   import Icon, { type IconName } from './Icon.svelte';
   import NetworkView from './NetworkView.svelte';
   import ProcessView from './ProcessView.svelte';
@@ -26,6 +27,7 @@
     { id: 'history', label: 'History', icon: 'history', key: isMac ? '⌘⇧H' : 'Ctrl+Shift+Alt+H' },
     { id: 'pins', label: 'Pinned Output', icon: 'pin', key: isMac ? '⌘⇧I' : 'Ctrl+Shift+Alt+I' },
     { id: 'share', label: 'Share & Record', icon: 'shield', key: isMac ? '⌘⇧J' : 'Ctrl+Shift+Alt+J' },
+    { id: 'generate', label: 'Generate Keys & Passwords', icon: 'key', key: isMac ? '⌘⇧N' : 'Ctrl+Shift+Alt+N' },
   ];
 
   let resizing = $state(false);
@@ -90,6 +92,8 @@
       <PinsView />
     {:else if sidebar.tab === 'share'}
       <ShareView />
+    {:else if sidebar.tab === 'generate'}
+      <GenerateView />
     {/if}
   </div>
 
@@ -122,11 +126,19 @@
     align-items: center;
     gap: 2px;
     flex: none;
+    min-height: 0;
     padding: 0 6px 0 0;
     border-right: 1px solid var(--hairline);
+    /* A short window scrolls the icons rather than cutting off the last ones. */
+    overflow-y: auto;
+    scrollbar-width: none;
+  }
+  .tabs::-webkit-scrollbar {
+    display: none;
   }
   .tabs button {
     position: relative;
+    flex: none;
     display: grid;
     place-items: center;
     width: 32px;

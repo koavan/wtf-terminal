@@ -19,6 +19,7 @@ import privacy from './privacy.md?raw';
 import recording from './recording.md?raw';
 import secrets from './secrets.md?raw';
 import share from './share.md?raw';
+import generate from './generate.md?raw';
 import processes from './processes.md?raw';
 import sessions from './sessions.md?raw';
 import settings from './settings.md?raw';
@@ -65,6 +66,7 @@ export const TOPICS: Topic[] = [
   t('Side pane', 'history', 'History', history),
   t('Side pane', 'pins', 'Pinned output', pinsPage),
   t('Side pane', 'share', 'Share & Record', share),
+  t('Side pane', 'generate', 'Generate: SSH keys and passwords', generate),
   t('SSH', 'ssh-hosts', 'SSH hosts', sshHosts),
   t('SSH', 'ssh-keys', 'SSH keys and ssh-agent', sshKeys),
   t('SSH', 'git-identities', 'Git identities (more than one GitHub user)', gitIdentitiesPage),
@@ -94,4 +96,5 @@ export const SIDEBAR_TOPIC: Record<string, string> = {
   history: 'history',
   pins: 'pins',
   share: 'share',
+  generate: 'generate',
 };

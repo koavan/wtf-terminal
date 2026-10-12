@@ -12,7 +12,7 @@ From then on, git in that tab connects with only that key. `IdentitiesOnly` stop
 
 ## Setting up a second account
 
-1. **SSH → Keys → +** to make a key for the account (say `id_ed25519_work`).
+1. Make a key for the account in the [Generate](#generate) tab (say `id_ed25519_work`). When it's done, **Use for a Git Identity…** starts step 2 with the key filled in.
 2. **SSH → Git → +**: name it (`work`), pick that key, and enter the name and email to commit as. For GitHub to link your commits to the account, use an email the account has, or its noreply address.
 3. Right-click the identity → **Add Key to GitHub…**. This copies the public key and opens GitHub's "New SSH key" page. Paste it there **while signed in as that account**.
 4. Right-click → **Test GitHub Login**. wtf logs in with only that key and shows the account GitHub names, for example **@you-work**. A key with a passphrase must be loaded into ssh-agent first (**SSH → Keys**, right-click → **Load into Agent**).

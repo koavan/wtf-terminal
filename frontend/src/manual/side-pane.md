@@ -15,6 +15,7 @@
 | [History](#history) | {{key:sidebar.history}} | commands run in a shell |
 | [Pinned output](#pins) | {{key:sidebar.pins}} | output you pinned to keep in view |
 | [Share & Record](#share) | {{key:sidebar.share}} | Hide Secrets, recording, and saving a terminal's output |
+| [Generate](#generate) | {{key:sidebar.generate}} | new SSH keys and passwords, from a form |
 
 Hover an icon for the tab's name and shortcut. Pressing a tab's shortcut again closes the pane. Drag its right edge to resize it; double-click the edge for the default width. The **?** at the bottom of the icons opens this manual at the page for the tab you're on.
 

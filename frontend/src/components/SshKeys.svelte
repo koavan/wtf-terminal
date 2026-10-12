@@ -10,6 +10,7 @@
   import {
     agentAddCommand, changePassphraseCommand, message, quotePath, runInTab, sshKeys, type Key,
   } from '../lib/sshAdmin.svelte';
+  import { sidebar } from '../lib/sidebar.svelte';
   import { toast } from '../lib/toast.svelte';
 
   // Key pairs in ~/.ssh and what ssh-agent holds. Reading needs no
@@ -140,7 +141,7 @@
 <div class="keys">
   <header>
     <span class="title">~/.ssh</span>
-    <button class="tool" title="New key" aria-label="New key" onclick={() => overlay.show({ kind: 'keyGen' })}>
+    <button class="tool" title="New key" aria-label="New key" onclick={() => sidebar.openGenerator('key')}>
       <Icon name="plus" size={14} />
     </button>
     <button class="tool" title="Reload" aria-label="Reload" disabled={sshKeys.loading} onclick={() => sshKeys.load()}>
@@ -155,7 +156,7 @@
       {#if sshKeys.loaded}
         <div class="note">
           <strong>No keys in ~/.ssh</strong>
-          A key lets you log in without a password. Press + to make one, then install it on your servers.
+          A key lets you log in without a password. Press + to make one in the Generate tab, then install it on your servers.
         </div>
       {/if}
     {/each}

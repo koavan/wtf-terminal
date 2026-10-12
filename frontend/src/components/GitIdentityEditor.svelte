@@ -5,16 +5,17 @@
   import { gitIdentities, useIdentityCommand, type GitIdentity } from '../lib/gitIdentities.svelte';
   import { overlay } from '../lib/overlay.svelte';
   import { message, sshKeys } from '../lib/sshAdmin.svelte';
+  import { sidebar } from '../lib/sidebar.svelte';
   import { toast } from '../lib/toast.svelte';
 
   // Adds or edits a git identity. Only wtf's own list changes: nothing in
   // ~/.ssh or ~/.gitconfig.
 
-  let { identity }: { identity: GitIdentity | null } = $props();
+  let { identity, keyPath = '' }: { identity: GitIdentity | null; keyPath?: string } = $props();
 
   const editing = untrack(() => identity);
   let draft = $state<GitIdentity>(
-    editing ? { ...editing } : { id: '', name: '', authorName: '', authorEmail: '', keyPath: '', githubUser: '', testedAt: 0 },
+    editing ? { ...editing } : { id: '', name: '', authorName: '', authorEmail: '', keyPath: untrack(() => keyPath), githubUser: '', testedAt: 0 },
   );
   let useNow = $state(!editing);
   let error = $state('');
@@ -47,9 +48,10 @@
     }
   }
 
+  /** The Generate tab makes the key, and offers "Use for a Git Identity…" once it exists. */
   function newKey() {
-    overlay.show({ kind: 'keyGen' });
-    toast.show('Once the key exists, add the identity again and pick it', 6000);
+    overlay.close();
+    sidebar.openGenerator('key');
   }
 </script>
 
