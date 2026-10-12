@@ -6,7 +6,7 @@ import { sidebar } from './sidebar.svelte';
 export function helpTopic(): string {
   if (!sidebar.open) return 'getting-started';
   if (sidebar.tab === 'ssh') {
-    return { hosts: 'ssh-hosts', keys: 'ssh-keys', tunnels: 'ssh-tunnels' }[sidebar.sshSection];
+    return { hosts: 'ssh-hosts', keys: 'ssh-keys', git: 'git-identities', tunnels: 'ssh-tunnels' }[sidebar.sshSection];
   }
   if (sidebar.tab === 'kube' && sidebar.kubeView === 'contexts') return 'kube-contexts';
   return SIDEBAR_TOPIC[sidebar.tab] ?? 'getting-started';

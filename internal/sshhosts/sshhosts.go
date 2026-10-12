@@ -71,21 +71,23 @@ const maxDepth = 16
 type Service struct {
 	home string
 	// Where copies of config files are kept before wtf changes them.
-	backupDir string
-	tunnels   *tunnelManager
+	backupDir  string
+	tunnels    *tunnelManager
+	identities *identityStore
 }
 
 func init() {
 	application.RegisterEvent[[]TunnelStatus](EventTunnels)
 }
 
-// NewService keeps its saved tunnels in stateDir.
+// NewService keeps its saved tunnels and git identities in stateDir.
 func NewService(stateDir string) *Service {
 	home, _ := os.UserHomeDir()
 	s := &Service{home: home}
 	if cache, err := os.UserCacheDir(); err == nil {
 		s.backupDir = filepath.Join(cache, "wtf", "ssh-backups")
 	}
+	s.identities = newIdentityStore(filepath.Join(stateDir, "git-identities.json"))
 	s.tunnels = newTunnelManager(filepath.Join(stateDir, "ssh-tunnels.json"), func(list []TunnelStatus) {
 		if app := application.Get(); app != nil {
 			app.Event.Emit(EventTunnels, list)

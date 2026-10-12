@@ -8,6 +8,8 @@ export {
 
 export type {
     Entry,
+    GitHubTest,
+    GitIdentity,
     Host,
     HostKey,
     HostKeys,

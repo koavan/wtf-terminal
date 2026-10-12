@@ -5,7 +5,7 @@
 | Tab | Shortcut | What it's for |
 |---|---|---|
 | [Files](#files) | {{key:sidebar.files}} | the focused shell's folder |
-| [SSH](#ssh-hosts) | {{key:sidebar.ssh}} | hosts, keys, tunnels |
+| [SSH](#ssh-hosts) | {{key:sidebar.ssh}} | hosts, keys, [git identities](#git-identities), tunnels |
 | [AWS Profiles](#aws) | {{key:sidebar.aws}} | AWS CLI profiles |
 | [Kubernetes](#kubernetes) | {{key:sidebar.kube}} | cluster resources and kubeconfig contexts |
 | [Snippets](#snippets) | {{key:sidebar.snippets}} | saved commands and runbooks |

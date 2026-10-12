@@ -31,6 +31,14 @@ export function Delete(file: string, line: number, version: string): $Cancellabl
 }
 
 /**
+ * DeleteGitIdentity forgets an identity. Its key stays in ~/.ssh; shells
+ * using it keep their variables until they change them.
+ */
+export function DeleteGitIdentity(id: string): $CancellablePromise<$models.GitIdentity[] | null> {
+    return $Call.ByID(1614435960, id);
+}
+
+/**
  * DeleteKey moves a key pair out of ~/.ssh into wtf's cache folder
  * (ssh-backups/keys), where it can still be recovered.
  */
@@ -48,6 +56,13 @@ export function DeleteTunnel(id: string): $CancellablePromise<$models.TunnelStat
  */
 export function ForgetHostKeys(alias: string, port: string): $CancellablePromise<void> {
     return $Call.ByID(91244282, alias, port);
+}
+
+/**
+ * GitIdentities lists the saved identities.
+ */
+export function GitIdentities(): $CancellablePromise<$models.GitIdentity[] | null> {
+    return $Call.ByID(1195742673);
 }
 
 /**
@@ -118,6 +133,13 @@ export function Save(e: $models.Entry): $CancellablePromise<$models.List> {
 }
 
 /**
+ * SaveGitIdentity adds an identity (empty ID) or replaces one.
+ */
+export function SaveGitIdentity($in: $models.GitIdentity): $CancellablePromise<$models.GitIdentity[] | null> {
+    return $Call.ByID(262641058, $in);
+}
+
+/**
  * SaveTunnel adds a tunnel (empty ID) or changes one; a running tunnel
  * whose connection changed restarts.
  */
@@ -139,6 +161,15 @@ export function StartTunnel(id: string): $CancellablePromise<$models.TunnelStatu
 
 export function StopTunnel(id: string): $CancellablePromise<$models.TunnelStatus[] | null> {
     return $Call.ByID(22889375, id);
+}
+
+/**
+ * TestGitIdentity logs in to GitHub with only the identity's key, the way
+ * git will in a tab using it, and remembers the account GitHub names.
+ * BatchMode: ssh never prompts; a key with a passphrase must be in the agent.
+ */
+export function TestGitIdentity(id: string): $CancellablePromise<$models.GitHubTest> {
+    return $Call.ByID(3338049853, id);
 }
 
 /**

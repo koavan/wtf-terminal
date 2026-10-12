@@ -18,6 +18,7 @@
   import HostKeysDialog from './HostKeysDialog.svelte';
   import KeyGenerator from './KeyGenerator.svelte';
   import KeyInstall from './KeyInstall.svelte';
+  import GitIdentityEditor from './GitIdentityEditor.svelte';
   import TransferDialog from './TransferDialog.svelte';
   import TunnelEditor from './TunnelEditor.svelte';
   import Palette from './Palette.svelte';
@@ -42,6 +43,8 @@
   <KeyGenerator />
 {:else if overlay.current?.kind === 'keyInstall'}
   <KeyInstall key={overlay.current.key} host={overlay.current.host} />
+{:else if overlay.current?.kind === 'gitIdentity'}
+  <GitIdentityEditor identity={overlay.current.identity} />
 {:else if overlay.current?.kind === 'hostKeys'}
   <HostKeysDialog host={overlay.current.host} />
 {:else if overlay.current?.kind === 'tunnel'}

@@ -18,6 +18,17 @@ The tab uses the focused shell's PATH: tabs opened before an update of wtf may n
 
 Tunnels run without prompts. Load the key into ssh-agent: [SSH keys](#ssh-keys) → right-click → **Load into Agent**.
 
+## git pushes or commits as the wrong GitHub user
+
+- Check the address bar's git badge: it names the [git identity](#git-identities) the tab uses. No identity means the tab uses your own `~/.ssh/config` and `~/.gitconfig`.
+- Right-click the identity → **Test GitHub Login**. The account it shows is the one git in that tab pushes as. If it's the wrong account, the key was added to that account on GitHub: remove it there and add it to the right one.
+- Commits already made keep their author. Fix the last one with `git commit --amend --reset-author` (after switching identity).
+- Tabs opened outside wtf, and GUI git clients, don't see a tab's identity.
+
+## Git identity: "Permission denied (publickey)"
+
+GitHub doesn't know the key. Right-click the identity → **Add Key to GitHub…** and paste it while signed in as that account. If the key has a passphrase, load it into ssh-agent first ([SSH keys](#ssh-keys) → right-click → **Load into Agent**).
+
 ## "REMOTE HOST IDENTIFICATION HAS CHANGED"
 
 The server's key changed (often after a rebuild). See [Host keys](#ssh-host-keys).

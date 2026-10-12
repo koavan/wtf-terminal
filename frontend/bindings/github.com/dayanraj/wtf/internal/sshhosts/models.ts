@@ -24,6 +24,48 @@ export interface Entry {
 }
 
 /**
+ * GitHubTest is the outcome of logging in to GitHub with an identity's key.
+ */
+export interface GitHubTest {
+    "ok": boolean;
+
+    /**
+     * The account GitHub greeted, when OK.
+     */
+    "user": string;
+
+    /**
+     * What ssh said, when not OK.
+     */
+    "message": string;
+}
+
+/**
+ * GitIdentity is one saved identity.
+ */
+export interface GitIdentity {
+    "id": string;
+
+    /**
+     * What the user calls it ("work", "personal"); unique.
+     */
+    "name": string;
+    "authorName": string;
+    "authorEmail": string;
+
+    /**
+     * Absolute path of the private key.
+     */
+    "keyPath": string;
+
+    /**
+     * The GitHub account the key logged in as at the last test, and when (Unix ms).
+     */
+    "githubUser": string;
+    "testedAt": number;
+}
+
+/**
  * Host is one entry of the list.
  */
 export interface Host {

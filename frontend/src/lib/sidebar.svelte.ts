@@ -13,7 +13,7 @@ export const DEFAULT_WIDTH = 300;
 export const SIDEBAR_TABS = ['files', 'ssh', 'aws', 'kube', 'snippets', 'workspaces', 'network', 'processes', 'history', 'pins', 'share'] as const;
 export type SidebarTab = (typeof SIDEBAR_TABS)[number];
 
-export const SSH_SECTIONS = ['hosts', 'keys', 'tunnels'] as const;
+export const SSH_SECTIONS = ['hosts', 'keys', 'git', 'tunnels'] as const;
 export const KUBE_VIEWS = ['cluster', 'contexts'] as const;
 export type KubeView = (typeof KUBE_VIEWS)[number];
 export type SshSection = (typeof SSH_SECTIONS)[number];

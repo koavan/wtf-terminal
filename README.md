@@ -30,8 +30,8 @@ or newer): install `libgtk-4-dev libwebkitgtk-6.0-dev` (Debian/Ubuntu) or
 - `internal/terminal/shellintegration`: the bash/zsh scripts.
 - `internal/notify`: desktop notifications.
 - `internal/sshhosts`: the SSH tab: hosts from `~/.ssh/config` and `known_hosts`, keys
-  and ssh-agent, server host keys, and background tunnels.
-- `internal/infra`: Kubernetes/AWS/gcloud/Terraform context for the context badges.
+  and ssh-agent, server host keys, git identities, and background tunnels.
+- `internal/infra`: Kubernetes/AWS/gcloud/Terraform/git context for the context badges.
 - `internal/kube`: the Kubernetes tab: deployments, pods and events, read with
   kubectl using the focused shell's variables.
 - `internal/awsprofiles`: the AWS tab: profiles in `~/.aws/credentials` and
@@ -158,6 +158,19 @@ moving the pair to wtf's cache folder (`ssh-backups/keys`), not erasing it.
 Anything that can ask for a passphrase or password (ssh-keygen, ssh-add,
 ssh-copy-id, scp) runs as a real command in a new tab, so it's in your shell
 history and the secret never passes through wtf.
+
+**Git** holds git identities, for working on GitHub as more than one user:
+each pairs an SSH key with the name and email to commit as. Using one in a tab
+(double-click, or right-click a tab → **Use …**) types an `export` of
+`GIT_SSH_COMMAND='ssh -i <key> -o IdentitiesOnly=yes'`, `GIT_AUTHOR_*` and
+`GIT_COMMITTER_*` into that tab's shell, so git there pushes with only that
+key and commits as that author; other tabs are untouched, and nothing in
+`~/.ssh` or `~/.gitconfig` changes. Splits and duplicates of the tab keep the
+identity, and so does the tab across restarts. **Add Key to GitHub…** copies
+the public key and opens GitHub's new-key page; **Test GitHub Login** runs
+`ssh -T git@github.com` with only that key and shows the account GitHub
+names. The git badge shows the identity a tab uses. Saved in
+`git-identities.json` in wtf's config folder.
 
 **Tunnels** are saved port forwards: local (`-L`, reach a database behind a
 bastion on localhost), remote (`-R`) and SOCKS (`-D`). Each runs as its own
@@ -455,6 +468,14 @@ the answer until `~/.aws/config` or `~/.aws/credentials` changes; a failed
 lookup is retried after two minutes and its error shown on hover. From the
 credentials file wtf reads only the profile names. Exported access keys, which
 override any profile, show as "env credentials" with no account.
+In a git repository, a **git** badge shows who commits there (the tab's git
+identity, else `GIT_AUTHOR_NAME` or `user.name`), the
+branch, its upstream, and how many commits apart they are: `Ada · main → origin ↑2 ↓1`
+(the upstream's branch is left out when it matches). Hover it for the
+repository, the remote's URL (any user or token in it is dropped), the author's
+email and when the repository last fetched. The counts are as of that fetch:
+wtf never fetches. Outside a repository nothing runs; inside, a few read-only
+git commands run at each prompt, with optional locks off.
 Hover a badge for the full names. Turn badges off with `context-badges = false`.
 
 ## Session

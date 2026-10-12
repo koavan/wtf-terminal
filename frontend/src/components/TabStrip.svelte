@@ -6,11 +6,13 @@
   import { prettyPath } from '../lib/backend';
   import { broadcast } from '../lib/broadcast.svelte';
   import { closeTab, closeTabs } from '../lib/closing';
-  import { leaves } from '../lib/layout';
+  import { gitIdentities, paneIdentity } from '../lib/gitIdentities.svelte';
+  import { leaves, type Pane } from '../lib/layout';
   import { overlay, type MenuEntry } from '../lib/overlay.svelte';
   import { recordings, saveOutputAsText, saveTranscript } from '../lib/recording.svelte';
   import { redaction } from '../lib/redaction.svelte';
   import { renaming, startRename } from '../lib/rename.svelte';
+  import { sidebar } from '../lib/sidebar.svelte';
   import { activeTerminal } from '../lib/terminals';
   import { isMac } from '../lib/platform';
   import { focusedPane, paneTitle, tabs, type Group, type Tab, tabTitle, MAX_TITLE } from '../lib/tabs.svelte';
@@ -179,6 +181,27 @@
     }
   }
 
+  /** The tab's git identity: pick one, stop using it, or manage them. */
+  async function identityEntries(pane: Pane): Promise<MenuEntry[]> {
+    await gitIdentities.load().catch(() => {});
+    const current = paneIdentity(pane);
+    const manage = {
+      label: 'Git Identities…',
+      action: () => {
+        sidebar.sshSection = 'git';
+        if (!(sidebar.open && sidebar.tab === 'ssh')) sidebar.show('ssh');
+      },
+    };
+    if (!gitIdentities.list.length) return [manage];
+    const out: MenuEntry[] = [{ heading: current ? `Git identity: ${current}` : 'Git identity' }];
+    for (const i of gitIdentities.list) {
+      if (i.name !== current) out.push({ label: `Use ${i.name}`, action: () => gitIdentities.use(i, pane) });
+    }
+    if (current) out.push({ label: 'Stop Using Identity', action: () => gitIdentities.stop(pane) });
+    out.push(manage);
+    return out;
+  }
+
   async function tabMenu(e: MouseEvent, tab: Tab) {
     e.preventDefault();
     const { clientX, clientY } = e;
@@ -231,6 +254,7 @@
       { label: 'Save Output as Text…', action: () => saveOutputAsText(pane) },
     );
     if (pane.integrated) entries.push({ label: 'Save Commands as Markdown…', action: () => saveTranscript(pane) });
+    entries.push('separator', ...(await identityEntries(pane)));
     entries.push(
       'separator',
       { label: 'Duplicate', action: () => tabs.openNextTo(tab.id, true) },

@@ -25,6 +25,7 @@
   import { sidebar } from '../lib/sidebar.svelte';
   import { toast } from '../lib/toast.svelte';
   import { history } from '../lib/history.svelte';
+  import { gitIdentities } from '../lib/gitIdentities.svelte';
   import { parseEnv, resolveContext } from '../lib/infra';
   import { notifyCommandDone } from '../lib/notify';
   import { isMac } from '../lib/platform';
@@ -314,11 +315,16 @@
     let opened = false;
     socket.onopen = () => {
       opened = true;
-      // The shell reads this once it's ready; the tty holds it until then.
-      if (pane.initialCommand) {
-        socket.send(encoder.encode(pane.initialCommand + '\r'));
-        pane.initialCommand = undefined;
-      }
+      // The shell reads these once it's ready; the tty holds them until then.
+      // A git identity goes first, so the initial command already runs as it.
+      const identity = pane.gitIdentity;
+      const command = pane.initialCommand;
+      pane.gitIdentity = pane.initialCommand = undefined;
+      (identity ? gitIdentities.commandFor(identity) : Promise.resolve('')).then((first) => {
+        for (const line of [first, command]) {
+          if (line && socket.readyState === WebSocket.OPEN) socket.send(encoder.encode(line + '\r'));
+        }
+      });
     };
     socket.onclose = () => {
       if (!opened && !disposed && attempt < 40) setTimeout(() => connect(t, id, attempt + 1), 100);

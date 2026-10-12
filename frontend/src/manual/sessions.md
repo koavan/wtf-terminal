@@ -2,7 +2,7 @@
 
 ## Sessions
 
-Each window's tabs, groups, splits, folders and text size are saved as you work and restored the next time you open wtf. Shells start fresh in their saved folders (programs that were running aren't restarted). The session lives in `session.json` in wtf's config folder ({{mac:`~/Library/Application Support/wtf`|other:`~/.config/wtf`}}).
+Each window's tabs, groups, splits, folders and text size are saved as you work and restored the next time you open wtf. Shells start fresh in their saved folders (programs that were running aren't restarted). A tab that used a [git identity](#git-identities) gets it back. The session lives in `session.json` in wtf's config folder ({{mac:`~/Library/Application Support/wtf`|other:`~/.config/wtf`}}).
 
 To open a set of tabs you use often — not just the last ones — save them as a [workspace](#workspaces).
 

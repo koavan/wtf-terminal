@@ -31,4 +31,67 @@ export interface Context {
      * Terraform workspace of the current folder; "default" is left out.
      */
     "tfWorkspace": string;
+
+    /**
+     * The git repository of the current folder; nil outside one.
+     */
+    "git": Git | null;
+}
+
+/**
+ * Git is the repository a shell's folder is in: the branch, where it pushes
+ * and pulls, how far apart the two are, and who commits there.
+ * 
+ * Read at each prompt, so it follows commits, pulls and checkouts. Outside a
+ * repository it costs a few stat(2)s and no git process. Inside, a handful
+ * of read-only git commands with optional locks off. Never fetches: the
+ * difference with the remote is as of the last fetch (FetchedAt).
+ */
+export interface Git {
+    "root": string;
+
+    /**
+     * The branch, or the short commit when Detached.
+     */
+    "branch": string;
+    "detached": boolean;
+
+    /**
+     * The branch's upstream, e.g. "origin/main"; "" when it has none.
+     */
+    "upstream": string;
+
+    /**
+     * The upstream was set but its remote branch is gone (or never fetched).
+     */
+    "upstreamGone": boolean;
+
+    /**
+     * Commits on the branch not on the upstream, and the other way round.
+     */
+    "ahead": number;
+    "behind": number;
+
+    /**
+     * The upstream's remote, else "origin"; URL without any credentials.
+     */
+    "remote": string;
+    "remoteURL": string;
+
+    /**
+     * When the repository last fetched (Unix ms), 0 if never.
+     */
+    "fetchedAt": number;
+
+    /**
+     * Who commits here: GIT_AUTHOR_NAME/EMAIL in the shell, else user.name
+     * and user.email as git resolves them.
+     */
+    "authorName": string;
+    "authorEmail": string;
+
+    /**
+     * The wtf git identity the shell uses (WTF_GIT_IDENTITY), if any.
+     */
+    "identity": string;
 }

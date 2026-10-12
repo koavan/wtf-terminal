@@ -1,12 +1,12 @@
 // Package infra works out which infrastructure a shell is pointed at — its
-// Kubernetes context and cluster, AWS profile and account, gcloud project
-// and Terraform workspace — so the address bar can show it.
+// Kubernetes context and cluster, AWS profile and account, gcloud project,
+// Terraform workspace and git repository — so the address bar can show it.
 //
 // The shell reports the environment variables that matter at every prompt
 // (see internal/terminal/shellintegration); everything else is read from
 // the tools' own config files, the way the tools themselves would. Nothing
 // here polls: one call costs a few stat(2)s, and parsed files are cached
-// until they change. The one exception is an AWS account that only AWS
+// until they change. git is run inside a repository (see git.go). The one exception is an AWS account that only AWS
 // can tell, which is looked up once in the background (see awsaccount.go).
 package infra
 
@@ -48,6 +48,8 @@ type Context struct {
 	GCPProject     string `json:"gcpProject"`
 	// Terraform workspace of the current folder; "default" is left out.
 	TFWorkspace string `json:"tfWorkspace"`
+	// The git repository of the current folder; nil outside one.
+	Git *Git `json:"git"`
 }
 
 // Bigger files are skipped; no real kubeconfig or ini file comes close.
@@ -97,6 +99,7 @@ func (s *Service) Resolve(env map[string]string) Context {
 	s.aws(env, &c)
 	c.GCPProject = s.gcp(env)
 	c.TFWorkspace = s.terraform(env)
+	c.Git = s.git(env)
 	return c
 }
 

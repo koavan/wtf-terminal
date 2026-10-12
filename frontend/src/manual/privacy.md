@@ -23,14 +23,15 @@ Backups are readable only by you. wtf's cache folder is {{mac:`~/Library/Caches/
 - **AWS**: saved secret keys and session tokens are never shown or sent to the window; the field is write-only. During rotation, the new secret goes from AWS straight into your credentials file.
 - **SSH**: passphrases and passwords are typed into real ssh-keygen / ssh-add / ssh-copy-id commands in a terminal, never into wtf.
 - **Kubernetes**: tokens and certificates in kubeconfigs are never read out. Secret values are read only when you open one secret, masked until you reveal them, and dropped when the dialog closes.
-- **Context badges**: the shell reports whether AWS keys are exported, never the keys.
+- **Context badges**: the shell reports whether AWS keys are exported, never the keys. The git badge drops any user or token from a remote's URL before showing it.
+- **Git identities**: kept in `git-identities.json` in wtf's config folder (names, emails and key paths, never keys). **Test GitHub Login** connects to github.com only when you ask.
 - **Pinned output** stays in memory and is never written to disk.
 - **Recordings and saved output** are written only where you choose, readable only by you. Recordings have what the terminal shows, never what you type.
 - **Sharing your screen**: [Hide Secrets](#secrets) covers keys, tokens and passwords in the output, and redacts them when copied.
 
 ## It only talks to servers when you ask
 
-Listing SSH hosts, keys, AWS profiles and kubeconfig contexts reads local files only. Requests to AWS or a cluster happen when you open a section, press a check or test button, or run an action — and side-pane tabs stop when you close them.
+Listing SSH hosts, keys, AWS profiles and kubeconfig contexts reads local files only. Requests to AWS or a cluster happen when you open a section, press a check or test button (such as **Test GitHub Login**), or run an action — and side-pane tabs stop when you close them.
 
 ## What it won't do
 

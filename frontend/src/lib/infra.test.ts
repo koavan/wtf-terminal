@@ -3,11 +3,11 @@ import { describe, expect, it, vi } from 'vitest';
 vi.mock('../../bindings/github.com/dayanraj/wtf/internal/infra', () => ({ Service: { Resolve: vi.fn() } }));
 
 import { Service } from '../../bindings/github.com/dayanraj/wtf/internal/infra';
-import { badges, parseEnv, resolveContext, shortClusterName, type InfraContext } from './infra';
+import { badges, gitBadge, parseEnv, resolveContext, shortClusterName, type InfraContext } from './infra';
 
 const ctx = (c: Partial<InfraContext>): InfraContext => ({
   kubeContext: '', kubeCluster: '', kubeNamespace: '', awsProfile: '', awsAccount: '', awsAccountNote: '', awsRegion: '',
-  gcpProject: '', tfWorkspace: '', ...c,
+  gcpProject: '', tfWorkspace: '', git: null, ...c,
 });
 
 describe('parseEnv', () => {
@@ -57,6 +57,48 @@ describe('badges', () => {
   it('is empty without a context', () => {
     expect(badges(null)).toEqual([]);
     expect(badges(ctx({}))).toEqual([]);
+  });
+});
+
+describe('gitBadge', () => {
+  const git = (g: Partial<NonNullable<InfraContext['git']>>) => ({
+    root: '/src/engine', branch: 'main', detached: false, upstream: 'origin/main', upstreamGone: false,
+    ahead: 0, behind: 0, remote: 'origin', remoteURL: 'git@github.com:ada/engine.git', fetchedAt: 0,
+    authorName: 'Ada', authorEmail: 'ada@example.com', identity: '', ...g,
+  });
+  const now = new Date(10 * 3600_000);
+
+  it('shows the author, branch, remote and commits apart', () => {
+    const b = gitBadge(git({ ahead: 2, behind: 1, fetchedAt: now.getTime() - 3 * 3600_000 }), now);
+    expect(b.label).toBe('Ada · main → origin ↑2 ↓1');
+    expect(b.title).toContain('Remote: origin git@github.com:ada/engine.git');
+    expect(b.title).toContain('2 commits to push, 1 commit to pull');
+    expect(b.title).toContain('As of the last fetch (3 h ago)');
+    expect(b.title).toContain('Author: Ada <ada@example.com>');
+  });
+
+  it('names the upstream in full when its branch differs', () => {
+    expect(gitBadge(git({ upstream: 'origin/release/2.0' })).label).toBe('Ada · main → origin/release/2.0');
+    expect(gitBadge(git({ upstream: 'upstream/main' })).label).toBe('Ada · main → upstream');
+  });
+
+  it('says when there is nothing to compare with', () => {
+    expect(gitBadge(git({ upstream: '' })).label).toBe('Ada · main');
+    expect(gitBadge(git({ upstream: '' })).title).toContain('No upstream branch');
+    expect(gitBadge(git({ upstreamGone: true })).label).toBe('Ada · main → origin gone');
+    expect(gitBadge(git({ upstream: '', detached: true, branch: 'abc1234' })).title).toContain('Commit: abc1234');
+    expect(gitBadge(git({ authorName: '', authorEmail: '' })).title).toContain('Author: not set');
+  });
+
+  it('names the git identity the tab uses', () => {
+    const b = gitBadge(git({ identity: 'work' }));
+    expect(b.label).toBe('work · main → origin');
+    expect(b.title).toContain('Git identity: work');
+    expect(b.title).toContain('Author: Ada <ada@example.com>');
+  });
+
+  it('is one of the badges', () => {
+    expect(badges(ctx({ git: git({}) })).map((x) => x.kind)).toEqual(['git']);
   });
 });
 

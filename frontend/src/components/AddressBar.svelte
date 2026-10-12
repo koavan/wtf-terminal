@@ -29,7 +29,7 @@
     return s >= 3600 ? `${Math.floor(s / 3600)}:${p(Math.floor(s / 60) % 60)}:${p(s % 60)}` : `${Math.floor(s / 60)}:${p(s % 60)}`;
   };
 
-  const KIND_LABEL = { kube: 'k8s', aws: 'aws', gcp: 'gcp', tf: 'tf' } as const;
+  const KIND_LABEL = { kube: 'k8s', aws: 'aws', gcp: 'gcp', tf: 'tf', git: 'git' } as const;
 
   /** "~/src/wtf" → ["~", "src", "wtf"], "/etc/ssh" → ["/", "etc", "ssh"] */
   const crumbs = $derived.by(() => {

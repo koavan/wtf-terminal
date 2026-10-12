@@ -1,15 +1,17 @@
 <script lang="ts">
   import SshHosts from './SshHosts.svelte';
   import SshKeys from './SshKeys.svelte';
+  import GitIdentities from './GitIdentities.svelte';
   import SshTunnels from './SshTunnels.svelte';
   import { sidebar, type SshSection } from '../lib/sidebar.svelte';
   import { sshTunnels } from '../lib/sshAdmin.svelte';
 
-  // The SSH tab: hosts, keys and tunnels.
+  // The SSH tab: hosts, keys, git identities and tunnels.
 
   const SECTIONS: { id: SshSection; label: string }[] = [
     { id: 'hosts', label: 'Hosts' },
     { id: 'keys', label: 'Keys' },
+    { id: 'git', label: 'Git' },
     { id: 'tunnels', label: 'Tunnels' },
   ];
 
@@ -37,6 +39,8 @@
   <div class="body">
     {#if sidebar.sshSection === 'keys'}
       <SshKeys />
+    {:else if sidebar.sshSection === 'git'}
+      <GitIdentities />
     {:else if sidebar.sshSection === 'tunnels'}
       <SshTunnels />
     {:else}

@@ -1,6 +1,6 @@
 # Welcome to wtf
 
-wtf is a terminal that works like a browser: tabs you can group, split and move between windows, an address bar that tells you what your shell is pointed at, and a side pane with your files, SSH hosts, AWS profiles, Kubernetes clusters, network connections, processes and command history.
+wtf is a terminal that works like a browser: tabs you can group, split and move between windows, an address bar that tells you what your shell is pointed at (cluster, AWS account, git branch and who you commit as), and a side pane with your files, SSH hosts, AWS profiles, Kubernetes clusters, network connections, processes and command history.
 
 ## The window
 

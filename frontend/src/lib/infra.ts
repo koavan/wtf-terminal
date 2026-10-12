@@ -1,11 +1,12 @@
-import { Service as InfraService, type Context } from '../../bindings/github.com/dayanraj/wtf/internal/infra';
+import { Service as InfraService, type Context, type Git } from '../../bindings/github.com/dayanraj/wtf/internal/infra';
+import { relativeTime } from './logs';
 
 export type { Context as InfraContext } from '../../bindings/github.com/dayanraj/wtf/internal/infra';
 
-// What each shell is pointed at — Kubernetes, AWS, gcloud, Terraform — for
-// the badges in the address bar.
+// What each shell is pointed at — Kubernetes, AWS, gcloud, Terraform, the
+// git repository — for the badges in the address bar.
 
-export type InfraKind = 'kube' | 'aws' | 'gcp' | 'tf';
+export type InfraKind = 'kube' | 'aws' | 'gcp' | 'tf' | 'git';
 
 export interface Badge {
   kind: InfraKind;
@@ -68,7 +69,53 @@ export function badges(ctx: Context | null | undefined): Badge[] {
   }
   if (ctx.gcpProject) out.push({ kind: 'gcp', label: ctx.gcpProject, title: `Google Cloud project: ${ctx.gcpProject}` });
   if (ctx.tfWorkspace) out.push({ kind: 'tf', label: ctx.tfWorkspace, title: `Terraform workspace: ${ctx.tfWorkspace}` });
+  if (ctx.git) out.push(gitBadge(ctx.git));
   return out;
+}
+
+/**
+ * "Ada · main → origin ↑2 ↓1": who commits (the tab's git identity, if it
+ * uses one), the branch, its upstream (just
+ * the remote when the branch names match) and the commits between them.
+ */
+export function gitBadge(g: Git, now = new Date()): Badge {
+  const branch = g.branch || '(no commits)';
+  let upstream = '';
+  if (g.upstream) {
+    const [remote, ...rest] = g.upstream.split('/');
+    upstream = g.upstream.includes('/') && rest.join('/') === g.branch ? remote : g.upstream;
+  }
+  const diff = g.upstreamGone ? 'gone' : [g.ahead && `↑${g.ahead}`, g.behind && `↓${g.behind}`].filter(Boolean).join(' ');
+  // A wtf git identity names who the tab works as; else the author does.
+  const author = g.identity || g.authorName || g.authorEmail;
+
+  let sync: string;
+  if (g.detached) sync = 'Detached HEAD: not on a branch';
+  else if (!g.upstream) sync = 'No upstream branch: nothing to compare with';
+  else if (g.upstreamGone) sync = `${g.upstream} is gone (deleted on the remote, or not fetched yet)`;
+  else if (!g.ahead && !g.behind) sync = `Up to date with ${g.upstream}`;
+  else {
+    const n = (k: number) => `${k} commit${k === 1 ? '' : 's'}`;
+    sync = [g.ahead && `${n(g.ahead)} to push`, g.behind && `${n(g.behind)} to pull`].filter(Boolean).join(', ');
+  }
+  const fetched = g.upstream && !g.upstreamGone
+    ? `As of the last fetch${g.fetchedAt ? ` (${relativeTime(new Date(g.fetchedAt), now)})` : ''}`
+    : '';
+
+  return {
+    kind: 'git',
+    label: join(author, [branch, upstream && `→ ${upstream}`, diff].filter(Boolean).join(' ')),
+    title: [
+      `Repository: ${g.root}`,
+      `${g.detached ? 'Commit' : 'Branch'}: ${branch}`,
+      g.upstream && `Upstream: ${g.upstream}`,
+      g.remoteURL && `Remote: ${g.remote} ${g.remoteURL}`,
+      sync,
+      fetched,
+      g.identity && `Git identity: ${g.identity} (its SSH key only)`,
+      `Author: ${[g.authorName, g.authorEmail && `<${g.authorEmail}>`].filter(Boolean).join(' ') || 'not set (git config user.name)'}`,
+    ].filter(Boolean).join('\n'),
+  };
 }
 
 /**

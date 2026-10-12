@@ -2,6 +2,7 @@ import { tick } from 'svelte';
 import type { Host, HostDraft } from './ssh.svelte';
 import type { Key, TunnelDraft, TunnelStatus } from './sshAdmin.svelte';
 import type { Profile } from './aws.svelte';
+import type { GitIdentity } from './gitIdentities.svelte';
 import type { Snippet, Workspace, WorkspaceDef } from './snippets.svelte';
 import type { GroupColor } from './tabs.svelte';
 import { activeTerminal } from './terminals';
@@ -20,6 +21,7 @@ export type OverlayState =
   | { kind: 'sshHost'; host: Host | null; prefill?: Partial<HostDraft> }
   | { kind: 'keyGen' }
   | { kind: 'keyInstall'; key: Key | null; host: Host | null }
+  | { kind: 'gitIdentity'; identity: GitIdentity | null }
   | { kind: 'hostKeys'; host: Host }
   | { kind: 'tunnel'; tunnel: TunnelStatus | null; host: Host | null; prefill?: Partial<TunnelDraft> }
   | { kind: 'transfer'; host: Host; direction: 'upload' | 'download'; locals: string[] }

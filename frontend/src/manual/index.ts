@@ -30,6 +30,7 @@ import sshFiles from './ssh-files.md?raw';
 import sshHostKeys from './ssh-host-keys.md?raw';
 import sshHosts from './ssh-hosts.md?raw';
 import sshKeys from './ssh-keys.md?raw';
+import gitIdentitiesPage from './git-identities.md?raw';
 import sshTunnels from './ssh-tunnels.md?raw';
 import tabs from './tabs.md?raw';
 import workspaces from './workspaces.md?raw';
@@ -66,6 +67,7 @@ export const TOPICS: Topic[] = [
   t('Side pane', 'share', 'Share & Record', share),
   t('SSH', 'ssh-hosts', 'SSH hosts', sshHosts),
   t('SSH', 'ssh-keys', 'SSH keys and ssh-agent', sshKeys),
+  t('SSH', 'git-identities', 'Git identities (more than one GitHub user)', gitIdentitiesPage),
   t('SSH', 'ssh-host-keys', 'Host keys (known_hosts)', sshHostKeys),
   t('SSH', 'ssh-tunnels', 'SSH tunnels', sshTunnels),
   t('SSH', 'ssh-files', 'Copying files over SSH', sshFiles),

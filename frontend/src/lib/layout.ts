@@ -26,6 +26,8 @@ export interface Pane {
   env: Record<string, string> | null;
   /** Typed into the shell once it starts, e.g. to open a file in $EDITOR. */
   initialCommand?: string;
+  /** Git identity to put the shell on once it starts, before initialCommand (see lib/gitIdentities). */
+  gitIdentity?: string;
   /** Scrollback carried over from another window, written once on mount. */
   restoreBuffer?: string;
 }

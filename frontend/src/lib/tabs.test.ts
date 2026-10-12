@@ -360,6 +360,26 @@ describe('session restore', () => {
     checkInvariants();
   });
 
+  it('keeps a pane on its git identity through split, duplicate and restore', () => {
+    const [a] = openTabs(1);
+    tabs.setEnv(focusedPane(tabs.get(a)!).id, { PWD: '/t0', WTF_GIT_IDENTITY: 'work' });
+    tabs.split('row');
+    expect(focusedPane(tabs.active!).gitIdentity).toBe('work');
+    tabs.duplicate();
+    expect(focusedPane(tabs.active!).gitIdentity).toBe('work');
+    tabs.open({ cwd: '/plain' }); // a new tab doesn't inherit it
+    expect(focusedPane(tabs.active!).gitIdentity).toBeUndefined();
+
+    const snap = tabs.snapshot();
+    // The split pane hasn't reported yet: it's saved with the identity it's getting.
+    expect(snap.tabs[0].root).toMatchObject({ a: { cwd: '/t0', gitIdentity: 'work' }, b: { cwd: '/t0', gitIdentity: 'work' } });
+    expect(snap.tabs[2].root).toEqual({ cwd: '/plain' });
+    reset();
+    tabs.restore(JSON.parse(JSON.stringify(snap)));
+    expect(leaves(tabs.list[0].root).map((p) => p.gitIdentity)).toEqual(['work', 'work']);
+    expect(leaves(tabs.list[2].root).map((p) => p.gitIdentity)).toEqual([undefined]);
+  });
+
   it('expands a collapsed group if its tab was active', () => {
     const [a] = openTabs(2);
     const g = tabs.createGroup(a)!;

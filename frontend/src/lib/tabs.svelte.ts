@@ -47,12 +47,27 @@ export interface Group {
 
 const MAX_REOPEN = 20;
 
+/** The shell's variable naming its git identity (see lib/gitIdentities). */
+const IDENTITY_VAR = 'WTF_GIT_IDENTITY';
+
+/** The git identity a pane's shell reported, else the one it is about to get. */
+function identityOf(p: Pane): string | undefined {
+  return (p.env ? p.env[IDENTITY_VAR] : p.gitIdentity) || undefined;
+}
+
+/** What the session file keeps of a pane. */
+function savedPane(p: Pane): SavedNode {
+  const gitIdentity = identityOf(p);
+  return gitIdentity ? { cwd: p.cwd, gitIdentity } : { cwd: p.cwd };
+}
+
 /**
- * A saved layout. On disk panes keep only their folder; a tab moving to
+ * A saved layout. On disk panes keep only their folder and git identity
+ * (by name, so the shell gets it back on restore); a tab moving to
  * another window also carries each pane's live session and scrollback.
  */
 export type SavedNode =
-  | { cwd: string; sessionId?: string; buffer?: string }
+  | { cwd: string; sessionId?: string; buffer?: string; gitIdentity?: string }
   | { dir: SplitDir; ratio: number; a: SavedNode; b: SavedNode };
 
 /** A tab handed to another window (see detach/adopt). */
@@ -134,9 +149,11 @@ class Tabs {
     index = this.list.length,
     groupId = null as number | null,
     command = undefined as string | undefined,
+    gitIdentity = undefined as string | undefined,
   } = {}): number {
     const pane = this.#newPane(cwd);
     if (command) pane.initialCommand = command;
+    if (gitIdentity) pane.gitIdentity = gitIdentity;
     const tab: Tab = {
       id: this.#nextId++,
       root: { kind: 'pane', pane },
@@ -157,7 +174,14 @@ class Tabs {
     const i = this.#index(id);
     if (i < 0) return;
     const src = this.list[i];
-    this.open({ cwd: duplicate ? focusedPane(src).cwd : undefined, index: i + 1, groupId: src.groupId });
+    const from = focusedPane(src);
+    this.open({
+      cwd: duplicate ? from.cwd : undefined,
+      index: i + 1,
+      groupId: src.groupId,
+      // A duplicate works as the same git user.
+      gitIdentity: duplicate ? identityOf(from) : undefined,
+    });
   }
 
   duplicate() {
@@ -352,6 +376,8 @@ class Tabs {
     const from = focusedPane(tab);
     const pane = this.#newPane(cwd ?? from.cwd);
     if (command) pane.initialCommand = command;
+    // The new pane works as the same git user as the one it split from.
+    pane.gitIdentity = identityOf(from);
     tab.zoomedPaneId = null;
     tab.root = splitPane(tab.root, from.id, dir, pane);
     tab.focusedPaneId = pane.id;
@@ -482,7 +508,7 @@ class Tabs {
 
   // ── Persistence ──────────────────────────────────────────────────────
 
-  #saveTab(t: Tab, pane: (p: Pane) => SavedNode = (p) => ({ cwd: p.cwd })) {
+  #saveTab(t: Tab, pane: (p: Pane) => SavedNode = savedPane) {
     const save = (n: LayoutNode): SavedNode =>
       n.kind === 'pane' ? pane(n.pane) : { dir: n.dir, ratio: n.ratio, a: save(n.a), b: save(n.b) };
     const ids = leaves(t.root).map((p) => p.id);
@@ -639,6 +665,8 @@ class Tabs {
       if (live && typeof n.sessionId === 'string') {
         pane.sessionId = n.sessionId;
         if (typeof n.buffer === 'string') pane.restoreBuffer = n.buffer;
+      } else if (typeof n.gitIdentity === 'string' && n.gitIdentity) {
+        pane.gitIdentity = n.gitIdentity.slice(0, 64);
       }
       return { kind: 'pane', pane };
     }

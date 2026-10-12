@@ -21,3 +21,5 @@ Keys only the agent holds (from a password manager or a security key) are listed
 - **Delete**: moves the key pair out of `~/.ssh` into wtf's cache folder (`ssh-backups/keys`) — not erased, so you can get it back.
 
 Everything that can ask for a passphrase or password (ssh-keygen, ssh-add, ssh-copy-id) runs as a real command in a terminal tab: it's in your shell history and the secret never passes through wtf. The list refreshes when those commands finish.
+
+More than one GitHub account? Pair each key with an account in [Git identities](#git-identities) and pick one per tab.

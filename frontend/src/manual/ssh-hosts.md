@@ -1,6 +1,6 @@
 # SSH hosts
 
-The SSH tab ({{key:sidebar.ssh}}) has three parts: **Hosts**, [Keys](#ssh-keys) and [Tunnels](#ssh-tunnels).
+The SSH tab ({{key:sidebar.ssh}}) has four parts: **Hosts**, [Keys](#ssh-keys), [Git](#git-identities) (which GitHub user each tab works as) and [Tunnels](#ssh-tunnels).
 
 ## What's listed
 

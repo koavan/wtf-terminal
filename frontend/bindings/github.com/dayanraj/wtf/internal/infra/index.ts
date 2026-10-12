@@ -7,5 +7,6 @@ export {
 };
 
 export type {
-    Context
+    Context,
+    Git
 } from "./models.js";
