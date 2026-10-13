@@ -18,6 +18,7 @@ import pinsPage from './pins.md?raw';
 import panes from './panes.md?raw';
 import privacy from './privacy.md?raw';
 import findingsPage from './findings.md?raw';
+import usagePage from './usage.md?raw';
 import recording from './recording.md?raw';
 import secrets from './secrets.md?raw';
 import share from './share.md?raw';
@@ -83,6 +84,7 @@ export const TOPICS: Topic[] = [
   t('Cloud', 'kube-contexts', 'Kubernetes: contexts', kubeContexts),
   t('Reference', 'tools', 'Command-line tools', toolsPage),
   t('Reference', 'settings', 'Settings and themes', settings),
+  t('Reference', 'usage', 'Resource usage (wtf’s CPU and memory)', usagePage),
   t('Reference', 'sessions', 'Sessions and windows', sessions),
   t('Reference', 'shortcuts', 'Keyboard shortcuts', shortcuts),
   t('Reference', 'privacy', 'Privacy and safety', privacy),

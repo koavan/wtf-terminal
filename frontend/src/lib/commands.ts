@@ -89,6 +89,15 @@ export const commands: Command[] = [
       );
     },
   },
+  { id: 'usage.show', label: 'Resource Usage… (wtf’s CPU and Memory)', run: () => overlay.show({ kind: 'usage' }) },
+  {
+    id: 'usage.toggle',
+    label: 'Toggle Resource Usage in Address Bar',
+    run: () => {
+      const on = !settings.config.showUsage;
+      ConfigService.SetShowUsage(on).then(() => toast.show(on ? 'wtf’s CPU and memory show in the address bar' : 'Resource usage hidden'));
+    },
+  },
   { id: 'sidebar.history', label: 'Show Command History', mac: '⌘⇧H', other: 'Ctrl+Shift+Alt+H', run: () => sidebar.show('history') },
   { id: 'sidebar.pins', label: 'Show Pinned Output', mac: '⌘⇧I', other: 'Ctrl+Shift+Alt+I', run: () => sidebar.show('pins') },
   { id: 'sidebar.findings', label: 'Show Findings (Security Scans)', mac: '⌘⇧F', other: 'Ctrl+Shift+Alt+F', run: () => sidebar.show('findings') },

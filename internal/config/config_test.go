@@ -333,3 +333,13 @@ func TestServiceSetConfirmPaste(t *testing.T) {
 		t.Fatal("confirm-paste should be off after SetConfirmPaste(false)")
 	}
 }
+
+func TestShowUsage(t *testing.T) {
+	if cfg, _, _ := Parse(""); cfg.ShowUsage {
+		t.Fatal("show-usage should default to off")
+	}
+	s := NewService(t.TempDir())
+	if err := s.SetShowUsage(true); err != nil || !s.Current().Config.ShowUsage {
+		t.Fatalf("SetShowUsage(true): %v", err)
+	}
+}

@@ -39,6 +39,8 @@ type Config struct {
 
 	ClipboardClear float64 `toml:"clipboard-clear" json:"clipboardClear"`
 	ConfirmPaste   bool    `toml:"confirm-paste" json:"confirmPaste"`
+
+	ShowUsage bool `toml:"show-usage" json:"showUsage"`
 }
 
 func Defaults() Config {
@@ -142,6 +144,10 @@ const template = `# wtf settings. Changes apply as soon as you save.
 # Show text before pasting it when it has more than one line or control
 # characters (escape sequences and the like), and paste only on Paste.
 # confirm-paste = true
+
+# Show wtf's own CPU and memory in the address bar. It's measured only
+# while shown (every 2 seconds, while the window is in front).
+# show-usage = false
 `
 
 // Dir is $XDG_CONFIG_HOME/wtf, or ~/.config/wtf, on every platform.

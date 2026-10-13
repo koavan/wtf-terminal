@@ -5,7 +5,9 @@
   import { isMac } from '../lib/platform';
   import { recordings } from '../lib/recording.svelte';
   import { redaction } from '../lib/redaction.svelte';
+  import { settings } from '../lib/settings.svelte';
   import { tabs } from '../lib/tabs.svelte';
+  import UsageReadout from './UsageReadout.svelte';
   import { formatDuration } from '../lib/toast.svelte';
 
   const tab = $derived(tabs.active);
@@ -105,6 +107,7 @@
         </span>
       {/if}
     {/if}
+    <span class="end">
     {#if pane && recording}
       <button
         class="rec"
@@ -126,6 +129,8 @@
         <span>Secrets hidden</span>
       </button>
     {/if}
+    {#if settings.config?.showUsage}<UsageReadout />{/if}
+    </span>
   </div>
 </div>
 
@@ -152,13 +157,23 @@
     color: var(--text-muted);
   }
 
+  .end {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex: none;
+    margin-left: auto;
+  }
+  .end:empty {
+    display: none;
+  }
+
   .secrets {
     display: flex;
     align-items: center;
     gap: 5px;
     flex: none;
     height: 20px;
-    margin-left: auto;
     padding: 0 8px 0 7px;
     border: 0;
     border-radius: 6px;
@@ -175,7 +190,6 @@
     gap: 6px;
     flex: none;
     height: 20px;
-    margin-left: auto;
     padding: 0 8px 0 7px;
     border: 0;
     border-radius: 6px;

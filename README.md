@@ -481,6 +481,18 @@ files at the repository's top (from CI, say) are read too. Read when the tab
 opens, on refresh, and when a scan finishes; never polled. Missing scanners
 get an **Install…** (Homebrew on macOS). Code: `internal/findings`.
 
+## Resource usage
+
+wtf can show its own CPU and memory in the address bar (`show-usage`, or
+**Toggle Resource Usage in Address Bar** in the palette); click it, or
+**Resource Usage…**, for the breakdown: the app, the WebKit processes that draw
+its windows (on macOS found as Activity Monitor groups them, by the process
+macOS says each works for), and — listed but not counted in wtf's total — the
+shells and programs run in it. Memory is the footprint on macOS, RSS on Linux.
+Measured with direct system calls (libproc, `/proc`; no `ps`), every 2 seconds
+only while shown and the window is in front: about 11 µs a sample on macOS,
+plus a ~1 ms scan for WebKit's processes every 10 seconds. Code: `internal/usage`.
+
 ## Recording and saving
 
 The side pane's **Share & Record** tab (⌘⇧J, shield icon) has all of this —

@@ -34,6 +34,8 @@ export type OverlayState =
   | { kind: 'about' }
   /** The command-line tools features run: found or not, and installing one (lib/tools). */
   | { kind: 'tools'; focus?: string; welcome?: string[] }
+  /** wtf's own CPU and memory, process by process (lib/usage). */
+  | { kind: 'usage' }
   /** Run Scan: a security scanner for the Findings tab (lib/findings). */
   | { kind: 'scan' }
   /** A paste shown before it reaches the shell (lib/paste). */

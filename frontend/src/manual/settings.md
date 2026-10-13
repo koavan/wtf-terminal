@@ -17,6 +17,7 @@ Settings live in `~/.config/wtf/config.toml` (or `$XDG_CONFIG_HOME/wtf/config.to
 | `sidebar-auto-refresh`, `sidebar-refresh-interval` | side pane updates — see [The side pane](#side-pane) |
 | `context-badges` | the address bar's Kubernetes/AWS/gcloud/Terraform badges |
 | `redact-secrets` | start with Hide Secrets on — see [Hide Secrets](#secrets) |
+| `show-usage` | show wtf's own CPU and memory in the address bar (default off) — see [Resource usage](#usage) |
 | `confirm-paste` | show a paste first when it has more than one line, a final newline or control characters (default on) — see [Privacy](#privacy) |
 | `clipboard-clear` | seconds before a copied secret leaves the clipboard (default 30, up to 600); 0 keeps it — see [Privacy](#privacy) |
 | `log-highlighting` | colors for log levels, timestamps, URLs, IPs and Kubernetes resources — see [Logs in the output](#logs) |

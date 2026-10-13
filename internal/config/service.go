@@ -93,6 +93,11 @@ func (s *Service) SetConfirmPaste(on bool) error {
 	return s.set("confirm-paste", strconv.FormatBool(on))
 }
 
+// SetShowUsage shows or hides wtf's CPU and memory in the address bar.
+func (s *Service) SetShowUsage(on bool) error {
+	return s.set("show-usage", strconv.FormatBool(on))
+}
+
 // set writes one setting into the config file, creating it if needed.
 func (s *Service) set(key, value string) error {
 	if err := os.MkdirAll(s.dir, 0o755); err != nil {

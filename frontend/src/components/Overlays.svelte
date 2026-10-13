@@ -7,6 +7,7 @@
   import JsonViewer from './JsonViewer.svelte';
   import PasteConfirm from './PasteConfirm.svelte';
   import ScanDialog from './ScanDialog.svelte';
+  import UsageDialog from './UsageDialog.svelte';
   import JwtViewer from './JwtViewer.svelte';
   import DecodedViewer from './DecodedViewer.svelte';
   import CertViewer from './CertViewer.svelte';
@@ -81,6 +82,8 @@
   <AboutDialog />
 {:else if overlay.current?.kind === 'tools'}
   <ToolsDialog focus={overlay.current.focus} welcome={overlay.current.welcome} />
+{:else if overlay.current?.kind === 'usage'}
+  <UsageDialog />
 {:else if overlay.current?.kind === 'scan'}
   <ScanDialog />
 {:else if overlay.current?.kind === 'paste'}

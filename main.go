@@ -24,6 +24,7 @@ import (
 	"github.com/dayanraj/wtf/internal/state"
 	"github.com/dayanraj/wtf/internal/terminal"
 	"github.com/dayanraj/wtf/internal/tools"
+	"github.com/dayanraj/wtf/internal/usage"
 	wtfwindows "github.com/dayanraj/wtf/internal/windows"
 )
 
@@ -74,6 +75,7 @@ func main() {
 			application.NewService(sshhosts.NewService(stateDir)),
 			application.NewService(tools.NewService(stateDir, term.ShellInfo)),
 			application.NewService(findings.NewService()),
+			application.NewService(usage.NewService(term.ShellPIDs)),
 			application.NewService(netconn.NewService(term.ShellPIDs)),
 			application.NewService(procs.NewService(term.ShellPIDs)),
 			application.NewService(windows.Service()),
@@ -198,6 +200,7 @@ func buildMenu(windows *wtfwindows.Manager) *application.Menu {
 	cmd(view, "Show Workspaces", "CmdOrCtrl+shift+l", "sidebar.workspaces")
 	cmd(view, "Show Findings", "CmdOrCtrl+shift+f", "sidebar.findings")
 	cmd(view, "Hide Secrets", "CmdOrCtrl+OptionOrAlt+r", "secrets.toggle")
+	cmd(view, "Resource Usage…", "", "usage.show")
 	view.AddSeparator()
 	cmd(view, "Previous Prompt", "CmdOrCtrl+up", "prompt.prev")
 	cmd(view, "Next Prompt", "CmdOrCtrl+down", "prompt.next")

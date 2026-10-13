@@ -25,6 +25,7 @@ export interface Config {
     "redactSecrets": boolean;
     "clipboardClear": number;
     "confirmPaste": boolean;
+    "showUsage": boolean;
 }
 
 /**

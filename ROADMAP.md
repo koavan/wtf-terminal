@@ -227,6 +227,13 @@ right-click Paste; control characters shown (␛…), bracketed-paste state and
 broadcast pane count stated; Paste Without Final Newline; `confirm-paste`
 (default on), Don't Ask Again, and a palette toggle.
 
+## Also built
+
+- Resource usage (2026-10-13): wtf's own CPU and memory in the address bar
+  (`show-usage`) and a per-process breakdown (app, WebKit windows, and the
+  programs run in it, counted apart). internal/usage samples via libproc and
+  /proc only while shown.
+
 ## Previously deferred (not DevOps-specific)
 
 - Packaging: .app / DMG and .deb done (v0.1.0, v0.2.0); AppImage not.

@@ -52,6 +52,13 @@ export function SetRedactSecrets(on: boolean): $CancellablePromise<void> {
 }
 
 /**
+ * SetShowUsage shows or hides wtf's CPU and memory in the address bar.
+ */
+export function SetShowUsage(on: boolean): $CancellablePromise<void> {
+    return $Call.ByID(179898900, on);
+}
+
+/**
  * SetSidebarAutoRefresh turns the side pane's background updates on or off.
  */
 export function SetSidebarAutoRefresh(on: boolean): $CancellablePromise<void> {

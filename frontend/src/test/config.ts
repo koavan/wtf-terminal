@@ -23,6 +23,7 @@ export function testConfig(over: Partial<Config> = {}): Config {
     redactSecrets: false,
     clipboardClear: 30,
     confirmPaste: true,
+    showUsage: false,
     ...over,
   };
 }
