@@ -125,6 +125,70 @@ and key age, rotate access keys with rollback. See README.
   colored with M/A/U/D/R/! and folders dotted, a changes list (deleted files
   too), and read-only Show Changes / Show History in a new tab.
 
+## Tier 4 — DevSecOps
+
+Same ground rules, plus: show facts (expiry times, key sizes, permissions), never
+guessed danger levels; nothing loads until its UI is opened.
+
+### 10. Credential expiry clocks ☐
+
+Address bar shows the remaining lifetime of the focused shell's credentials
+(AWS STS/SSO session, kube exec token, Vault token, SSH certificate), e.g.
+`aws: 42m left`. Read from the credentials themselves, reported at each prompt.
+
+### 11. Token and certificate inspector ☐
+
+⌘-click / right-click actions, alongside the log-rendering ones:
+
+- JWT → decoded header and claims, `exp`/`iat`/`nbf` as local times.
+- Base64 / kube Secret data → decode in place, masked until revealed.
+- Hostname or URL → TLS chain, expiry, SANs, issuer, protocol/cipher.
+- PEM file in the file tree → the same certificate details.
+
+Reuses Hide Secrets' JWT and key detection.
+
+### 12. SARIF findings tab ☐
+
+Side-pane tab that reads SARIF (trivy, semgrep, checkov, gitleaks, grype,
+tfsec): findings grouped by severity and rule, click-through to `file:line`.
+"Run scan…" runs the scanner as a visible command in a terminal tab. No polling.
+
+### 13. Incognito tab ☐
+
+No shell history, no session restore, no saved scrollback, recording blocked,
+Hide Secrets forced on. Clearly marked; for break-glass access and handling
+secrets.
+
+### 14. Clipboard auto-clear ☐
+
+Clear the clipboard N seconds after copying a revealed secret, generated
+password or private key, only if it still holds that value.
+
+### 15. Effective permissions panel ☐
+
+`kubectl auth can-i --list` for the current namespace, and the AWS caller
+identity with its attached policies. Loaded on request.
+
+### 16. SSH config facts ☐
+
+Label hosts with `ForwardAgent`, `StrictHostKeyChecking no` and `ProxyJump`;
+show each key's type, bit length and age in Keys. Display only, no warnings.
+
+### 17. Context-tagged history ☐
+
+Record each command with the kube context, AWS account/region it ran under;
+filter History by them ("what did I run against account X today?").
+
+### 18. Cloud secrets browser ☐
+
+AWS Secrets Manager, SSM Parameter Store and Vault, like the k8s secrets view:
+values masked until revealed, every write confirmed with a reviewed plan.
+
+### 19. Multi-line paste confirmation ☐
+
+Preview before a paste that contains newlines or control characters is sent.
+Triggered by content, never by guessing what the command does.
+
 ## Previously deferred (not DevOps-specific)
 
 - Packaging: .app / DMG and .deb done (v0.1.0, v0.2.0); AppImage not.
