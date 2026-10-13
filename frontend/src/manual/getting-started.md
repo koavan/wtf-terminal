@@ -5,14 +5,14 @@ wtf is a terminal that works like a browser: tabs you can group, split and move 
 ## The window
 
 - **Tab strip** (top): one tab per shell. Tabs can be grouped, renamed, reordered and dragged out into a new window. See [Tabs and tab groups](#tabs).
-- **Address bar**: the folder of the focused shell, what's running, how the last command went, and badges for the Kubernetes cluster, AWS account, gcloud project and Terraform workspace it uses. See [Address bar and context badges](#context-badges).
+- **Address bar**: the folder of the focused shell, what's running, how the last command went, and badges for the Kubernetes cluster, AWS account, gcloud project and Terraform workspace it uses, with a clock when its credentials are about to expire. See [Address bar and context badges](#context-badges).
 - **Terminal**: one or more panes. See [Split panes](#panes). Log levels, timestamps, IPs and Kubernetes resources in the output are colored, and {{mac:⌘-click|other:Ctrl-click}} gives their actions. See [Logs in the output](#logs).
 - **Side pane** (left, {{key:sidebar.toggle}}): Files, SSH, AWS, Kubernetes, Snippets, Workspaces, Network, Processes, History, Pinned output, Share & Record and Generate. See [The side pane](#side-pane).
 
 ## Four things to learn first
 
 1. **The command palette** — {{cmd:palette}}. Every command is in it, with its shortcut. If you remember one shortcut, make it this one.
-2. **Right-click.** Tabs, group chips, files, hosts, profiles, pods and processes all have a menu with what you can do to them. So do timestamps, IPs, `pod/…` names and file:line references in the output, and a line of JSON can be pretty-printed.
+2. **Right-click.** Tabs, group chips, files, hosts, profiles, pods and processes all have a menu with what you can do to them. So do timestamps, IPs, `pod/…` names, file:line references and JWTs in the output, and a line of JSON can be pretty-printed. Select base64, a certificate or a host name and right-click to decode or inspect it. See [Tokens and certificates](#inspect).
 3. **Snippets** — {{cmd:snippets.run}} runs your saved commands and runbooks, with blanks filled in. See [Snippets and runbooks](#snippets).
 4. **The ? button** at the bottom of the side pane's icons opens this manual at the page for the tab you're on. {{cmd:help.manual}} opens it from anywhere.
 

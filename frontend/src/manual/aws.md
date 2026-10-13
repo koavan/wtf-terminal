@@ -5,7 +5,7 @@ The AWS Profiles tab ({{key:sidebar.aws}}) lists the AWS CLI's profiles from `~/
 ## Using a profile
 
 - **Double-click** (or ▶) points the focused shell at it: wtf types `export AWS_PROFILE=…` at its prompt. If a program is running there, it opens a new tab that does it instead. Only that shell changes.
-- Right-click → **Open New Tab with Profile**, or **Log In with SSO** for SSO profiles (`aws sso login` in a tab).
+- Right-click → **Open New Tab with Profile**, or **Log In with SSO** for SSO profiles (`aws sso login` in a tab). When the focused shell uses an SSO profile, the address bar's AWS badge counts down to the end of the login (see [credential expiry clocks](#context-badges)).
 
 ## Checking a profile
 

@@ -9,6 +9,8 @@ Turn on **Hide Secrets** with the switch in the side pane's [Share & Record](#sh
 - **When copied**: secrets become `[REDACTED]`. That goes for {{cmd:term.copy}}, copy-on-select, every copy in the right-click and command menus, {{cmd:term.copyOutput}}, and Pretty-print JSON.
 - **Elsewhere in the window**: the command in the address bar, tab titles, the History tab, pinned output, the tab overview, and desktop notifications.
 
+- **In the inspector**: JWTs and base64 values can't be opened with [Tokens and certificates](#inspect), since decoding them would show what's hidden. Certificates and TLS servers still can.
+
 The output itself isn't changed. Turn Hide Secrets off and everything is there as it was. Programs still get what you type, so a password you type is sent as usual.
 
 ## What counts as a secret

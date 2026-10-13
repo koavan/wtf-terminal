@@ -10,7 +10,7 @@ With shell integration (on by default for **bash** and **zsh**), wtf knows where
 - **The last command in the address bar**, with its status and how long it took.
 - **A notification** when a command that ran at least `notify-after` seconds (10 by default; 0 turns it off) finishes out of sight — its tab is in the background, or the window isn't in front.
 - **Command history** per shell in the side pane — see [History](#history).
-- **Context badges** for Kubernetes, AWS, gcloud and Terraform — see [Address bar and context badges](#context-badges).
+- **Context badges** for Kubernetes, AWS, gcloud and Terraform, with credential expiry clocks — see [Address bar and context badges](#context-badges).
 
 wtf loads a small script after your usual startup files (`.bashrc`, `.zshrc`…); your prompt and settings stay as they are. It works in macOS's built-in bash 3.2 too. Turn it off with `shell-integration = false` in [Settings](#settings); it applies to new panes.
 

@@ -8,7 +8,7 @@ Each key shows its type and size, comment and fingerprint (hover), and pills for
 - **N hosts** — the hosts whose `IdentityFile` is this key.
 - a red mode like **0644** — other users can read the private key, so ssh refuses to use it. Right-click → **Make Private (chmod 600)**.
 
-Keys only the agent holds (from a password manager or a security key) are listed under **Agent only**. The footer says how many keys the agent has; **Unload All** empties it.
+Keys only the agent holds (from a password manager or a security key) are listed under **Agent only**. When the agent holds SSH certificates, the address bar shows an **ssh** badge with how long they have left (see [credential expiry clocks](#context-badges)). The footer says how many keys the agent has; **Unload All** empties it.
 
 ## Doing things with keys
 

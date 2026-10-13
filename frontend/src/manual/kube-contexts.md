@@ -5,7 +5,7 @@
 - **Used by this shell** — the files kubectl reads in the focused shell (its `$KUBECONFIG`, or `~/.kube/config`), merged the way kubectl merges them.
 - **Every other kubeconfig in `~/.kube`** — each file on its own (kubectl's cache folders are skipped).
 
-Each context shows its cluster (an EKS cluster's name and region), namespace, how it logs in (aws-iam-authenticator, `aws eks get-token`, certificate, token…) and with which AWS profile. Tokens and certificates are never read out. **in use** marks the focused shell's context; **default** marks the kubeconfig's `current-context`, which new shells start with. A login helper that isn't on the shell's PATH, or a context pointing at a cluster that isn't defined, is shown in red.
+Each context shows its cluster (an EKS cluster's name and region), namespace, how it logs in (aws-iam-authenticator, `aws eks get-token`, certificate, token…) and with which AWS profile. Tokens and certificates are never shown. When the context's user has a client certificate or a JWT token, the address bar's Kubernetes badge shows when it expires (see [credential expiry clocks](#context-badges)). **in use** marks the focused shell's context; **default** marks the kubeconfig's `current-context`, which new shells start with. A login helper that isn't on the shell's PATH, or a context pointing at a cluster that isn't defined, is shown in red.
 
 ## Switching — this shell only
 
