@@ -187,3 +187,31 @@ func TestNoSSHFolder(t *testing.T) {
 		t.Fatalf("got %+v", l)
 	}
 }
+
+func TestHostFacts(t *testing.T) {
+	l, _ := list(t, `
+Host lab
+  ForwardAgent yes
+  StrictHostKeyChecking no
+
+Host build
+  ForwardAgent ~/.1password/agent.sock
+  ForwardAgent no
+
+Host plain
+  ForwardAgent no
+
+Host *
+  StrictHostKeyChecking Accept-New
+`, "", nil)
+	if h := find(l, "lab"); h.ForwardAgent != "yes" || h.StrictHostKeyChecking != "no" {
+		t.Errorf("lab: %+v", h)
+	}
+	// The first value wins; Host * fills in what an entry leaves out.
+	if h := find(l, "build"); h.ForwardAgent != "~/.1password/agent.sock" || h.StrictHostKeyChecking != "accept-new" {
+		t.Errorf("build: %+v", h)
+	}
+	if h := find(l, "plain"); h.ForwardAgent != "" {
+		t.Errorf("plain: %+v", h)
+	}
+}

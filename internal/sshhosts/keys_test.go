@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 )
 
 // keygen makes a key with the real ssh-keygen, so the parsing is checked
@@ -76,6 +77,11 @@ func TestKeyList(t *testing.T) {
 	}
 	if strings.Join(ed.UsedBy, ",") != "web" {
 		t.Errorf("ed25519 used by %v, want web (via Host *)", ed.UsedBy)
+	}
+	old := time.Date(2023, 3, 14, 9, 26, 0, 0, time.UTC)
+	os.Chtimes(ed.Path, old, old)
+	if k := findKey((&Service{home: home}).KeyList(), "~/.ssh/id_ed25519"); k.Modified != "2023-03-14T09:26:00Z" {
+		t.Errorf("modified: %q, want the file's time", k.Modified)
 	}
 
 	if k := findKey(l, "~/.ssh/locked"); !k.Encrypted || k.Comment != "locked key" {

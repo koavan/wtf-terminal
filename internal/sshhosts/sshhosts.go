@@ -30,6 +30,11 @@ type Host struct {
 	Port     string `json:"port"`
 	// A jump host the connection goes through, if any.
 	ProxyJump string `json:"proxyJump"`
+	// As the config sets them for this host ("" when it doesn't):
+	// ForwardAgent is "yes" or an agent socket; StrictHostKeyChecking is
+	// yes, ask, accept-new, no or off.
+	ForwardAgent          string `json:"forwardAgent"`
+	StrictHostKeyChecking string `json:"strictHostKeyChecking"`
 	// The config file the Host entry is in; "" for known hosts.
 	Source string `json:"source"`
 	// Only in known_hosts: connected to before, but not configured.
@@ -312,6 +317,10 @@ func (p *parser) resolve(alias string) Host {
 	if j := get("proxyjump"); !strings.EqualFold(j, "none") {
 		h.ProxyJump = j
 	}
+	if f := get("forwardagent"); f != "" && !strings.EqualFold(f, "no") {
+		h.ForwardAgent = f
+	}
+	h.StrictHostKeyChecking = strings.ToLower(get("stricthostkeychecking"))
 	return h
 }
 

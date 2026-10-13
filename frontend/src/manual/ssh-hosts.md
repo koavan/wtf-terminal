@@ -5,6 +5,10 @@ The SSH tab ({{key:sidebar.ssh}}) has four parts: **Hosts**, [Keys](#ssh-keys), 
 ## What's listed
 
 - The `Host` entries of `~/.ssh/config` and every file it `Include`s, grouped by file, each with its user, address, port and jump host worked out the way ssh does (first value wins, `Host *` defaults apply).
+- Pills show settings that change what a connection may do, as your config sets them for that host (including `Host *`); hover one for the exact setting:
+  - **agent fwd** — `ForwardAgent` is on (`yes`, or an agent socket): the server can use your keys while you're connected.
+  - **hostkey no** / **hostkey off** / **hostkey accept-new** — `StrictHostKeyChecking` lets ssh connect without asking about the server's key (`accept-new` still refuses a changed key).
+  - A jump host shows as **via …** after the address.
 - **Known hosts**: servers in `~/.ssh/known_hosts` your config doesn't name, newest first.
 - Git hosts such as github.com are left out. Type in the filter to narrow the list.
 

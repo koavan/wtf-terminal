@@ -103,14 +103,24 @@
   }
 
   function details(k: Key): string {
-    return [k.bits && k.type === 'RSA' ? `RSA ${k.bits}` : k.type, k.comment && k.comment !== k.name ? k.comment : '']
+    // ED25519 is always 256 bits; RSA and ECDSA keys vary.
+    const type = k.bits && /^(RSA|ECDSA)/.test(k.type) ? `${k.type} ${k.bits}` : k.type;
+    const made = written(k);
+    return [type, made && `from ${made.toLocaleDateString(undefined, { month: 'short', year: 'numeric' })}`, k.comment && k.comment !== k.name ? k.comment : '']
       .filter(Boolean)
       .join(' · ');
+  }
+
+  function written(k: Key): Date | null {
+    const t = k.modified ? Date.parse(k.modified) : NaN;
+    return Number.isNaN(t) ? null : new Date(t);
   }
 
   function tooltip(k: Key): string {
     const lines = [k.fingerprint];
     if (k.path) lines.push(k.encrypted ? 'Protected by a passphrase' : 'No passphrase (or not recorded in the file)');
+    const made = written(k);
+    if (made) lines.push(`File written ${made.toLocaleDateString(undefined, { dateStyle: 'medium' })}: when the key was made, unless its passphrase was changed since`);
     if (k.usedBy.length) lines.push(`IdentityFile for ${k.usedBy.join(', ')}`);
     if (k.unprotected) lines.push(`Readable by other users (${k.unprotected}): ssh won’t use it until it’s made private`);
     return lines.join('\n');

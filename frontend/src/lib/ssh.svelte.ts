@@ -31,6 +31,37 @@ export function hostDetail(h: Host): string {
   return [target, h.proxyJump && `via ${h.proxyJump}`].filter(Boolean).join(' ');
 }
 
+export interface HostFact {
+  label: string;
+  /** The setting as written. */
+  title: string;
+}
+
+/**
+ * Settings that change what a connection may do, as the config sets them
+ * for this host (Host * included). Shown as they are, never judged.
+ */
+export function hostFacts(h: Host): HostFact[] {
+  const out: HostFact[] = [];
+  if (h.forwardAgent) {
+    out.push({
+      label: 'agent fwd',
+      title: `ForwardAgent ${h.forwardAgent}: the server can use ${h.forwardAgent === 'yes' ? 'your ssh-agent' : 'that agent'} while you're connected`,
+    });
+  }
+  const check = h.strictHostKeyChecking;
+  if (check === 'no' || check === 'off' || check === 'accept-new') {
+    out.push({
+      label: `hostkey ${check}`,
+      title:
+        check === 'accept-new'
+          ? 'StrictHostKeyChecking accept-new: a new host key is saved without asking; a changed one is refused'
+          : `StrictHostKeyChecking ${check}: host keys are saved and connected to without asking`,
+    });
+  }
+  return out;
+}
+
 export function matchesFilter(h: Host, query: string): boolean {
   const q = query.trim().toLowerCase();
   if (!q) return true;

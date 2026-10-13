@@ -83,6 +83,14 @@ export interface Host {
     "proxyJump": string;
 
     /**
+     * As the config sets them for this host ("" when it doesn't):
+     * ForwardAgent is "yes" or an agent socket; StrictHostKeyChecking is
+     * yes, ask, accept-new, no or off.
+     */
+    "forwardAgent": string;
+    "strictHostKeyChecking": string;
+
+    /**
      * The config file the Host entry is in; "" for known hosts.
      */
     "source": string;
@@ -208,6 +216,12 @@ export interface Key {
      * Hosts whose IdentityFile is this key.
      */
     "usedBy": string[] | null;
+
+    /**
+     * When the private key file was last written (RFC 3339): when it was
+     * made, unless its passphrase was changed since. "" for agent-only keys.
+     */
+    "modified": string;
 }
 
 /**

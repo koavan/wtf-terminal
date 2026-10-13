@@ -48,6 +48,9 @@ type Key struct {
 	HasPub bool `json:"hasPub"`
 	// Hosts whose IdentityFile is this key.
 	UsedBy []string `json:"usedBy"`
+	// When the private key file was last written (RFC 3339): when it was
+	// made, unless its passphrase was changed since. "" for agent-only keys.
+	Modified string `json:"modified"`
 }
 
 type KeyList struct {
@@ -121,7 +124,7 @@ func (s *Service) readKey(path string) (Key, bool) {
 	if !bytes.HasPrefix(first, []byte("-----BEGIN ")) || !bytes.Contains(first, []byte("PRIVATE KEY")) {
 		return Key{}, false
 	}
-	k := Key{Path: path, Name: prettyHome(s.home, path), UsedBy: []string{}}
+	k := Key{Path: path, Name: prettyHome(s.home, path), UsedBy: []string{}, Modified: fi.ModTime().UTC().Format(time.RFC3339)}
 	if mode := fi.Mode().Perm(); mode&0o077 != 0 {
 		k.Unprotected = fmt.Sprintf("%04o", mode)
 	}

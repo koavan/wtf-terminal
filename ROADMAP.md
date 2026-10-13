@@ -193,10 +193,13 @@ and passphrases (lib/clipboard.copySecret). wtf never copies a private key.
 `kubectl auth can-i --list` for the current namespace, and the AWS caller
 identity with its attached policies. Loaded on request.
 
-### 16. SSH config facts ☐
+### 16. SSH config facts ☑
 
 Label hosts with `ForwardAgent`, `StrictHostKeyChecking no` and `ProxyJump`;
 show each key's type, bit length and age in Keys. Display only, no warnings.
+Built: **agent fwd** and **hostkey no/off/accept-new** pills (resolved like
+ssh, `Host *` included; exact setting on hover), jump hosts as "via …";
+keys show RSA/ECDSA sizes and "from Mar 2023" (the file's time).
 
 ### 17. Context-tagged history ☐
 

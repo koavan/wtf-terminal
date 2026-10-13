@@ -2,7 +2,7 @@
 
 **SSH → Keys** lists the key pairs in `~/.ssh` and the keys ssh-agent holds. Reading them needs no passphrase.
 
-Each key shows its type and size, comment and fingerprint (hover), and pills for:
+Each key shows its type (with its size for RSA and ECDSA; ED25519 is always 256 bits), when its file was written (**from Mar 2023** — when the key was made, unless its passphrase was changed since; the exact date on hover), its comment and fingerprint (hover), and pills for:
 
 - **agent** — loaded in ssh-agent.
 - **N hosts** — the hosts whose `IdentityFile` is this key.

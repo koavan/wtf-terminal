@@ -7,7 +7,7 @@
   import { overlay, type MenuEntry } from '../lib/overlay.svelte';
   import { isMac } from '../lib/platform';
   import {
-    confirmDeleteHost, groupName, hostDetail, hostKey, matchesFilter, openHosts, ssh, sshCommand,
+    confirmDeleteHost, groupName, hostDetail, hostFacts, hostKey, matchesFilter, openHosts, ssh, sshCommand,
     type Host, type OpenWhere,
   } from '../lib/ssh.svelte';
   import { runInShell, sftpCommand } from '../lib/sshAdmin.svelte';
@@ -203,6 +203,7 @@
             <span class="alias">{h.alias}</span>
             {#if detail}<span class="sub">{detail}</span>{/if}
           </span>
+          {#each hostFacts(h) as f (f.label)}<span class="pill" title={f.title}>{f.label}</span>{/each}
           <button
             class="connect"
             title="Connect in this shell (a new tab if it’s busy)"
@@ -356,6 +357,18 @@
   .row.drop {
     background: var(--accent-soft);
     box-shadow: inset 0 0 0 1.5px var(--accent);
+  }
+
+  .pill {
+    flex: none;
+    padding: 0 5px;
+    border-radius: 4px;
+    background: var(--tab-hover);
+    color: var(--chrome-muted);
+    font-size: 10px;
+    font-weight: 600;
+    line-height: 16px;
+    white-space: nowrap;
   }
 
   /* Connect: shown on hover, like a browser tab's close button. */

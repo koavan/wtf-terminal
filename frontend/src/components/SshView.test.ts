@@ -25,7 +25,7 @@ const Overlays = (await import('./Overlays.svelte')).default;
 
 type Host = import('../lib/ssh.svelte').Host;
 const host = (h: Partial<Host>): Host => ({
-  alias: '', hostName: '', user: '', port: '', proxyJump: '', source: '/home/me/.ssh/config', known: false,
+  alias: '', hostName: '', user: '', port: '', proxyJump: '', forwardAgent: '', strictHostKeyChecking: '', source: '/home/me/.ssh/config', known: false,
   line: 1, patterns: [h.alias ?? ''], options: [], editable: true, ...h,
 });
 
@@ -70,6 +70,15 @@ describe('ssh helpers', () => {
     expect(ssh.hostDetail(HOSTS[1])).toBe('web1.internal via bastion');
     expect(ssh.hostDetail(HOSTS[3])).toBe('10.0.0.5:2222');
     expect(ssh.hostDetail(host({ alias: 'a', hostName: 'a' }))).toBe('');
+  });
+
+  it('shows agent forwarding and host key checking as the config sets them', () => {
+    expect(ssh.hostFacts(host({ alias: 'a' }))).toEqual([]);
+    expect(ssh.hostFacts(host({ alias: 'a', forwardAgent: 'yes', strictHostKeyChecking: 'no' })).map((f) => f.label)).toEqual(['agent fwd', 'hostkey no']);
+    expect(ssh.hostFacts(host({ alias: 'a', strictHostKeyChecking: 'accept-new' })).map((f) => f.label)).toEqual(['hostkey accept-new']);
+    // Checking on (the default, or yes) isn't worth a label.
+    expect(ssh.hostFacts(host({ alias: 'a', strictHostKeyChecking: 'yes' }))).toEqual([]);
+    expect(ssh.hostFacts(host({ alias: 'a', forwardAgent: '~/.1password/agent.sock' }))[0].title).toContain('ForwardAgent ~/.1password/agent.sock');
   });
 
   it('filters on every word', () => {

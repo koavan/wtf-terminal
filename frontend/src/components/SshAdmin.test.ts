@@ -42,18 +42,18 @@ type Key = import('../lib/sshAdmin.svelte').Key;
 type TunnelStatus = import('../lib/sshAdmin.svelte').TunnelStatus;
 
 const host = (h: Partial<Host>): Host => ({
-  alias: '', hostName: '', user: '', port: '', proxyJump: '', source: '/home/me/.ssh/config', known: false,
+  alias: '', hostName: '', user: '', port: '', proxyJump: '', forwardAgent: '', strictHostKeyChecking: '', source: '/home/me/.ssh/config', known: false,
   line: 1, patterns: [h.alias ?? ''], options: [], editable: true, ...h,
 });
 const HOSTS = [host({ alias: 'web', hostName: 'web.example.com' }), host({ alias: '10.0.0.5', hostName: '10.0.0.5', port: '2222', known: true, source: '' })];
 
 const key = (k: Partial<Key>): Key => ({
   path: '', name: '', type: 'ED25519', bits: 256, fingerprint: 'SHA256:aaa', comment: '', encrypted: false,
-  inAgent: false, unprotected: '', hasPub: true, usedBy: [], ...k,
+  inAgent: false, unprotected: '', hasPub: true, usedBy: [], modified: '', ...k,
 });
 const KEYS: Key[] = [
   key({ path: '/home/me/.ssh/id_ed25519', name: '~/.ssh/id_ed25519', comment: 'me@laptop', inAgent: true, usedBy: ['web'], fingerprint: 'SHA256:ed' }),
-  key({ path: '/home/me/.ssh/old rsa', name: '~/.ssh/old rsa', type: 'RSA', bits: 2048, unprotected: '0644', hasPub: false, fingerprint: 'SHA256:rsa' }),
+  key({ path: '/home/me/.ssh/old rsa', name: '~/.ssh/old rsa', type: 'RSA', bits: 2048, unprotected: '0644', hasPub: false, fingerprint: 'SHA256:rsa', modified: '2023-03-14T09:26:00Z' }),
   key({ name: 'yubikey', comment: 'yubikey', type: 'ED25519-SK', inAgent: true, fingerprint: 'SHA256:sk' }),
 ];
 
@@ -146,6 +146,10 @@ describe('keys', () => {
     view.getByText('0644');
     view.getByText('1 host');
     view.getByText('ssh-agent: 2 keys loaded');
+    // Type with its size where it varies, and when the file was written.
+    const made = new Date('2023-03-14T09:26:00Z').toLocaleDateString(undefined, { month: 'short', year: 'numeric' });
+    view.getByText(`RSA 2048 · from ${made}`);
+    view.getByText('ED25519 · me@laptop');
   });
 
   it('runs passphrase-taking actions in a tab and quick ones in the backend', async () => {
