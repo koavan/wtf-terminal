@@ -283,7 +283,14 @@ func TestShellQuote(t *testing.T) {
 func TestFirstRunOnce(t *testing.T) {
 	s := &Service{stateDir: t.TempDir()}
 	first := s.FirstRun("/nonexistent")
-	_ = first // depends on the machine; only "once" is checked
+	// What's found depends on the machine; scanners are never listed.
+	for _, name := range first {
+		for _, tl := range catalog {
+			if tl.scanner && tl.name == name {
+				t.Errorf("first run lists the scanner %s", name)
+			}
+		}
+	}
 	if _, err := os.Stat(filepath.Join(s.stateDir, "tools-checked")); err != nil {
 		t.Fatal(err)
 	}

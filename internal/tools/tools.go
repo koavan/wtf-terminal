@@ -35,6 +35,8 @@ type Status struct {
 	Methods  []Method `json:"methods"`
 	// It comes with the system ("macOS"): nothing to install.
 	BuiltIn string `json:"builtIn"`
+	// A security scanner (Findings tab), not something features need.
+	Scanner bool `json:"scanner"`
 }
 
 type Service struct {
@@ -83,7 +85,7 @@ func (s *Service) Check(shellPATH string) []Status {
 func (s *Service) status(t tool, p platform) Status {
 	st := Status{
 		ID: t.id, Name: t.name, About: t.about, Programs: t.programs,
-		UsedBy: t.usedBy, Homepage: t.homepage, BuiltIn: t.builtIn[p.goos],
+		UsedBy: t.usedBy, Homepage: t.homepage, BuiltIn: t.builtIn[p.goos], Scanner: t.scanner,
 	}
 	for i, prog := range t.programs {
 		path := find(prog, p)
@@ -205,7 +207,7 @@ func (s *Service) FirstRun(shellPATH string) []string {
 	p := s.platform(shellPATH)
 	var missing []string
 	for _, t := range catalog {
-		if t.only != "" && t.only != p.goos {
+		if (t.only != "" && t.only != p.goos) || t.scanner {
 			continue
 		}
 		if st := s.status(t, p); !st.Found && st.BuiltIn == "" {

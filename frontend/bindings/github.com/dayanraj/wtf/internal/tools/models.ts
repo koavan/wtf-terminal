@@ -64,4 +64,9 @@ export interface Status {
      * It comes with the system ("macOS"): nothing to install.
      */
     "builtIn": string;
+
+    /**
+     * A security scanner (Findings tab), not something features need.
+     */
+    "scanner": boolean;
 }

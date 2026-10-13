@@ -91,6 +91,8 @@ export const commands: Command[] = [
   },
   { id: 'sidebar.history', label: 'Show Command History', mac: '⌘⇧H', other: 'Ctrl+Shift+Alt+H', run: () => sidebar.show('history') },
   { id: 'sidebar.pins', label: 'Show Pinned Output', mac: '⌘⇧I', other: 'Ctrl+Shift+Alt+I', run: () => sidebar.show('pins') },
+  { id: 'sidebar.findings', label: 'Show Findings (Security Scans)', mac: '⌘⇧F', other: 'Ctrl+Shift+Alt+F', run: () => sidebar.show('findings') },
+  { id: 'findings.scan', label: 'Run Security Scan…', run: () => overlay.show({ kind: 'scan' }) },
   { id: 'sidebar.share', label: 'Show Share & Record', mac: '⌘⇧J', other: 'Ctrl+Shift+Alt+J', run: () => sidebar.show('share') },
   { id: 'sidebar.generate', label: 'Show Generate (SSH Keys, Passwords)', mac: '⌘⇧N', other: 'Ctrl+Shift+Alt+N', run: () => sidebar.show('generate') },
   { id: 'generate.key', label: 'Generate SSH Key…', run: () => sidebar.openGenerator('key') },
@@ -237,6 +239,7 @@ function shortcutFor(e: KeyboardEvent): string | null {
   if (e.ctrlKey && e.shiftKey && e.altKey && e.code === 'KeyH') return 'sidebar.history';
   if (e.ctrlKey && e.shiftKey && e.altKey && e.code === 'KeyI') return 'sidebar.pins';
   if (e.ctrlKey && e.shiftKey && e.altKey && e.code === 'KeyJ') return 'sidebar.share';
+  if (e.ctrlKey && e.shiftKey && e.altKey && e.code === 'KeyF') return 'sidebar.findings';
   if (e.ctrlKey && e.shiftKey && e.altKey && e.code === 'KeyX') return 'secrets.toggle';
   if (e.ctrlKey && e.shiftKey && e.altKey && e.code === 'KeyM') return 'record.toggle';
   if (e.ctrlKey && e.shiftKey && e.altKey && e.code === 'KeyS') return 'sidebar.ssh';

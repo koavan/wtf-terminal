@@ -10,6 +10,7 @@ Some side-pane features run programs you'd run yourself: the same programs, your
 | OpenSSH (`ssh`, `ssh-keygen`, `ssh-add`, `ssh-keyscan`) | [SSH](#ssh-hosts) tab: connect, test, keys, host keys, tunnels, file copies |
 | `lsof` (macOS), `ss` or `lsof` (Linux) | [Network](#network) tab |
 | `notify-send` (Linux) | Notifications when a long command finishes |
+| Trivy, Semgrep, Checkov, Gitleaks, Grype | [Findings](#findings): Run Scan. Optional: listed, but not mentioned on first start |
 
 Everything else (profiles, contexts, SSH config, expiry clocks, the [inspector](#inspect)) reads files and needs nothing installed.
 

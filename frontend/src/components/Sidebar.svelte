@@ -4,6 +4,7 @@
   import PinsView from './PinsView.svelte';
   import ShareView from './ShareView.svelte';
   import GenerateView from './GenerateView.svelte';
+  import FindingsView from './FindingsView.svelte';
   import Icon, { type IconName } from './Icon.svelte';
   import NetworkView from './NetworkView.svelte';
   import ProcessView from './ProcessView.svelte';
@@ -27,6 +28,7 @@
     { id: 'processes', label: 'Processes', icon: 'cpu', key: isMac ? '⌘⇧A' : 'Ctrl+Shift+Alt+A' },
     { id: 'history', label: 'History', icon: 'history', key: isMac ? '⌘⇧H' : 'Ctrl+Shift+Alt+H' },
     { id: 'pins', label: 'Pinned Output', icon: 'pin', key: isMac ? '⌘⇧I' : 'Ctrl+Shift+Alt+I' },
+    { id: 'findings', label: 'Findings', icon: 'bug', key: isMac ? '⌘⇧F' : 'Ctrl+Shift+Alt+F' },
     { id: 'share', label: 'Share & Record', icon: 'shield', key: isMac ? '⌘⇧J' : 'Ctrl+Shift+Alt+J' },
     { id: 'generate', label: 'Generate Keys & Passwords', icon: 'key', key: isMac ? '⌘⇧N' : 'Ctrl+Shift+Alt+N' },
   ];
@@ -99,6 +101,8 @@
       <ShareView />
     {:else if sidebar.tab === 'generate'}
       <GenerateView />
+    {:else if sidebar.tab === 'findings'}
+      <FindingsView />
     {/if}
   </div>
 

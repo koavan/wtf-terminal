@@ -21,6 +21,9 @@ type tool struct {
 	pkgs map[string]string
 	// It comes with the system there ("macOS"), so there's nothing to offer.
 	builtIn map[string]string
+	// A security scanner for the Findings tab: wtf works fine without it,
+	// so the first-run check doesn't mention it.
+	scanner bool
 }
 
 var catalog = []tool{
@@ -88,6 +91,43 @@ var catalog = []tool{
 			"apt": "libnotify-bin", "dnf": "libnotify", "yum": "libnotify",
 			"pacman": "libnotify", "zypper": "libnotify-tools", "apk": "libnotify",
 		},
+	},
+
+	// Scanners the Findings tab runs (internal/findings).
+	{
+		id: "trivy", name: "Trivy", about: "Scans for vulnerable dependencies, secrets and misconfigurations",
+		programs: []string{"trivy"}, version: []string{"--version"},
+		usedBy:   []string{"Findings tab: Run Scan"},
+		homepage: "https://trivy.dev/latest/getting-started/installation/",
+		brew:     "trivy", scanner: true,
+	},
+	{
+		id: "semgrep", name: "Semgrep", about: "Scans source code for bugs and insecure patterns",
+		programs: []string{"semgrep"}, version: []string{"--version"},
+		usedBy:   []string{"Findings tab: Run Scan"},
+		homepage: "https://semgrep.dev/docs/getting-started/quickstart",
+		brew:     "semgrep", scanner: true,
+	},
+	{
+		id: "checkov", name: "Checkov", about: "Scans infrastructure as code for misconfigurations",
+		programs: []string{"checkov"}, version: []string{"--version"},
+		usedBy:   []string{"Findings tab: Run Scan"},
+		homepage: "https://www.checkov.io/2.Basics/Installing%20Checkov.html",
+		brew:     "checkov", scanner: true,
+	},
+	{
+		id: "gitleaks", name: "Gitleaks", about: "Scans git history for committed secrets",
+		programs: []string{"gitleaks"}, version: []string{"version"},
+		usedBy:   []string{"Findings tab: Run Scan"},
+		homepage: "https://github.com/gitleaks/gitleaks#installing",
+		brew:     "gitleaks", scanner: true,
+	},
+	{
+		id: "grype", name: "Grype", about: "Scans dependencies for known vulnerabilities",
+		programs: []string{"grype"}, version: []string{"version"},
+		usedBy:   []string{"Findings tab: Run Scan"},
+		homepage: "https://github.com/anchore/grype#installation",
+		brew:     "grype", scanner: true,
 	},
 }
 

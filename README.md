@@ -87,7 +87,7 @@ Every command is also in the command palette.
 | Command palette | ⌘⇧P | Ctrl+Shift+P |
 | Manual (at the page for the side-pane tab on screen) | ⌘? | F1 |
 | Toggle sidebar | ⌘B | Ctrl+Shift+B |
-| Sidebar: files / SSH / AWS / Kubernetes / snippets / workspaces / network / processes / history | ⌘⇧E / ⌘⇧S / ⌘⇧U / ⌘⇧K / ⌘⇧Y / ⌘⇧L / ⌘⇧O / ⌘⇧A / ⌘⇧H | Ctrl+Shift+Alt+E / S / U / K / Y / L / O / A / H |
+| Sidebar: files / SSH / AWS / Kubernetes / snippets / workspaces / network / processes / history / findings | ⌘⇧E / ⌘⇧S / ⌘⇧U / ⌘⇧K / ⌘⇧Y / ⌘⇧L / ⌘⇧O / ⌘⇧A / ⌘⇧H / ⌘⇧F | Ctrl+Shift+Alt+E / S / U / K / Y / L / O / A / H / F |
 | New tab | ⌘T | Ctrl+Shift+T |
 | New window | ⌘N | Ctrl+Shift+N |
 | Show all tabs | ⌘⇧\ | Ctrl+Shift+\ |
@@ -467,6 +467,19 @@ on this machine opens in `$EDITOR +line`. Right-click a line holding JSON for
   roots — with the TLS library's error when it doesn't.
 
 JWTs and base64 can't be opened while Hide Secrets is on.
+
+## Findings (security scans)
+
+The side pane's **Findings** tab (⌘⇧F / Ctrl+Shift+Alt+F, bug icon) shows
+what security scanners found in the focused shell's git repository, grouped by
+severity (the scanner's own: its security-severity score, else the SARIF
+level) and then by rule; click a location to open the file at that line.
+**Run Scan…** (▶, or the palette) offers Trivy, Semgrep, Checkov, Gitleaks
+(`--redact`) and Grype: it shows the exact command and types it into the
+focused shell. The SARIF goes to wtf's cache, not the repository. `.sarif`
+files at the repository's top (from CI, say) are read too. Read when the tab
+opens, on refresh, and when a scan finishes; never polled. Missing scanners
+get an **Install…** (Homebrew on macOS). Code: `internal/findings`.
 
 ## Recording and saving
 

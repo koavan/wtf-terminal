@@ -17,6 +17,7 @@ import network from './network.md?raw';
 import pinsPage from './pins.md?raw';
 import panes from './panes.md?raw';
 import privacy from './privacy.md?raw';
+import findingsPage from './findings.md?raw';
 import recording from './recording.md?raw';
 import secrets from './secrets.md?raw';
 import share from './share.md?raw';
@@ -70,6 +71,7 @@ export const TOPICS: Topic[] = [
   t('Side pane', 'pins', 'Pinned output', pinsPage),
   t('Side pane', 'share', 'Share & Record', share),
   t('Side pane', 'generate', 'Generate: SSH keys and passwords', generate),
+  t('Side pane', 'findings', 'Findings: security scans', findingsPage),
   t('SSH', 'ssh-hosts', 'SSH hosts', sshHosts),
   t('SSH', 'ssh-keys', 'SSH keys and ssh-agent', sshKeys),
   t('SSH', 'git-identities', 'Git identities (more than one GitHub user)', gitIdentitiesPage),
@@ -101,4 +103,5 @@ export const SIDEBAR_TOPIC: Record<string, string> = {
   pins: 'pins',
   share: 'share',
   generate: 'generate',
+  findings: 'findings',
 };

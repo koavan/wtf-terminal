@@ -10,7 +10,7 @@ export const MIN_WIDTH = 220;
 export const MAX_WIDTH = 520;
 export const DEFAULT_WIDTH = 300;
 
-export const SIDEBAR_TABS = ['files', 'ssh', 'aws', 'kube', 'snippets', 'workspaces', 'network', 'processes', 'history', 'pins', 'share', 'generate'] as const;
+export const SIDEBAR_TABS = ['files', 'ssh', 'aws', 'kube', 'snippets', 'workspaces', 'network', 'processes', 'history', 'pins', 'share', 'generate', 'findings'] as const;
 export type SidebarTab = (typeof SIDEBAR_TABS)[number];
 
 export const SSH_SECTIONS = ['hosts', 'keys', 'git', 'tunnels'] as const;

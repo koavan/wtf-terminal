@@ -13,6 +13,7 @@ import (
 	"github.com/dayanraj/wtf/internal/certs"
 	"github.com/dayanraj/wtf/internal/config"
 	"github.com/dayanraj/wtf/internal/files"
+	"github.com/dayanraj/wtf/internal/findings"
 	"github.com/dayanraj/wtf/internal/infra"
 	"github.com/dayanraj/wtf/internal/kube"
 	"github.com/dayanraj/wtf/internal/netconn"
@@ -72,6 +73,7 @@ func main() {
 			application.NewService(about.NewService(version, commit, buildDate, configDir, stateDir, term.ShellInfo)),
 			application.NewService(sshhosts.NewService(stateDir)),
 			application.NewService(tools.NewService(stateDir, term.ShellInfo)),
+			application.NewService(findings.NewService()),
 			application.NewService(netconn.NewService(term.ShellPIDs)),
 			application.NewService(procs.NewService(term.ShellPIDs)),
 			application.NewService(windows.Service()),
@@ -194,6 +196,7 @@ func buildMenu(windows *wtfwindows.Manager) *application.Menu {
 	cmd(view, "Show Kubernetes", "CmdOrCtrl+shift+k", "sidebar.kube")
 	cmd(view, "Show Snippets", "CmdOrCtrl+shift+y", "sidebar.snippets")
 	cmd(view, "Show Workspaces", "CmdOrCtrl+shift+l", "sidebar.workspaces")
+	cmd(view, "Show Findings", "CmdOrCtrl+shift+f", "sidebar.findings")
 	cmd(view, "Hide Secrets", "CmdOrCtrl+OptionOrAlt+r", "secrets.toggle")
 	view.AddSeparator()
 	cmd(view, "Previous Prompt", "CmdOrCtrl+up", "prompt.prev")

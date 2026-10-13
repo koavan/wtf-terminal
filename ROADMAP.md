@@ -168,11 +168,18 @@ missing (looks only, runs nothing). The `.deb`/`.rpm` recommend git, OpenSSH,
 lsof, libnotify. Manual page: Command-line tools. Not done: scanners (with #12),
 Vault (with #18).
 
-### 12. SARIF findings tab ☐
+### 12. SARIF findings tab ☑
 
 Side-pane tab that reads SARIF (trivy, semgrep, checkov, gitleaks, grype,
 tfsec): findings grouped by severity and rule, click-through to `file:line`.
 "Run scan…" runs the scanner as a visible command in a terminal tab. No polling.
+Built: internal/findings + Findings tab (⌘⇧F). Per git repository; SARIF from
+wtf's scans lives in the cache, `*.sarif` at the repo's top is read too (tfsec,
+CodeQL… any producer). Severity is the scanner's (security-severity score,
+else level). Run Scan types the command into the focused shell (new tab if
+busy), like the other side-pane actions. Scanners are optional entries in Command-Line
+Tools (Homebrew on macOS; Linux points to their sites). Reloads when a scan
+command finishes.
 
 ### 13. Incognito tab ☐
 
