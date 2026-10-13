@@ -7,7 +7,7 @@ const TARGET = { context: 'prod', namespace: 'shop', env: {} };
 
 function actions(): TokenActions & Record<string, ReturnType<typeof vi.fn>> {
   return {
-    copy: vi.fn(), openUrl: vi.fn(), runInTab: vi.fn(), runHere: vi.fn(), runInShell: vi.fn(), openInEditor: vi.fn(), openFile: vi.fn(), reveal: vi.fn(), showSecret: vi.fn(), inspectJwt: vi.fn(), inspectTls: vi.fn(),
+    copy: vi.fn(), copySecret: vi.fn(), openUrl: vi.fn(), runInTab: vi.fn(), runHere: vi.fn(), runInShell: vi.fn(), openInEditor: vi.fn(), openFile: vi.fn(), reveal: vi.fn(), showSecret: vi.fn(), inspectJwt: vi.fn(), inspectTls: vi.fn(),
   } as never;
 }
 
@@ -100,5 +100,8 @@ describe('inspector entries', () => {
     expect(labels(m)).toEqual(['# JWT', 'Inspect Token…', 'Copy Token']);
     click(m, 'Inspect Token…');
     expect(a.inspectJwt).toHaveBeenCalledWith(jwt);
+    click(m, 'Copy Token');
+    expect(a.copySecret).toHaveBeenCalledWith(jwt, 'token');
+    expect(a.copy).not.toHaveBeenCalled();
   });
 });

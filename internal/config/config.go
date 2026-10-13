@@ -36,6 +36,8 @@ type Config struct {
 
 	LogHighlighting bool `toml:"log-highlighting" json:"logHighlighting"`
 	RedactSecrets   bool `toml:"redact-secrets" json:"redactSecrets"`
+
+	ClipboardClear float64 `toml:"clipboard-clear" json:"clipboardClear"`
 }
 
 func Defaults() Config {
@@ -57,6 +59,8 @@ func Defaults() Config {
 		ContextBadges: true,
 
 		LogHighlighting: true,
+
+		ClipboardClear: 30,
 	}
 }
 
@@ -127,6 +131,11 @@ const template = `# wtf settings. Changes apply as soon as you save.
 # for sharing your screen. Best effort: it can miss a secret it doesn't
 # recognize. Toggle it any time with ⌥⌘R (Ctrl+Shift+Alt+X).
 # redact-secrets = false
+
+# Seconds after copying a secret wtf revealed (a Kubernetes secret's value,
+# decoded base64, a JWT, a generated password or passphrase) to empty the
+# clipboard — only if it still holds that secret. 0 never empties it.
+# clipboard-clear = 30
 `
 
 // Dir is $XDG_CONFIG_HOME/wtf, or ~/.config/wtf, on every platform.
@@ -194,6 +203,10 @@ func validate(c Config, problems []string) (Config, []string, error) {
 	if c.SidebarRefreshInterval < 1 || c.SidebarRefreshInterval > 60 {
 		bad("sidebar-refresh-interval", c.SidebarRefreshInterval, "must be between 1 and 60")
 		c.SidebarRefreshInterval = d.SidebarRefreshInterval
+	}
+	if c.ClipboardClear < 0 || c.ClipboardClear > 600 {
+		bad("clipboard-clear", c.ClipboardClear, "must be between 0 and 600")
+		c.ClipboardClear = d.ClipboardClear
 	}
 	if strings.TrimSpace(c.FontFamily) == "" {
 		c.FontFamily = d.FontFamily

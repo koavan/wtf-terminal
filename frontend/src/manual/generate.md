@@ -9,7 +9,7 @@ Fill in the form and press **Generate Key**:
 - **Type**: Ed25519 unless a server is too old for it; then RSA 4096. ECDSA P-521 is there if something requires it.
 - **File name**: the key is saved as `~/.ssh/<name>` (private, readable only by you) and `<name>.pub`. A free name is filled in for you. wtf never replaces a file that's already there.
 - **Comment**: a label stored with the key, such as which account or machine it's for. Servers show it in `authorized_keys`.
-- **Passphrase**: encrypts the key file, so a stolen copy is useless without it. Type it twice, or leave both empty for none. **Suggest one** fills in a random 24-character passphrase. Save it in your password manager with **Copy** (the clipboard clears after 30 seconds). While [Hide Secrets](#secrets) is on, a suggested passphrase isn't shown on screen.
+- **Passphrase**: encrypts the key file, so a stolen copy is useless without it. Type it twice, or leave both empty for none. **Suggest one** fills in a random 24-character passphrase. Save it in your password manager with **Copy** (the clipboard clears after 30 seconds, or what `clipboard-clear` says). While [Hide Secrets](#secrets) is on, a suggested passphrase isn't shown on screen.
 - **Load it into ssh-agent**: the new key is ready to use straight away, until the agent restarts (usually when you log out).
 
 Then the tab shows the new key's fingerprint and public key, with buttons to:
@@ -33,6 +33,6 @@ A random password appears as soon as you open the tab, and a new one each time y
 - **Leave out look-alikes**: skips `I l 1 O 0 o |`, for passwords someone has to read or type.
 - **About N bits of randomness**: how hard it is to guess. Each extra bit doubles the work.
 
-**Copy** puts it on the clipboard, which wtf clears after 30 seconds unless you've copied something else since. **New** makes another. While [Hide Secrets](#secrets) is on, the password shows as dots until you click **Show**.
+**Copy** puts it on the clipboard, which wtf clears after 30 seconds (`clipboard-clear` in [Settings](#settings)) unless you've copied something else since. **New** makes another. While [Hide Secrets](#secrets) is on, the password shows as dots until you click **Show**.
 
 Passwords are made on this computer with the system's secure random generator. They aren't saved, aren't kept in any history, and are never sent anywhere. The symbols leave out quotes, spaces, backslashes and backticks, so a password pastes into a shell or a config file without escaping.

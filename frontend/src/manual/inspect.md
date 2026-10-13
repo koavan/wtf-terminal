@@ -12,7 +12,7 @@ The viewer shows when it expires (`exp`), when it was issued (`iat`), when it be
 
 Select base64 text and right-click → **Decode Base64…**. In `kubectl get secret -o yaml` you don't need to select anything: right-click the value after a key (`password: cGFzc3…`).
 
-Decoded values are often secrets, so the result is hidden until you click **Reveal**, and hidden again when wtf loses focus. The viewer tells you what it decoded to: text, JSON (indented), binary data (a hex dump of the first 256 bytes), a PEM certificate (**Inspect Certificate…**) or a JWT (**Inspect JWT…**). A `tls.crt` from a Kubernetes secret is two clicks from its expiry date.
+Decoded values are often secrets, so the result is hidden until you click **Reveal**, and hidden again when wtf loses focus. Copying it empties the clipboard after 30 seconds (see [Privacy](#privacy)). The viewer tells you what it decoded to: text, JSON (indented), binary data (a hex dump of the first 256 bytes), a PEM certificate (**Inspect Certificate…**) or a JWT (**Inspect JWT…**). A `tls.crt` from a Kubernetes secret is two clicks from its expiry date.
 
 ## Certificates
 

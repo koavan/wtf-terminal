@@ -48,5 +48,5 @@ Changes to the cluster — **Delete Pod…**, **Restart…**, **Scale…**, a Cr
 
 Secrets are listed by name, type and number of keys. Their values are read only when you ask:
 
-- **View Decoded Values…** (or double-click) reads that one secret. Each key stays masked until you click its eye, or **Reveal All**; the copy button copies a value without showing it (base64 for binary data). Everything masks again when wtf loses focus, so a screen share can't catch it. The values live only in that dialog.
+- **View Decoded Values…** (or double-click) reads that one secret. Each key stays masked until you click its eye, or **Reveal All**; the copy button copies a value without showing it (base64 for binary data), and the clipboard empties after 30 seconds (see [Privacy](#privacy)). Everything masks again when wtf loses focus, so a screen share can't catch it. The values live only in that dialog.
 - **Decode in Terminal** prints `key=value` lines in a new tab, using kubectl's own `base64decode`.

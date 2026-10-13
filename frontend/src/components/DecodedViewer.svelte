@@ -1,10 +1,10 @@
 <script lang="ts">
   import { onMount, untrack } from 'svelte';
-  import { Clipboard } from '@wailsio/runtime';
   import Dialog from './Dialog.svelte';
   import Icon from './Icon.svelte';
   import { decodeBase64, JWT_RE } from '../lib/inspect';
   import { overlay } from '../lib/overlay.svelte';
+  import { copySecret } from '../lib/clipboard';
   import { toast } from '../lib/toast.svelte';
 
   // Base64 from the terminal (a selection, or a value in
@@ -31,7 +31,7 @@
 
   function copy() {
     if (!decoded || decoded.kind === 'binary') return;
-    Clipboard.SetText(decoded.text).then(() => toast.show('Copied decoded text'));
+    copySecret(decoded.text, 'decoded text');
   }
 </script>
 

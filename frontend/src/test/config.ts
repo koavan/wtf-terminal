@@ -21,6 +21,7 @@ export function testConfig(over: Partial<Config> = {}): Config {
     contextBadges: true,
     logHighlighting: true,
     redactSecrets: false,
+    clipboardClear: 30,
     ...over,
   };
 }

@@ -23,6 +23,7 @@ export interface Config {
     "contextBadges": boolean;
     "logHighlighting": boolean;
     "redactSecrets": boolean;
+    "clipboardClear": number;
 }
 
 /**

@@ -302,3 +302,15 @@ func TestServiceSetThemeAndReload(t *testing.T) {
 }
 
 func ftoa(f float64) string { return strconv.FormatFloat(f, 'f', -1, 64) }
+
+func TestClipboardClear(t *testing.T) {
+	if cfg, _, _ := Parse(""); cfg.ClipboardClear != 30 {
+		t.Fatalf("default = %v, want 30", cfg.ClipboardClear)
+	}
+	if cfg, problems, _ := Parse("clipboard-clear = 0\n"); cfg.ClipboardClear != 0 || len(problems) != 0 {
+		t.Fatalf("0 = %v %v, want 0 (off)", cfg.ClipboardClear, problems)
+	}
+	if cfg, problems, _ := Parse("clipboard-clear = 9000\n"); cfg.ClipboardClear != 30 || len(problems) != 1 {
+		t.Fatalf("9000 = %v %v, want the default and a problem", cfg.ClipboardClear, problems)
+	}
+}

@@ -16,6 +16,8 @@ vi.mock('../../bindings/github.com/dayanraj/wtf/internal/sshhosts', () => ({
   },
 }));
 
+window.matchMedia ??= ((q: string) => ({ matches: false, media: q, addEventListener() {}, removeEventListener() {} })) as never;
+
 const { Service } = await import('../../bindings/github.com/dayanraj/wtf/internal/sshhosts');
 const { sidebar } = await import('../lib/sidebar.svelte');
 const { redaction } = await import('../lib/redaction.svelte');

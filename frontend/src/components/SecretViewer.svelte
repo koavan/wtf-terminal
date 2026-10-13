@@ -1,11 +1,11 @@
 <script lang="ts">
   import { onMount, untrack } from 'svelte';
   import { SvelteSet } from 'svelte/reactivity';
-  import { Clipboard } from '@wailsio/runtime';
   import { Service, type SecretEntry } from '../../bindings/github.com/dayanraj/wtf/internal/kube';
   import Dialog from './Dialog.svelte';
   import Icon from './Icon.svelte';
   import { overlay } from '../lib/overlay.svelte';
+  import { copySecret } from '../lib/clipboard';
   import { toast } from '../lib/toast.svelte';
 
   // A secret's decoded values. Fetched when the dialog opens, held only in
@@ -44,7 +44,7 @@
   }
 
   function copy(e: SecretEntry) {
-    Clipboard.SetText(e.value).then(() => toast.show(e.binary ? `Copied ${e.key} (base64)` : `Copied ${e.key}`));
+    copySecret(e.value, e.binary ? `${e.key} (base64)` : e.key);
   }
 
   const size = (n: number) => (n < 1024 ? `${n} B` : `${(n / 1024).toFixed(1)} KB`);

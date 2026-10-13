@@ -5,7 +5,8 @@
   import Icon from './Icon.svelte';
   import { prettyPath } from '../lib/backend';
   import { overlay } from '../lib/overlay.svelte';
-  import { copySecret, generatePassword } from '../lib/passwords';
+  import { generatePassword } from '../lib/passwords';
+  import { copySecret } from '../lib/clipboard';
   import { isMac } from '../lib/platform';
   import { redaction } from '../lib/redaction.svelte';
   import { agentAddCommand, freeKeyName, KEY_TYPES, message, quotePath, runInShell, sshKeys, type KeyType } from '../lib/sshAdmin.svelte';
@@ -159,7 +160,7 @@
       <small>
         Encrypts the key file, so a copy of it is useless without the passphrase. Leave both empty for none.
         <button type="button" class="link" onclick={suggest}>Suggest one</button>
-        {#if passphrase && !mismatch}· <button type="button" class="link" onclick={() => copySecret(passphrase).then(() => toast.show('Copied. The clipboard clears in 30 seconds'))}>Copy</button>{/if}
+        {#if passphrase && !mismatch}· <button type="button" class="link" onclick={() => copySecret(passphrase, 'passphrase')}>Copy</button>{/if}
       </small>
       {#if mismatch}<small class="bad">The two passphrases differ.</small>{/if}
       {#if tooShort}<small class="bad">Use at least 5 characters, or none.</small>{/if}

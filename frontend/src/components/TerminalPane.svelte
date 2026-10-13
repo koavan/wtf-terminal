@@ -25,6 +25,7 @@
   import { redaction } from '../lib/redaction.svelte';
   import { SecretMask, coverColor } from '../lib/secretmask';
   import { sidebar } from '../lib/sidebar.svelte';
+  import { copySecret } from '../lib/clipboard';
   import { toast } from '../lib/toast.svelte';
   import { history } from '../lib/history.svelte';
   import { gitIdentities } from '../lib/gitIdentities.svelte';
@@ -542,6 +543,7 @@
 
   const tokenActions = {
     copy: copyText,
+    copySecret: (text: string, what: string) => void copySecret(text, what),
     openUrl: (url: string) => Browser.OpenURL(url),
     runInTab: (command: string) => tabs.open({ command, cwd: pane.cwd || undefined }),
     runHere: (command: string) => runInPane(pane, command),

@@ -7,8 +7,9 @@
 
 <script lang="ts">
   import Icon from './Icon.svelte';
-  import { copySecret, entropyBits, generatePassword, MAX_LENGTH, MIN_LENGTH } from '../lib/passwords';
+  import { entropyBits, generatePassword, MAX_LENGTH, MIN_LENGTH } from '../lib/passwords';
   import { redaction } from '../lib/redaction.svelte';
+  import { copySecret } from '../lib/clipboard';
   import { toast } from '../lib/toast.svelte';
 
   // A random password, made on this computer and never saved.
@@ -34,8 +35,7 @@
   async function copy() {
     if (!password) return;
     try {
-      await copySecret(password);
-      toast.show('Copied. The clipboard clears in 30 seconds');
+      await copySecret(password, 'password');
     } catch (e) {
       toast.show(String(e), 6000);
     }

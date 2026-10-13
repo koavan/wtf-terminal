@@ -180,10 +180,13 @@ No shell history, no session restore, no saved scrollback, recording blocked,
 Hide Secrets forced on. Clearly marked; for break-glass access and handling
 secrets.
 
-### 14. Clipboard auto-clear ☐
+### 14. Clipboard auto-clear ☑
 
 Clear the clipboard N seconds after copying a revealed secret, generated
 password or private key, only if it still holds that value.
+Built: `clipboard-clear` (default 30 s, 0 off) applies to Kubernetes secret
+values, decoded base64, Copy Token on a JWT in output, generated passwords
+and passphrases (lib/clipboard.copySecret). wtf never copies a private key.
 
 ### 15. Effective permissions panel ☐
 

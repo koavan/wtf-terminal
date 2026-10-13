@@ -11,6 +11,8 @@ import { isMac } from './platform';
 
 export interface TokenActions {
   copy(text: string, what: string): void;
+  /** Copies a secret: the clipboard empties after a while. */
+  copySecret(text: string, what: string): void;
   openUrl(url: string): void;
   /** Runs a command in a new tab. */
   runInTab(command: string): void;
@@ -54,7 +56,7 @@ export function tokenMenu(token: LogToken, target: Target, a: TokenActions, now 
       return [
         { heading: 'JWT' },
         { label: 'Inspect Token…', hint: isMac ? '⌘-click' : 'Ctrl-click', action: () => a.inspectJwt(token.text) },
-        { label: 'Copy Token', action: () => a.copy(token.text, 'token') },
+        { label: 'Copy Token', action: () => a.copySecret(token.text, 'token') },
       ];
 
     case 'timestamp': {

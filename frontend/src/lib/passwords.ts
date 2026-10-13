@@ -1,5 +1,3 @@
-import { Clipboard } from '@wailsio/runtime';
-
 // Random passwords for the Generate tab. Made here from the system's
 // cryptographic random source (crypto.getRandomValues), never sent to the
 // backend, never stored or logged.
@@ -75,21 +73,4 @@ export function generatePassword(o: PasswordOptions, rand: (n: number) => number
 export function entropyBits(o: PasswordOptions): number {
   const pool = classes(o).join('').length;
   return pool ? Math.floor(Math.min(MAX_LENGTH, Math.max(MIN_LENGTH, o.length)) * Math.log2(pool)) : 0;
-}
-
-export const CLIPBOARD_CLEAR_MS = 30_000;
-
-/**
- * Copies a secret and empties the clipboard after 30 seconds, unless
- * something else was copied meanwhile.
- */
-export async function copySecret(text: string) {
-  await Clipboard.SetText(text);
-  setTimeout(async () => {
-    try {
-      if ((await Clipboard.Text()) === text) await Clipboard.SetText('');
-    } catch {
-      // the clipboard is busy or gone; nothing to clean
-    }
-  }, CLIPBOARD_CLEAR_MS);
 }
