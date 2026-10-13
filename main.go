@@ -26,7 +26,7 @@ import (
 	wtfwindows "github.com/dayanraj/wtf/internal/windows"
 )
 
-const version = "0.5.0"
+const version = "0.6.0"
 
 // Set by the build (see build/*/Taskfile.yml): the git commit and the date.
 var (
