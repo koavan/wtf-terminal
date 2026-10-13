@@ -8,5 +8,6 @@ export {
 
 export type {
     Context,
+    Expiry,
     Git
 } from "./models.js";

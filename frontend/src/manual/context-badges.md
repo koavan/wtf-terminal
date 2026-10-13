@@ -13,12 +13,21 @@ Next to the folder, badges show what that shell is pointed at:
 | gcloud | the project |
 | Terraform | the workspace (inside an initialized Terraform folder) |
 | git | who commits here, the branch, its upstream and how many commits apart they are |
+| ssh | certificates loaded in the shell's ssh-agent (only when there are any) |
 
 Hover a badge for full names. Each tab has its own: switch the AWS profile or kube context in one shell and only that tab's badge changes.
 
-**How it works.** At each prompt the shell reports a few environment variables (`KUBECONFIG`, `AWS_PROFILE`, `AWS_REGION`, `CLOUDSDK_*`, `TF_WORKSPACE`, `GIT_AUTHOR_NAME`, `GIT_AUTHOR_EMAIL`, `WTF_GIT_IDENTITY`, `PATH`…) — and whether AWS keys are exported, never the keys themselves. wtf reads the rest from the tools' own files (`~/.kube/config`, `~/.aws/config`, gcloud's configurations) and, inside a git repository, from a few read-only git commands. Nothing is polled.
+**How it works.** At each prompt the shell reports a few environment variables (`KUBECONFIG`, `AWS_PROFILE`, `AWS_REGION`, `CLOUDSDK_*`, `TF_WORKSPACE`, `GIT_AUTHOR_NAME`, `GIT_AUTHOR_EMAIL`, `WTF_GIT_IDENTITY`, `AWS_CREDENTIAL_EXPIRATION`, `SSH_AUTH_SOCK`, `PATH`…) — and whether AWS keys are exported, never the keys themselves. wtf reads the rest from the tools' own files (`~/.kube/config`, `~/.aws/config`, gcloud's configurations) and, inside a git repository, from a few read-only git commands. Nothing is polled.
 
 **The AWS account.** It comes from the profile's config when it says (the account of its `role_arn`, `sso_account_id` or `aws_account_id`). When it doesn't — static access keys, `credential_process` — wtf asks AWS once in the background (`aws sts get-caller-identity`, which needs no permissions) and remembers the answer until your AWS files change. Exported access keys show as "env credentials".
+
+**Credential expiry clocks.** When the shell's credentials say when they stop working, the AWS, Kubernetes and ssh badges carry a clock: `42m`, `3h 10m`, or `expired`. It shows from a day before the soonest expiry, turns yellow under ten minutes and red once expired, and counts down while you sit at the prompt. Hover the badge for each credential's exact expiry. wtf reads:
+
+- **AWS:** the expiry exported with temporary keys (`AWS_CREDENTIAL_EXPIRATION`, set by aws-vault, granted and `aws configure export-credentials`); an SSO profile's login, from the aws CLI's SSO cache (following `source_profile`); and the `x_security_token_expires` that tools like saml2aws write to the credentials file.
+- **Kubernetes:** the current context user's client certificate, and its token or OIDC id-token when that is a JWT.
+- **ssh:** certificates in the shell's ssh-agent (`SSH_AUTH_SOCK`).
+
+Credentials that renew on their own — exec plugins like `aws-iam-authenticator` or `aws eks get-token`, roles assumed from working keys — have no clock, and neither do long-lived access keys (see their age in [AWS profiles](#aws)). wtf only reads the expiry: no token is kept, and nothing is sent anywhere. After `aws sso login` or `ssh-add`, the clock updates at the next prompt.
 
 **The git badge.** Inside a git repository it reads like `Ada · main → origin ↑2 ↓1`: the [git identity](#git-identities) the tab uses, else the author git will commit as (`GIT_AUTHOR_NAME`, else `user.name`), the branch, where it pushes and pulls, ↑ commits to push and ↓ commits to pull. When the upstream's branch has the same name only the remote shows; "gone" means the upstream branch was deleted on the remote or hasn't been fetched. Hover it for the repository folder, the remote's URL (without any user or token in it), the author's email and when you last fetched. The counts are only as fresh as that fetch: wtf never fetches for you — run `git fetch` and the badge catches up at the next prompt.
 

@@ -5,6 +5,7 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"reflect"
 	"strings"
 	"sync"
 	"testing"
@@ -90,7 +91,7 @@ func TestKubeconfigListMerges(t *testing.T) {
 func TestKubeNoConfig(t *testing.T) {
 	home := t.TempDir()
 	write(t, filepath.Join(home, ".kube", "config"), "not: [valid")
-	if got := testService(home, nil).Resolve(map[string]string{}); got != (Context{}) {
+	if got := testService(home, nil).Resolve(map[string]string{}); !reflect.DeepEqual(got, Context{}) {
 		t.Fatalf("got %+v", got)
 	}
 }
@@ -274,12 +275,12 @@ func TestAWSAccountLookup(t *testing.T) {
 	}
 }
 
-func TestCredentialsKeepOnlySectionNames(t *testing.T) {
+func TestCredentialsKeepOnlySectionNamesAndExpiry(t *testing.T) {
 	home := t.TempDir()
 	creds := filepath.Join(home, ".aws", "credentials")
 	write(t, creds, "[ppp]\naws_secret_access_key = SECRET\n")
 	s := testService(home, nil)
-	c, ok := s.load(creds, sectionsFormat)
+	c, ok := s.load(creds, credsFormat)
 	if !ok || !c.ini.has("ppp") || len(c.ini["ppp"]) != 0 {
 		t.Fatalf("got %v", c.ini)
 	}

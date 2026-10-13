@@ -130,11 +130,13 @@ and key age, rotate access keys with rollback. See README.
 Same ground rules, plus: show facts (expiry times, key sizes, permissions), never
 guessed danger levels; nothing loads until its UI is opened.
 
-### 10. Credential expiry clocks ☐
+### 10. Credential expiry clocks ☑
 
-Address bar shows the remaining lifetime of the focused shell's credentials
-(AWS STS/SSO session, kube exec token, Vault token, SSH certificate), e.g.
-`aws: 42m left`. Read from the credentials themselves, reported at each prompt.
+The AWS and Kubernetes badges, and an ssh badge, show how long the focused
+shell's credentials have left (`42m`, `expired`) from a day before: exported
+temporary keys' expiry, SSO logins, saml2aws stamps, kube client certificates
+and JWT/OIDC tokens, ssh-agent certificates. Read at each prompt; counts down
+in the frontend. Not done: Vault tokens (needs a network call with the token).
 
 ### 11. Token and certificate inspector ☐
 

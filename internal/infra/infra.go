@@ -6,8 +6,10 @@
 // (see internal/terminal/shellintegration); everything else is read from
 // the tools' own config files, the way the tools themselves would. Nothing
 // here polls: one call costs a few stat(2)s, and parsed files are cached
-// until they change. git is run inside a repository (see git.go). The one exception is an AWS account that only AWS
-// can tell, which is looked up once in the background (see awsaccount.go).
+// until they change. git is run inside a repository (see git.go), and
+// ssh-agent is asked for its certificates (see expiry.go). The one exception
+// is an AWS account that only AWS can tell, which is looked up once in the
+// background (see awsaccount.go).
 package infra
 
 import (
@@ -50,6 +52,8 @@ type Context struct {
 	TFWorkspace string `json:"tfWorkspace"`
 	// The git repository of the current folder; nil outside one.
 	Git *Git `json:"git"`
+	// When the shell's credentials stop working, where they say (expiry.go).
+	Expiries []Expiry `json:"expiries"`
 }
 
 // Bigger files are skipped; no real kubeconfig or ini file comes close.
@@ -62,6 +66,7 @@ type Service struct {
 	mu       sync.Mutex
 	files    map[string]cached
 	accounts map[string]*accountEntry
+	agents   map[string]agentEntry
 
 	lookup  accountLookup
 	changed func()
@@ -72,6 +77,8 @@ type cached struct {
 	size int64
 	kube kubeconfig
 	ini  iniFile
+	// When an AWS SSO token or a certificate file expires.
+	expires time.Time
 }
 
 func NewService() *Service {
@@ -86,6 +93,7 @@ func newService(home string, lookup accountLookup, changed func()) *Service {
 		home:     home,
 		files:    map[string]cached{},
 		accounts: map[string]*accountEntry{},
+		agents:   map[string]agentEntry{},
 		lookup:   lookup,
 		changed:  changed,
 	}
@@ -95,11 +103,12 @@ func newService(home string, lookup accountLookup, changed func()) *Service {
 // PWD is the shell's working directory.
 func (s *Service) Resolve(env map[string]string) Context {
 	var c Context
-	c.KubeContext, c.KubeCluster, c.KubeNamespace = s.kube(env)
+	s.kube(env, &c)
 	s.aws(env, &c)
 	c.GCPProject = s.gcp(env)
 	c.TFWorkspace = s.terraform(env)
 	c.Git = s.git(env)
+	c.Expiries = append(c.Expiries, s.sshCertificates(env)...)
 	return c
 }
 
@@ -123,13 +132,17 @@ type kubeconfig struct {
 		Context struct {
 			Cluster   string `yaml:"cluster"`
 			Namespace string `yaml:"namespace"`
+			User      string `yaml:"user"`
 		} `yaml:"context"`
 	} `yaml:"contexts"`
+	// Only what tells when the credentials expire (see expiry.go).
+	Users []kubeUser `yaml:"users"`
 }
 
 // kube follows kubectl's merge rules for $KUBECONFIG: the first file that
-// sets current-context wins, and so does the first definition of a context.
-func (s *Service) kube(env map[string]string) (ctx, cluster, ns string) {
+// sets current-context wins, and so does the first definition of a context
+// or user.
+func (s *Service) kube(env map[string]string, c *Context) {
 	var paths []string
 	if list, ok := env["KUBECONFIG"]; ok && list != "" {
 		for _, p := range filepath.SplitList(list) {
@@ -142,25 +155,28 @@ func (s *Service) kube(env map[string]string) (ctx, cluster, ns string) {
 	}
 
 	var configs []kubeconfig
+	ctx := ""
 	for _, p := range paths {
-		if c, ok := s.load(p, kubeFormat); ok {
-			configs = append(configs, c.kube)
+		if f, ok := s.load(p, kubeFormat); ok {
+			configs = append(configs, f.kube)
 			if ctx == "" {
-				ctx = c.kube.CurrentContext
+				ctx = f.kube.CurrentContext
 			}
 		}
 	}
 	if ctx == "" {
-		return "", "", ""
+		return
 	}
-	for _, c := range configs {
-		for _, def := range c.Contexts {
+	c.KubeContext = ctx
+	for _, f := range configs {
+		for _, def := range f.Contexts {
 			if def.Name == ctx {
-				return ctx, def.Context.Cluster, def.Context.Namespace
+				c.KubeCluster, c.KubeNamespace = def.Context.Cluster, def.Context.Namespace
+				c.Expiries = append(c.Expiries, s.kubeUserExpiries(configs, def.Context.User)...)
+				return
 			}
 		}
 	}
-	return ctx, "", ""
 }
 
 // ── AWS ──────────────────────────────────────────────────────────────────
@@ -184,14 +200,19 @@ func (s *Service) aws(env map[string]string, c *Context) {
 	// They win over AWS_PROFILE; aws-vault sets them for its own profile.
 	if env["WTF_AWS_ENV_KEYS"] != "" && (env["AWS_VAULT"] == "" || profile != env["AWS_VAULT"]) {
 		c.AWSProfile, c.AWSRegion = EnvCredentials, region
+		c.Expiries = append(c.Expiries, awsEnvExpiry(env)...)
 		return
+	}
+	// aws-vault's own profile: its temporary keys are in the environment.
+	if env["WTF_AWS_ENV_KEYS"] != "" {
+		c.Expiries = append(c.Expiries, awsEnvExpiry(env)...)
 	}
 
 	configFile := s.awsFile(env, "AWS_CONFIG_FILE", "config")
 	credsFile := s.awsFile(env, "AWS_SHARED_CREDENTIALS_FILE", "credentials")
 	config, _ := s.load(configFile, iniFormat)
-	// Only the section names: the keys never need to be in memory.
-	creds, _ := s.load(credsFile, sectionsFormat)
+	// The section names and expiry stamps: the keys never need to be in memory.
+	creds, _ := s.load(credsFile, credsFormat)
 
 	section := "profile " + profile
 	if profile == "" || profile == "default" {
@@ -206,6 +227,7 @@ func (s *Service) aws(env map[string]string, c *Context) {
 	}
 	c.AWSProfile = profile
 	c.AWSRegion = firstOf(region, config.ini.get(section, "region"))
+	c.Expiries = append(c.Expiries, s.awsProfileExpiries(config.ini, creds.ini, section, profile)...)
 
 	if m := roleARN.FindStringSubmatch(config.ini.get(section, "role_arn")); m != nil {
 		c.AWSAccount = m[1]
@@ -287,8 +309,13 @@ type format int
 const (
 	kubeFormat format = iota
 	iniFormat
-	// An ini file of which only the section names are kept.
-	sectionsFormat
+	// An AWS credentials file of which only the section names and expiry
+	// stamps are kept.
+	credsFormat
+	// An AWS SSO token cache file: only its expiry is kept.
+	ssoTokenFormat
+	// A PEM certificate: only its expiry is kept.
+	certFormat
 )
 
 // load parses a kubeconfig or ini file, reusing the last parse while the
@@ -315,12 +342,17 @@ func (s *Service) load(path string, f format) (cached, bool) {
 	c = cached{mod: fi.ModTime(), size: fi.Size()}
 	switch f {
 	case iniFormat:
-		c.ini = parseIni(data, true)
-	case sectionsFormat:
-		c.ini = parseIni(data, false)
+		c.ini = parseIni(data, func(string) bool { return true })
+	case credsFormat:
+		c.ini = parseIni(data, func(k string) bool { return k == credsExpiryKey })
+	case ssoTokenFormat:
+		c.expires = ssoTokenExpiry(data)
+	case certFormat:
+		c.expires = certExpiry(data)
 	default:
 		// A broken kubeconfig counts as an empty one, like a missing file.
 		_ = yaml.Unmarshal(data, &c.kube)
+		c.kube.forgetCredentials(filepath.Dir(path))
 	}
 	s.mu.Lock()
 	s.files[path] = c
@@ -332,8 +364,8 @@ func (s *Service) load(path string, f format) (cached, bool) {
 // gcloud's configurations, which are plain key = value sections.
 type iniFile map[string]map[string]string
 
-// parseIni reads an ini file; without values, only the section names.
-func parseIni(data []byte, values bool) iniFile {
+// parseIni reads an ini file, with the values of the keys kept.
+func parseIni(data []byte, keep func(key string) bool) iniFile {
 	out := iniFile{}
 	section := ""
 	sc := bufio.NewScanner(bytes.NewReader(data))
@@ -346,10 +378,9 @@ func parseIni(data []byte, values bool) iniFile {
 			if out[section] == nil {
 				out[section] = map[string]string{}
 			}
-		case !values:
 		default:
 			k, v, ok := strings.Cut(line, "=")
-			if !ok {
+			if !ok || !keep(strings.TrimSpace(k)) {
 				continue
 			}
 			if out[section] == nil {

@@ -36,6 +36,31 @@ export interface Context {
      * The git repository of the current folder; nil outside one.
      */
     "git": Git | null;
+
+    /**
+     * When the shell's credentials stop working, where they say (expiry.go).
+     */
+    "expiries": Expiry[] | null;
+}
+
+/**
+ * Expiry is when one credential stops working.
+ */
+export interface Expiry {
+    /**
+     * "aws", "kube" or "ssh": the badge it belongs to.
+     */
+    "kind": string;
+
+    /**
+     * What expires, for people: "AWS SSO session acme".
+     */
+    "what": string;
+
+    /**
+     * Unix milliseconds.
+     */
+    "expiresAt": number;
 }
 
 /**

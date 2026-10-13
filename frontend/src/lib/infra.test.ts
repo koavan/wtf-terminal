@@ -3,11 +3,11 @@ import { describe, expect, it, vi } from 'vitest';
 vi.mock('../../bindings/github.com/dayanraj/wtf/internal/infra', () => ({ Service: { Resolve: vi.fn() } }));
 
 import { Service } from '../../bindings/github.com/dayanraj/wtf/internal/infra';
-import { badges, gitBadge, parseEnv, resolveContext, shortClusterName, type InfraContext } from './infra';
+import { badges, clockFor, gitBadge, parseEnv, resolveContext, shortClusterName, timeLeft, type InfraContext } from './infra';
 
 const ctx = (c: Partial<InfraContext>): InfraContext => ({
   kubeContext: '', kubeCluster: '', kubeNamespace: '', awsProfile: '', awsAccount: '', awsAccountNote: '', awsRegion: '',
-  gcpProject: '', tfWorkspace: '', git: null, ...c,
+  gcpProject: '', tfWorkspace: '', git: null, expiries: null, ...c,
 });
 
 describe('parseEnv', () => {
@@ -115,5 +115,50 @@ describe('resolveContext', () => {
     await first;
     expect(apply).toHaveBeenCalledTimes(1);
     expect(apply).toHaveBeenCalledWith(expect.objectContaining({ kubeContext: 'new' }));
+  });
+});
+
+describe('credential expiry clocks', () => {
+  const now = Date.UTC(2026, 9, 12, 12, 0);
+  const min = 60_000;
+
+  it('formats time left coarsely', () => {
+    expect(timeLeft(now + 30_000, now)).toBe('<1m');
+    expect(timeLeft(now + 42 * min, now)).toBe('42m');
+    expect(timeLeft(now + 190 * min, now)).toBe('3h 10m');
+    expect(timeLeft(now + 120 * min, now)).toBe('2h');
+    expect(timeLeft(now + 5 * 24 * 60 * min, now)).toBe('5d');
+  });
+
+  it('shows a clock only within a day, flagging under ten minutes and expired', () => {
+    const e = (m: number) => [{ kind: 'aws', what: 'x', expiresAt: now + m * min }];
+    expect(clockFor([], now)).toBeUndefined();
+    expect(clockFor(e(25 * 60), now)).toBeUndefined();
+    expect(clockFor(e(42), now)).toEqual({ label: '42m', state: 'ok' });
+    expect(clockFor(e(9), now)).toEqual({ label: '9m', state: 'soon' });
+    expect(clockFor(e(-1), now)).toEqual({ label: 'expired', state: 'expired' });
+  });
+
+  it('puts each kind on its badge, soonest first, with every expiry in the tooltip', () => {
+    const b = badges(ctx({
+      kubeContext: 'dev', awsProfile: 'sso', awsAccount: '111111111111',
+      expiries: [
+        { kind: 'kube', what: 'Kubernetes token of user dev', expiresAt: now + 300 * min },
+        { kind: 'kube', what: 'Kubernetes client certificate of user dev', expiresAt: now + 30 * min },
+        { kind: 'aws', what: 'AWS SSO session acme', expiresAt: now - 5 * min },
+        { kind: 'ssh', what: 'SSH certificate ada@corp (ada)', expiresAt: now + 9 * 24 * 60 * min },
+      ],
+    }), now);
+    const [kube, aws, ssh] = b;
+    expect(kube.clock).toEqual({ label: '30m', state: 'ok' });
+    expect(kube.title).toMatch(/client certificate of user dev expires .* \(in 30m\)\n.*token of user dev expires .* \(in 5h\)$/);
+    expect(aws.clock).toEqual({ label: 'expired', state: 'expired' });
+    expect(aws.title).toMatch(/AWS SSO session acme expired .* \(5 min ago\)$/);
+    expect(ssh).toMatchObject({ kind: 'ssh', label: 'certificate', clock: undefined });
+    expect(ssh.title).toMatch(/ada@corp \(ada\) expires .* \(in 9d\)$/);
+  });
+
+  it('adds nothing without expiries', () => {
+    expect(badges(ctx({ awsProfile: 'p' }), now)[0].clock).toBeUndefined();
   });
 });

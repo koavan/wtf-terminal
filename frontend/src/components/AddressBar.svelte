@@ -12,7 +12,16 @@
   const pane = $derived(tabs.activePane);
   const path = $derived(pane ? prettyPath(pane.cwd) : '');
   const group = $derived(tabs.group(tab?.groupId ?? null));
-  const contexts = $derived(badges(pane?.infra));
+  /** Ticks every 15 s while the shell has credentials that expire, for their clocks. */
+  let clockNow = $state(Date.now());
+  const expiring = $derived(!!pane?.infra?.expiries?.length);
+  $effect(() => {
+    if (!expiring) return;
+    clockNow = Date.now();
+    const timer = setInterval(() => (clockNow = Date.now()), 15_000);
+    return () => clearInterval(timer);
+  });
+  const contexts = $derived(badges(pane?.infra, clockNow));
 
   const recording = $derived(pane ? recordings.of(pane.id) : undefined);
   /** Ticks once a second while the pane is recorded, for the elapsed time. */
@@ -29,7 +38,7 @@
     return s >= 3600 ? `${Math.floor(s / 3600)}:${p(Math.floor(s / 60) % 60)}:${p(s % 60)}` : `${Math.floor(s / 60)}:${p(s % 60)}`;
   };
 
-  const KIND_LABEL = { kube: 'k8s', aws: 'aws', gcp: 'gcp', tf: 'tf', git: 'git' } as const;
+  const KIND_LABEL = { kube: 'k8s', aws: 'aws', gcp: 'gcp', tf: 'tf', git: 'git', ssh: 'ssh' } as const;
 
   /** "~/src/wtf" → ["~", "src", "wtf"], "/etc/ssh" → ["/", "etc", "ssh"] */
   const crumbs = $derived.by(() => {
@@ -66,6 +75,11 @@
             <span class="ctx" title={b.title}>
               <span class="kind">{KIND_LABEL[b.kind]}</span>
               <span class="value">{b.label}</span>
+              {#if b.clock}
+                <span class="clock {b.clock.state}">
+                  <Icon name="clock" size={10} stroke={2.4} />{b.clock.label}
+                </span>
+              {/if}
             </span>
           {/each}
         </span>
@@ -283,6 +297,28 @@
   .ctx .value {
     overflow: hidden;
     text-overflow: ellipsis;
+  }
+  .clock {
+    display: flex;
+    align-items: center;
+    gap: 3px;
+    flex: none;
+    margin-right: -4px;
+    padding: 0 5px;
+    border-radius: 4px;
+    background: color-mix(in srgb, var(--text-muted) 14%, transparent);
+    color: var(--text-muted);
+    font-size: 10.5px;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+  }
+  .clock.soon {
+    background: color-mix(in srgb, var(--g-yellow) 26%, transparent);
+    color: var(--text);
+  }
+  .clock.expired {
+    background: color-mix(in srgb, var(--danger) 18%, transparent);
+    color: var(--danger);
   }
 
   .status {

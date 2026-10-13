@@ -1,4 +1,4 @@
-import { Service as InfraService, type Context, type Git } from '../../bindings/github.com/dayanraj/wtf/internal/infra';
+import { Service as InfraService, type Context, type Expiry, type Git } from '../../bindings/github.com/dayanraj/wtf/internal/infra';
 import { relativeTime } from './logs';
 
 export type { Context as InfraContext } from '../../bindings/github.com/dayanraj/wtf/internal/infra';
@@ -6,7 +6,7 @@ export type { Context as InfraContext } from '../../bindings/github.com/dayanraj
 // What each shell is pointed at — Kubernetes, AWS, gcloud, Terraform, the
 // git repository — for the badges in the address bar.
 
-export type InfraKind = 'kube' | 'aws' | 'gcp' | 'tf' | 'git';
+export type InfraKind = 'kube' | 'aws' | 'gcp' | 'tf' | 'git' | 'ssh';
 
 export interface Badge {
   kind: InfraKind;
@@ -14,6 +14,58 @@ export interface Badge {
   label: string;
   /** Everything known, for the tooltip. */
   title: string;
+  /** When the badge's soonest credential expires, if that is within a day or past. */
+  clock?: Clock;
+}
+
+export interface Clock {
+  /** "42m", "3h 10m", "expired". */
+  label: string;
+  /** Under ten minutes left, or none. */
+  state: 'ok' | 'soon' | 'expired';
+}
+
+const MIN = 60_000;
+const HOUR = 60 * MIN;
+const DAY = 24 * HOUR;
+
+/** Time left until `at`, coarse: "<1m", "42m", "3h 10m", "5d". */
+export function timeLeft(at: number, now: number): string {
+  const ms = at - now;
+  if (ms < MIN) return '<1m';
+  if (ms < HOUR) return `${Math.floor(ms / MIN)}m`;
+  if (ms < DAY) {
+    const m = Math.floor((ms % HOUR) / MIN);
+    return `${Math.floor(ms / HOUR)}h${m ? ` ${m}m` : ''}`;
+  }
+  return `${Math.floor(ms / DAY)}d`;
+}
+
+/** The credentials' clock for a badge: shown only within a day of the soonest expiry. */
+export function clockFor(expiries: Expiry[], now: number): Clock | undefined {
+  if (!expiries.length) return undefined;
+  const at = Math.min(...expiries.map((e) => e.expiresAt));
+  if (at <= now) return { label: 'expired', state: 'expired' };
+  if (at - now >= DAY) return undefined;
+  return { label: timeLeft(at, now), state: at - now < 10 * MIN ? 'soon' : 'ok' };
+}
+
+/** "AWS SSO session acme expires Oct 12, 18:30 (in 42m)", for tooltips. */
+export function describeExpiry(e: Expiry, now: number): string {
+  const at = new Date(e.expiresAt).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' });
+  return e.expiresAt <= now
+    ? `${e.what} expired ${at} (${relativeTime(new Date(e.expiresAt), new Date(now))})`
+    : `${e.what} expires ${at} (in ${timeLeft(e.expiresAt, now)})`;
+}
+
+/** Adds a kind's expiries to its badge: the clock, and a tooltip line each. */
+function withExpiries(b: Badge, expiries: Expiry[], now: number): Badge {
+  if (!expiries.length) return b;
+  return {
+    ...b,
+    title: [b.title, ...expiries.map((e) => describeExpiry(e, now))].join('\n'),
+    clock: clockFor(expiries, now),
+  };
 }
 
 /** The variables the shell scripts report (see internal/infra). */
@@ -40,13 +92,15 @@ export function shortClusterName(cluster: string): string {
 
 const join = (...parts: string[]) => parts.filter(Boolean).join(' · ');
 
-export function badges(ctx: Context | null | undefined): Badge[] {
+export function badges(ctx: Context | null | undefined, now = Date.now()): Badge[] {
   if (!ctx) return [];
   const out: Badge[] = [];
+  const expiries = (kind: string) =>
+    (ctx.expiries ?? []).filter((e) => e.kind === kind).sort((a, b) => a.expiresAt - b.expiresAt);
 
   if (ctx.kubeContext) {
     const cluster = ctx.kubeCluster || ctx.kubeContext;
-    out.push({
+    out.push(withExpiries({
       kind: 'kube',
       label: join(shortClusterName(cluster), ctx.kubeNamespace),
       title: [
@@ -54,10 +108,10 @@ export function badges(ctx: Context | null | undefined): Badge[] {
         `Context: ${ctx.kubeContext}`,
         ctx.kubeNamespace && `Namespace: ${ctx.kubeNamespace}`,
       ].filter(Boolean).join('\n'),
-    });
+    }, expiries('kube'), now));
   }
   if (ctx.awsProfile) {
-    out.push({
+    out.push(withExpiries({
       kind: 'aws',
       label: join(ctx.awsAccount, ctx.awsProfile, ctx.awsRegion),
       title: [
@@ -65,11 +119,19 @@ export function badges(ctx: Context | null | undefined): Badge[] {
         `Profile: ${ctx.awsProfile}`,
         ctx.awsRegion && `Region: ${ctx.awsRegion}`,
       ].filter(Boolean).join('\n'),
-    });
+    }, expiries('aws'), now));
   }
   if (ctx.gcpProject) out.push({ kind: 'gcp', label: ctx.gcpProject, title: `Google Cloud project: ${ctx.gcpProject}` });
   if (ctx.tfWorkspace) out.push({ kind: 'tf', label: ctx.tfWorkspace, title: `Terraform workspace: ${ctx.tfWorkspace}` });
   if (ctx.git) out.push(gitBadge(ctx.git));
+  const certs = expiries('ssh');
+  if (certs.length) {
+    out.push(withExpiries({
+      kind: 'ssh',
+      label: certs.length === 1 ? 'certificate' : `${certs.length} certificates`,
+      title: "Certificates in the shell's ssh-agent",
+    }, certs, now));
+  }
   return out;
 }
 

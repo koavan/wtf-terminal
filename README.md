@@ -481,8 +481,18 @@ names: the account of its `role_arn`, else `sso_account_id`, else
 `aws sts get-caller-identity` (needs the aws CLI and no permissions) and keeps
 the answer until `~/.aws/config` or `~/.aws/credentials` changes; a failed
 lookup is retried after two minutes and its error shown on hover. From the
-credentials file wtf reads only the profile names. Exported access keys, which
-override any profile, show as "env credentials" with no account.
+credentials file wtf reads only the profile names and `x_security_token_expires`.
+Exported access keys, which override any profile, show as "env credentials" with
+no account.
+
+**Credential expiry clocks.** The AWS and Kubernetes badges, and an ssh badge
+for certificates in the shell's ssh-agent, show how long the shell's
+credentials have left (`42m`, `expired`) from a day before they expire; hover
+for exact times. Read from the credentials themselves: `AWS_CREDENTIAL_EXPIRATION`
+(aws-vault, granted, `aws configure export-credentials`), the aws CLI's SSO
+cache, `x_security_token_expires` (saml2aws), the kube user's client
+certificate and JWT token or OIDC id-token, and ssh-agent certificates.
+Self-renewing credentials (exec plugins, assumed roles) have no clock.
 In a git repository, a **git** badge shows who commits there (the tab's git
 identity, else `GIT_AUTHOR_NAME` or `user.name`), the
 branch, its upstream, and how many commits apart they are: `Ada · main → origin ↑2 ↓1`
