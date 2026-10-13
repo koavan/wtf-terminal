@@ -7,7 +7,7 @@ import { isMac } from './platform';
 import { shellQuote } from './shell';
 import { ssh, type Host } from './ssh.svelte';
 import { tabs } from './tabs.svelte';
-import { onCommandFinished } from './terminals';
+import { onCommandFinished, runInPane } from './terminals';
 
 export type { HostKey, HostKeys, Tunnel, TunnelStatus } from '../../bindings/github.com/dayanraj/wtf/internal/sshhosts';
 
@@ -16,8 +16,9 @@ export type Key = RawKey & { usedBy: string[] };
 
 // The SSH tab's Keys and Tunnels sections, and the commands behind its
 // admin actions (see internal/sshhosts). Anything that can ask for a
-// passphrase or password runs as a real command in a new tab: it lands in
-// the shell history, and the secret never passes through wtf.
+// passphrase or password runs as a real command in the focused shell (a
+// new tab when it's busy): it lands in the shell history, and the secret
+// never passes through wtf.
 
 export const message = (e: unknown) => (e instanceof Error ? e.message : String(e));
 
@@ -28,9 +29,9 @@ export function quotePath(path: string): string {
   return p.startsWith('~/') ? `~/${shellQuote(p.slice(2))}` : shellQuote(p);
 }
 
-/** Runs a command in a new tab. */
-export function runInTab(command: string) {
-  tabs.open({ command });
+/** Runs a command in the focused shell when it's at a prompt, else a new tab. */
+export function runInShell(command: string): 'here' | 'tab' {
+  return runInPane(tabs.activePane, command);
 }
 
 /** "-p 2222 " for a known host listed with a port; config hosts carry their own. */

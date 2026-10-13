@@ -1,3 +1,4 @@
+import type { Pane } from './layout';
 import { tabs } from './tabs.svelte';
 import type { TranscriptBlock } from './transcript';
 
@@ -47,6 +48,26 @@ export function terminalFor(paneId: number): TerminalHandle | undefined {
 export function activeTerminal(): TerminalHandle | undefined {
   const pane = tabs.activePane;
   return pane && handles.get(pane.id);
+}
+
+const encoder = new TextEncoder();
+
+/**
+ * Types a command into a pane's shell when it's at its prompt — its own
+ * context, credentials and history apply; Ctrl-U clears anything
+ * half-typed first. Otherwise (a program is running) opens a new tab that
+ * runs `tabCommand`, which can carry what that tab's shell won't have.
+ * Returns where it went.
+ */
+export function runInPane(pane: Pane | null | undefined, command: string, tabCommand = command): 'here' | 'tab' {
+  const term = pane && handles.get(pane.id);
+  if (pane && term && pane.isShell && !pane.running) {
+    term.sendInput(encoder.encode(`\x15${command}\r`));
+    term.focus();
+    return 'here';
+  }
+  tabs.open({ command: tabCommand, cwd: pane?.cwd || undefined });
+  return 'tab';
 }
 
 type FinishedListener = (command: string, exitCode: number) => void;

@@ -4,6 +4,7 @@ import {
 } from '../../bindings/github.com/dayanraj/wtf/internal/kube';
 import { shellQuote } from './shell';
 import { tabs, type Pane } from './tabs.svelte';
+import { runInPane } from './terminals';
 
 export type { Container, Event } from '../../bindings/github.com/dayanraj/wtf/internal/kube';
 
@@ -77,6 +78,17 @@ export const commands = {
   deletePod: (t: Target, name: string) => kubectl(t, 'delete pod', q(name)),
   portForward: (t: Target, resource: string, local: number, remote: number) => kubectl(t, 'port-forward', q(resource), `${local}:${remote}`),
 };
+
+/**
+ * Runs a command in the shell the context came from, typed at its prompt:
+ * its own KUBECONFIG, AWS session and whatever else it set all apply. When
+ * that shell is busy (or isn't a shell), opens a new tab instead, carrying
+ * what it can (see kubectl above).
+ */
+export function runInShell(pane: Pane | undefined, t: Target, build: (t: Target) => string): 'here' | 'tab' {
+  // The shell already has its variables.
+  return runInPane(pane, build({ ...t, env: {} }), build(t));
+}
 
 /** "45s", "12m", "3h", "5d" — like kubectl's AGE column. */
 export function age(iso: string, now = Date.now()): string {

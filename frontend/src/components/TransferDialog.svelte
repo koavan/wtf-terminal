@@ -5,10 +5,10 @@
   import { homeDir, prettyPath } from '../lib/backend';
   import { overlay } from '../lib/overlay.svelte';
   import { type Host } from '../lib/ssh.svelte';
-  import { downloadCommand, message, runInTab, uploadCommand } from '../lib/sshAdmin.svelte';
+  import { downloadCommand, message, runInShell, uploadCommand } from '../lib/sshAdmin.svelte';
 
-  // Copies files to or from a host with scp, run in a new tab so its
-  // progress (and any password prompt) shows there.
+  // Copies files to or from a host with scp, run in the focused shell (a new
+  // tab if it's busy) so its progress (and any password prompt) shows there.
 
   let { host, direction, locals = [] }: { host: Host; direction: 'upload' | 'download'; locals?: string[] } = $props();
 
@@ -65,11 +65,11 @@
     if (!ready) return;
     const c = command;
     overlay.close();
-    runInTab(c);
+    runInShell(c);
   }
 </script>
 
-<Dialog title={upload ? `Upload to ${h.alias}` : `Download from ${h.alias}`} subtitle="Copies with scp in a new tab, where you’ll see its progress" width={480} onsubmit={start}>
+<Dialog title={upload ? `Upload to ${h.alias}` : `Download from ${h.alias}`} subtitle="Copies with scp in your shell (a new tab if it’s busy), where you’ll see its progress" width={480} onsubmit={start}>
   {#if upload}
     <div class="field">
       <span>Files and folders</span>

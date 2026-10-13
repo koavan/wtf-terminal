@@ -4,6 +4,7 @@ import { overlay } from './overlay.svelte';
 import { shellQuote } from './shell';
 import { broadcast } from './broadcast.svelte';
 import { tabs } from './tabs.svelte';
+import { runInPane } from './terminals';
 import { toast } from './toast.svelte';
 
 export type { Host, Option } from '../../bindings/github.com/dayanraj/wtf/internal/sshhosts';
@@ -176,12 +177,19 @@ export function groupName(hosts: Host[]): string {
   return only && base !== 'config' ? base : 'SSH';
 }
 
-/** group: a tab group; broadcast: a tab group whose input is broadcast to every host. */
-export type OpenWhere = 'tab' | 'group' | 'broadcast' | 'right' | 'down';
+/**
+ * here: the focused shell, or a new tab if it's busy; group: a tab group;
+ * broadcast: a tab group whose input is broadcast to every host.
+ */
+export type OpenWhere = 'here' | 'tab' | 'group' | 'broadcast' | 'right' | 'down';
 
-/** Connects to hosts: each in a new tab (optionally grouped), or one in a split. */
+/** Connects to hosts: one in the focused shell or a split, or each in a new tab (optionally grouped). */
 export function openHosts(hosts: Host[], where: OpenWhere = 'tab') {
   if (hosts.length === 0) return;
+  if (where === 'here') {
+    runInPane(tabs.activePane, sshCommand(hosts[0]));
+    return;
+  }
   if (where === 'right' || where === 'down') {
     tabs.split(where === 'right' ? 'row' : 'column', { command: sshCommand(hosts[0]) });
     return;

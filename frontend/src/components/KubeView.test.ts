@@ -200,6 +200,29 @@ describe('KubeView', () => {
     expect(menuLabels().filter((l) => l === 'proxy').length).toBe(2); // logs + shell
   });
 
+  it('runs exec and describe in the focused shell when it’s at a prompt, else a new tab', async () => {
+    const { registerTerminal } = await import('../lib/terminals');
+    const pane = focusedPane(tabs.active!);
+    const typed: string[] = [];
+    const unregister = registerTerminal(pane.id, { sendInput: (b: Uint8Array) => typed.push(new TextDecoder().decode(b)), focus: vi.fn() } as never);
+    try {
+      const view = await show(['Pods']);
+      await fireEvent.contextMenu(view.getByText('web-2'));
+      pick('Shell (exec)');
+      // Its own KUBECONFIG and AWS session already apply there.
+      expect(typed).toEqual([`\x15kubectl --context prod -n shop exec -it web-2 -- sh -c 'command -v bash >/dev/null && exec bash || exec sh'\r`]);
+      expect(tabs.list).toHaveLength(1);
+
+      pane.running = true;
+      await fireEvent.contextMenu(view.getByText('web-2'));
+      pick('Describe');
+      expect(typed).toHaveLength(1);
+      expect(commands().at(-1)).toBe(`KUBECONFIG='/work/kube config' AWS_PROFILE=devops kubectl --context prod -n shop describe pod web-2`);
+    } finally {
+      unregister();
+    }
+  });
+
   it('deletes a pod only after showing the command', async () => {
     const view = await show(['Pods']);
     const before = tabs.list.length;

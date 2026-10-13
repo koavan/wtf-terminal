@@ -32,7 +32,9 @@ The tab follows the focused shell's context and namespace. Pick another namespac
 
 Resources named in terminal output (`pod/web-1`, `deployment.apps/api`) have the same Logs, Describe and YAML actions: {{mac:⌘-click|other:Ctrl-click}} or right-click them. See [Logs in the output](#logs).
 
-Right-click for actions. They run as real `kubectl` commands in a new tab, carrying the shell's `KUBECONFIG` and AWS profile and naming the context and namespace, so they do exactly what you were looking at:
+Right-click for actions. They run as real `kubectl` commands in a new tab, carrying the shell's `KUBECONFIG` and AWS profile and naming the context and namespace, so they do exactly what you were looking at.
+
+**Shell (exec)** and **Describe** run in the focused shell itself when it's at a prompt — typed there, so the context you chose and the credentials you logged in with in that shell apply, and the output stays with the rest of your work. If a program is running there, they open a new tab like the others.
 
 - **Pods**: **Logs** (double-click; per container, or from before the last restart), **Shell (exec)**, **Describe**, **Port Forward…**.
 - **Port Forward…** (pods, deployments, services) opens the port-forward editor filled in: **Save & Start** keeps it running in the background — reconnecting when the pod restarts — and lists it in the [Network tab's Forwards](#network); **Run in Terminal** runs a one-off `kubectl port-forward` in a new tab instead.

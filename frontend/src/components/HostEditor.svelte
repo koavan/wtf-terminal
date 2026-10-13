@@ -40,7 +40,7 @@
       toast.show(editing ? `Saved ${name}` : `Added ${name} to ${prettyPath(ssh.mainConfig)}`);
       if (connect) {
         const added = ssh.hosts.find((h) => !h.known && h.alias === name);
-        if (added) openHosts([added]);
+        if (added) openHosts([added], 'here');
       }
     } catch (e) {
       error = e instanceof Error ? e.message : String(e);

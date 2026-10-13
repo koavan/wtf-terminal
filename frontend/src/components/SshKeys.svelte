@@ -8,7 +8,7 @@
   import { overlay, type MenuEntry } from '../lib/overlay.svelte';
   import { isMac } from '../lib/platform';
   import {
-    agentAddCommand, changePassphraseCommand, message, quotePath, runInTab, sshKeys, type Key,
+    agentAddCommand, changePassphraseCommand, message, quotePath, runInShell, sshKeys, type Key,
   } from '../lib/sshAdmin.svelte';
   import { sidebar } from '../lib/sidebar.svelte';
   import { toast } from '../lib/toast.svelte';
@@ -71,13 +71,13 @@
         'separator',
       );
       if (!k.inAgent) {
-        entries.push({ label: 'Load into Agent', action: () => runInTab(agentAddCommand(quotePath(k.path), false)) });
-        if (isMac) entries.push({ label: 'Load into Agent and Keychain', action: () => runInTab(agentAddCommand(quotePath(k.path), true)) });
+        entries.push({ label: 'Load into Agent', action: () => runInShell(agentAddCommand(quotePath(k.path), false)) });
+        if (isMac) entries.push({ label: 'Load into Agent and Keychain', action: () => runInShell(agentAddCommand(quotePath(k.path), true)) });
       }
     }
     if (k.inAgent) entries.push({ label: 'Unload from Agent', action: () => act(() => Service.AgentRemove(k.fingerprint), `Unloaded ${k.name}`) });
     if (k.path) {
-      entries.push({ label: k.encrypted ? 'Change Passphrase…' : 'Set Passphrase…', action: () => runInTab(changePassphraseCommand(k)) });
+      entries.push({ label: k.encrypted ? 'Change Passphrase…' : 'Set Passphrase…', action: () => runInShell(changePassphraseCommand(k)) });
       if (k.unprotected) entries.push({ label: 'Make Private (chmod 600)', action: () => act(() => Service.ProtectKey(k.path), `${k.name} is now private`) });
       if (!k.hasPub) entries.push({ label: 'Create .pub File', action: () => act(() => Service.WritePublicKey(k.path), `Wrote ${k.name}.pub`) });
     }

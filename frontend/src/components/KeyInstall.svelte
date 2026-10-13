@@ -4,10 +4,11 @@
   import Dialog from './Dialog.svelte';
   import { overlay } from '../lib/overlay.svelte';
   import { hostKey, ssh, type Host } from '../lib/ssh.svelte';
-  import { installKeyCommand, message, runInTab, sshKeys, type Key } from '../lib/sshAdmin.svelte';
+  import { installKeyCommand, message, runInShell, sshKeys, type Key } from '../lib/sshAdmin.svelte';
 
   // Puts a public key in a server's authorized_keys with ssh-copy-id, which
-  // asks for the password (or uses a key that already works) in a new tab.
+  // asks for the password (or uses a key that already works) in the focused
+  // shell, or a new tab if it's busy.
 
   let { key, host }: { key: Key | null; host: Host | null } = $props();
 
@@ -41,7 +42,7 @@
     }
     const command = installKeyCommand(chosenKey, chosenHost);
     overlay.close();
-    runInTab(command);
+    runInShell(command);
   }
 </script>
 
@@ -61,7 +62,7 @@
     </select>
   </label>
 
-  <p class="hint">ssh-copy-id runs in a new tab and asks for your password on the server if it needs it. Keys already there aren’t added twice.</p>
+  <p class="hint">ssh-copy-id runs in your shell (a new tab if it’s busy) and asks for your password on the server if it needs it. Keys already there aren’t added twice.</p>
   {#if chosenKey && chosenHost}<div class="command">{installKeyCommand(chosenKey, chosenHost)}</div>{/if}
   {#if error}<div class="error" role="alert">{error}</div>{/if}
 

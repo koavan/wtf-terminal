@@ -15,6 +15,7 @@
   import { broadcast, isTerminalReport } from '../lib/broadcast.svelte';
   import { openInEditor } from '../lib/fileActions';
   import { tokenMenu } from '../lib/logActions';
+  import { runInShell, type Target } from '../lib/kube.svelte';
   import { selectionEntries, yamlBase64At } from '../lib/inspect';
   import { findJson, type LogToken } from '../lib/logs';
   import { LogView, logColors, readLogicalLine, tokenAt } from '../lib/logview';
@@ -34,7 +35,7 @@
   import { search } from '../lib/search.svelte';
   import { settings } from '../lib/settings.svelte';
   import { detachedSessions, tabs, type Pane } from '../lib/tabs.svelte';
-  import { commandFinished, registerTerminal, terminalFor } from '../lib/terminals';
+  import { commandFinished, registerTerminal, runInPane, terminalFor } from '../lib/terminals';
   import { xtermTheme } from '../lib/themes';
   import { thisWindow } from '../lib/window';
 
@@ -543,6 +544,8 @@
     copy: copyText,
     openUrl: (url: string) => Browser.OpenURL(url),
     runInTab: (command: string) => tabs.open({ command, cwd: pane.cwd || undefined }),
+    runHere: (command: string) => runInPane(pane, command),
+    runInShell: (build: (t: Target) => string) => runInShell(pane, kubeTarget(), build),
     openInEditor,
     openFile: (path: string) => Files.Open(path).catch((err: unknown) => toast.show(`Couldn't open it: ${err}`)),
     reveal: (path: string) => Files.Reveal(path).catch((err: unknown) => toast.show(`Couldn't reveal it: ${err}`)),

@@ -5,14 +5,19 @@ import { isMac } from './platform';
 
 // What can be done with a token in the output (see lib/logs): the menu a
 // ⌘-click on it, or a right-click, opens. Everything that reaches a cluster
-// is a kubectl command shown in a new tab, run against the context and
-// namespace the shell reported — the menu says which.
+// is a kubectl command run against the context and namespace the shell
+// reported — the menu says which. Describe and SSH are typed into that shell
+// when it's at a prompt; the rest, and those in a busy shell, open a new tab.
 
 export interface TokenActions {
   copy(text: string, what: string): void;
   openUrl(url: string): void;
   /** Runs a command in a new tab. */
   runInTab(command: string): void;
+  /** Runs a command in this shell when it's at a prompt, else a new tab. */
+  runHere(command: string): void;
+  /** Runs a kubectl command in this shell when it's at a prompt, else a new tab. */
+  runInShell(build: (t: Target) => string): void;
   openInEditor(path: string, line: number): void;
   openFile(path: string): void;
   reveal(path: string): void;
@@ -72,7 +77,7 @@ export function tokenMenu(token: LogToken, target: Target, a: TokenActions, now 
       if (!token.cidr) {
         const host = token.address.includes(':') ? `[${token.address}]` : token.address;
         if (token.port) entries.push({ label: `Open http://${host}:${token.port}`, action: () => a.openUrl(`http://${host}:${token.port}`) });
-        entries.push({ label: `SSH to ${token.address}`, action: () => a.runInTab(`ssh ${token.address}`) });
+        entries.push({ label: `SSH to ${token.address}`, action: () => a.runHere(`ssh ${token.address}`) });
       }
       return entries;
     }
@@ -97,7 +102,7 @@ export function tokenMenu(token: LogToken, target: Target, a: TokenActions, now 
       if (kind === 'pod') entries.push({ label: 'Logs', action: () => a.runInTab(kube.logs(target, token.name)) });
       else if (HAS_LOGS.has(kind)) entries.push({ label: 'Logs', action: () => a.runInTab(kube.workloadLogs(target, kind, token.name)) });
       entries.push(
-        { label: 'Describe', action: () => a.runInTab(kube.describe(target, kind, token.name)) },
+        { label: 'Describe', action: () => a.runInShell((t) => kube.describe(t, kind, token.name)) },
         // A secret's YAML would print its values in the clear.
         kind === 'secret'
           ? { label: 'View Decoded Values…', action: () => a.showSecret(token.name) }

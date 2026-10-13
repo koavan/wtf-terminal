@@ -7,7 +7,7 @@ const TARGET = { context: 'prod', namespace: 'shop', env: {} };
 
 function actions(): TokenActions & Record<string, ReturnType<typeof vi.fn>> {
   return {
-    copy: vi.fn(), openUrl: vi.fn(), runInTab: vi.fn(), openInEditor: vi.fn(), openFile: vi.fn(), reveal: vi.fn(), showSecret: vi.fn(), inspectJwt: vi.fn(), inspectTls: vi.fn(),
+    copy: vi.fn(), openUrl: vi.fn(), runInTab: vi.fn(), runHere: vi.fn(), runInShell: vi.fn(), openInEditor: vi.fn(), openFile: vi.fn(), reveal: vi.fn(), showSecret: vi.fn(), inspectJwt: vi.fn(), inspectTls: vi.fn(),
   } as never;
 }
 
@@ -26,6 +26,8 @@ describe('tokenMenu', () => {
     expect(labels(m)).toEqual(['# pod/web-1', '# Context prod · namespace shop', 'Logs', 'Describe', 'View YAML', '—', 'Copy Name', 'Copy pod/web-1']);
     click(m, 'Logs');
     expect(a.runInTab).toHaveBeenCalledWith('kubectl --context prod -n shop logs -f --tail=200 web-1');
+    click(m, 'Describe');
+    expect(vi.mocked(a.runInShell).mock.calls[0][0](TARGET)).toBe('kubectl --context prod -n shop describe pod web-1');
   });
 
   it('shows a workload’s logs by its kind, and uses kubectl’s own context when the shell reported none', () => {
@@ -67,7 +69,7 @@ describe('tokenMenu', () => {
     click(m, 'Open http://10.0.0.5:8080');
     expect(a.openUrl).toHaveBeenCalledWith('http://10.0.0.5:8080');
     click(m, 'SSH to 10.0.0.5');
-    expect(a.runInTab).toHaveBeenCalledWith('ssh 10.0.0.5');
+    expect(a.runHere).toHaveBeenCalledWith('ssh 10.0.0.5');
     expect(labels(tokenMenu(token('10.0.0.0/8'), TARGET, a))).toEqual(['# 10.0.0.0/8', 'Copy Address']);
   });
 

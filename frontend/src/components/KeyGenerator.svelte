@@ -4,9 +4,10 @@
   import Dialog from './Dialog.svelte';
   import { overlay } from '../lib/overlay.svelte';
   import { isMac } from '../lib/platform';
-  import { freeKeyName, KEY_TYPES, keygenCommand, message, runInTab, sshKeys, type KeyDraft } from '../lib/sshAdmin.svelte';
+  import { freeKeyName, KEY_TYPES, keygenCommand, message, runInShell, sshKeys, type KeyDraft } from '../lib/sshAdmin.svelte';
 
-  // A new key pair: ssh-keygen runs in a new tab and asks for the passphrase there.
+  // A new key pair: ssh-keygen runs in the focused shell (a new tab if it's
+  // busy) and asks for the passphrase there.
 
   let draft = $state<KeyDraft>({ type: 'ed25519', name: freeKeyName('id_ed25519', sshKeys.keys), comment: '', addToAgent: true });
   let error = $state('');
@@ -34,7 +35,7 @@
     }
     const command = keygenCommand(draft);
     overlay.close();
-    runInTab(command);
+    runInShell(command);
   }
 </script>
 
@@ -63,7 +64,7 @@
     Load it into ssh-agent afterwards{isMac ? ', remembering the passphrase in the Keychain' : ''}
   </label>
 
-  <p class="hint">ssh-keygen runs in a new tab and asks for a passphrase there. Leave it empty for none.</p>
+  <p class="hint">ssh-keygen runs in your shell (a new tab if it’s busy) and asks for a passphrase there. Leave it empty for none.</p>
   <div class="command">{keygenCommand(draft)}</div>
   {#if error}<div class="error" role="alert">{error}</div>{/if}
 

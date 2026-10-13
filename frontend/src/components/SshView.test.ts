@@ -92,11 +92,25 @@ describe('SshView', () => {
     expect(sections).toEqual(['~/.ssh/config', '~/.ssh/config.d/prod', 'Known hosts']);
   });
 
-  it('double-click opens the host in a new tab', async () => {
-    const { findByText } = render(SshView);
-    await fireEvent.dblClick(await findByText('bastion'));
-    expect(tabs.list.length).toBe(2);
-    expect(commands()[1]).toBe('ssh bastion');
+  it('double-click connects in the focused shell, or a new tab when it’s busy', async () => {
+    const { registerTerminal } = await import('../lib/terminals');
+    const pane = focusedPane(tabs.active!);
+    const typed: string[] = [];
+    const unregister = registerTerminal(pane.id, { sendInput: (b: Uint8Array) => typed.push(new TextDecoder().decode(b)), focus: vi.fn() } as never);
+    try {
+      const { findByText } = render(SshView);
+      await fireEvent.dblClick(await findByText('bastion'));
+      expect(typed).toEqual(['\x15ssh bastion\r']);
+      expect(tabs.list.length).toBe(1);
+
+      pane.running = true;
+      await fireEvent.dblClick(await findByText('bastion'));
+      expect(typed).toHaveLength(1);
+      expect(tabs.list.length).toBe(2);
+      expect(commands()[1]).toBe('ssh bastion');
+    } finally {
+      unregister();
+    }
   });
 
   it('opens a multi-selection as a named tab group', async () => {

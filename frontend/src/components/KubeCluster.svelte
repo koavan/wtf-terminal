@@ -7,7 +7,7 @@
   import RefreshControls from './RefreshControls.svelte';
   import { shortClusterName } from '../lib/infra';
   import {
-    age, commands as kc, firstPort, isTableKind, kube, LAYOUT, MIN_POLL_MS, podTone, rowSummary, rowTone, SECTION_LABEL,
+    age, commands as kc, runInShell, firstPort, isTableKind, kube, LAYOUT, MIN_POLL_MS, podTone, rowSummary, rowTone, SECTION_LABEL,
     TABLE_KINDS, type Deployment, type KubeSection, type Pod, type Row, type TableKind, type Target,
   } from '../lib/kube.svelte';
   import { overlay, type MenuEntry } from '../lib/overlay.svelte';
@@ -65,6 +65,11 @@
   }
 
   const run = (command: string) => tabs.open({ command });
+  /** Runs in the focused shell itself when it's at a prompt (its own context and credentials), else a new tab. */
+  const here = (build: (t: Target) => string) => {
+    const ct = kube.commandTarget;
+    if (ct) runInShell(tabs.activePane, ct, build);
+  };
 
   function copy(text: string, what: string) {
     Clipboard.SetText(text).then(() => toast.show(`Copied ${what}`));
@@ -100,11 +105,11 @@
       entries.push({ heading: 'Logs' });
       for (const c of p.containers) entries.push({ label: c.name, action: () => run(kc.logs(ct, p.name, c.name)) });
       entries.push({ heading: 'Shell' });
-      for (const c of p.containers) entries.push({ label: c.name, action: () => run(kc.exec(ct, p.name, c.name)) });
+      for (const c of p.containers) entries.push({ label: c.name, action: () => here((t) => kc.exec(t, p.name, c.name)) });
     } else {
       entries.push(
         { label: 'Logs', hint: 'double-click', action: () => run(kc.logs(ct, p.name)) },
-        { label: 'Shell (exec)', action: () => run(kc.exec(ct, p.name)) },
+        { label: 'Shell (exec)', action: () => here((t) => kc.exec(t, p.name)) },
       );
     }
     for (const c of p.containers.filter((c) => c.restarts > 0)) {
@@ -115,7 +120,7 @@
     }
     entries.push(
       'separator',
-      { label: 'Describe', action: () => run(kc.describe(ct, 'pod', p.name)) },
+      { label: 'Describe', action: () => here((t) => kc.describe(t, 'pod', p.name)) },
       { label: 'Port Forward…', action: () => portForward(`pod/${p.name}`) },
       'separator',
       { label: 'Copy Name', action: () => copy(p.name, 'pod name') },
@@ -136,7 +141,7 @@
     overlay.openMenu(e.clientX, e.clientY, [
       { label: kube.deployment?.name === d.name ? 'Show All Pods' : 'Show Its Pods', hint: 'click', action: () => kube.selectDeployment(d) },
       { label: 'Logs (all pods)', action: () => run(kc.workloadLogs(ct, 'deployment', d.name)) },
-      { label: 'Describe', action: () => run(kc.describe(ct, 'deployment', d.name)) },
+      { label: 'Describe', action: () => here((t) => kc.describe(t, 'deployment', d.name)) },
       { label: 'View YAML', action: () => run(kc.yaml(ct, 'deployment', d.name)) },
       { label: 'Rollout Status', action: () => run(kc.rolloutStatus(ct, 'deployment', d.name)) },
       { label: 'Rollout History', action: () => run(kc.rolloutHistory(ct, 'deployment', d.name)) },
@@ -222,7 +227,7 @@
         'separator',
       );
     }
-    entries.push({ label: 'Describe', action: () => run(kc.describe(ct, k, r.name)) });
+    entries.push({ label: 'Describe', action: () => here((t) => kc.describe(t, k, r.name)) });
     // A secret's YAML holds its values base64-encoded; the viewer above decodes them.
     if (kind !== 'secrets') entries.push({ label: 'View YAML', action: () => run(kc.yaml(ct, k, r.name)) });
     entries.push('separator', { label: 'Copy Name', action: () => copy(r.name, `${k} name`) });

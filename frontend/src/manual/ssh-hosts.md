@@ -10,8 +10,8 @@ The SSH tab ({{key:sidebar.ssh}}) has four parts: **Hosts**, [Keys](#ssh-keys), 
 
 ## Connecting
 
-- **Double-click** a host (or press ▶ on its row) to connect in a new tab.
-- Right-click → **Open in Split Right / Down**, or **Open sftp Session**.
+- **Double-click** a host (or press ▶ on its row, or `Enter`) to connect in the focused shell (a new tab if a program is running there). It's typed at the prompt, so it's in that shell's history and its `SSH_AUTH_SOCK` and settings apply.
+- Right-click → **Open in New Tab**, **Open in Split Right / Down**, or **Open sftp Session**.
 - **Several at once**: {{mac:⌘-click|other:Ctrl-click}} or shift-click to select hosts, then **Open as Tab Group** (or `Enter`). Each opens in its own tab, grouped and named after their config file. Right-click the selection for **Open … in a Tab Group with Broadcast Input** to type into all of them at once ([Broadcast input](#broadcast)).
 - **Copy ssh Command** and **Copy Host Name** in the menu.
 

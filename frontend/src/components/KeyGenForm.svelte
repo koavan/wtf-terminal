@@ -8,7 +8,7 @@
   import { copySecret, generatePassword } from '../lib/passwords';
   import { isMac } from '../lib/platform';
   import { redaction } from '../lib/redaction.svelte';
-  import { agentAddCommand, freeKeyName, KEY_TYPES, message, quotePath, runInTab, sshKeys, type KeyType } from '../lib/sshAdmin.svelte';
+  import { agentAddCommand, freeKeyName, KEY_TYPES, message, quotePath, runInShell, sshKeys, type KeyType } from '../lib/sshAdmin.svelte';
   import { toast } from '../lib/toast.svelte';
 
   // A new SSH key pair from a form: wtf makes it (internal/sshhosts/keygen.go)
@@ -105,7 +105,7 @@
       <button class="secondary" onclick={() => overlay.show({ kind: 'keyInstall', key: newKey(), host: null })}>Install on Host…</button>
       <button class="secondary" onclick={() => overlay.show({ kind: 'gitIdentity', identity: null, keyPath: result!.path })}>Use for a Git Identity…</button>
       {#if isMac}
-        <button class="secondary" title="Runs ssh-add in a tab, which asks for the passphrase and keeps it in the Keychain" onclick={() => runInTab(agentAddCommand(quotePath(result!.path), true))}>
+        <button class="secondary" title="Runs ssh-add in your shell, which asks for the passphrase and keeps it in the Keychain" onclick={() => runInShell(agentAddCommand(quotePath(result!.path), true))}>
           Load into Agent and Keychain
         </button>
       {/if}

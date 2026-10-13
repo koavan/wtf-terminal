@@ -10,7 +10,7 @@
     confirmDeleteHost, groupName, hostDetail, hostKey, matchesFilter, openHosts, ssh, sshCommand,
     type Host, type OpenWhere,
   } from '../lib/ssh.svelte';
-  import { runInTab, sftpCommand } from '../lib/sshAdmin.svelte';
+  import { runInShell, sftpCommand } from '../lib/sshAdmin.svelte';
   import { toast } from '../lib/toast.svelte';
 
   let filter = $state('');
@@ -97,10 +97,11 @@
           { label: 'Copy ssh Commands', action: () => copy(many.map(sshCommand).join('\n'), 'ssh commands') },
         ]
       : [
-          { label: 'Open in New Tab', hint: 'double-click', action: () => open([h], 'tab') },
+          { label: 'Open Here', hint: 'double-click', action: () => open([h], 'here') },
+          { label: 'Open in New Tab', action: () => open([h], 'tab') },
           { label: 'Open in Split Right', action: () => open([h], 'right') },
           { label: 'Open in Split Down', action: () => open([h], 'down') },
-          { label: 'Open sftp Session', action: () => runInTab(sftpCommand(h)) },
+          { label: 'Open sftp Session', action: () => runInShell(sftpCommand(h)) },
           'separator',
           { label: 'Upload Files…', action: () => overlay.show({ kind: 'transfer', host: h, direction: 'upload', locals: [] }) },
           { label: 'Download…', action: () => overlay.show({ kind: 'transfer', host: h, direction: 'download', locals: [] }) },
@@ -155,7 +156,7 @@
   function keydown(e: KeyboardEvent) {
     if (e.key === 'Enter' && chosen.length) {
       e.preventDefault();
-      open(chosen, chosen.length > 1 ? 'group' : 'tab');
+      open(chosen, chosen.length > 1 ? 'group' : 'here');
     } else if (e.key === 'Escape') {
       selected.clear();
     }
@@ -190,7 +191,7 @@
           tabindex="-1"
           title="{sshCommand(h)}{h.source ? `\nfrom ${prettyPath(h.source)}` : ''}\nDrop a file here to upload it"
           onclick={(e) => click(e, h)}
-          ondblclick={() => open([h], 'tab')}
+          ondblclick={() => open([h], 'here')}
           oncontextmenu={(e) => menu(e, h)}
           ondragover={(e) => dragOver(e, h)}
           ondragleave={() => (dropTarget = null)}
@@ -204,11 +205,11 @@
           </span>
           <button
             class="connect"
-            title="Connect in a new tab"
+            title="Connect in this shell (a new tab if it’s busy)"
             aria-label="Connect to {h.alias}"
             onclick={(e) => {
               e.stopPropagation();
-              open([h], 'tab');
+              open([h], 'here');
             }}
             ondblclick={(e) => e.stopPropagation()}
           >

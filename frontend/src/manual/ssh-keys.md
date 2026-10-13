@@ -14,9 +14,9 @@ Keys only the agent holds (from a password manager or a security key) are listed
 
 - **Generate**: **+** opens the [Generate](#generate) tab's key form: type, file name, comment and passphrase, and the key is made right there. To have ssh-keygen ask for the passphrase in a terminal instead, use the form's **Generate in a terminal instead**.
 - **Copy the public key**: double-click a key.
-- **Install on a server**: right-click → **Install on Host…** (or a host's **Install Public Key…**). ssh-copy-id runs in a tab and asks for your password on the server once.
+- **Install on a server**: right-click → **Install on Host…** (or a host's **Install Public Key…**). ssh-copy-id runs in the focused shell (a new tab if a program is running there) and asks for your password on the server once.
 - **Load / unload**: **Load into Agent**{{mac: (or **Load into Agent and Keychain**)|other:}}, **Unload from Agent**.
-- **Passphrase**: **Change Passphrase…** / **Set Passphrase…** runs `ssh-keygen -p` in a tab.
+- **Passphrase**: **Change Passphrase…** / **Set Passphrase…** runs `ssh-keygen -p` in the focused shell (a new tab if a program is running there). Loading into the agent runs `ssh-add` there too.
 - **Missing .pub**: **Create .pub File** writes it from the private key.
 - **Delete**: moves the key pair out of `~/.ssh` into wtf's cache folder (`ssh-backups/keys`) — not erased, so you can get it back.
 

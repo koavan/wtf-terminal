@@ -2,7 +2,7 @@ import { Service, type GitIdentity } from '../../bindings/github.com/dayanraj/wt
 import type { Pane } from './layout';
 import { shellQuote } from './shell';
 import { tabs } from './tabs.svelte';
-import { terminalFor } from './terminals';
+import { runInPane } from './terminals';
 import { toast } from './toast.svelte';
 
 export type { GitIdentity, GitHubTest } from '../../bindings/github.com/dayanraj/wtf/internal/sshhosts';
@@ -44,23 +44,6 @@ export const CLEAR_IDENTITY_COMMAND = `unset ${VARS.join(' ')}`;
 /** The identity a pane's shell reported at its last prompt. */
 export function paneIdentity(pane: Pane | null | undefined): string {
   return pane?.env?.[IDENTITY_VAR] ?? '';
-}
-
-const encoder = new TextEncoder();
-
-/**
- * Types a command into a pane's shell when it's at its prompt; otherwise
- * (a program is running) opens a new tab that runs it. Returns where it went.
- */
-export function runInPane(pane: Pane | null | undefined, command: string): 'here' | 'tab' {
-  const term = pane && terminalFor(pane.id);
-  if (pane && term && pane.isShell && !pane.running) {
-    term.sendInput(encoder.encode(command + '\r'));
-    term.focus();
-    return 'here';
-  }
-  tabs.open({ command });
-  return 'tab';
 }
 
 class GitIdentities {
