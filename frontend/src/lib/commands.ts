@@ -79,6 +79,16 @@ export const commands: Command[] = [
         toast.show(settings.config.sidebarAutoRefresh ? 'Side pane auto-refresh off' : 'Side pane auto-refresh on'),
       ),
   },
+  {
+    id: 'paste.confirm',
+    label: 'Toggle Paste Confirmation',
+    run: () => {
+      const on = !settings.config.confirmPaste;
+      ConfigService.SetConfirmPaste(on).then(() =>
+        toast.show(on ? 'Multi-line pastes are shown first' : 'Pastes go straight in'),
+      );
+    },
+  },
   { id: 'sidebar.history', label: 'Show Command History', mac: '⌘⇧H', other: 'Ctrl+Shift+Alt+H', run: () => sidebar.show('history') },
   { id: 'sidebar.pins', label: 'Show Pinned Output', mac: '⌘⇧I', other: 'Ctrl+Shift+Alt+I', run: () => sidebar.show('pins') },
   { id: 'sidebar.share', label: 'Show Share & Record', mac: '⌘⇧J', other: 'Ctrl+Shift+Alt+J', run: () => sidebar.show('share') },

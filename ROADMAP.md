@@ -211,10 +211,14 @@ filter History by them ("what did I run against account X today?").
 AWS Secrets Manager, SSM Parameter Store and Vault, like the k8s secrets view:
 values masked until revealed, every write confirmed with a reviewed plan.
 
-### 19. Multi-line paste confirmation ☐
+### 19. Multi-line paste confirmation ☑
 
 Preview before a paste that contains newlines or control characters is sent.
 Triggered by content, never by guessing what the command does.
+Built: lib/paste + PasteConfirm for ⌘V/Edit → Paste, Ctrl+Shift+V and the
+right-click Paste; control characters shown (␛…), bracketed-paste state and
+broadcast pane count stated; Paste Without Final Newline; `confirm-paste`
+(default on), Don't Ask Again, and a palette toggle.
 
 ## Previously deferred (not DevOps-specific)
 

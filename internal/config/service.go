@@ -87,6 +87,12 @@ func (s *Service) SetRedactSecrets(on bool) error {
 	return s.set("redact-secrets", strconv.FormatBool(on))
 }
 
+// SetConfirmPaste sets whether text with more than one line or control
+// characters is shown before it's pasted.
+func (s *Service) SetConfirmPaste(on bool) error {
+	return s.set("confirm-paste", strconv.FormatBool(on))
+}
+
 // set writes one setting into the config file, creating it if needed.
 func (s *Service) set(key, value string) error {
 	if err := os.MkdirAll(s.dir, 0o755); err != nil {

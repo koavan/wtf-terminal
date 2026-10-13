@@ -314,3 +314,22 @@ func TestClipboardClear(t *testing.T) {
 		t.Fatalf("9000 = %v %v, want the default and a problem", cfg.ClipboardClear, problems)
 	}
 }
+
+func TestConfirmPasteDefaultOn(t *testing.T) {
+	if cfg, _, _ := Parse(""); !cfg.ConfirmPaste {
+		t.Fatal("confirm-paste should default to on")
+	}
+	if cfg, _, _ := Parse("confirm-paste = false\n"); cfg.ConfirmPaste {
+		t.Fatal("confirm-paste = false should turn it off")
+	}
+}
+
+func TestServiceSetConfirmPaste(t *testing.T) {
+	s := NewService(t.TempDir())
+	if err := s.SetConfirmPaste(false); err != nil {
+		t.Fatal(err)
+	}
+	if s.Current().Config.ConfirmPaste {
+		t.Fatal("confirm-paste should be off after SetConfirmPaste(false)")
+	}
+}

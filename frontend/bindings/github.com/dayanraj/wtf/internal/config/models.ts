@@ -24,6 +24,7 @@ export interface Config {
     "logHighlighting": boolean;
     "redactSecrets": boolean;
     "clipboardClear": number;
+    "confirmPaste": boolean;
 }
 
 /**

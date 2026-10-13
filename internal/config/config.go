@@ -38,6 +38,7 @@ type Config struct {
 	RedactSecrets   bool `toml:"redact-secrets" json:"redactSecrets"`
 
 	ClipboardClear float64 `toml:"clipboard-clear" json:"clipboardClear"`
+	ConfirmPaste   bool    `toml:"confirm-paste" json:"confirmPaste"`
 }
 
 func Defaults() Config {
@@ -61,6 +62,7 @@ func Defaults() Config {
 		LogHighlighting: true,
 
 		ClipboardClear: 30,
+		ConfirmPaste:   true,
 	}
 }
 
@@ -136,6 +138,10 @@ const template = `# wtf settings. Changes apply as soon as you save.
 # decoded base64, a JWT, a generated password or passphrase) to empty the
 # clipboard — only if it still holds that secret. 0 never empties it.
 # clipboard-clear = 30
+
+# Show text before pasting it when it has more than one line or control
+# characters (escape sequences and the like), and paste only on Paste.
+# confirm-paste = true
 `
 
 // Dir is $XDG_CONFIG_HOME/wtf, or ~/.config/wtf, on every platform.

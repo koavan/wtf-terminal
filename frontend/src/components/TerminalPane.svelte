@@ -15,6 +15,7 @@
   import { broadcast, isTerminalReport } from '../lib/broadcast.svelte';
   import { openInEditor } from '../lib/fileActions';
   import { tokenMenu } from '../lib/logActions';
+  import { needsConfirm, pasteFacts } from '../lib/paste';
   import { runInShell, type Target } from '../lib/kube.svelte';
   import { selectionEntries, yamlBase64At } from '../lib/inspect';
   import { findJson, type LogToken } from '../lib/logs';
@@ -139,6 +140,17 @@
     };
     el.addEventListener('copy', onCopy, true);
 
+    // ⌘V (the Edit menu's Paste) pastes through xterm's own handler; text
+    // that needs a look first goes to the confirmation instead.
+    const onPaste = (e: ClipboardEvent) => {
+      const text = e.clipboardData?.getData('text/plain');
+      if (!text || !confirmFirst(text)) return;
+      e.preventDefault();
+      e.stopImmediatePropagation();
+      pasteChecked(text);
+    };
+    el.addEventListener('paste', onPaste, true);
+
     // ⌘-combos belong to the app menu; don't let xterm swallow them.
     t.attachCustomKeyEventHandler((e) => !(isMac && e.metaKey));
 
@@ -192,7 +204,7 @@
       clear: () => t.clear(),
       selectAll: () => t.selectAll(),
       getSelection: () => redaction.text(t.getSelection()),
-      paste: (text) => t.paste(text),
+      paste: (text) => pasteChecked(text),
       type: (text) => t.input(text),
       sendInput: (bytes) => send(bytes),
       jumpPrompt: (direction) => prompts.jump(direction),
@@ -254,6 +266,7 @@
       logView?.dispose();
       secretMask?.dispose();
       el.removeEventListener('copy', onCopy, true);
+      el.removeEventListener('paste', onPaste, true);
       pins.paneGone(pane.id);
       // The history belongs to this shell; a tab moving windows starts fresh there.
       history.clear(pane.id);
@@ -467,7 +480,7 @@
             toast.show(redaction.on ? 'Secrets hidden — on screen and when copied' : 'Secrets shown');
           },
           toggleRecording: () => recordings.toggle(pane),
-          paste: () => Clipboard.Text().then((text) => text && t.paste(text)),
+          paste: () => Clipboard.Text().then((text) => text && pasteChecked(text)),
           selectAll: () => t.selectAll(),
           clear: () => t.clear(),
           find: () => {
@@ -594,6 +607,29 @@
 
   function send(bytes: Uint8Array) {
     if (ws?.readyState === WebSocket.OPEN) ws.send(bytes);
+  }
+
+  const confirmFirst = (text: string) => settings.config.confirmPaste && needsConfirm(pasteFacts(text));
+
+  /** Pastes, after showing the text first when it has more than one line or control characters (lib/paste). */
+  function pasteChecked(text: string) {
+    const t = term;
+    if (!t) return;
+    if (!confirmFirst(text)) {
+      t.paste(text);
+      return;
+    }
+    overlay.show({
+      kind: 'paste',
+      text,
+      bracketed: t.modes.bracketedPasteMode,
+      panes: broadcasting ? broadcast.targets(pane.id).length + 1 : 1,
+      onPaste: (s) => {
+        // Focused first, so broadcast input carries it to the other panes too.
+        t.focus();
+        t.paste(s);
+      },
+    });
   }
 
   /**

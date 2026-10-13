@@ -37,6 +37,14 @@ export function OpenThemesFolder(): $CancellablePromise<void> {
 }
 
 /**
+ * SetConfirmPaste sets whether text with more than one line or control
+ * characters is shown before it's pasted.
+ */
+export function SetConfirmPaste(on: boolean): $CancellablePromise<void> {
+    return $Call.ByID(2727582067, on);
+}
+
+/**
  * SetRedactSecrets sets whether Hide Secrets is on when wtf starts.
  */
 export function SetRedactSecrets(on: boolean): $CancellablePromise<void> {
