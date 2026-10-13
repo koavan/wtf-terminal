@@ -138,7 +138,7 @@ temporary keys' expiry, SSO logins, saml2aws stamps, kube client certificates
 and JWT/OIDC tokens, ssh-agent certificates. Read at each prompt; counts down
 in the frontend. Not done: Vault tokens (needs a network call with the token).
 
-### 11. Token and certificate inspector ☐
+### 11. Token and certificate inspector ☑
 
 ⌘-click / right-click actions, alongside the log-rendering ones:
 
@@ -147,7 +147,10 @@ in the frontend. Not done: Vault tokens (needs a network call with the token).
 - Hostname or URL → TLS chain, expiry, SANs, issuer, protocol/cipher.
 - PEM file in the file tree → the same certificate details.
 
-Reuses Hide Secrets' JWT and key detection.
+Reuses Hide Secrets' JWT and key detection. Also from a selection (JWT,
+base64, PEM block, host or host:port) and the palette (Inspect TLS
+Certificate…). Decoded base64 is masked until revealed; JWTs and base64 can't
+be opened while Hide Secrets is on. Manual page: Tokens and certificates.
 
 ### 12. SARIF findings tab ☐
 

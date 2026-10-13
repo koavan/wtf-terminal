@@ -18,6 +18,8 @@ export interface TokenActions {
   reveal(path: string): void;
   /** The masked secret viewer (the Kubernetes tab's). */
   showSecret(name: string): void;
+  inspectJwt(token: string): void;
+  inspectTls(target: string): void;
 }
 
 /** Kinds whose pods' logs kubectl can show by the kind's name. */
@@ -38,6 +40,16 @@ export function tokenMenu(token: LogToken, target: Target, a: TokenActions, now 
         { heading: token.text.length > 60 ? token.text.slice(0, 59) + '…' : token.text },
         { label: 'Open in Browser', hint: isMac ? '⌘-click' : 'Ctrl-click', action: () => a.openUrl(token.text) },
         { label: 'Copy URL', action: () => a.copy(token.text, 'URL') },
+        ...(/^https:\/\//i.test(token.text)
+          ? [{ label: 'Inspect TLS Certificate…', action: () => a.inspectTls(token.text) }]
+          : []),
+      ];
+
+    case 'jwt':
+      return [
+        { heading: 'JWT' },
+        { label: 'Inspect Token…', hint: isMac ? '⌘-click' : 'Ctrl-click', action: () => a.inspectJwt(token.text) },
+        { label: 'Copy Token', action: () => a.copy(token.text, 'token') },
       ];
 
     case 'timestamp': {

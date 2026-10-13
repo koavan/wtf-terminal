@@ -104,7 +104,7 @@ function colorOf(t: LogToken, colors: LogColors): string | undefined {
 }
 
 /** Kinds this view links; URLs have the web-links addon. */
-const LINKED = new Set<LogToken['kind']>(['timestamp', 'ip', 'path', 'k8s']);
+const LINKED = new Set<LogToken['kind']>(['timestamp', 'ip', 'path', 'k8s', 'jwt']);
 
 export interface LogViewOptions {
   colors: LogColors;

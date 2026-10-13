@@ -1,7 +1,8 @@
 import { Clipboard } from '@wailsio/runtime';
 import { Service as Files } from '../../bindings/github.com/dayanraj/wtf/internal/files';
 import { LABEL, type ChangeKind, type GitChange, type GitIndex } from './gitstatus';
-import type { MenuEntry } from './overlay.svelte';
+import { isCertFile } from './inspect';
+import { overlay, type MenuEntry } from './overlay.svelte';
 import { isMac } from './platform';
 import { relativeTo, shellQuote } from './shell';
 import { sidebar, type Entry } from './sidebar.svelte';
@@ -76,6 +77,9 @@ export function entryMenu(entry: Entry): MenuEntry[] {
     { label: 'Insert Path', hint: 'click', action: () => insertPath(entry.path) },
     { label: 'Open in Editor', action: () => openInEditor(entry.path) },
     { label: 'Open with Default App', action: () => Files.Open(entry.path).catch(fail('open it')) },
+    ...(isCertFile(entry.path)
+      ? [{ label: 'Inspect Certificate…', action: () => overlay.show({ kind: 'cert', source: { file: entry.path } }) }]
+      : []),
     'separator',
     ...common,
   ];

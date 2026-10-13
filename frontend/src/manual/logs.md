@@ -20,7 +20,10 @@ Turn colors off with `log-highlighting = false` in [Settings](#settings). The ac
 - **IP address**: copy it, open `http://address:port` when it has a port, or SSH to it in a new tab.
 - **Kubernetes resource**: **Logs** (for pods, and for deployments, stateful sets, daemon sets, replica sets and jobs, through their pods), **Describe** and **View YAML**, each a kubectl command run in a new tab. They use the cluster and namespace this shell reported at its last prompt (see [Address bar and context badges](#context-badges)), and the menu shows both. Output for another namespace (`kubectl -n other …`) needs that namespace switched first. A secret gets **View Decoded Values…** instead of its YAML, which would print its values. It opens the same masked viewer as the [Kubernetes](#kubernetes) tab.
 - **file:line**, like `src/app.ts:12:3`, `/srv/main.go:42` or Python's `File "app.py", line 8`: **Open in Editor at Line**, which opens `$EDITOR +line` in a split and works with vi, vim, nvim, nano, emacs and micro. You can also open the file with its default app, reveal it, or copy its path. Relative names are resolved against the shell's folder. They're links only when the file exists on this machine, so a path from a server you're SSH'd into isn't one.
-- **URL**: {{mac:⌘-click|other:Ctrl-click}} opens it. Right-click it to copy it.
+- **URL**: {{mac:⌘-click|other:Ctrl-click}} opens it. Right-click it to copy it, or for an `https://` URL, **Inspect TLS Certificate…**.
+- **JWT**: **Inspect Token…** shows its claims and when it expires (see [Tokens and certificates](#inspect)).
+
+Selected text has more: decode base64, inspect a certificate or a TLS server. See [Tokens and certificates](#inspect).
 
 ## Pretty-print JSON
 

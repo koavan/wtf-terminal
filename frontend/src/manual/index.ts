@@ -12,6 +12,7 @@ import history from './history.md?raw';
 import kubeContexts from './kube-contexts.md?raw';
 import kubernetes from './kubernetes.md?raw';
 import logs from './logs.md?raw';
+import inspectPage from './inspect.md?raw';
 import network from './network.md?raw';
 import pinsPage from './pins.md?raw';
 import panes from './panes.md?raw';
@@ -52,6 +53,7 @@ export const TOPICS: Topic[] = [
   t('Basics', 'panes', 'Split panes', panes),
   t('Basics', 'shell-integration', 'Commands, prompts and output', shellIntegration),
   t('Basics', 'logs', 'Logs in the output', logs),
+  t('Basics', 'inspect', 'Tokens and certificates', inspectPage),
   t('Basics', 'secrets', 'Hide Secrets (screen sharing)', secrets),
   t('Basics', 'recording', 'Recording and saving a terminal', recording),
   t('Basics', 'find', 'Find', find),

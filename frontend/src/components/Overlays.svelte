@@ -4,6 +4,9 @@
   import GroupEditor from './GroupEditor.svelte';
   import AboutDialog from './AboutDialog.svelte';
   import JsonViewer from './JsonViewer.svelte';
+  import JwtViewer from './JwtViewer.svelte';
+  import DecodedViewer from './DecodedViewer.svelte';
+  import CertViewer from './CertViewer.svelte';
   import AwsProfileEditor from './AwsProfileEditor.svelte';
   import AwsRotate from './AwsRotate.svelte';
   import CommandPromptDialog from './CommandPromptDialog.svelte';
@@ -75,6 +78,14 @@
   <AboutDialog />
 {:else if overlay.current?.kind === 'json'}
   <JsonViewer text={overlay.current.text} />
+{:else if overlay.current?.kind === 'jwt'}
+  <JwtViewer token={overlay.current.token} />
+{:else if overlay.current?.kind === 'decoded'}
+  <DecodedViewer text={overlay.current.text} />
+{:else if overlay.current?.kind === 'cert'}
+  {#key overlay.current.source}
+    <CertViewer source={overlay.current.source} />
+  {/key}
 {:else if overlay.current?.kind === 'group'}
   {#key overlay.current.groupId}
     <GroupEditor groupId={overlay.current.groupId} anchor={overlay.current.anchor} />

@@ -34,10 +34,17 @@ export type OverlayState =
   | { kind: 'about' }
   /** JSON from a line of output, pretty-printed. */
   | { kind: 'json'; text: string }
+  /** The token and certificate inspector (lib/inspect). */
+  | { kind: 'jwt'; token: string }
+  | { kind: 'decoded'; text: string }
+  | { kind: 'cert'; source: CertSource }
   | { kind: 'snippet'; snippet: Snippet }
   | { kind: 'snippetEdit'; snippet: Snippet | null; command?: string; duplicate?: boolean }
   | { kind: 'workspaceOpen'; workspace: Workspace }
   | { kind: 'workspaceEdit'; workspace: Workspace | null; draft?: WorkspaceDef; duplicate?: boolean };
+
+/** What the certificate inspector reads: a TLS server (empty: ask), a file, or text. */
+export type CertSource = { host: string } | { file: string } | { text: string };
 
 /** A dialog that fills in a command (e.g. kubectl scale) and runs it in a new tab. */
 export interface CommandPrompt {

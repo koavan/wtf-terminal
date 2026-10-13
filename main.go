@@ -10,6 +10,7 @@ import (
 
 	"github.com/dayanraj/wtf/internal/about"
 	"github.com/dayanraj/wtf/internal/awsprofiles"
+	"github.com/dayanraj/wtf/internal/certs"
 	"github.com/dayanraj/wtf/internal/config"
 	"github.com/dayanraj/wtf/internal/files"
 	"github.com/dayanraj/wtf/internal/infra"
@@ -63,6 +64,7 @@ func main() {
 			application.NewService(notify.NewService()),
 			application.NewService(files.NewService()),
 			application.NewService(infra.NewService()),
+			application.NewService(certs.NewService()),
 			application.NewService(awsprofiles.NewService()),
 			application.NewService(kube.NewService(stateDir)),
 			application.NewService(snippets.NewService(configDir)),

@@ -432,6 +432,24 @@ namespace (secrets open the masked viewer instead); a `file:line` that exists
 on this machine opens in `$EDITOR +line`. Right-click a line holding JSON for
 **Pretty-print JSON**. Turn colors off with `log-highlighting = false`.
 
+## Tokens and certificates
+
+- **JWT** in the output: ⌘-click (or right-click → Inspect Token…) for its
+  header and claims, with `exp`/`iat`/`nbf` as local times. The signature
+  isn't verified.
+- **Base64**: select it, or right-click a value in `kubectl get secret -o yaml`,
+  → Decode Base64…; shown masked until revealed (hidden again on blur), as
+  text, JSON, a hex dump, or a PEM certificate / JWT to open next.
+- **Certificates**: a `.pem`/`.crt`/`.cer`/`.der` file in Files, or a selected
+  PEM block → Inspect Certificate…: subject, issuer, names, validity and time
+  left, key, signature, serial, SHA-256 fingerprint.
+- **TLS servers**: an `https://` URL's menu, a selected host or `host:port`, or
+  the palette's Inspect TLS Certificate… connects (handshake only) and shows the
+  protocol, cipher, ALPN and chain, and whether it verifies against the system's
+  roots — with the TLS library's error when it doesn't.
+
+JWTs and base64 can't be opened while Hide Secrets is on.
+
 ## Recording and saving
 
 The side pane's **Share & Record** tab (⌘⇧J, shield icon) has all of this —

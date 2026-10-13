@@ -15,6 +15,7 @@
   import { broadcast, isTerminalReport } from '../lib/broadcast.svelte';
   import { openInEditor } from '../lib/fileActions';
   import { tokenMenu } from '../lib/logActions';
+  import { selectionEntries, yamlBase64At } from '../lib/inspect';
   import { findJson, type LogToken } from '../lib/logs';
   import { LogView, logColors, readLogicalLine, tokenAt } from '../lib/logview';
   import { overlay, type MenuEntry } from '../lib/overlay.svelte';
@@ -504,14 +505,28 @@
     if (!t || line === null) return [];
     const buf = t.buffer.active;
     const entries: MenuEntry[] = [];
-    const json = findJson(redaction.text(t.hasSelection() ? t.getSelection() : (readLogicalLine(buf, line)?.text ?? '')));
+    const logical = readLogicalLine(buf, line);
+    const json = findJson(redaction.text(t.hasSelection() ? t.getSelection() : (logical?.text ?? '')));
     let token = col === null ? null : (tokenAt(buf, line, col)?.token ?? null);
+    // Hide Secrets is on: decoding a token would show what's hidden.
+    if (token?.kind === 'jwt' && redaction.on) token = null;
     // file:line has actions only for a file on this machine.
     if (token?.kind === 'path') {
       const path = await resolveFile(token.path);
       token = path ? { ...token, path } : null;
     }
     if (token) entries.push(...tokenMenu(token, kubeTarget(), tokenActions));
+    const inspect = t.hasSelection() ? selectionEntries(t.getSelection(), inspectActions, !redaction.on) : [];
+    // kubectl get secret -o yaml: the base64 value under the mouse.
+    if (!t.hasSelection() && !redaction.on && logical && col !== null) {
+      const at = logical.rows.findIndex((r, i) => r === line && logical.cols[i] === col);
+      const value = at < 0 ? null : yamlBase64At(logical.text, at);
+      if (value) inspect.push({ label: 'Decode Base64…', action: () => inspectActions.decodeBase64(value) });
+    }
+    if (inspect.length) {
+      if (entries.length) entries.push('separator');
+      entries.push(...inspect);
+    }
     if (json) {
       if (entries.length) entries.push('separator');
       entries.push({ label: 'Pretty-print JSON', action: () => overlay.show({ kind: 'json', text: json }) });
@@ -535,11 +550,24 @@
       const k = kubeTarget();
       overlay.show({ kind: 'secretView', name, ...k });
     },
+    inspectJwt: (token: string) => overlay.show({ kind: 'jwt', token }),
+    inspectTls: (host: string) => overlay.show({ kind: 'cert', source: { host } }),
+  };
+
+  const inspectActions = {
+    inspectJwt: tokenActions.inspectJwt,
+    inspectTls: tokenActions.inspectTls,
+    decodeBase64: (text: string) => overlay.show({ kind: 'decoded', text }),
+    inspectCertText: (text: string) => overlay.show({ kind: 'cert', source: { text } }),
   };
 
   function openTokenMenu(token: LogToken, x: number, y: number) {
     if (token.kind === 'url') {
       Browser.OpenURL(token.text);
+      return;
+    }
+    if (token.kind === 'jwt' && redaction.on) {
+      toast.show('Hide Secrets is on: turn it off to inspect tokens');
       return;
     }
     tabs.focusPane(tabId, pane.id);

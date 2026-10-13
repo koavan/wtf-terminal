@@ -83,6 +83,7 @@ export const commands: Command[] = [
   { id: 'sidebar.generate', label: 'Show Generate (SSH Keys, Passwords)', mac: '⌘⇧N', other: 'Ctrl+Shift+Alt+N', run: () => sidebar.show('generate') },
   { id: 'generate.key', label: 'Generate SSH Key…', run: () => sidebar.openGenerator('key') },
   { id: 'generate.password', label: 'Generate Password…', run: () => sidebar.openGenerator('password') },
+  { id: 'inspect.tls', label: 'Inspect TLS Certificate…', run: () => overlay.show({ kind: 'cert', source: { host: '' } }) },
   { id: 'sidebar.ssh', label: 'Show SSH Hosts', mac: '⌘⇧S', other: 'Ctrl+Shift+Alt+S', run: () => sidebar.show('ssh') },
   { id: 'sidebar.aws', label: 'Show AWS Profiles', mac: '⌘⇧U', other: 'Ctrl+Shift+Alt+U', run: () => sidebar.show('aws') },
   { id: 'sidebar.kube', label: 'Show Kubernetes', mac: '⌘⇧K', other: 'Ctrl+Shift+Alt+K', run: () => sidebar.show('kube') },

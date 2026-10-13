@@ -1,6 +1,8 @@
+import { JWT_RE } from './inspect';
+
 // Finds the parts of a line of terminal output worth a color or a click:
 // log levels, timestamps, URLs, IP addresses, file:line references and
-// Kubernetes resources (pod/web-1, deployment.apps/api). Pure functions —
+// Kubernetes resources (pod/web-1, deployment.apps/api), JWTs. Pure functions —
 // lib/logview applies them to what's on screen.
 
 export type LogLevel = 'error' | 'warn' | 'info' | 'debug';
@@ -13,7 +15,9 @@ export type LogToken =
   | { kind: 'url'; start: number; end: number; text: string }
   | { kind: 'ip'; start: number; end: number; text: string; address: string; port?: number; cidr?: boolean }
   | { kind: 'path'; start: number; end: number; text: string; path: string; line: number; col?: number }
-  | { kind: 'k8s'; start: number; end: number; text: string; resource: string; name: string };
+  | { kind: 'k8s'; start: number; end: number; text: string; resource: string; name: string }
+  /** Not colored: ⌘-click or right-click to inspect its claims. */
+  | { kind: 'jwt'; start: number; end: number; text: string };
 
 export type TokenKind = LogToken['kind'];
 
@@ -126,6 +130,7 @@ export function scanLine(text: string): LogToken[] {
     const url = trimUrl(m[0]);
     add({ kind: 'url', start: m.index, end: m.index + url.length, text: url });
   });
+  each(new RegExp(JWT_RE.source, 'g'), (m) => add({ kind: 'jwt', start: m.index, end: m.index + m[0].length, text: m[0] }));
   for (const re of TIMESTAMP_RES) each(re, (m) => add({ kind: 'timestamp', start: m.index, end: m.index + m[0].length, text: m[0] }));
   each(PY_PATH_RE, (m) => {
     const start = m.index + m[0].indexOf('"') + 1;

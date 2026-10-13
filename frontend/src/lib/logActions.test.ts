@@ -7,7 +7,7 @@ const TARGET = { context: 'prod', namespace: 'shop', env: {} };
 
 function actions(): TokenActions & Record<string, ReturnType<typeof vi.fn>> {
   return {
-    copy: vi.fn(), openUrl: vi.fn(), runInTab: vi.fn(), openInEditor: vi.fn(), openFile: vi.fn(), reveal: vi.fn(), showSecret: vi.fn(),
+    copy: vi.fn(), openUrl: vi.fn(), runInTab: vi.fn(), openInEditor: vi.fn(), openFile: vi.fn(), reveal: vi.fn(), showSecret: vi.fn(), inspectJwt: vi.fn(), inspectTls: vi.fn(),
   } as never;
 }
 
@@ -81,5 +81,22 @@ describe('tokenMenu', () => {
   it('has nothing for log levels and bare times', () => {
     expect(tokenMenu(token('ERROR'), TARGET, actions())).toEqual([]);
     expect(tokenMenu(token('at 10:00:00 ok'), TARGET, actions())).toEqual([]);
+  });
+});
+
+describe('inspector entries', () => {
+  it('offers TLS for https URLs only, and opens a JWT', () => {
+    const a = actions();
+    const https = tokenMenu(token('see https://api.example.com/v1'), TARGET, a);
+    expect(labels(https)).toContain('Inspect TLS Certificate…');
+    click(https, 'Inspect TLS Certificate…');
+    expect(a.inspectTls).toHaveBeenCalledWith('https://api.example.com/v1');
+    expect(labels(tokenMenu(token('see http://api.example.com/v1'), TARGET, a))).not.toContain('Inspect TLS Certificate…');
+
+    const jwt = 'eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJhZGEifQ.sig';
+    const m = tokenMenu(token(jwt), TARGET, a);
+    expect(labels(m)).toEqual(['# JWT', 'Inspect Token…', 'Copy Token']);
+    click(m, 'Inspect Token…');
+    expect(a.inspectJwt).toHaveBeenCalledWith(jwt);
   });
 });
