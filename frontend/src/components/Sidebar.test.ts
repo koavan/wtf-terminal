@@ -36,4 +36,14 @@ describe('Sidebar tabs', () => {
     expect(sidebar.tab).toBe('history');
     expect(screen.getByRole('tab', { name: 'History' }).getAttribute('aria-selected')).toBe('true');
   });
+
+  it('has a button for the command-line tools', async () => {
+    settings.config = testConfig();
+    tabs.open({ cwd: '/w' });
+    const { overlay } = await import('../lib/overlay.svelte');
+    const screen = render(Sidebar);
+    await fireEvent.click(screen.getByRole('button', { name: 'Command-Line Tools' }));
+    expect(overlay.current).toEqual({ kind: 'tools', focus: undefined, welcome: undefined });
+    overlay.current = null;
+  });
 });

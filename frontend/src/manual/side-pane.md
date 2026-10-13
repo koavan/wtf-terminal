@@ -17,7 +17,7 @@
 | [Share & Record](#share) | {{key:sidebar.share}} | Hide Secrets, recording, and saving a terminal's output |
 | [Generate](#generate) | {{key:sidebar.generate}} | new SSH keys and passwords, from a form |
 
-Hover an icon for the tab's name and shortcut. Pressing a tab's shortcut again closes the pane. Drag its right edge to resize it; double-click the edge for the default width. The **?** at the bottom of the icons opens this manual at the page for the tab you're on.
+Hover an icon for the tab's name and shortcut. Pressing a tab's shortcut again closes the pane. Drag its right edge to resize it; double-click the edge for the default width. The **?** at the bottom of the icons opens this manual at the page for the tab you're on. The wrench above it opens [Command-line tools](#tools): which of kubectl, the AWS CLI, git and OpenSSH the tabs can use, and installing a missing one.
 
 ## Most tabs follow the focused shell
 

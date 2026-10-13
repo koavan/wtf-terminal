@@ -97,7 +97,7 @@ func (s *Service) List() ([]Conn, error) {
 func (s *Service) lsof(ctx context.Context) ([]Conn, error) {
 	path, err := exec.LookPath("lsof")
 	if err != nil {
-		return nil, errors.New("lsof is not installed")
+		return nil, errors.New("lsof isn't installed")
 	}
 	out, err := exec.CommandContext(ctx, path, "-nP", "-i", "-F", "fpcPnTt", "-w").Output()
 	// Exit status 1 means nothing was found, or some processes couldn't be

@@ -13,6 +13,8 @@
   import { closeWindow } from './lib/closing';
   import { installShortcuts, runCommand } from './lib/commands';
   import { overlay } from './lib/overlay.svelte';
+  import { showTools } from './lib/tools';
+  import { Service as Tools } from '../bindings/github.com/dayanraj/wtf/internal/tools';
   import { isMac } from './lib/platform';
   import { autosave, restoreSession } from './lib/session.svelte';
   import { sidebar } from './lib/sidebar.svelte';
@@ -57,6 +59,10 @@
     restoreSession(me).then((restored) => {
       if (!restored) tabs.open();
       autosave(me);
+      // Once ever: say which tools features use aren't installed.
+      Tools.FirstRun('').then((missing) => {
+        if (missing?.length && !overlay.current) showTools(undefined, missing);
+      });
     });
 
     return () => {

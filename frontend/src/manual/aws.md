@@ -9,7 +9,7 @@ The AWS Profiles tab ({{key:sidebar.aws}}) lists the AWS CLI's profiles from `~/
 
 ## Checking a profile
 
-These only read, so they don't ask first:
+These only read, so they don't ask first. They run the AWS CLI; if it isn't installed, the message has an **Install…** link (see [Command-line tools](#tools)).
 
 - **Check Identity (sts)** — who the credentials belong to (account and ARN), via `aws sts get-caller-identity`, which needs no permissions.
 - **Check Access Keys (iam)** — for access-key profiles: each key of the IAM user, active or not, how many days old, and when and for what it was last used.

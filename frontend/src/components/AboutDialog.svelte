@@ -10,6 +10,7 @@
   import { overlay } from '../lib/overlay.svelte';
   import { isMac } from '../lib/platform';
   import { toast } from '../lib/toast.svelte';
+  import { showTools } from '../lib/tools';
 
   // About wtf: what it is, which build this is, and the facts about this
   // setup that a bug report or a fix by hand needs.
@@ -122,6 +123,7 @@
 
   {#snippet buttons()}
     <button class="secondary" onclick={copyDiagnostics} disabled={!info} title="Version and system details for a bug report (no file paths)">Copy Diagnostics</button>
+    <button class="secondary" onclick={() => showTools()} title="kubectl, the AWS CLI, git and OpenSSH: found or not, and installing them">Tools</button>
     <span class="spacer"></span>
     {#if info}<button class="secondary" onclick={() => Browser.OpenURL(info!.repository)}>GitHub</button>{/if}
     <button class="secondary" onclick={() => manual('shortcuts')}>Shortcuts</button>

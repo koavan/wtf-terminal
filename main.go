@@ -22,6 +22,7 @@ import (
 	"github.com/dayanraj/wtf/internal/sshhosts"
 	"github.com/dayanraj/wtf/internal/state"
 	"github.com/dayanraj/wtf/internal/terminal"
+	"github.com/dayanraj/wtf/internal/tools"
 	wtfwindows "github.com/dayanraj/wtf/internal/windows"
 )
 
@@ -70,6 +71,7 @@ func main() {
 			application.NewService(snippets.NewService(configDir)),
 			application.NewService(about.NewService(version, commit, buildDate, configDir, stateDir, term.ShellInfo)),
 			application.NewService(sshhosts.NewService(stateDir)),
+			application.NewService(tools.NewService(stateDir, term.ShellInfo)),
 			application.NewService(netconn.NewService(term.ShellPIDs)),
 			application.NewService(procs.NewService(term.ShellPIDs)),
 			application.NewService(windows.Service()),
@@ -131,6 +133,7 @@ func buildMenu(windows *wtfwindows.Manager) *application.Menu {
 	appMenu.AddSeparator()
 	cmd(appMenu, "Settings…", "CmdOrCtrl+,", "config.open")
 	cmd(appMenu, "Change Theme…", "", "theme.pick")
+	cmd(appMenu, "Command-Line Tools…", "", "tools.show")
 	appMenu.AddSeparator()
 	appMenu.AddRole(application.ServicesMenu)
 	appMenu.AddSeparator()

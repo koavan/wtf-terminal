@@ -16,6 +16,7 @@ import { tabs } from './tabs.svelte';
 import { activeTerminal } from './terminals';
 import { focusedTextField, startRename } from './rename.svelte';
 import { toast } from './toast.svelte';
+import { showTools } from './tools';
 import { closeThisWindow, moveTabToNewWindow, Windows } from './window';
 
 export interface Command {
@@ -52,6 +53,7 @@ function createGroupForActive() {
 export const commands: Command[] = [
   { id: 'palette', label: 'Command Palette', mac: '⌘⇧P', other: 'Ctrl+Shift+P', run: () => overlay.togglePalette() },
   { id: 'app.about', label: 'About wtf', run: () => overlay.show({ kind: 'about' }) },
+  { id: 'tools.show', label: 'Command-Line Tools (kubectl, AWS CLI, git…)', run: () => showTools() },
   { id: 'help.manual', label: 'Open Manual', mac: '⌘?', other: 'F1', run: () => openManual() },
   { id: 'snippets.run', label: 'Run Snippet…', mac: '⌘⇧R', other: 'Ctrl+Shift+Alt+R', run: () => overlay.togglePalette('snippets') },
   {

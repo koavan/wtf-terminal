@@ -29,6 +29,15 @@ depends:
   - libgtk-4-1
   - libwebkitgtk-6.0-4
 
+# Programs side-pane features run (see internal/tools). wtf starts without
+# them; kubectl and the AWS CLI aren't packaged by most distributions, so
+# wtf offers to install those itself.
+recommends:
+  - git
+  - openssh-client
+  - lsof
+  - libnotify-bin
+
 # Distribution-specific overrides for different package formats
 overrides:
   # RPM packages for Fedora / RHEL / AlmaLinux / Rocky Linux
@@ -36,6 +45,11 @@ overrides:
     depends:
       - gtk4
       - webkitgtk6.0
+    recommends:
+      - git
+      - openssh-clients
+      - lsof
+      - libnotify
 
   # Arch Linux packages
   archlinux:

@@ -20,6 +20,24 @@ or newer): install `libgtk-4-dev libwebkitgtk-6.0-dev` (Debian/Ubuntu) or
 (or `lsof`) for the Network tab, `notify-send` for notifications and
 `xdg-open` to open files.
 
+## Command-line tools
+
+Side-pane features run the programs you'd run yourself — `kubectl`, the AWS
+CLI, `git`, OpenSSH, `lsof`/`ss`, `notify-send` — found on the focused shell's
+PATH, then wtf's, then the usual install folders (`/opt/homebrew/bin`,
+`/usr/local/bin`, `~/.local/bin`…). None is needed to start; a feature whose
+program is missing says so with an **Install…** link.
+
+The wrench at the bottom of the side pane's icon rail (also the palette's
+**Command-Line Tools**, the macOS wtf menu, and About wtf → Tools) lists each one with
+its path and version, and installs a missing one for this OS and processor:
+Homebrew, the official release (kubectl SHA-256-checked into `~/.local/bin`; the
+AWS CLI's signed macOS package or Linux zip into `~/.local`), Apple's Command
+Line Tools, or the distribution's package manager. It shows the exact command or
+script first and runs it in a new tab, where sudo can ask for a password. On
+first start it opens once if anything is missing. The `.deb`/`.rpm` recommend
+`git`, OpenSSH, `lsof` and libnotify. Code: `internal/tools`.
+
 ## Layout
 
 - `main.go`: window setup and native menu (menu items emit `app:command` events).

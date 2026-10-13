@@ -2,6 +2,7 @@
   import { untrack } from 'svelte';
   import { Clipboard, Dialogs } from '@wailsio/runtime';
   import { Service as Files } from '../../bindings/github.com/dayanraj/wtf/internal/files';
+  import ToolHint from './ToolHint.svelte';
   import Icon from './Icon.svelte';
   import { prettyPath } from '../lib/backend';
   import { authLabel, clusterLabel, contextKey, kubeConfigs, useContext, type KubeContext, type Op } from '../lib/kubeconfigs.svelte';
@@ -217,7 +218,7 @@
             {#if check?.result}
               <span class="ok">Connected · {check.result.version}{check.result.username ? ` · as ${check.result.username}` : ''}</span>
             {:else if check?.error}
-              <span class="issue">{check.error}</span>
+              <span class="issue">{check.error}<ToolHint error={check.error} /></span>
             {/if}
           </span>
           <button

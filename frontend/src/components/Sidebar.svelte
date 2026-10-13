@@ -13,6 +13,7 @@
   import SshView from './SshView.svelte';
   import { isMac } from '../lib/platform';
   import { openManual } from '../lib/help';
+  import { showTools } from '../lib/tools';
   import { DEFAULT_WIDTH, sidebar, type SidebarTab } from '../lib/sidebar.svelte';
 
   const TABS: { id: SidebarTab; label: string; icon: IconName; key: string }[] = [
@@ -65,6 +66,10 @@
       </button>
     {/each}
     <span class="spacer"></span>
+    <!-- The programs the tabs run (kubectl, aws, git…): found or not, and installing them. -->
+    <button aria-label="Command-Line Tools" title="Command-Line Tools: kubectl, AWS CLI, git, OpenSSH" onclick={() => showTools()}>
+      <Icon name="wrench" size={15} stroke={1.8} />
+    </button>
     <!-- Help for the tab on screen. -->
     <button class="help" aria-label="Help" title="Help for this tab ({isMac ? '⌘?' : 'F1'})" onclick={() => openManual()}>?</button>
   </div>

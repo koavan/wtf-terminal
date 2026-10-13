@@ -18,6 +18,6 @@ wtf is a terminal that works like a browser: tabs you can group, split and move 
 
 ## How wtf treats your setup
 
-- Actions that touch a server, a cluster or AWS run as **real commands in a terminal tab** (`kubectl logs …`, `ssh-copy-id …`, `scp …`), so you see them, they land in your shell history, and you can run them again yourself.
+- Actions that touch a server, a cluster or AWS run as **real commands in a terminal tab** (`kubectl logs …`, `ssh-copy-id …`, `scp …`), so you see them, they land in your shell history, and you can run them again yourself. They use the programs you already have (kubectl, the AWS CLI, ssh, git); **Command-Line Tools** in the palette shows which are installed and installs the missing ones.
 - Anything that changes a file you own (`~/.ssh/config`, `~/.aws/credentials`, a kubeconfig) or something in the cloud **shows exactly what will change and waits for you to confirm**. The file is backed up first. See [Privacy and safety](#privacy).
 - Side-pane tabs load things **only when you look at them**, and stop when you don't. See [The side pane](#side-pane).

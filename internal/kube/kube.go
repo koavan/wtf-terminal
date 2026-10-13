@@ -28,6 +28,8 @@ import (
 	"unicode/utf8"
 
 	"github.com/wailsapp/wails/v3/pkg/application"
+
+	"github.com/dayanraj/wtf/internal/tools"
 )
 
 // Request says whose view of the cluster to take.
@@ -191,18 +193,8 @@ func (s *Service) absList(list, pwd string) string {
 // kubectl finds kubectl on the shell's PATH, then wtf's, then where
 // installers put it.
 func (s *Service) kubectl(r Request) (string, error) {
-	for _, dir := range filepath.SplitList(r.Env["PATH"]) {
-		if isExec(filepath.Join(dir, "kubectl")) {
-			return filepath.Join(dir, "kubectl"), nil
-		}
-	}
-	if p, err := exec.LookPath("kubectl"); err == nil {
+	if p := tools.Find("kubectl", r.Env["PATH"]); p != "" {
 		return p, nil
-	}
-	for _, p := range []string{"/opt/homebrew/bin/kubectl", "/usr/local/bin/kubectl", "/usr/bin/kubectl", filepath.Join(s.home, ".local", "bin", "kubectl")} {
-		if isExec(p) {
-			return p, nil
-		}
 	}
 	return "", errors.New("kubectl isn't installed (or isn't on the shell's PATH)")
 }

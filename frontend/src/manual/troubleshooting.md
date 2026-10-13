@@ -4,6 +4,10 @@
 
 These need [shell integration](#shell-integration), which works with **bash** and **zsh**. Check `shell-integration = true` in [Settings](#settings), and open a new tab (it applies to new shells). Other shells (fish, nu) aren't supported yet.
 
+## "kubectl isn't installed" or "the aws CLI isn't installed"
+
+Click **Install…** next to the message, or open **Command-Line Tools** from the command palette. It shows where wtf looked and how to install the program on this system; see [Command-line tools](#tools). If it's installed but not found, check that it's on the PATH of the shell in the focused tab.
+
 ## Kubernetes: "Can't read the cluster" or a login error
 
 The message under the section is kubectl's own. Common ones:

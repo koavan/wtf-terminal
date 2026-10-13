@@ -32,6 +32,8 @@ export type OverlayState =
   | { kind: 'secretView'; name: string; context: string; namespace: string; env: Record<string, string> }
   | { kind: 'manual'; topic: string }
   | { kind: 'about' }
+  /** The command-line tools features run: found or not, and installing one (lib/tools). */
+  | { kind: 'tools'; focus?: string; welcome?: string[] }
   /** JSON from a line of output, pretty-printed. */
   | { kind: 'json'; text: string }
   /** The token and certificate inspector (lib/inspect). */

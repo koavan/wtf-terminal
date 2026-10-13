@@ -2,6 +2,7 @@
   import { onMount } from 'svelte';
   import { Clipboard } from '@wailsio/runtime';
   import { Service } from '../../bindings/github.com/dayanraj/wtf/internal/awsprofiles';
+  import ToolHint from './ToolHint.svelte';
   import Icon from './Icon.svelte';
   import { prettyPath } from '../lib/backend';
   import { ago, aws, daysSince, focusedProfile, KIND_LABEL, shortKey, useCommand, useInShell, type Profile } from '../lib/aws.svelte';
@@ -170,7 +171,7 @@
           {#if check?.identity}
             <span class="check ok" title={check.identity.arn}>{check.identity.arn.replace(/^arn:aws[\w-]*:(iam|sts)::/, '')}</span>
           {:else if check?.identityError}
-            <span class="check bad">{check.identityError}</span>
+            <span class="check bad">{check.identityError}<ToolHint error={check.identityError} /></span>
           {/if}
           {#if check?.keys}
             {#each check.keys as k (k.id)}
@@ -180,7 +181,7 @@
               </span>
             {/each}
           {:else if check?.keysError}
-            <span class="check bad">{check.keysError}</span>
+            <span class="check bad">{check.keysError}<ToolHint error={check.keysError} /></span>
           {/if}
         </span>
         <button

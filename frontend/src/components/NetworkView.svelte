@@ -1,4 +1,5 @@
 <script lang="ts">
+  import ToolHint from './ToolHint.svelte';
   import { untrack } from 'svelte';
   import { Browser, Clipboard } from '@wailsio/runtime';
   import Icon from './Icon.svelte';
@@ -161,7 +162,7 @@
 
   <div class="list">
     {#if network.error}
-      <div class="note"><strong>Can't list connections</strong>{network.error}</div>
+      <div class="note"><strong>Can't list connections</strong>{network.error}<ToolHint error={network.error} /></div>
     {:else if network.loaded && visible.length === 0}
       <div class="note">
         {#if network.filter}

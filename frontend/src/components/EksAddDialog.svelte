@@ -1,4 +1,5 @@
 <script lang="ts">
+  import ToolHint from './ToolHint.svelte';
   import { onMount } from 'svelte';
   import { Service } from '../../bindings/github.com/dayanraj/wtf/internal/kube';
   import Dialog from './Dialog.svelte';
@@ -91,7 +92,7 @@
     <div class="command">{command}</div>
     <p class="hint">Runs in a new tab. wtf keeps a copy of your kubeconfig first (kube-backups). It logs in with <code>aws eks get-token</code>.</p>
   {/if}
-  {#if error}<div class="error" role="alert">{error}</div>{/if}
+  {#if error}<div class="error" role="alert">{error}<ToolHint {error} /></div>{/if}
 
   {#snippet buttons()}
     <span class="spacer"></span>

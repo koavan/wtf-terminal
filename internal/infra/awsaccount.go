@@ -7,10 +7,11 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
-	"path/filepath"
 	"regexp"
 	"strings"
 	"time"
+
+	"github.com/dayanraj/wtf/internal/tools"
 )
 
 // Profiles with static keys or a credential_process don't say which account
@@ -137,23 +138,7 @@ func AWSEnv(configFile, credsFile string) []string {
 
 // FindAWS looks on PATH and then where installers put the CLI: apps
 // started from the Finder get a minimal PATH.
-func FindAWS() string {
-	if p, err := exec.LookPath("aws"); err == nil {
-		return p
-	}
-	home, _ := os.UserHomeDir()
-	for _, p := range []string{
-		"/opt/homebrew/bin/aws",
-		"/usr/local/bin/aws",
-		filepath.Join(home, ".local", "bin", "aws"),
-		"/usr/bin/aws",
-	} {
-		if fi, err := os.Stat(p); err == nil && !fi.IsDir() && fi.Mode()&0o111 != 0 {
-			return p
-		}
-	}
-	return ""
-}
+func FindAWS() string { return tools.Find("aws", "") }
 
 // lastLine is the last non-blank line of s, shortened, or fallback.
 func lastLine(s, fallback string) string {

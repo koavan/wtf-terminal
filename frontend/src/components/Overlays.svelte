@@ -3,6 +3,7 @@
   import ContextMenu from './ContextMenu.svelte';
   import GroupEditor from './GroupEditor.svelte';
   import AboutDialog from './AboutDialog.svelte';
+  import ToolsDialog from './ToolsDialog.svelte';
   import JsonViewer from './JsonViewer.svelte';
   import JwtViewer from './JwtViewer.svelte';
   import DecodedViewer from './DecodedViewer.svelte';
@@ -76,6 +77,8 @@
   <WorkspaceEditor workspace={overlay.current.workspace} draft={overlay.current.draft} duplicate={overlay.current.duplicate} />
 {:else if overlay.current?.kind === 'about'}
   <AboutDialog />
+{:else if overlay.current?.kind === 'tools'}
+  <ToolsDialog focus={overlay.current.focus} welcome={overlay.current.welcome} />
 {:else if overlay.current?.kind === 'json'}
   <JsonViewer text={overlay.current.text} />
 {:else if overlay.current?.kind === 'jwt'}

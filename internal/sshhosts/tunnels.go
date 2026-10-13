@@ -17,6 +17,8 @@ import (
 	"sync"
 	"syscall"
 	"time"
+
+	"github.com/dayanraj/wtf/internal/tools"
 )
 
 // SSH tunnels: saved port forwards (ssh -L, -R, -D), each run as its own
@@ -128,13 +130,7 @@ func kubectlEnv(saved map[string]string) []string {
 
 // findKubectl looks on the saved PATH first, then wtf's.
 func findKubectl(path string) string {
-	for _, dir := range filepath.SplitList(path) {
-		p := filepath.Join(dir, "kubectl")
-		if fi, err := os.Stat(p); err == nil && !fi.IsDir() && fi.Mode()&0o111 != 0 {
-			return p
-		}
-	}
-	if p, err := exec.LookPath("kubectl"); err == nil {
+	if p := tools.Find("kubectl", path); p != "" {
 		return p
 	}
 	return "kubectl"

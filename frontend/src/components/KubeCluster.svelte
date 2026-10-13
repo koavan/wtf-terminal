@@ -1,6 +1,7 @@
 <script lang="ts">
   import { untrack } from 'svelte';
   import { Browser, Clipboard } from '@wailsio/runtime';
+  import ToolHint from './ToolHint.svelte';
   import Icon from './Icon.svelte';
   import PausedNote from './PausedNote.svelte';
   import RefreshControls from './RefreshControls.svelte';
@@ -302,7 +303,7 @@
 {/snippet}
 
 {#snippet sectionError(section: KubeSection)}
-  {#if kube.section(section).error}<div class="empty err">{kube.section(section).error}</div>{/if}
+  {#if kube.section(section).error}<div class="empty err">{kube.section(section).error}<ToolHint error={kube.section(section).error} /></div>{/if}
 {/snippet}
 
 {#snippet deploymentsBody()}
@@ -424,7 +425,7 @@
     {#if kube.targetError}
       <div class="note">
         <strong>Can’t find a Kubernetes context</strong>
-        <span class="err">{kube.targetError}</span>
+        <span class="err">{kube.targetError}<ToolHint error={kube.targetError} /></span>
       </div>
     {:else if t}
       {#each LAYOUT as g (g.group)}

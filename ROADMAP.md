@@ -152,6 +152,22 @@ base64, PEM block, host or host:port) and the palette (Inspect TLS
 Certificate…). Decoded base64 is masked until revealed; JWTs and base64 can't
 be opened while Hide Secrets is on. Manual page: Tokens and certificates.
 
+### 20. Command-line tools: check and install ☑
+
+Done before #12, whose scanners will use it. Side-pane features run kubectl, the
+AWS CLI, git, OpenSSH, lsof/ss and notify-send. One lookup (`internal/tools`:
+shell PATH, wtf's PATH, install folders) shared by the features and the
+**Command-Line Tools** dialog (palette, About wtf), which shows each one's path,
+version and what uses it. Missing ones install per OS and CPU via Homebrew, the
+official release (checksum or signature checked where the vendor publishes one;
+user-level into `~/.local/bin` where possible), Apple's Command Line Tools, or
+the distro's package manager. The exact command or script is shown first and runs
+in a new tab; nothing installs on its own. Side-pane errors about a missing
+program get an **Install…** link. On first start, opens once if something is
+missing (looks only, runs nothing). The `.deb`/`.rpm` recommend git, OpenSSH,
+lsof, libnotify. Manual page: Command-line tools. Not done: scanners (with #12),
+Vault (with #18).
+
 ### 12. SARIF findings tab ☐
 
 Side-pane tab that reads SARIF (trivy, semgrep, checkov, gitleaks, grype,

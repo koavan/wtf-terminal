@@ -35,6 +35,7 @@ import sshKeys from './ssh-keys.md?raw';
 import gitIdentitiesPage from './git-identities.md?raw';
 import sshTunnels from './ssh-tunnels.md?raw';
 import tabs from './tabs.md?raw';
+import toolsPage from './tools.md?raw';
 import workspaces from './workspaces.md?raw';
 import troubleshooting from './troubleshooting.md?raw';
 
@@ -78,6 +79,7 @@ export const TOPICS: Topic[] = [
   t('Cloud', 'aws', 'AWS profiles', aws),
   t('Cloud', 'kubernetes', 'Kubernetes: resources', kubernetes),
   t('Cloud', 'kube-contexts', 'Kubernetes: contexts', kubeContexts),
+  t('Reference', 'tools', 'Command-line tools', toolsPage),
   t('Reference', 'settings', 'Settings and themes', settings),
   t('Reference', 'sessions', 'Sessions and windows', sessions),
   t('Reference', 'shortcuts', 'Keyboard shortcuts', shortcuts),

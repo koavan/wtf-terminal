@@ -19,7 +19,7 @@ The header names the cluster; below it, the namespace. Sections, grouped:
 
 Opening the tab only works out the context from your kubeconfig — no request reaches the cluster. **Expand a section** to load it; only expanded sections refresh (at most every 10 seconds), and collapsing one stops it. The namespace list loads when you click the namespace field. Which sections are open is remembered while the window is open.
 
-The tab follows the focused shell's context and namespace. Pick another namespace in the field to look there; your shell keeps its own. kubectl runs with that shell's own `PATH`, `KUBECONFIG` and AWS profile, so login helpers work as they do in the shell.
+The tab follows the focused shell's context and namespace. Pick another namespace in the field to look there; your shell keeps its own. kubectl runs with that shell's own `PATH`, `KUBECONFIG` and AWS profile, so login helpers work as they do in the shell. No kubectl? The message has an **Install…** link (see [Command-line tools](#tools)).
 
 ## Reading what's there
 
