@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"strconv"
 	"sync/atomic"
+	"time"
 
 	"github.com/coder/websocket"
 )
@@ -19,6 +20,13 @@ const (
 	highWater = 1 << 20
 	// Upper bound for coalescing queued PTY chunks into one frame.
 	maxFrame = 256 * 1024
+	// While output streams, gather it for up to batchWindow before sending.
+	// Programs writing to a terminal flush every line, so `seq 1 1000000`
+	// arrives as a million tiny reads; one frame each cost more CPU (Go,
+	// WebKit's networking process, the page) than drawing them. Output after
+	// a quiet spell of streamGap, such as a keystroke's echo, goes at once.
+	batchWindow = 4 * time.Millisecond
+	streamGap   = 10 * time.Millisecond
 )
 
 // Wire protocol, per session connection:
@@ -118,6 +126,9 @@ func (sv *streamServer) handle(w http.ResponseWriter, r *http.Request) {
 	}()
 
 	var sent int64
+	var lastSend time.Time
+	batch := time.NewTimer(time.Hour)
+	batch.Stop()
 	for {
 		for sent-acked.Load() > highWater {
 			select {
@@ -155,9 +166,31 @@ func (sv *streamServer) handle(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 
+		// Mid-stream, wait a moment for more rather than send a sliver.
+		if !closed && len(frame) < maxFrame && time.Since(lastSend) < streamGap {
+			batch.Reset(batchWindow)
+		gather:
+			for len(frame) < maxFrame {
+				select {
+				case more, moreOK := <-sess.Output:
+					if !moreOK {
+						closed = true
+						break gather
+					}
+					frame = append(frame, more...)
+				case <-batch.C:
+					break gather
+				case <-ctx.Done():
+					return
+				}
+			}
+			batch.Stop()
+		}
+
 		if err := c.Write(ctx, websocket.MessageBinary, frame); err != nil {
 			return
 		}
+		lastSend = time.Now()
 		sent += int64(len(frame))
 		if closed {
 			c.Close(websocket.StatusNormalClosure, "exited")

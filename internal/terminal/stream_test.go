@@ -81,6 +81,39 @@ func TestStreamRoundTrip(t *testing.T) {
 	readUntil(t, ctx, c, "wtf-42")
 }
 
+// Line-by-line output (one write per line, as programs do on a terminal)
+// goes out in a few large frames, not one per line.
+func TestStreamBatchesStreamingOutput(t *testing.T) {
+	sess, sv := startTestSession(t)
+	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
+	defer cancel()
+
+	c, err := dial(t, ctx, sv, sess.ID, sv.token)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer c.CloseNow()
+
+	const lines = 20000
+	if err := c.Write(ctx, websocket.MessageBinary, []byte("i=0; while [ $i -lt "+strconv.Itoa(lines)+" ]; do echo line-$i; i=$((i+1)); done; echo DONE-$((1+1))\r")); err != nil {
+		t.Fatal(err)
+	}
+	var got bytes.Buffer
+	frames := 0
+	for !strings.Contains(got.String(), "DONE-2") {
+		_, data, err := c.Read(ctx)
+		if err != nil {
+			t.Fatalf("reading: %v", err)
+		}
+		frames++
+		got.Write(data)
+		_ = c.Write(ctx, websocket.MessageText, []byte("a"+strconv.Itoa(got.Len())))
+	}
+	if frames > lines/10 {
+		t.Errorf("%d lines took %d frames; want them batched", lines, frames)
+	}
+}
+
 func TestStreamRejectsBadToken(t *testing.T) {
 	sess, sv := startTestSession(t)
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
