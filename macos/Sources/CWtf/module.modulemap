@@ -1,0 +1,5 @@
+module CWtf {
+    header "include/libwtf.h"
+    link "wtf"
+    export *
+}
