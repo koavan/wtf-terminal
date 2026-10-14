@@ -326,7 +326,7 @@
     height: 7px;
     border-radius: 50%;
     background: currentColor;
-    animation: pulse 1.4s ease-in-out infinite;
+    animation: pulse 1.4s ease-in-out 3; /* then holds still: no endless redraws */
   }
   @keyframes pulse {
     50% {

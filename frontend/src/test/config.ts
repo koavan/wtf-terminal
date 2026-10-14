@@ -8,7 +8,7 @@ export function testConfig(over: Partial<Config> = {}): Config {
     fontSize: 13,
     lineHeight: 1.22,
     cursorStyle: 'bar',
-    cursorBlink: true,
+    cursorBlink: false,
     scrollback: 10000,
     optionAsMeta: false,
     copyOnSelect: false,

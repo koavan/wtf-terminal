@@ -121,7 +121,7 @@
   .dot.retrying {
     background: var(--g-yellow);
     opacity: 1;
-    animation: pulse 1.2s ease-in-out infinite;
+    animation: pulse 1.2s ease-in-out 3; /* then holds still: no endless redraws */
   }
   .dot.failed {
     background: var(--danger);

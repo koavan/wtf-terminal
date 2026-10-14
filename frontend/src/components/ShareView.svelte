@@ -362,7 +362,7 @@
     background: color-mix(in srgb, var(--danger) 14%, transparent);
   }
   .recording .dot {
-    animation: rec 1.6s ease-in-out infinite;
+    animation: rec 1.6s ease-in-out 3; /* then holds still: no endless redraws */
   }
   @keyframes rec {
     50% {

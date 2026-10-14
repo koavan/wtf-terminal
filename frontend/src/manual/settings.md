@@ -6,7 +6,7 @@ Settings live in `~/.config/wtf/config.toml` (or `$XDG_CONFIG_HOME/wtf/config.to
 |---|---|
 | `theme` | a theme name, or `"dark:Nord,light:Solarized Light"` to follow the system |
 | `font-family`, `font-size`, `line-height` | the terminal's text |
-| `cursor-style`, `cursor-blink` | block, bar or underline; blinking |
+| `cursor-style`, `cursor-blink` | block, bar or underline; blinking (off by default: it redraws the window twice a second, about 1% CPU) |
 | `scrollback` | lines kept per pane |
 | `option-as-meta` | macOS: ⌥ sends Meta (for Emacs, readline) |
 | `copy-on-select` | copy whatever you select |

@@ -206,7 +206,7 @@
     height: 7px;
     border-radius: 50%;
     background: var(--danger);
-    animation: rec 1.6s ease-in-out infinite;
+    animation: rec 1.6s ease-in-out 3; /* then holds still: no endless redraws */
   }
   @keyframes rec {
     50% {
@@ -376,7 +376,9 @@
     height: 6px;
     border-radius: 50%;
     background: currentColor;
-    animation: pulse 1.4s ease-in-out infinite;
+    /* Pulses as a command starts, then holds still: an endless animation
+       would keep the window redrawing for as long as `ssh` or `tail -f` runs. */
+    animation: pulse 1.4s ease-in-out 3;
   }
   @keyframes pulse {
     50% {

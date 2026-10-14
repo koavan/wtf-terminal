@@ -50,7 +50,7 @@ func Defaults() Config {
 		FontSize:          13,
 		LineHeight:        1.22,
 		CursorStyle:       "bar",
-		CursorBlink:       true,
+		CursorBlink:       false,
 		Scrollback:        10000,
 		ShellIntegration:  true,
 		NotifyAfter:       10,
@@ -87,7 +87,7 @@ const template = `# wtf settings. Changes apply as soon as you save (or switch b
 # line-height = 1.22
 
 # cursor-style = "bar"     # bar, block or underline
-# cursor-blink = true
+# cursor-blink = false     # blinking costs about 1% CPU while the window is in front
 
 # Lines of history kept per pane.
 # scrollback = 10000
