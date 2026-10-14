@@ -132,18 +132,56 @@ so wall times are close and the CPU gap under load is moderate.
   `terminal:info` (`~`, then `sleep — /private/tmp`), the app quit on the exit
   event, and only the `wtf-native` directories were written.
 
-## M2 — Terminal core ☐
+## M2 — Terminal core ☑
 
 Replaces `TerminalPane.svelte`, `lib/terminals.ts` and the xterm add-ons.
 
-- PTY I/O, resizing, themes and fonts (from `config.toml`), cursor-blink setting,
-  unicode/emoji width.
-- Search bar, clickable links, selection and copy, and paste confirm (#19).
-- Clipboard clearing (#14) and secret masking/redaction.
-- OSC 133 shell integration: prompt blocks and command status.
-- Output batching that matches the v0.7.2 behaviour.
-- **Done when:** vim, htop, tmux, ssh and kubectl all work, and the M0 benchmark
-  still passes.
+- ☑ Look from `config.toml`, following `config:changed` and the system
+  appearance: theme colours, font, line height, cursor style and blink,
+  scrollback, Option as Meta, copy-on-select. Bigger, Smaller and Actual Size
+  text work (⌘= ⌘- ⌘0).
+- ☑ Find bar (⌘F, ⌘G, ⇧⌘G, Esc, match case). Links open with ⌘-click
+  (http, https, mailto, file).
+- ☑ Paste confirmation (#19): the same rules, text and buttons as the Svelte
+  build, including Paste Without Final Newline and Don't Ask Again, plus
+  bracketed paste.
+- ☑ Hide Secrets (⌥⌘R, and on at startup with `redact-secrets`):
+  - Covers over secrets on screen, recomputed for each output frame and scroll.
+  - Copies, the block menus and the window title are redacted.
+  - `WtfCore/Secrets.swift` ports `lib/secrets.ts` (ICU regex adjusted to
+    behave like JavaScript). Both implementations are tested against the shared
+    `testdata/secrets/cases.json`, written by `node testdata/secrets/generate.ts`.
+- ☑ Clipboard clearing (#14): `Clipboard.copySecret` uses the pasteboard change
+  count. It has no callers until the secret viewers arrive in M6.
+- ☑ OSC 133 command blocks (`WtfCore/PromptTracker.swift`):
+  - ✓/✗ marks in the gutter, with tooltips; click one for the block's actions.
+  - Duration labels on slow commands.
+  - Block menu: Copy Command / Output / Both, Select Output, Run Again.
+  - Previous/Next Prompt (⌘↑ ⌘↓), Copy Last Command Output (⌥⌘C), Clear Buffer
+    (⌘K).
+  - Marks use absolute rows with `BufferLine` identity, so they survive
+    scrollback trimming and reflow.
+- ☑ Right-click menu: the block's actions, then Copy, Paste, Select All, Find,
+  Clear and Hide/Show Secrets. Pin, snippet and recording items come with
+  M5.
+- ☑ Tests: 26 Swift tests, covering the shared secret cases, paste, durations,
+  prompt tracking (trimming and reflow) and secret covers (wrapping, wide
+  characters, a key that started above the screen).
+- ☑ Benchmark (`native-m2-fix1`, 2026-10-14): CPU is within 2–7% of the M0
+  spike (seq 6.79 s, coloured 0.72 s, yes 6.62 s), and idle is 0.05 s per
+  30 s. Memory is 52–166 MiB, higher than M0 because of the configured 10,000
+  lines of scrollback (M0 had 500). The first M2 build was 2–7× slower because
+  the overlay refreshed (tooltips, cursor rects, a full-window redraw) for every
+  output frame and every scrolled line. Now marks refresh at most once per
+  main-loop pass and redraw only when they change, and the overlay is hidden
+  when empty. Covers stay synchronous while Hide Secrets is on.
+- → Bundling JetBrains Mono moved to M7. npm only ships WOFF2 subsets, so the
+  native app needs the TTF. Until then it uses JetBrains Mono if installed,
+  otherwise Menlo.
+- ☑ Done (2026-10-14): your hands-on check passed (vim, htop, tmux, ssh,
+  kubectl, paste, Hide Secrets, blocks, find). The benchmark passes (see above).
+  `WTF_NATIVE_DEBUG=paste` runs a self-closing check of ⌘V → confirmation
+  sheet, using a private pasteboard.
 
 ## M3 — Window shell (dogfood point) ☐
 
@@ -193,6 +231,8 @@ Replaces `TabStrip`, `TabPanes`, `TabOverview`, `AddressBar`, `Palette`,
   moved to the backend.
 - Profile with Instruments (idle, heavy output, side pane open) and confirm
   there are no endless timers or animations.
+- Bundle JetBrains Mono (TTF, OFL) and register it at launch, to match the
+  Wails build's default font.
 - Release pipeline: universal binary, codesign, notarize, DMG. Update README and
   the build/release recipes.
 - Ship as **v0.8.0** with the native build on macOS and Wails on Linux.

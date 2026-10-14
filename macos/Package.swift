@@ -11,9 +11,15 @@ let package = Package(
     ],
     targets: [
         .systemLibrary(name: "CWtf", path: "Sources/CWtf"),
+        // UI-independent logic, tested without the Go backend.
+        .target(name: "WtfCore", dependencies: ["SwiftTerm"]),
+        .testTarget(
+            name: "WtfCoreTests",
+            dependencies: ["WtfCore", "SwiftTerm"]
+        ),
         .executableTarget(
             name: "wtf",
-            dependencies: ["CWtf", "SwiftTerm"],
+            dependencies: ["CWtf", "WtfCore", "SwiftTerm"],
             path: "Sources/Wtf",
             linkerSettings: [
                 .unsafeFlags(["-L../bin/native"]),

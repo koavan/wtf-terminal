@@ -1,11 +1,13 @@
-// wtf, native macOS UI. M1: one window, one terminal, on the full Go
-// backend (cmd/libwtf).
+// wtf, native macOS UI: one window, one terminal (tabs and splits come in
+// M3), on the full Go backend (cmd/libwtf).
 //
 // Environment:
 //   WTF_NATIVE_RENDERER=metal   use SwiftTerm's Metal renderer (default CoreText)
 //   WTF_NATIVE_RUN="cmd"        typed into the shell once it starts (benchmarks)
-//   WTF_NATIVE_DEBUG=1          log title changes
+//   WTF_NATIVE_DEBUG=1          log titles, commands and secret covers
+//                               (=secrets also turns Hide Secrets on)
 import AppKit
+import SwiftTerm
 
 @MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
@@ -27,6 +29,19 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
             return
         }
 
+        Task {
+            do {
+                try await Settings.shared.start()
+            } catch {
+                fail("Couldn't load the config", error)
+                return
+            }
+            if ProcessInfo.processInfo.environment["WTF_NATIVE_DEBUG"] == "secrets" { Redaction.shared.on = true }
+            openWindow()
+        }
+    }
+
+    private func openWindow() {
         let frame = NSRect(x: 0, y: 0, width: 1100, height: 700)
         window = NSWindow(contentRect: frame, styleMask: [.titled, .closable, .miniaturizable, .resizable],
                           backing: .buffered, defer: false)
@@ -40,7 +55,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
             self?.window.title = title
         }
         term.onExit = { _ in NSApp.terminate(nil) }
-        window.contentView = term.view
+        window.contentView = term.container
         window.center()
         window.makeKeyAndOrderFront(nil)
         window.makeFirstResponder(term.view)
@@ -52,6 +67,28 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
                 let about = try await Backend.call("about", "Info", as: AboutInfo.self)
                 window.subtitle = "\(about.version) · \(about.shell)\(about.shellIntegration ? " · integrated" : "")"
                 NSLog("wtf \(about.version) (\(about.commit)) on \(about.os) \(about.arch), state \(about.stateDir)")
+                if ProcessInfo.processInfo.environment["WTF_NATIVE_DEBUG"] == "paste" {
+                    // Pastes two lines from a private pasteboard through the
+                    // responder chain, as ⌘V does, then quits.
+                    Clipboard.board = NSPasteboard(name: .init("wtf.debug"))
+                    Clipboard.copy("echo one\necho two\n")
+                    try await Task.sleep(for: .seconds(1))
+                    NSLog("first responder: \(String(describing: window.firstResponder))")
+                    NSLog("pasteboard holds: \(String(describing: Clipboard.text))")
+                    // A ⌘V key press, through the menu's key equivalent like a real one.
+                    NSLog("key window: \(String(describing: NSApp.keyWindow)), active \(NSApp.isActive)")
+                    window.makeKey()
+                    let v = NSEvent.keyEvent(with: .keyDown, location: .zero, modifierFlags: .command, timestamp: 0,
+                                             windowNumber: window.windowNumber, context: nil, characters: "v",
+                                             charactersIgnoringModifiers: "v", isARepeat: false, keyCode: 9)!
+                    NSApp.sendEvent(v)
+                    NSLog("menu paste item enabled: \(String(describing: NSApp.mainMenu?.item(at: 1)?.submenu?.item(withTitle: "Paste")?.isEnabled))")
+                    try await Task.sleep(for: .seconds(1))
+                    NSLog("sheet: \(String(describing: window.attachedSheet))")
+                    // Cancel it, or the open sheet would keep the app from quitting.
+                    if let sheet = window.attachedSheet { window.endSheet(sheet, returnCode: .cancel) }
+                    NSApp.terminate(nil)
+                }
                 if let cmd = ProcessInfo.processInfo.environment["WTF_NATIVE_RUN"], !cmd.isEmpty {
                     try await Task.sleep(for: .seconds(1.5))
                     term.type(cmd + "\r")
@@ -94,16 +131,43 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
 @MainActor
 func buildMenu() -> NSMenu {
     let menu = NSMenu()
-    let appItem = NSMenuItem()
-    appItem.submenu = NSMenu()
-    appItem.submenu!.addItem(withTitle: "Quit wtf", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
-    menu.addItem(appItem)
-    let editItem = NSMenuItem()
-    editItem.submenu = NSMenu(title: "Edit")
-    editItem.submenu!.addItem(withTitle: "Copy", action: #selector(NSText.copy(_:)), keyEquivalent: "c")
-    editItem.submenu!.addItem(withTitle: "Paste", action: #selector(NSText.paste(_:)), keyEquivalent: "v")
-    editItem.submenu!.addItem(withTitle: "Select All", action: #selector(NSText.selectAll(_:)), keyEquivalent: "a")
-    menu.addItem(editItem)
+    func submenu(_ title: String, _ items: [NSMenuItem]) {
+        let top = NSMenuItem()
+        top.submenu = NSMenu(title: title)
+        items.forEach(top.submenu!.addItem)
+        menu.addItem(top)
+    }
+    func item(_ title: String, _ action: Selector, _ key: String = "", _ mods: NSEvent.ModifierFlags = .command, tag: Int = 0) -> NSMenuItem {
+        let i = NSMenuItem(title: title, action: action, keyEquivalent: key)
+        i.keyEquivalentModifierMask = mods
+        i.tag = tag
+        return i
+    }
+    let find = #selector(WtfTerminalView.wtfFind(_:))
+    submenu("wtf", [item("Quit wtf", #selector(NSApplication.terminate(_:)), "q")])
+    // Shortcuts as in the Wails build's menu (main.go).
+    submenu("Edit", [
+        item("Copy", #selector(NSText.copy(_:)), "c"),
+        item("Paste", #selector(NSText.paste(_:)), "v"),
+        item("Select All", #selector(NSText.selectAll(_:)), "a"),
+        .separator(),
+        item("Find…", find, "f", tag: Int(NSFindPanelAction.showFindPanel.rawValue)),
+        item("Find Next", find, "g", tag: Int(NSFindPanelAction.next.rawValue)),
+        item("Find Previous", find, "g", [.command, .shift], tag: Int(NSFindPanelAction.previous.rawValue)),
+        .separator(),
+        item("Copy Last Command Output", #selector(WtfTerminalView.copyLastOutput(_:)), "c", [.command, .option]),
+        item("Clear Buffer", #selector(WtfTerminalView.clearBuffer(_:)), "k"),
+    ])
+    submenu("View", [
+        item("Hide Secrets", #selector(WtfTerminalView.toggleSecrets(_:)), "r", [.command, .option]),
+        .separator(),
+        item("Previous Prompt", #selector(WtfTerminalView.previousPrompt(_:)), String(UnicodeScalar(NSUpArrowFunctionKey)!)),
+        item("Next Prompt", #selector(WtfTerminalView.nextPrompt(_:)), String(UnicodeScalar(NSDownArrowFunctionKey)!)),
+        .separator(),
+        item("Bigger Text", #selector(WtfTerminalView.biggerText(_:)), "="),
+        item("Smaller Text", #selector(WtfTerminalView.smallerText(_:)), "-"),
+        item("Actual Size", #selector(WtfTerminalView.actualSize(_:)), "0"),
+    ])
     return menu
 }
 
