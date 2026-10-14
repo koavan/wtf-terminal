@@ -223,7 +223,9 @@ final class AddressBar: NSView {
             l.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
             v.set([dot, l])
             v.toolTip = Redaction.shared.text(p.command)
-            v.widthAnchor.constraint(lessThanOrEqualTo: omnibox.widthAnchor, multiplier: 0.4).isActive = true
+            // At most 40% of the bar. A fixed width: the chip isn't in the bar yet,
+            // and a constraint to a view outside its hierarchy throws.
+            v.widthAnchor.constraint(lessThanOrEqualToConstant: max(120, omnibox.bounds.width * 0.4)).isActive = true
             return v
         }
         guard let last = p.lastCommand else { return nil }

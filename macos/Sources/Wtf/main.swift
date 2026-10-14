@@ -74,6 +74,60 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             NSLog("tabs: \(m.tabs.map { m.title($0) }) groups: \(m.groups.map(\.name)) panes: \(m.panes.count)")
             NSApp.terminate(nil)
         }
+        if env["WTF_NATIVE_DEBUG"] == "snapshot", let dir = env["WTF_NATIVE_SNAPSHOT_DIR"] {
+            // Renders the window with each side-pane tab to PNGs, for checking
+            // the layout without screen recording. Then quits.
+            func snap(_ name: String) {
+                guard let v = w.window?.contentView, let rep = v.bitmapImageRepForCachingDisplay(in: v.bounds) else { return }
+                v.cacheDisplay(in: v.bounds, to: rep)
+                try? rep.representation(using: .png, properties: [:])?.write(to: URL(fileURLWithPath: "\(dir)/\(name).png"))
+                NSLog("snapshot \(name)")
+            }
+            w.activeTerminal?.type("cd ~/Documents\r")
+            for (tab, name) in [(SidebarTab.files, "files"), (.kube, "kube"), (.ssh, "ssh")] {
+                w.sidebar.tab = tab
+                w.sidebar.open = true
+                w.layoutSidebar()
+                try? await Task.sleep(for: .seconds(2.5))
+                snap(name)
+            }
+            NSApp.terminate(nil)
+        }
+        if env["WTF_NATIVE_DEBUG"] == "kubeclicks" {
+            // Clicks Kubernetes section headings through the real mouse path
+            // (without reading the cluster), then quits.
+            w.window?.makeKey()
+            w.sidebar.tab = .kube
+            w.sidebar.kubeView = "cluster"
+            w.sidebar.open = true
+            w.layoutSidebar()
+            try? await Task.sleep(for: .seconds(2.5))
+            NSLog("before: \(w.sidePane?.debugSummary() ?? "-")")
+            let clicked = (w.sidePane as? KubeView)?.debugClick(["Deployments", "Pods"]) ?? []
+            try? await Task.sleep(for: .seconds(0.5))
+            NSLog("clicked \(clicked); after: \(w.sidePane?.debugSummary() ?? "-")")
+            NSApp.terminate(nil)
+        }
+        if env["WTF_NATIVE_DEBUG"] == "commands" {
+            // Runs commands so the address bar shows running, ✓ and ✗, with
+            // the Files tab following the cd. Then quits.
+            w.showSidebar(.files)
+            w.activeTerminal?.type("cd /tmp\rsleep 1\rfalse\r")
+            try? await Task.sleep(for: .seconds(4))
+            NSLog("\(w.sidePane?.debugSummary() ?? "no side pane")")
+            NSLog("last command: \(w.activePane.map { "\($0.lastCommand?.text ?? "-") exit \($0.lastCommand?.exitCode ?? -1), cwd \($0.cwd)" } ?? "-")")
+            NSApp.terminate(nil)
+        }
+        if env["WTF_NATIVE_DEBUG"] == "sidebar" {
+            // Opens each side-pane tab (read-only views), logs what it shows, quits.
+            for tab in [SidebarTab.files, .ssh, .kube] {
+                w.showSidebar(tab)
+                try? await Task.sleep(for: .seconds(2.5))
+                NSLog("\(w.sidePane?.debugSummary() ?? "no side pane")")
+            }
+            NSLog("sidebar state: open \(w.sidebar.open), tab \(w.sidebar.tab), width \(w.sidebar.width)")
+            NSApp.terminate(nil)
+        }
         if env["WTF_NATIVE_DEBUG"] == "restore" {
             let m = w.model
             NSLog("restored windows: \(WindowManager.shared.windows.map(\.name)) tabs: \(m.tabs.map { "\(m.title($0)):\($0.root.leaves.count)" }) groups: \(m.groups.map { "\($0.name)/\($0.color)" })")
@@ -194,6 +248,10 @@ func buildMenu() -> NSMenu {
     ])
     _ = submenu("View", [
         cmd("Command Palette…", "palette", "p", [.command, .shift]),
+        cmd("Toggle Sidebar", "sidebar.toggle", "b"),
+        cmd("Show Files", "sidebar.files", "e", [.command, .shift]),
+        cmd("Show SSH Hosts", "sidebar.ssh", "s", [.command, .shift]),
+        cmd("Show Kubernetes", "sidebar.kube", "k", [.command, .shift]),
         cmd("Hide Secrets", "secrets.toggle", "r", [.command, .option]),
         .separator(),
         cmd("Previous Prompt", "prompt.prev", up),

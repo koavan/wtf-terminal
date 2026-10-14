@@ -18,6 +18,9 @@ public struct Config: Decodable, Equatable, Sendable {
     public var notifyAfter: Double
     public var unfocusedSplitDim: Double
     public var contextBadges: Bool
+    public var sidebarAutoRefresh: Bool
+    public var sidebarRefreshInterval: Double
+    public var showUsage: Bool
     public var redactSecrets: Bool
     public var clipboardClear: Double
     public var confirmPaste: Bool

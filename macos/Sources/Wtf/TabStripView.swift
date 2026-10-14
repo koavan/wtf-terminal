@@ -25,6 +25,9 @@ final class TabStripView: NSView, NSTextFieldDelegate {
     var onChip: ((_ group: Int, _ rightClick: Bool, _ rect: NSRect) -> Void)?
     var onTearOff: ((_ tab: Int, _ screenPoint: NSPoint) -> Void)?
     var onRenamed: (() -> Void)?
+    var onToggleSidebar: (() -> Void)?
+    var sidebarOpen = false { didSet { needsDisplay = true } }
+    private var sidebarRect = NSRect.zero
     /// Whether the tab's input is broadcast, and whether it records.
     var broadcasting: (Int) -> Bool = { _ in false }
     var recording: (Int) -> Bool = { _ in false }
@@ -58,7 +61,7 @@ final class TabStripView: NSView, NSTextFieldDelegate {
     override func acceptsFirstMouse(for event: NSEvent?) -> Bool { true }
 
     /// Room for the traffic lights, except in full screen.
-    private var leftInset: CGFloat { window?.styleMask.contains(.fullScreen) == true ? 12 : 84 }
+    private var leftInset: CGFloat { (window?.styleMask.contains(.fullScreen) == true ? 12 : 84) + 34 }
 
     func refresh() {
         layoutItems()
@@ -113,6 +116,7 @@ final class TabStripView: NSView, NSTextFieldDelegate {
             return .tab(id: entry.tab!.id, rect: NSRect(x: x, y: y, width: tabWidth, height: Self.tabHeight))
         }
         plusRect = NSRect(x: x + 2, y: (Self.height - 28) / 2, width: 28, height: 28)
+        sidebarRect = NSRect(x: leftInset - 34, y: (Self.height - 28) / 2, width: 28, height: 28)
     }
 
     private func rect(of tab: Int) -> NSRect? {
@@ -157,6 +161,16 @@ final class TabStripView: NSView, NSTextFieldDelegate {
             var moved = r
             moved.origin.x = d.x
             drawTab(t, moved, lifted: true)
+        }
+
+        // The side pane toggle, left of the tabs.
+        if let img = NSImage(systemSymbolName: "sidebar.left", accessibilityDescription: "Toggle Sidebar")?
+            .withSymbolConfiguration(.init(pointSize: 14, weight: .regular)) {
+            if hover == -2 {
+                NSColor.labelColor.withAlphaComponent(0.08).setFill()
+                NSBezierPath(roundedRect: sidebarRect, xRadius: 7, yRadius: 7).fill()
+            }
+            draw(symbol: img, in: sidebarRect, tint: sidebarOpen ? .labelColor : .secondaryLabelColor)
         }
 
         // The + button.
@@ -318,6 +332,8 @@ final class TabStripView: NSView, NSTextFieldDelegate {
             onClose = closeRect(r).contains(p)
         } else if plusRect.contains(p) {
             h = -1
+        } else if sidebarRect.contains(p) {
+            h = -2
         }
         if h != hover || onClose != hoverClose {
             hover = h
@@ -332,6 +348,8 @@ final class TabStripView: NSView, NSTextFieldDelegate {
             toolTip = "\(g.name.isEmpty ? "Unnamed group" : g.name) — \(n) \(n == 1 ? "tab" : "tabs")"
         } else if plusRect.contains(p) {
             toolTip = "New Tab (⌘T)"
+        } else if sidebarRect.contains(p) {
+            toolTip = "Toggle Sidebar (⌘B)"
         } else {
             toolTip = nil
         }
@@ -361,7 +379,9 @@ final class TabStripView: NSView, NSTextFieldDelegate {
         case .chip(let gid, let r):
             onChip?(gid, false, r)
         case nil:
-            if plusRect.contains(p) {
+            if sidebarRect.contains(p) {
+                onToggleSidebar?()
+            } else if plusRect.contains(p) {
                 onNewTab?()
             } else if event.clickCount == 2 {
                 // As the system's title bar does: zoom or minimise, per the user's setting.

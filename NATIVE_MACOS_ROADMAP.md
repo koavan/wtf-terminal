@@ -228,15 +228,61 @@ palette), and the port follows them.
   zoomed the window (the title bar saw it too; strip double-clicks now go to
   the strip only).
 
-## M4 — Side pane I ☐
+## M4 — Side pane I ☑
 
-- Side pane container: tabs, collapsing, and loading data only when shown.
-- **Files:** `FileTree` with git status, file actions, `TransferDialog`.
-- **SSH:** `SshView`, `SshHosts`, `HostEditor`, `GroupEditor`, `SshKeys`,
-  `KeyGenerator`/`KeyGenForm`/`KeyInstall`, `SshTunnels`/`TunnelEditor`/
-  `ForwardRow`, `HostKeysDialog`, `ScanDialog`, `GitIdentities`/`GitIdentityEditor`.
-- **Kube:** `KubeView`, `KubeContexts`, `KubeCluster`, `EksAddDialog`, logs.
-- Exec, describe and SSH actions type into the focused shell (runInPane).
+Specs for this milestone were written from the Svelte and Go sources (side pane and Files, SSH,
+Kubernetes), and the port follows them.
+
+- ☑ `cmd/swiftgen`: typed Swift for every backend service. It generates Codable
+  models for the 74 Go types (lenient: `null` becomes empty) and an async
+  function per method (106). `TestGeneratedSwiftIsCurrent` fails when they're
+  stale.
+- ☑ Side pane container: icon rail (Files, SSH Hosts, Kubernetes so far), drag
+  to resize (220–520, double-click for 300), ⌘B and a toggle in the strip, and
+  ⌘⇧E/S/K (pressing the shown tab's shortcut closes the pane). The state is
+  saved in the session's `sidebar` object (`SidebarState`, unknown fields
+  kept). Closed means gone, and only the shown tab exists.
+- ☑ Files: follows the focused pane or a pinned root, with Back and Up history
+  per pane, filter, keyboard navigation, git letters and folder dots
+  (`GitIndex`), the changes list, file, folder and git menus, a Remote session
+  note for ssh panes, and drag a path onto a terminal. It reads on root change
+  and 250 ms after each command; there's no timer.
+- ☑ SSH:
+  - Hosts: grouped by file plus known hosts, multi-select, open here, as a
+    split, in tabs or as a tab group (with broadcast), sftp, scp (dropping a
+    file on a host opens the upload), the host editor, delete, host keys
+    (scan, forget, trust).
+  - Keys: agent load and unload, passphrase, chmod, `.pub`, install on a host,
+    delete, and generate in a terminal.
+  - Git identities: use, stop, test login, add to GitHub, editor; also in the
+    tab menu.
+  - Tunnels: live from `ssh:tunnels`, with the tunnel editor.
+  - Rules ported with tests (`WtfCore/Ssh.swift`).
+- ☑ Kubernetes:
+  - Resources: 17 sections, read only while open and polled at most every
+    max(setting, 10 s) while the window is in front. Namespace override,
+    deployment → pods, row menus with exact kubectl commands, confirmations
+    for anything that changes the cluster, scale, secret viewer (masked,
+    hidden on blur) and port-forward.
+  - Contexts: per-shell switching through overlay files, plan → confirm →
+    back up → apply edits, Test Connection, Add EKS Cluster, merge.
+  - Rules ported with tests (`WtfCore/Kube.swift`).
+- ☑ Shared pieces: `SideList` (sections, collapsible headings, pills, menus,
+  drops) and `FormSheet` (dialogs).
+- ☑ Self-check `WTF_NATIVE_DEBUG=sidebar` (read-only) passed 2026-10-14.
+- → Moved to M5: the in-app SSH key generator form (it lives in the Generate
+  tab); until then "+ New key" uses the generate-in-terminal dialog.
+- ☑ Hands-on (2026-10-14), with these fixes:
+  - Any command crashed the app: the address bar's running chip had a
+    constraint tied to a view it wasn't attached to yet.
+  - File names were cut early (a stale cached size on reused rows).
+  - Empty-state notes didn't wrap to the pane.
+  - Section headings had stray bars behind them.
+  - The side pane's fields took the keyboard from the terminal.
+  - Kubernetes headings didn't open: the table swallowed their clicks.
+
+  New self-checks: `commands`, `kubeclicks` (no cluster reads), and `snapshot`
+  (the app renders its window to PNGs for layout checks).
 
 ## M5 — Side pane II ☐
 

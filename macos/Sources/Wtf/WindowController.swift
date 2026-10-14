@@ -22,6 +22,9 @@ final class WindowController: NSWindowController, NSWindowDelegate, NSMenuItemVa
     private var lastSaved = ""
     private var closing = false
     private var sessionExtra: [String: JSONValue] = [:]
+    /// The side pane: whether it's open, how wide, which tab (saved per window).
+    var sidebar = SidebarState()
+    private var sidebarView: Sidebar?
 
     init(name: String) {
         self.name = name
@@ -64,6 +67,7 @@ final class WindowController: NSWindowController, NSWindowDelegate, NSMenuItemVa
         }
         strip.onTearOff = { [weak self] id, at in self?.moveToNewWindow(id, at: at) }
         strip.onRenamed = { [weak self] in self?.focusActive() }
+        strip.onToggleSidebar = { [weak self] in self?.toggleSidebar(nil) }
         strip.broadcasting = { Broadcast.shared.isBroadcasting(tab: $0, in: self) }
         panes.onRatio = { [weak self] path, r in
             guard let self, let t = model.active else { return }
@@ -71,6 +75,7 @@ final class WindowController: NSWindowController, NSWindowDelegate, NSMenuItemVa
         }
         Settings.shared.observe(self) { $0.applyTheme() }
         applyTheme()
+        if !SshStore.shared.identitiesLoaded { SshStore.shared.loadIdentities() }
     }
 
     required init?(coder: NSCoder) { fatalError() }
@@ -86,12 +91,58 @@ final class WindowController: NSWindowController, NSWindowDelegate, NSMenuItemVa
             // A workspace opened in this new window.
         } else if let session, model.restore(session) {
             sessionExtra = session.extra
+            sidebar = SidebarState(json: session.extra["sidebar"])
         } else {
             model.open(cwd: "")
         }
         sync()
+        layoutSidebar()
         lastSaved = sessionJSON()
     }
+
+    // MARK: Side pane
+
+    /// Shows, hides or resizes the side pane to match `sidebar`.
+    func layoutSidebar() {
+        if sidebar.open {
+            if sidebarView == nil {
+                let v = Sidebar(window: self)
+                sidebarView = v
+                root.sidebar = v
+            }
+            sidebarView?.update()
+        } else if sidebarView != nil {
+            // Closed means gone: nothing in it keeps running.
+            root.sidebar = nil
+            sidebarView = nil
+        }
+        root.sidebarWidth = CGFloat(sidebar.width)
+        root.needsLayout = true
+        strip.sidebarOpen = sidebar.open
+        scheduleSave()
+    }
+
+    func sidebarChanged() { layoutSidebar() }
+
+    @objc func toggleSidebar(_ sender: Any?) {
+        sidebar.open.toggle()
+        layoutSidebar()
+    }
+
+    /// A tab's shortcut: opens the pane on it, or closes the pane when it's
+    /// already showing it (as VS Code does).
+    func showSidebar(_ tab: SidebarTab) {
+        if sidebar.open, sidebar.tab == tab {
+            sidebar.open = false
+        } else {
+            sidebar.tab = tab
+            sidebar.open = true
+        }
+        Debug.log("showSidebar(\(tab)) → open \(sidebar.open), tab \(sidebar.tab)")
+        layoutSidebar()
+    }
+
+    var sidePane: SidePaneTab? { sidebarView?.content }
 
     // MARK: Model → views
 
@@ -118,6 +169,7 @@ final class WindowController: NSWindowController, NSWindowDelegate, NSMenuItemVa
         window?.title = model.active.map { Redaction.shared.text(model.title($0)) } ?? "wtf"
         // The keyboard moves only when another pane comes to the front:
         // renaming a group or a tab, or any other edit, keeps it where it is.
+        sidePane?.paneChanged()
         let front = model.active.map { [$0.id, $0.focusedPaneId] }
         if front != lastFront {
             lastFront = front
@@ -217,9 +269,11 @@ final class WindowController: NSWindowController, NSWindowDelegate, NSMenuItemVa
         term.onCommandEnd = { [weak self] code, ms in
             guard let self, let p = model.panes[id] else { return }
             p.lastCommand = (p.command, code, ms)
+            SshStore.shared.commandFinished(p.command)
             p.running = false
             p.command = ""
             model.markFinished(pane: id, ok: code == 0)
+            if id == model.active?.focusedPaneId { sidePane?.commandFinished() }
             notifyIfSlow(p, code, ms)
             strip.refresh()
             refreshBars()
@@ -289,7 +343,9 @@ final class WindowController: NSWindowController, NSWindowDelegate, NSMenuItemVa
     // MARK: Saving
 
     private func sessionJSON() -> String {
-        let s = model.snapshot(fontSize: Settings.shared.fontSize, extra: sessionExtra)
+        var extra = sessionExtra
+        extra["sidebar"] = sidebar.json
+        let s = model.snapshot(fontSize: Settings.shared.fontSize, extra: extra)
         let enc = JSONEncoder()
         enc.outputFormatting = .sortedKeys
         return (try? enc.encode(s)).map { String(decoding: $0, as: UTF8.self) } ?? ""
@@ -483,6 +539,32 @@ final class WindowController: NSWindowController, NSWindowDelegate, NSMenuItemVa
             }
         }
         m.addItem(.separator())
+        // Git identities: switch this tab's shell to one, or back.
+        let identities = SshStore.shared.identities
+        let current = model.focusedPane(t)?.identity
+        if identities.isEmpty {
+            add("Git Identities…") { [weak self] in self?.showGitIdentities() }
+        } else {
+            let heading = NSMenuItem(title: current.map { "Git identity: \($0)" } ?? "Git identity", action: nil, keyEquivalent: "")
+            heading.isEnabled = false
+            m.addItem(heading)
+            for i in identities where i.name != current {
+                let item = ClosureMenuItem(title: "Use \(i.name)", keyEquivalent: "") { [weak self] in
+                    guard let self, let p = model.tab(id)?.focusedPaneId else { return }
+                    runInPane(p, Shell.useIdentity(.init(name: i.name, authorName: i.authorName, authorEmail: i.authorEmail, keyPath: i.keyPath)))
+                }
+                item.indentationLevel = 1
+                m.addItem(item)
+            }
+            if current != nil {
+                add("Stop Using Identity") { [weak self] in
+                    guard let self, let p = model.tab(id)?.focusedPaneId else { return }
+                    runInPane(p, "unset GIT_SSH_COMMAND GIT_AUTHOR_NAME GIT_AUTHOR_EMAIL GIT_COMMITTER_NAME GIT_COMMITTER_EMAIL WTF_GIT_IDENTITY")
+                }
+            }
+            add("Git Identities…") { [weak self] in self?.showGitIdentities() }
+        }
+        m.addItem(.separator())
         add("Duplicate") { [weak self] in self?.model.openNextTo(id, duplicate: true) }
         m.addItem(.separator())
         if model.tabs.count > 1 {
@@ -511,6 +593,15 @@ final class WindowController: NSWindowController, NSWindowDelegate, NSMenuItemVa
             }
         }
         return m
+    }
+
+    /// The SSH tab's Git section.
+    func showGitIdentities() {
+        sidebar.sshSection = "git"
+        sidebar.tab = .ssh
+        sidebar.open = true
+        layoutSidebar()
+        sidebarView?.update()
     }
 
     static func dot(_ c: NSColor) -> NSImage {
@@ -618,17 +709,33 @@ final class RootView: NSView {
 
     required init?(coder: NSCoder) { fatalError() }
 
+    /// The side pane, left of the terminals and under the tab strip.
+    var sidebar: NSView? {
+        didSet {
+            oldValue?.removeFromSuperview()
+            if let sidebar { addSubview(sidebar) }
+            needsLayout = true
+        }
+    }
+    var sidebarWidth: CGFloat = 300
+
     override func layout() {
         super.layout()
         let h = TabStripView.height
         strip?.frame = NSRect(x: 0, y: 0, width: bounds.width, height: h)
+        var x: CGFloat = 0
+        if let sidebar {
+            let w = min(sidebarWidth, max(0, bounds.width - 240))
+            sidebar.frame = NSRect(x: 0, y: h, width: w, height: max(0, bounds.height - h))
+            x = w + 4
+        }
         var y = h
         if let m = middle {
             let mh = m.fittingSize.height > 0 ? m.fittingSize.height : 34
-            m.frame = NSRect(x: 0, y: y, width: bounds.width, height: mh)
+            m.frame = NSRect(x: x, y: y, width: bounds.width - x, height: mh)
             y += mh
         }
-        panes?.frame = NSRect(x: 0, y: y, width: bounds.width, height: max(0, bounds.height - y))
+        panes?.frame = NSRect(x: x, y: y, width: bounds.width - x, height: max(0, bounds.height - y))
     }
 }
 

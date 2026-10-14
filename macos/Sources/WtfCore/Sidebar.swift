@@ -1,0 +1,48 @@
+// The side pane's state as each window saves it in its session ("sidebar"),
+// validated field by field like lib/sidebar.svelte.ts. Fields this build
+// doesn't use are kept, so saving doesn't drop the Svelte build's.
+import Foundation
+
+public enum SidebarTab: String, CaseIterable, Sendable {
+    case files, ssh, aws, kube, snippets, workspaces, network, processes, history, pins, findings, share, generate
+}
+
+public struct SidebarState: Equatable, Sendable {
+    public static let minWidth = 220.0, maxWidth = 520.0, defaultWidth = 300.0
+
+    public var open = false
+    public var width = defaultWidth
+    /// The Files tab's locked root; nil follows the focused pane.
+    public var pinned: String?
+    public var tab: SidebarTab = .files
+    public var sshSection = "hosts"
+    public var kubeView = "cluster"
+    /// Everything else in the saved object, as it was.
+    var rest: [String: JSONValue] = [:]
+
+    public init() {}
+
+    public static func clampWidth(_ w: Double) -> Double { min(maxWidth, max(minWidth, w)).rounded() }
+
+    public init(json: JSONValue?) {
+        guard case .object(let o)? = json else { return }
+        rest = o
+        if case .bool(let b)? = o["open"] { open = b }
+        if case .number(let w)? = o["width"], w.isFinite { width = Self.clampWidth(w) }
+        if case .string(let p)? = o["pinned"], p.hasPrefix("/") { pinned = p }
+        if case .string(let t)? = o["tab"], let tab = SidebarTab(rawValue: t) { self.tab = tab }
+        if case .string(let s)? = o["sshSection"], ["hosts", "keys", "git", "tunnels"].contains(s) { sshSection = s }
+        if case .string(let k)? = o["kubeView"], ["cluster", "contexts"].contains(k) { kubeView = k }
+    }
+
+    public var json: JSONValue {
+        var o = rest
+        o["open"] = .bool(open)
+        o["width"] = .number(width)
+        o["pinned"] = pinned.map { .string($0) } ?? .null
+        o["tab"] = .string(tab.rawValue)
+        o["sshSection"] = .string(sshSection)
+        o["kubeView"] = .string(kubeView)
+        return .object(o)
+    }
+}

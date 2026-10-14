@@ -50,6 +50,21 @@ enum Commands {
                 Toast.show(on ? "Multi-line pastes are shown first" : "Pastes go straight in", in: w.rootView)
             }
         },
+        Command("sidebar.toggle", "Toggle Sidebar", "⌘B") { $0.toggleSidebar(nil) },
+        Command("sidebar.files", "Show Files", "⌘⇧E") { $0.showSidebar(.files) },
+        Command("sidebar.ssh", "Show SSH Hosts", "⌘⇧S") { $0.showSidebar(.ssh) },
+        Command("sidebar.kube", "Show Kubernetes", "⌘⇧K") { $0.showSidebar(.kube) },
+        Command("sidebar.autoRefresh", "Toggle Side Pane Auto-Refresh") { w in
+            let on = !(Settings.shared.config?.sidebarAutoRefresh ?? true)
+            Task { @MainActor in
+                do {
+                    try await Services.config.SetSidebarAutoRefresh(on)
+                    Toast.show(on ? "Side pane auto-refresh on" : "Side pane auto-refresh off", in: w.rootView)
+                } catch {
+                    Toast.show("Couldn't change the setting: \(error.localizedDescription)", in: w.rootView)
+                }
+            }
+        },
         Command("tab.new", "New Tab", "⌘T") { $0.model.open() },
         Command("tab.duplicate", "Duplicate Tab") { $0.model.duplicate() },
         Command("tab.close", "Close Tab", "⌥⌘W") { w in if let id = w.model.activeId { w.closeTabs([id]) } },

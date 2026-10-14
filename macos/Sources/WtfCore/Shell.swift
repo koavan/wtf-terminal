@@ -21,6 +21,13 @@ public enum Shell {
         public let authorName: String
         public let authorEmail: String
         public let keyPath: String
+
+        public init(name: String, authorName: String, authorEmail: String, keyPath: String) {
+            self.name = name
+            self.authorName = authorName
+            self.authorEmail = authorEmail
+            self.keyPath = keyPath
+        }
     }
 
     /// Makes git in this shell use the identity's key, and commit as its

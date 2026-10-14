@@ -20,6 +20,21 @@ final class TerminalContainer: NSView {
         overlay.autoresizingMask = [.width, .height]
         addSubview(terminal)
         addSubview(overlay)
+        registerForDraggedTypes([FilesView.pathType])
+    }
+
+    // A path dragged from the Files tab: pasted at the prompt.
+    override func draggingEntered(_ sender: NSDraggingInfo) -> NSDragOperation {
+        sender.draggingPasteboard.availableType(from: [FilesView.pathType]) != nil ? .copy : []
+    }
+
+    override func performDragOperation(_ sender: NSDraggingInfo) -> Bool {
+        guard let text = sender.draggingPasteboard.string(forType: .string),
+              let view = terminal as? WtfTerminalView else { return false }
+        window?.makeFirstResponder(view)
+        view.onFocus?()
+        view.pasteText(text + " ")
+        return true
     }
 
     required init?(coder: NSCoder) { fatalError() }
