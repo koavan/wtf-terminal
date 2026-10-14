@@ -1,0 +1,113 @@
+import AppKit
+import WtfCore
+
+/// The commands the palette lists and the menus run, by the ids the Wails
+/// build uses (lib/commands.ts). Only what the native app does so far:
+/// side-pane commands come with M4/M5.
+@MainActor
+struct Command {
+    let id: String
+    let label: String
+    /// Shortcut text shown in the palette (the menu holds the real binding).
+    let key: String
+    let available: @MainActor (WindowController) -> Bool
+    let run: @MainActor (WindowController) -> Void
+
+    init(_ id: String, _ label: String, _ key: String = "", available: (@MainActor (WindowController) -> Bool)? = nil,
+         _ run: @escaping @MainActor (WindowController) -> Void) {
+        self.id = id
+        self.label = label
+        self.key = key
+        self.available = available ?? { _ in true }
+        self.run = run
+    }
+}
+
+@MainActor
+enum Commands {
+    private static func split(_ w: WindowController) -> Bool { w.model.active?.root.isSplit == true }
+    private static func integrated(_ w: WindowController) -> Bool { w.activePane?.integrated == true }
+    private static func send(_ w: WindowController, _ sel: Selector) {
+        // Terminal commands go to the focused terminal's view.
+        _ = w.activeTerminal?.view.tryToPerform(sel, with: nil)
+    }
+
+    static var all: [Command] { [
+        Command("palette", "Command Palette", "⌘⇧P") { Palette.toggle(.commands, in: $0) },
+        Command("app.about", "About wtf") { _ in NSApp.orderFrontStandardAboutPanel(nil) },
+        Command("workspace.open", "Open Workspace…") { Palette.toggle(.workspaces, in: $0) },
+        Command("theme.pick", "Change Theme…") { Palette.toggle(.themes, in: $0) },
+        Command("config.open", "Open Settings File", "⌘,") { w in
+            Task { @MainActor in do { try await Backend.run("config", "OpenConfigFile") } catch { Toast.show("Couldn't open settings: \(error.localizedDescription)", in: w.rootView) } }
+        },
+        Command("themes.folder", "Open Themes Folder") { w in
+            Task { @MainActor in do { try await Backend.run("config", "OpenThemesFolder") } catch { Toast.show("Couldn't open folder: \(error.localizedDescription)", in: w.rootView) } }
+        },
+        Command("paste.confirm", "Toggle Paste Confirmation") { w in
+            let on = !(Settings.shared.config?.confirmPaste ?? true)
+            Task { @MainActor in
+                try? await Backend.run("config", "SetConfirmPaste", [on])
+                Toast.show(on ? "Multi-line pastes are shown first" : "Pastes go straight in", in: w.rootView)
+            }
+        },
+        Command("tab.new", "New Tab", "⌘T") { $0.model.open() },
+        Command("tab.duplicate", "Duplicate Tab") { $0.model.duplicate() },
+        Command("tab.close", "Close Tab", "⌥⌘W") { w in if let id = w.model.activeId { w.closeTabs([id]) } },
+        Command("tab.overview", "Show All Tabs", "⌘⇧\\") { TabOverview.toggle(in: $0) },
+        Command("tab.toNewWindow", "Move Tab to New Window") { w in if let id = w.model.activeId { w.moveToNewWindow(id) } },
+        Command("window.new", "New Window", "⌘N") { _ in WindowManager.shared.newWindow() },
+        Command("window.close", "Close Window", "⌘⇧W") { w in _ = w.windowShouldClose(w.window!) },
+        Command("tab.rename", "Rename Tab…") { w in w.renameTab(nil) },
+        Command("tab.reopen", "Reopen Closed Tab", "⌘⇧T") { $0.model.reopen() },
+        Command("tab.next", "Next Tab", "⌘⇧]") { $0.model.cycle(1) },
+        Command("tab.prev", "Previous Tab", "⌘⇧[") { $0.model.cycle(-1) },
+        Command("tab.moveRight", "Move Tab Right", "⌘⇧→") { $0.model.moveActive(1) },
+        Command("tab.moveLeft", "Move Tab Left", "⌘⇧←") { $0.model.moveActive(-1) },
+        Command("broadcast.toggle", "Toggle Broadcast Input", "⌥⌘B") { Broadcast.shared.toggleActive(in: $0) },
+        Command("tab.group", "Add Tab to New Group", "⌥⌘G") { $0.addTabToNewGroup(nil) },
+        Command("pane.splitRight", "Split Right", "⌘D") { $0.model.split(.row) },
+        Command("pane.splitDown", "Split Down", "⌘⇧D") { $0.model.split(.column) },
+        Command("pane.close", "Close Pane", "⌘W") { $0.closePaneOrTab(nil) },
+        Command("pane.zoom", "Toggle Pane Zoom", "⌘⇧↩", available: split) { $0.model.toggleZoom() },
+        Command("pane.next", "Next Pane", "⌘]", available: split) { $0.model.cyclePane(1) },
+        Command("pane.prev", "Previous Pane", "⌘[", available: split) { $0.model.cyclePane(-1) },
+        Command("pane.left", "Focus Pane Left", "⌥⌘←", available: split) { $0.model.focusDirection(.left) },
+        Command("pane.right", "Focus Pane Right", "⌥⌘→", available: split) { $0.model.focusDirection(.right) },
+        Command("pane.up", "Focus Pane Above", "⌥⌘↑", available: split) { $0.model.focusDirection(.up) },
+        Command("pane.down", "Focus Pane Below", "⌥⌘↓", available: split) { $0.model.focusDirection(.down) },
+        Command("find", "Find", "⌘F") { $0.activeTerminal?.showFind() },
+        Command("find.next", "Find Next", "⌘G") { $0.activeTerminal?.findNext() },
+        Command("find.prev", "Find Previous", "⌘⇧G") { $0.activeTerminal?.findPrevious() },
+        Command("prompt.prev", "Jump to Previous Prompt", "⌘↑", available: integrated) { $0.activeTerminal?.jumpPrompt(-1) },
+        Command("prompt.next", "Jump to Next Prompt", "⌘↓", available: integrated) { $0.activeTerminal?.jumpPrompt(1) },
+        Command("secrets.toggle", "Hide Secrets (toggle)", "⌥⌘R") { $0.activeTerminal?.toggleSecrets() },
+        Command("term.copyOutput", "Copy Last Command Output", "⌥⌘C", available: integrated) { $0.activeTerminal?.copyLastOutput() },
+        Command("term.clear", "Clear Buffer", "⌘K") { $0.activeTerminal?.clearBuffer() },
+        Command("term.selectAll", "Select All", "⌘A") { $0.activeTerminal?.view.selectAll() },
+        Command("term.copy", "Copy", "⌘C") { w in w.activeTerminal.map { $0.view.copy($0) } },
+        Command("term.paste", "Paste", "⌘V") { w in w.activeTerminal.map { $0.view.paste($0) } },
+        Command("font.bigger", "Bigger Text", "⌘=") { _ in Settings.shared.biggerText() },
+        Command("font.smaller", "Smaller Text", "⌘-") { _ in Settings.shared.smallerText() },
+        Command("font.reset", "Actual Size", "⌘0") { _ in Settings.shared.actualSize() },
+    ] }
+
+    static func run(_ id: String, in w: WindowController) {
+        if id.hasPrefix("tab.select.") {
+            let n = id.dropFirst("tab.select.".count)
+            n == "last" ? w.model.selectLast() : w.model.selectNumber(Int(n) ?? 0)
+            return
+        }
+        all.first { $0.id == id }?.run(w)
+    }
+}
+
+/// Menu items carry a command id; the key window runs it.
+@MainActor
+final class CommandTarget: NSObject {
+    static let shared = CommandTarget()
+
+    @objc func run(_ sender: NSMenuItem) {
+        guard let id = sender.representedObject as? String, let w = WindowManager.shared.keyWindow else { return }
+        Commands.run(id, in: w)
+    }
+}

@@ -13,6 +13,13 @@ final class WtfTerminalView: TerminalView {
     /// Builds the right-click menu for a point in the view.
     var contextMenu: ((NSEvent) -> NSMenu?)?
     var onSelectionChanged: (() -> Void)?
+    var onFocus: (() -> Void)?
+
+    /// A click into the pane focuses it (keyboard moves go through the model).
+    override func mouseDown(with event: NSEvent) {
+        onFocus?()
+        super.mouseDown(with: event)
+    }
 
     var selectedText: String? {
         guard selectionActive else { return nil }

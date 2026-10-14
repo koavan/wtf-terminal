@@ -10,22 +10,38 @@ final class TerminalController: NSObject, @MainActor TerminalViewDelegate, Outpu
     let view: WtfTerminalView
     let container: TerminalContainer
     private var overlay: TerminalOverlay { container.overlay }
-    private let window: String
+    /// The window (backend name) this pane is in; changes when its tab moves.
+    var windowName: String
+    /// The pane it shows; changes when its tab moves to another window.
+    var paneId: Int
+    /// The backend session, once started.
     private(set) var id: String?
     private var tracker: PromptTracker!
     private var searchBar: SearchBar?
     /// What runs in the shell now, from terminal:info.
-    private var info: TerminalInfo?
-    /// Called with the title the window should show.
-    var onTitle: ((String) -> Void)?
-    var onExit: ((Int) -> Void)?
+    var info: TerminalInfo?
+    private var closed = false
 
-    init(window: String, frame: NSRect) {
-        self.window = window
+    // What the window learns from this pane's shell.
+    var onPrompt: (() -> Void)?
+    var onCommandStart: ((String) -> Void)?
+    var onCommandEnd: ((_ exitCode: Int, _ durationMs: Double) -> Void)?
+    var onEnv: ((String) -> Void)?
+    /// Output arrived (for the background-tab dot).
+    var onOutput: (() -> Void)?
+    /// The terminal took keyboard focus (a click into the pane).
+    var onFocus: (() -> Void)?
+    /// Broadcast input: what's typed here, for the other panes.
+    var fanOut: ((ArraySlice<UInt8>) -> Void)?
+    /// Panes a paste goes to (1 unless broadcasting).
+    var broadcastCount: (() -> Int)?
+
+    init(pane: Int, window: String, frame: NSRect = NSRect(x: 0, y: 0, width: 800, height: 500)) {
+        paneId = pane
+        windowName = window
         view = WtfTerminalView(frame: frame, font: NSFont.monospacedSystemFont(ofSize: 13, weight: .regular))
         container = TerminalContainer(terminal: view)
         super.init()
-        container.autoresizingMask = [.width, .height]
         view.terminalDelegate = self
         view.controller = self
         // Links open with ⌘-click, as in the Wails build.
@@ -37,38 +53,72 @@ final class TerminalController: NSObject, @MainActor TerminalViewDelegate, Outpu
 
         tracker = PromptTracker(terminal: view.getTerminal())
         tracker.onChange = { [weak self] in self?.refreshOverlay() }
-        if ProcessInfo.processInfo.environment["WTF_NATIVE_DEBUG"] != nil {
-            tracker.onCommandStart = { NSLog("command: \(Redaction.shared.text($0)) (#\($1))") }
-            tracker.onCommandEnd = { NSLog("command done: exit \($0) in \(Format.duration(ms: $1))") }
+        tracker.onPrompt = { [weak self] in self?.onPrompt?() }
+        tracker.onCommandStart = { [weak self] text, _ in
+            Debug.log("command: \(Redaction.shared.text(text))")
+            self?.onCommandStart?(text)
         }
+        tracker.onCommandEnd = { [weak self] code, ms in
+            Debug.log("command done: exit \(code) in \(Format.duration(ms: ms))")
+            self?.onCommandEnd?(code, ms)
+        }
+        tracker.onEnv = { [weak self] in self?.onEnv?($0) }
         view.confirmPaste = { [weak self] in self?.confirmPaste($0) }
         view.contextMenu = { [weak self] in self?.contextMenu(for: $0) }
+        view.onFocus = { [weak self] in self?.onFocus?() }
         overlay.onMarkClick = { [weak self] id, event in self?.showBlockMenu(id, event) }
 
-        Settings.shared.observe { [weak self] in self?.applySettings() }
-        Redaction.shared.observe { [weak self] in self?.refreshOverlay() }
+        Settings.shared.observe(self) { $0.applySettings() }
+        Redaction.shared.observe(self) { $0.refreshOverlay() }
         applySettings()
     }
 
-    /// Starts a shell in the user's home directory.
-    func start() async throws {
+    /// Starts a shell in a folder ("" for home), then types the git identity
+    /// switch and the first command, if any.
+    func start(cwd: String, identity: String?, command: String?) async throws -> String {
         let term = view.getTerminal()
-        let id = try await Backend.call("terminal", "Create", [window, term.cols, term.rows, ""], as: String.self)
+        let id = try await Backend.call("terminal", "Create", [windowName, term.cols, term.rows, cwd], as: String.self)
         self.id = id
-        Backend.on("terminal:info", TerminalInfo.self) { [weak self] info in
-            guard let self, info.id == self.id else { return }
-            self.info = info
-            self.onTitle?(Redaction.shared.text(Self.title(info)))
-        }
-        Backend.on("terminal:exit", TerminalExit.self) { [weak self] exit in
-            guard let self, exit.id == self.id else { return }
-            self.onExit?(exit.code)
+        if closed {
+            close()
+            return id
         }
         try Backend.attach(id, to: self)
+        // The tty holds these until the shell reads them.
+        if let identity { type(await Self.identityCommand(identity, in: view) + "\r") }
+        if let command, !command.isEmpty { type(command + "\r") }
+        return id
+    }
+
+    /// The command that switches a shell to a saved git identity; empty when
+    /// it no longer exists.
+    private static func identityCommand(_ name: String, in view: NSView) async -> String {
+        let list = (try? await Backend.call("sshhosts", "GitIdentities", as: [Shell.GitIdentity].self)) ?? []
+        if let i = list.first(where: { $0.name == name }) { return Shell.useIdentity(i) }
+        Toast.show("Git identity “\(name)” no longer exists: this shell uses your own git and ssh config", in: view)
+        return ""
+    }
+
+    /// The tab moved to another window: the shell now belongs to it.
+    func moved(to window: String) {
+        windowName = window
+        if let id { Task { try? await Backend.run("terminal", "Adopt", [id, window]) } }
+    }
+
+    /// Hangs up the shell (its exit event follows).
+    func close() {
+        closed = true
+        if let id { Task { try? await Backend.run("terminal", "Close", [id]) } }
     }
 
     func type(_ text: String) {
-        if let id { Backend.write(id, Array(text.utf8)[...]) }
+        if let id, !text.isEmpty { Backend.write(id, Array(text.utf8)[...]) }
+    }
+
+    /// Ctrl-U, then the command and Return: for an idle prompt.
+    func run(_ command: String) {
+        type(Shell.clearLine + command + "\r")
+        view.window?.makeFirstResponder(view)
     }
 
     func output(_ bytes: ArraySlice<UInt8>) {
@@ -76,13 +126,19 @@ final class TerminalController: NSObject, @MainActor TerminalViewDelegate, Outpu
         // Covers go on before the frame is drawn; marks can wait a moment.
         if Redaction.shared.on { refreshCovers() }
         scheduleMarks()
+        onOutput?()
     }
 
-    private static func title(_ info: TerminalInfo) -> String {
-        let home = FileManager.default.homeDirectoryForCurrentUser.path
-        let dir = info.cwd.hasPrefix(home) ? "~" + info.cwd.dropFirst(home.count) : info.cwd
-        return info.isShell ? dir : "\(info.process) — \(dir)"
+    /// The last rows on screen as text, for the tab overview's preview.
+    func snapshot(rows: Int) -> [String] {
+        let t = view.getTerminal()
+        var end = Rows.cursor(t) + 1
+        while end > t.buffer.totalLinesTrimmed, Rows.text(t, end - 1).trimmingCharacters(in: .whitespaces).isEmpty { end -= 1 }
+        let lines = (max(t.buffer.totalLinesTrimmed, end - rows)..<max(end, t.buffer.totalLinesTrimmed)).map { Rows.text(t, $0) }
+        return Redaction.shared.on ? Redaction.shared.text(lines.joined(separator: "\n")).components(separatedBy: "\n") : lines
     }
+
+    func focus() { view.window?.makeFirstResponder(view) }
 
     // MARK: Look
 
@@ -176,7 +232,7 @@ final class TerminalController: NSObject, @MainActor TerminalViewDelegate, Outpu
 
     private func confirmPaste(_ text: String) {
         guard let window = view.window else { return }
-        PasteConfirm.show(text, bracketed: view.getTerminal().bracketedPasteMode, in: window) { [weak self] text in
+        PasteConfirm.show(text, bracketed: view.getTerminal().bracketedPasteMode, panes: broadcastCount?() ?? 1, in: window) { [weak self] text in
             guard let self else { return }
             view.window?.makeFirstResponder(view)
             view.pasteText(text)
@@ -376,7 +432,14 @@ final class TerminalController: NSObject, @MainActor TerminalViewDelegate, Outpu
     // MARK: TerminalViewDelegate
 
     func send(source: TerminalView, data: ArraySlice<UInt8>) {
-        if let id, !data.isEmpty { Backend.write(id, data) }
+        guard let id, !data.isEmpty else { return }
+        Backend.write(id, data)
+        fanOut?(data)
+    }
+
+    /// Bytes straight to the shell, bypassing the emulator (broadcast receivers).
+    func write(_ bytes: ArraySlice<UInt8>) {
+        if let id { Backend.write(id, bytes) }
     }
 
     func sizeChanged(source: TerminalView, newCols: Int, newRows: Int) {

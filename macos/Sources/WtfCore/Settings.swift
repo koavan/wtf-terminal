@@ -88,3 +88,42 @@ extension Theme {
         return RGB(c.r.rounded(), c.g.rounded(), c.b.rounded())
     }
 }
+
+extension RGB {
+    /// WCAG relative luminance, 0–1.
+    public var luminance: Double {
+        func lin(_ v: Double) -> Double {
+            let s = v / 255
+            return s <= 0.04045 ? s / 12.92 : pow((s + 0.055) / 1.055, 2.4)
+        }
+        return 0.2126 * lin(r) + 0.7152 * lin(g) + 0.0722 * lin(b)
+    }
+
+    /// How far from grey, 0–1 (pale pastels score low).
+    var chroma: Double { (max(r, g, b) - min(r, g, b)) / 255 }
+
+    func contrast(_ o: RGB) -> Double {
+        let (hi, lo) = (max(luminance, o.luminance), min(luminance, o.luminance))
+        return (hi + 0.05) / (lo + 0.05)
+    }
+}
+
+extension Theme {
+    /// The UI accent: the cursor colour when colourful and readable, else the
+    /// theme's blue, then magenta (accentFor in lib/themes.ts).
+    public var accent: RGB {
+        let bg = RGB(hex: background) ?? RGB(0, 0, 0)
+        let candidates = [cursor] + [12, 4, 13, 5].compactMap { $0 < palette.count ? palette[$0] : nil }
+        for c in candidates {
+            if let rgb = RGB(hex: c), rgb.chroma > 0.25, rgb.contrast(bg) >= 2.5 { return RGB(rgb.r, rgb.g, rgb.b) }
+        }
+        return dark ? RGB(0x8d, 0x9c, 0xff) : RGB(0x4c, 0x5b, 0xd4)
+    }
+
+    /// The window chrome around the terminal: a deeper (or lighter) shade of
+    /// its background (applyChrome in lib/themes.ts).
+    public var chrome: RGB {
+        let bg = RGB(hex: background) ?? RGB(0, 0, 0)
+        return dark ? bg.mixed(with: RGB(0, 0, 0), 0.28) : bg.mixed(with: RGB(214, 216, 222), 0.45)
+    }
+}

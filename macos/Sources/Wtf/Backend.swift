@@ -51,6 +51,15 @@ enum Backend {
         throw BackendError(message: "\(service).\(method) returned nothing")
     }
 
+    /// Calls service.method on this thread, blocking: only for quick calls
+    /// that must finish now (saving the session while quitting).
+    static func runNow(_ service: String, _ method: String, _ args: [any Encodable] = []) throws {
+        let out = wtf_call(service, method, try encode(args))!
+        defer { wtf_free(out) }
+        let reply = try JSONDecoder().decode(Reply<Nothing>.self, from: Data(bytes: out, count: strlen(out)))
+        if let error = reply.error { throw BackendError(message: error) }
+    }
+
     /// Calls service.method for its effect.
     static func run(_ service: String, _ method: String, _ args: [any Encodable] = []) async throws {
         _ = try await call(service, method, args, as: Nothing.self)

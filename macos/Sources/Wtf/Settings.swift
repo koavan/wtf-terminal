@@ -13,12 +13,20 @@ final class Settings {
     private(set) var resolved: ResolvedConfig?
     /// The size in use: config.toml's, until changed with Bigger/Smaller Text.
     private(set) var fontSize = 13.0
-    private var observers: [() -> Void] = []
+    private var observers = Observers()
     private var appearance: NSKeyValueObservation?
 
     var config: Config? { resolved?.config }
     var isDark: Bool { NSApp.effectiveAppearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua }
-    var theme: Theme? { resolved?.theme(dark: isDark) }
+    var theme: Theme? { previewing ?? resolved?.theme(dark: isDark) }
+    /// A theme shown while browsing themes in the palette.
+    private var previewing: Theme?
+
+    func preview(_ t: Theme?) {
+        guard t != previewing else { return }
+        previewing = t
+        changed()
+    }
 
     /// Loads the config, then follows its changes and the system appearance.
     func start() async throws {
@@ -37,14 +45,19 @@ final class Settings {
             Redaction.shared.on = true
         }
         resolved = r
+        // A saved theme replaces the one previewed.
+        previewing = nil
         if initial || sizeChanged { fontSize = r.config.fontSize }
+        if !initial, !r.problems.isEmpty, let w = WindowManager.shared.keyWindow {
+            Toast.show("Settings: \(r.problems[0])" + (r.problems.count > 1 ? " (+\(r.problems.count - 1) more)" : ""), in: w.rootView)
+        }
         changed()
     }
 
-    /// Runs whenever the config, theme or text size changes.
-    func observe(_ fn: @escaping () -> Void) { observers.append(fn) }
+    /// Runs whenever the config, theme or text size changes, while `owner` lives.
+    func observe<T: AnyObject>(_ owner: T, _ fn: @escaping (T) -> Void) { observers.add(owner, fn) }
 
-    private func changed() { observers.forEach { $0() } }
+    private func changed() { observers.notify() }
 
     func setFontSize(_ size: Double) {
         guard size.isFinite else { return }
@@ -65,14 +78,29 @@ final class Settings {
 @MainActor
 final class Redaction {
     static let shared = Redaction()
-    private var observers: [() -> Void] = []
+    private var observers = Observers()
 
     var on = false {
-        didSet { if on != oldValue { observers.forEach { $0() } } }
+        didSet { if on != oldValue { observers.notify() } }
     }
 
-    func observe(_ fn: @escaping () -> Void) { observers.append(fn) }
+    func observe<T: AnyObject>(_ owner: T, _ fn: @escaping (T) -> Void) { observers.add(owner, fn) }
 
     /// The text as it may be shown or copied now.
     func text(_ s: String) -> String { on && !s.isEmpty ? Secrets.redact(s) : s }
+}
+
+/// Callbacks that end with their owner: a closed pane stops listening.
+@MainActor
+struct Observers {
+    private var list: [(owner: () -> AnyObject?, fn: (AnyObject) -> Void)] = []
+
+    mutating func add<T: AnyObject>(_ owner: T, _ fn: @escaping (T) -> Void) {
+        list.append(({ [weak owner] in owner }, { fn($0 as! T) }))
+    }
+
+    mutating func notify() {
+        list.removeAll { $0.owner() == nil }
+        for o in list { if let owner = o.owner() { o.fn(owner) } }
+    }
 }

@@ -183,17 +183,50 @@ Replaces `TerminalPane.svelte`, `lib/terminals.ts` and the xterm add-ons.
   `WTF_NATIVE_DEBUG=paste` runs a self-closing check of ⌘V → confirmation
   sheet, using a private pasteboard.
 
-## M3 — Window shell (dogfood point) ☐
+## M3 — Window shell (dogfood point) ◐
 
-Replaces `TabStrip`, `TabPanes`, `TabOverview`, `AddressBar`, `Palette`,
-`BroadcastBar`, `ContextMenu`, `Toast` and `Overlays`.
+Specs for this milestone were written from the Svelte and Go sources (tabs, address bar,
+palette), and the port follows them.
 
-- Tabs and tab groups, splits, tab overview, rename.
-- Address bar with context badges (Kube, AWS, gcloud, Terraform, SSH facts).
-- Command palette, native menus, all shortcuts from `manual/shortcuts.md`.
-- Broadcast input, session restore, workspaces (open and edit).
-- Multiple windows, plus pausing background polling when no wtf window is in front.
-- **Done when:** you switch to it as your daily terminal, still without the side pane.
+- ☑ `WtfCore/WindowModel` + `Layout`: tabs, panes, the split tree, groups, titles,
+  rename, reorder with group settling, collapse, zoom, directional focus,
+  detach/adopt. `SavedSession` uses the same `session.json` shapes as the Svelte
+  build (version 2 per window), and unknown fields (sidebar) are kept. Ported
+  `tabs.test.ts`, including the 2,000-operation random invariant check.
+- ☑ Tab strip in the title bar (custom-drawn): process icons, activity and finished
+  dots, group chips and underline, close button, middle-click, double-click
+  rename, right-click menu, drag to reorder, drag off the strip for a new window,
+  and empty space moves or zooms the window.
+- ☑ Pane area: split tree layout, draggable dividers (double-click for 50/50),
+  dimmed unfocused panes (`unfocused-split-dim`), and a zoom pill.
+- ☑ Address bar: group chip, process chip, path breadcrumbs, context badges with
+  expiry clocks (`infra.Resolve`, newest request per pane wins, re-run on
+  `infra:changed`), the running/✓/✗ status chip, and a "Secrets hidden" toggle.
+  The badge logic is ported from `infra.ts` with its tests.
+- ☑ Broadcast input (⌥⌘B, tab menu, group editor): per window. Only the pane
+  with keyboard focus fans out, terminal reports are filtered (ported tests),
+  and there's the orange bar, pane outlines and a count in the paste
+  confirmation.
+- ☑ Palette (⌘⇧P): commands, tabs, groups and workspaces with the exact fuzzy
+  ranking (ported tests). Themes are previewed live and reverted on Esc.
+- ☑ Workspaces: open dialog with placeholders (`$kube_namespace` and the like),
+  live plan, here or in a new window. Splits are chained then evened out, and
+  groups matched within the plan (ported logic, with tests).
+- ☑ Windows: names `main`, `w2`…; saved windows reopen at launch; a moved tab
+  keeps its live terminal (scrollback, running program) instead of replaying a
+  buffer; close confirmations; quit asks when programs run (`RunningProcesses`)
+  and saves synchronously; polling pauses while no window is in front.
+- ☑ Menus as in `main.go` (Shell, Edit, View, Tab, Pane, Window), with Ctrl-Tab.
+- ☑ `libwtf` `session` service (saved windows, forget) for the native window manager.
+- ☑ Self-checks: `WTF_NATIVE_DEBUG=tabs` then `=restore` round-trip the session
+  through a real quit and relaunch (passed 2026-10-14).
+- → Moved to M5, next to the Workspaces side pane: the workspace editor (Save
+  Window as Workspace, edit, duplicate, delete, review).
+- ◐ Hands-on (2026-10-14, ongoing daily use) fixed so far: typing a group name
+  lost focus after each character (sync moved focus on every change; now only
+  when the front pane changes), and double-clicking a tab to rename also
+  zoomed the window (the title bar saw it too; strip double-clicks now go to
+  the strip only).
 
 ## M4 — Side pane I ☐
 

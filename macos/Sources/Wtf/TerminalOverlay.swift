@@ -33,6 +33,25 @@ final class TerminalContainer: NSView {
                                 height: max(0, bounds.height - p.top - p.bottom))
         overlay.frame = bounds
         overlay.needsDisplay = true
+        layer?.sublayers?.filter { $0.name == "broadcast" }.forEach { $0.frame = bounds.insetBy(dx: 2, dy: 2) }
+    }
+
+    /// The orange outline of a pane that receives broadcast input.
+    var outlined = false {
+        didSet {
+            guard outlined != oldValue else { return }
+            if outlined {
+                let l = CALayer()
+                l.name = "broadcast"
+                l.borderColor = NSColor.systemOrange.cgColor
+                l.borderWidth = 1.5
+                l.cornerRadius = 8
+                l.frame = bounds.insetBy(dx: 2, dy: 2)
+                layer?.addSublayer(l)
+            } else {
+                layer?.sublayers?.filter { $0.name == "broadcast" }.forEach { $0.removeFromSuperlayer() }
+            }
+        }
     }
 
     /// Clicks in the padding focus the terminal.

@@ -6,7 +6,7 @@ import WtfCore
 /// PasteConfirm.svelte.
 @MainActor
 enum PasteConfirm {
-    static func show(_ text: String, bracketed: Bool, in window: NSWindow, paste: @escaping (String) -> Void) {
+    static func show(_ text: String, bracketed: Bool, panes: Int = 1, in window: NSWindow, paste: @escaping (String) -> Void) {
         let f = PasteFacts(text)
         let alert = NSAlert()
         alert.messageText = f.lines > 1 ? "Paste \(f.lines) lines?"
@@ -18,6 +18,7 @@ enum PasteConfirm {
             has.isEmpty ? "" : "It has \(has.joined(separator: " and ")).",
             bracketed ? "The program here takes it as one paste and runs nothing until you press Enter."
                 : "The program here hasn’t asked for bracketed paste: a shell runs each line as it arrives.",
+            panes > 1 ? "Broadcast input is on: it goes to \(panes) panes." : "",
         ].filter { !$0.isEmpty }.joined(separator: " ")
 
         // The text as it would arrive, control characters made visible.

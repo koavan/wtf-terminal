@@ -41,6 +41,7 @@ import (
 	"github.com/dayanraj/wtf/internal/backend"
 	"github.com/dayanraj/wtf/internal/events"
 	"github.com/dayanraj/wtf/internal/paths"
+	"github.com/dayanraj/wtf/internal/state"
 	"github.com/dayanraj/wtf/internal/terminal"
 )
 
@@ -103,9 +104,21 @@ func wtf_init(version, commit, buildDate, stateDir, cacheDir *C.cstr_t, onEvent 
 		}
 		started = append(started, n.Service)
 	}
+	// What the Wails window manager reads from the store itself.
+	services["session"] = &session{b.Store}
 	be, cancel = b, stop
 	return nil
 }
+
+// session gives the native UI the saved windows to reopen at launch, and
+// forgets a window closed for good. (Saving goes through state.SaveWindow,
+// as in the Wails build.)
+type session struct{ store *state.Store }
+
+// Windows returns the saved windows in the order they were first saved.
+func (s *session) Windows() []state.Window { return s.store.Windows() }
+
+func (s *session) Forget(name string) error { return s.store.Forget(name) }
 
 // wtf_shutdown stops the services, last started first.
 //
