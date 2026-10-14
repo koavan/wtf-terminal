@@ -13,6 +13,8 @@ import (
 	"time"
 
 	"github.com/wailsapp/wails/v3/pkg/application"
+
+	"github.com/dayanraj/wtf/internal/activity"
 )
 
 const (
@@ -37,6 +39,8 @@ func init() {
 // Service loads the config, watches it, and pushes changes to the frontend.
 type Service struct {
 	dir string
+	// Watching pauses while no window is in front; nil never pauses.
+	active *activity.Gate
 
 	mu       sync.Mutex
 	current  Resolved
@@ -44,8 +48,8 @@ type Service struct {
 	snapshot string // fingerprint of the files on disk
 }
 
-func NewService(dir string) *Service {
-	s := &Service{dir: dir}
+func NewService(dir string, active *activity.Gate) *Service {
+	s := &Service{dir: dir, active: active}
 	s.reload()
 	return s
 }
@@ -157,6 +161,10 @@ func (s *Service) watch(ctx context.Context) {
 		case <-ctx.Done():
 			return
 		case <-t.C:
+		}
+		// In the background, wait; coming back, check at once.
+		if !s.active.Wait(ctx) {
+			return
 		}
 		s.mu.Lock()
 		changed := s.fingerprint() != s.snapshot

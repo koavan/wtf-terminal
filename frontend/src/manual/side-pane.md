@@ -28,6 +28,7 @@ Files, Kubernetes, the AWS "in use" marker and History all follow the pane you'r
 
 - Nothing in the side pane runs while it's closed, and only the visible tab updates.
 - Network and Processes pause while the window is in the background.
+- So does wtf's own checking of what each shell runs and where it is (tab titles, address bar) and of `config.toml`; both catch up the moment a wtf window comes back to the front.
 - Kubernetes reads a resource only when you expand its section.
 - **⏸** in a tab's header stops background updates everywhere (same as `sidebar-auto-refresh = false`); tabs then load when opened and refresh when you press **↻**. "Paused · updated …" says how old the data is.
 - `sidebar-refresh-interval` sets how often visible tabs update (3 seconds by default; Kubernetes waits at least 10).

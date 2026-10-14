@@ -69,7 +69,7 @@ func Defaults() Config {
 }
 
 // template is written the first time the user opens their config file.
-const template = `# wtf settings. Changes apply as soon as you save.
+const template = `# wtf settings. Changes apply as soon as you save (or switch back to wtf).
 # Remove the # in front of a line to change that setting.
 
 # Theme name, or one for each system appearance:

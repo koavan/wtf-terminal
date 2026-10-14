@@ -17,6 +17,8 @@ import (
 	"time"
 
 	"github.com/wailsapp/wails/v3/pkg/application"
+
+	"github.com/dayanraj/wtf/internal/activity"
 )
 
 const (
@@ -49,6 +51,8 @@ type Settings func() (shell string, integration bool)
 type Service struct {
 	version  string
 	settings Settings
+	// Info polling pauses while no window is in front; nil never pauses.
+	active *activity.Gate
 
 	mu       sync.Mutex
 	sessions map[string]*Session
@@ -66,10 +70,11 @@ type Service struct {
 	shuttingDown atomic.Bool
 }
 
-func NewService(version string, settings Settings) *Service {
+func NewService(version string, settings Settings, active *activity.Gate) *Service {
 	return &Service{
 		version:  version,
 		settings: settings,
+		active:   active,
 		sessions: map[string]*Session{},
 		lastInfo: map[string]Info{},
 	}
@@ -326,6 +331,7 @@ func (s *Service) get(id string) *Session {
 
 // pollInfo watches each session's foreground process and working directory,
 // and tells the frontend when either changes (tab titles, address bar).
+// While no window is in front it waits, and catches up on coming back.
 func (s *Service) pollInfo(ctx context.Context) {
 	t := time.NewTicker(infoPollInterval)
 	defer t.Stop()
@@ -334,6 +340,9 @@ func (s *Service) pollInfo(ctx context.Context) {
 		case <-ctx.Done():
 			return
 		case <-t.C:
+		}
+		if !s.active.Wait(ctx) {
+			return
 		}
 		s.mu.Lock()
 		all := make([]*Session, 0, len(s.sessions))

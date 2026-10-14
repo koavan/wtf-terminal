@@ -9,6 +9,7 @@ import (
 	"github.com/wailsapp/wails/v3/pkg/application"
 
 	"github.com/dayanraj/wtf/internal/about"
+	"github.com/dayanraj/wtf/internal/activity"
 	"github.com/dayanraj/wtf/internal/awsprofiles"
 	"github.com/dayanraj/wtf/internal/certs"
 	"github.com/dayanraj/wtf/internal/config"
@@ -48,14 +49,15 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	cfg := config.NewService(configDir)
+	active := activity.New()
+	cfg := config.NewService(configDir, active)
 	shellSettings := func() (string, bool) {
 		c := cfg.Current().Config
 		return c.Shell, c.ShellIntegration
 	}
-	term := terminal.NewService(version, shellSettings)
+	term := terminal.NewService(version, shellSettings, active)
 	store := state.NewStore(stateDir)
-	windows := wtfwindows.NewManager(term, store, windowOptions)
+	windows := wtfwindows.NewManager(term, store, windowOptions, active)
 
 	app := application.New(application.Options{
 		Name:        "wtf",

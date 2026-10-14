@@ -193,7 +193,7 @@ func TestRedactSecretsDefaultOff(t *testing.T) {
 }
 
 func TestServiceSetSidebarAutoRefresh(t *testing.T) {
-	s := NewService(t.TempDir())
+	s := NewService(t.TempDir(), nil)
 	if !s.Current().Config.SidebarAutoRefresh {
 		t.Fatal("auto-refresh should default to on")
 	}
@@ -206,7 +206,7 @@ func TestServiceSetSidebarAutoRefresh(t *testing.T) {
 }
 
 func TestServiceSetRedactSecrets(t *testing.T) {
-	s := NewService(t.TempDir())
+	s := NewService(t.TempDir(), nil)
 	if err := s.SetRedactSecrets(true); err != nil {
 		t.Fatal(err)
 	}
@@ -282,7 +282,7 @@ func TestThemesDirReportsBadFiles(t *testing.T) {
 
 func TestServiceSetThemeAndReload(t *testing.T) {
 	dir := t.TempDir()
-	s := NewService(dir)
+	s := NewService(dir, nil)
 	if got := s.Current().Dark.Name; got != DefaultDarkTheme {
 		t.Fatalf("default dark theme = %q", got)
 	}
@@ -325,7 +325,7 @@ func TestConfirmPasteDefaultOn(t *testing.T) {
 }
 
 func TestServiceSetConfirmPaste(t *testing.T) {
-	s := NewService(t.TempDir())
+	s := NewService(t.TempDir(), nil)
 	if err := s.SetConfirmPaste(false); err != nil {
 		t.Fatal(err)
 	}
@@ -338,7 +338,7 @@ func TestShowUsage(t *testing.T) {
 	if cfg, _, _ := Parse(""); cfg.ShowUsage {
 		t.Fatal("show-usage should default to off")
 	}
-	s := NewService(t.TempDir())
+	s := NewService(t.TempDir(), nil)
 	if err := s.SetShowUsage(true); err != nil || !s.Current().Config.ShowUsage {
 		t.Fatalf("SetShowUsage(true): %v", err)
 	}

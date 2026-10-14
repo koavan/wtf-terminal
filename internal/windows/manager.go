@@ -12,6 +12,7 @@ import (
 	"github.com/wailsapp/wails/v3/pkg/application"
 	"github.com/wailsapp/wails/v3/pkg/events"
 
+	"github.com/dayanraj/wtf/internal/activity"
 	"github.com/dayanraj/wtf/internal/state"
 	"github.com/dayanraj/wtf/internal/terminal"
 )
@@ -65,6 +66,7 @@ type Manager struct {
 	term    *terminal.Service
 	store   *state.Store
 	options Options
+	active  *activity.Gate
 
 	mu      sync.Mutex
 	windows map[string]*entry
@@ -83,8 +85,8 @@ type entry struct {
 	allowClose bool
 }
 
-func NewManager(term *terminal.Service, store *state.Store, options Options) *Manager {
-	return &Manager{term: term, store: store, options: options, windows: map[string]*entry{}}
+func NewManager(term *terminal.Service, store *state.Store, options Options, active *activity.Gate) *Manager {
+	return &Manager{term: term, store: store, options: options, active: active, windows: map[string]*entry{}}
 }
 
 // Start opens the saved windows, or one fresh window. Call after
@@ -151,6 +153,10 @@ func (m *Manager) open(name, bootstrap string, at *[2]int) *application.WebviewW
 	w := m.app.Window.NewWithOptions(opts)
 	e.window = w
 
+	// Background polling runs only while one of the windows is in front.
+	w.OnWindowEvent(events.Common.WindowFocus, func(*application.WindowEvent) { m.active.SetFocused(name, true) })
+	w.OnWindowEvent(events.Common.WindowLostFocus, func(*application.WindowEvent) { m.active.SetFocused(name, false) })
+
 	// The close button asks the frontend first, which may confirm and then
 	// call Close itself.
 	w.RegisterHook(events.Common.WindowClosing, func(ev *application.WindowEvent) {
@@ -168,6 +174,7 @@ func (m *Manager) open(name, bootstrap string, at *[2]int) *application.WebviewW
 		if !m.quitting.Load() {
 			m.term.CloseWindow(name)
 		}
+		m.active.Forget(name)
 		m.mu.Lock()
 		delete(m.windows, name)
 		m.mu.Unlock()

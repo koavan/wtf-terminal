@@ -1,6 +1,6 @@
 # Settings and themes
 
-Settings live in `~/.config/wtf/config.toml` (or `$XDG_CONFIG_HOME/wtf/config.toml`). {{cmd:config.open}} opens it; it's created with every setting documented. Changes apply when you save; mistakes are reported in the window and the last good settings stay in effect.
+Settings live in `~/.config/wtf/config.toml` (or `$XDG_CONFIG_HOME/wtf/config.toml`). {{cmd:config.open}} opens it; it's created with every setting documented. Changes apply when you save (if wtf is in the background, as soon as you switch back to it); mistakes are reported in the window and the last good settings stay in effect.
 
 | Setting | What it does |
 |---|---|
