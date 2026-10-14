@@ -24,6 +24,8 @@ import (
 	"sort"
 	"strings"
 	"time"
+
+	"github.com/dayanraj/wtf/internal/paths"
 )
 
 // Setting is one "key = value" line, as written.
@@ -121,7 +123,7 @@ func NewService() *Service {
 	s := &Service{home: home}
 	s.credentials = envPath("AWS_SHARED_CREDENTIALS_FILE", filepath.Join(home, ".aws", "credentials"))
 	s.config = envPath("AWS_CONFIG_FILE", filepath.Join(home, ".aws", "config"))
-	if cache, err := os.UserCacheDir(); err == nil {
+	if cache, err := paths.UserCacheDir(); err == nil {
 		s.backupDir = filepath.Join(cache, "wtf", "aws-backups")
 	}
 	return s

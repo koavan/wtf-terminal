@@ -16,6 +16,8 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/dayanraj/wtf/internal/paths"
 )
 
 // Status is one tool as found on this machine, and how to install it.
@@ -47,7 +49,7 @@ type Service struct {
 
 func NewService(stateDir string, shell func() (string, bool)) *Service {
 	s := &Service{stateDir: stateDir, shell: shell}
-	if dir, err := os.UserCacheDir(); err == nil {
+	if dir, err := paths.UserCacheDir(); err == nil {
 		s.cacheDir = filepath.Join(dir, "wtf")
 	}
 	return s

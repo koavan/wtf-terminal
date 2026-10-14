@@ -19,6 +19,7 @@ import (
 	"gopkg.in/yaml.v3"
 
 	"github.com/dayanraj/wtf/internal/infra"
+	"github.com/dayanraj/wtf/internal/paths"
 )
 
 // Managing kubeconfigs: the contexts in the shell's KUBECONFIG files,
@@ -143,7 +144,7 @@ func (s *Service) backupDir() string {
 	if s.cacheDir != "" {
 		return filepath.Join(s.cacheDir, "kube-backups")
 	}
-	if cache, err := os.UserCacheDir(); err == nil {
+	if cache, err := paths.UserCacheDir(); err == nil {
 		return filepath.Join(cache, "wtf", "kube-backups")
 	}
 	return ""

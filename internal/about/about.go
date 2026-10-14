@@ -13,6 +13,8 @@ import (
 	"runtime/debug"
 	"strings"
 	"time"
+
+	"github.com/dayanraj/wtf/internal/paths"
 )
 
 type Info struct {
@@ -64,7 +66,7 @@ func (s *Service) Info() Info {
 	if in.Commit == "" {
 		in.Commit = "unknown (a development build)"
 	}
-	if cache, err := os.UserCacheDir(); err == nil {
+	if cache, err := paths.UserCacheDir(); err == nil {
 		in.CacheDir = filepath.Join(cache, "wtf")
 	}
 	if bi, ok := debug.ReadBuildInfo(); ok {

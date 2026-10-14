@@ -18,6 +18,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/dayanraj/wtf/internal/paths"
 	"github.com/dayanraj/wtf/internal/tools"
 )
 
@@ -76,7 +77,7 @@ type Service struct {
 
 func NewService() *Service {
 	s := &Service{}
-	if dir, err := os.UserCacheDir(); err == nil {
+	if dir, err := paths.UserCacheDir(); err == nil {
 		s.cacheDir = filepath.Join(dir, "wtf", "findings")
 	}
 	return s

@@ -1,62 +1,228 @@
 // Command libwtf builds the Go backend as a C archive for the native macOS
-// UI (M0 spike: terminal sessions only).
+// UI. Build it with the native tag, which leaves the Wails glue out:
 //
-//	go build -buildmode=c-archive -o bin/libwtf.a ./cmd/libwtf
+//	go build -tags native -buildmode=c-archive -o bin/native/libwtf.a ./cmd/libwtf
+//
+// Service methods are called by name with JSON arguments (wtf_call), the
+// same methods the Wails bindings expose. Backend events and PTY output come
+// back through callbacks, on Go-owned threads.
 package main
 
 /*
 #include <stdint.h>
+#include <stdlib.h>
 
-typedef void (*wtf_output_fn)(void *ctx, int64_t id, const char *buf, int64_t len);
-typedef void (*wtf_exit_fn)(void *ctx, int64_t id, int64_t code);
+// Input strings are const, so Swift can pass its Strings directly.
+typedef const char cstr_t;
 
-static inline void wtf_call_output(wtf_output_fn fn, void *ctx, int64_t id, const char *buf, int64_t len) {
-	fn(ctx, id, buf, len);
+typedef void (*wtf_event_fn)(void *ctx, const char *name, const char *json);
+typedef void (*wtf_output_fn)(void *ctx, const char *buf, int64_t len);
+
+static inline void wtf_call_event(wtf_event_fn fn, void *ctx, const char *name, const char *json) {
+	fn(ctx, name, json);
 }
-static inline void wtf_call_exit(wtf_exit_fn fn, void *ctx, int64_t id, int64_t code) {
-	fn(ctx, id, code);
+static inline void wtf_call_output(wtf_output_fn fn, void *ctx, const char *buf, int64_t len) {
+	fn(ctx, buf, len);
 }
 */
 import "C"
 
 import (
+	"context"
+	"encoding/json"
+	"errors"
+	"fmt"
+	"log"
+	"reflect"
+	"slices"
 	"sync"
 	"unsafe"
 
+	"github.com/dayanraj/wtf/internal/backend"
+	"github.com/dayanraj/wtf/internal/events"
+	"github.com/dayanraj/wtf/internal/paths"
 	"github.com/dayanraj/wtf/internal/terminal"
 )
 
-const (
-	version = "native-spike"
-	// Upper bound for coalescing queued PTY chunks into one callback, as in
-	// the WebSocket stream (internal/terminal/stream.go).
-	maxFrame = 256 * 1024
-)
+// Upper bound for coalescing queued PTY chunks into one callback, as in the
+// WebSocket stream (internal/terminal/stream.go).
+const maxFrame = 256 * 1024
 
 var (
 	mu       sync.Mutex
-	sessions = map[int64]*terminal.Session{}
-	nextID   int64
+	be       *backend.Backend
+	services map[string]any
+	started  []any // in startup order, for shutdown
+	cancel   context.CancelFunc
 )
 
-// wtf_start starts a shell. Output is delivered on a Go-owned thread through
-// onOutput; the buffer is only valid during the call, and the call blocks
-// further output for this session until it returns (backpressure).
-// Returns the session id, or -1 on failure.
-//
-//export wtf_start
-func wtf_start(cols, rows C.int, onOutput C.wtf_output_fn, onExit C.wtf_exit_fn, ctx unsafe.Pointer) C.int64_t {
-	sess, err := terminal.StartStandalone(version, int(cols), int(rows))
-	if err != nil {
-		return -1
-	}
-	mu.Lock()
-	nextID++
-	id := nextID
-	sessions[id] = sess
-	mu.Unlock()
+// Lifecycle hooks, from each package's native.go.
+type starter interface{ ServiceStartup(context.Context) error }
+type stopper interface{ ServiceShutdown() error }
 
+// wtf_init builds and starts the services. Events go to onEvent from then
+// on. stateDir and cacheDir replace the default directories when not empty,
+// so a development build doesn't share files with the installed app.
+// Returns NULL, or an error message to release with wtf_free.
+//
+//export wtf_init
+func wtf_init(version, commit, buildDate, stateDir, cacheDir *C.cstr_t, onEvent C.wtf_event_fn, ctx unsafe.Pointer) *C.char {
+	mu.Lock()
+	defer mu.Unlock()
+	if be != nil {
+		return C.CString("already initialised")
+	}
+	if dir := goString(cacheDir); dir != "" {
+		paths.SetCacheRoot(dir)
+	}
+	b, err := backend.New(goString(version), goString(commit), goString(buildDate), goString(stateDir))
+	if err != nil {
+		return C.CString(err.Error())
+	}
+	events.SetEmitter(func(name string, data any) {
+		payload, err := json.Marshal(data)
+		if err != nil {
+			log.Printf("event %s: %v", name, err)
+			return
+		}
+		cname, cjson := C.CString(name), C.CString(string(payload))
+		defer C.free(unsafe.Pointer(cname))
+		defer C.free(unsafe.Pointer(cjson))
+		C.wtf_call_event(onEvent, ctx, cname, cjson)
+	})
+	runCtx, stop := context.WithCancel(context.Background())
+	services = map[string]any{}
+	for _, n := range b.Services() {
+		services[n.Name] = n.Service
+		if s, ok := n.Service.(starter); ok {
+			if err := s.ServiceStartup(runCtx); err != nil {
+				stop()
+				shutdownStarted()
+				return C.CString(fmt.Sprintf("starting %s: %v", n.Name, err))
+			}
+		}
+		started = append(started, n.Service)
+	}
+	be, cancel = b, stop
+	return nil
+}
+
+// wtf_shutdown stops the services, last started first.
+//
+//export wtf_shutdown
+func wtf_shutdown() {
+	mu.Lock()
+	defer mu.Unlock()
+	if cancel != nil {
+		cancel()
+	}
+	shutdownStarted()
+	be = nil
+}
+
+func shutdownStarted() {
+	for _, svc := range slices.Backward(started) {
+		if s, ok := svc.(stopper); ok {
+			if err := s.ServiceShutdown(); err != nil {
+				log.Printf("shutdown: %v", err)
+			}
+		}
+	}
+	started = nil
+}
+
+// wtf_call calls service.method with a JSON array of arguments and returns
+// {"result": …} or {"error": "…"}, to release with wtf_free. It blocks for
+// as long as the method does; call it off the main thread.
+//
+//export wtf_call
+func wtf_call(service, method, args *C.cstr_t) *C.char {
+	result, err := call(goString(service), goString(method), []byte(goString(args)))
+	var out []byte
+	if err != nil {
+		out, _ = json.Marshal(map[string]string{"error": err.Error()})
+	} else if out, err = json.Marshal(map[string]any{"result": result}); err != nil {
+		out, _ = json.Marshal(map[string]string{"error": "encoding result: " + err.Error()})
+	}
+	return C.CString(string(out))
+}
+
+var errorType = reflect.TypeFor[error]()
+
+func call(service, method string, args []byte) (result any, err error) {
+	defer func() {
+		if r := recover(); r != nil {
+			err = fmt.Errorf("%s.%s panicked: %v", service, method, r)
+		}
+	}()
+	mu.Lock()
+	svc := services[service]
+	mu.Unlock()
+	if svc == nil {
+		return nil, fmt.Errorf("no service %q", service)
+	}
+	if method == "ServiceStartup" || method == "ServiceShutdown" {
+		return nil, fmt.Errorf("%s.%s is not callable", service, method)
+	}
+	m := reflect.ValueOf(svc).MethodByName(method)
+	if !m.IsValid() {
+		return nil, fmt.Errorf("no method %s.%s", service, method)
+	}
+	var raw []json.RawMessage
+	if len(args) > 0 {
+		if err := json.Unmarshal(args, &raw); err != nil {
+			return nil, fmt.Errorf("%s.%s: arguments must be a JSON array: %w", service, method, err)
+		}
+	}
+	t := m.Type()
+	if t.IsVariadic() || len(raw) != t.NumIn() {
+		return nil, fmt.Errorf("%s.%s takes %d arguments, got %d", service, method, t.NumIn(), len(raw))
+	}
+	in := make([]reflect.Value, len(raw))
+	for i, r := range raw {
+		v := reflect.New(t.In(i))
+		if err := json.Unmarshal(r, v.Interface()); err != nil {
+			return nil, fmt.Errorf("%s.%s argument %d: %w", service, method, i+1, err)
+		}
+		in[i] = v.Elem()
+	}
+	out := m.Call(in)
+	// As with Wails: a trailing error is the error; the rest is the result
+	// (nothing, one value, or an array).
+	if n := len(out); n > 0 && t.Out(n-1) == errorType {
+		if e := out[n-1]; !e.IsNil() {
+			return nil, e.Interface().(error)
+		}
+		out = out[:n-1]
+	}
+	switch len(out) {
+	case 0:
+		return nil, nil
+	case 1:
+		return out[0].Interface(), nil
+	}
+	values := make([]any, len(out))
+	for i, v := range out {
+		values[i] = v.Interface()
+	}
+	return values, nil
+}
+
+// wtf_attach streams a session's output (created with terminal.Create) to
+// onOutput. The buffer is only valid during the call, and the call blocks
+// further output for the session until it returns: that is the
+// backpressure. A last call with len -1 says the stream ended, so ctx can be
+// released. Exits arrive as the terminal:exit event. Returns NULL, or an
+// error to release with wtf_free.
+//
+//export wtf_attach
+func wtf_attach(id *C.cstr_t, onOutput C.wtf_output_fn, ctx unsafe.Pointer) *C.char {
+	sess, release, err := attach(goString(id))
+	if err != nil {
+		return C.CString(err.Error())
+	}
 	go func() {
+		defer release()
 		frame := make([]byte, 0, maxFrame)
 		for chunk := range sess.Output {
 			frame = append(frame[:0], chunk...)
@@ -72,44 +238,62 @@ func wtf_start(cols, rows C.int, onOutput C.wtf_output_fn, onExit C.wtf_exit_fn,
 					break drain
 				}
 			}
-			C.wtf_call_output(onOutput, ctx, C.int64_t(id),
-				(*C.char)(unsafe.Pointer(&frame[0])), C.int64_t(len(frame)))
+			C.wtf_call_output(onOutput, ctx, (*C.char)(unsafe.Pointer(&frame[0])), C.int64_t(len(frame)))
 		}
-		<-sess.Done
-		sess.Close()
-		mu.Lock()
-		delete(sessions, id)
-		mu.Unlock()
-		C.wtf_call_exit(onExit, ctx, C.int64_t(id), C.int64_t(sess.ExitCode()))
+		C.wtf_call_output(onOutput, ctx, nil, -1)
 	}()
-	return C.int64_t(id)
+	return nil
 }
 
+func attach(id string) (*terminal.Session, func(), error) {
+	mu.Lock()
+	b := be
+	mu.Unlock()
+	if b == nil {
+		return nil, nil, errors.New("not initialised")
+	}
+	return terminal.Attach(b.Terminal, id)
+}
+
+// wtf_write sends keyboard input to a session. It can block while the
+// shell isn't reading; call it off the main thread.
+//
 //export wtf_write
-func wtf_write(id C.int64_t, buf *C.char, n C.int64_t) {
-	if sess := get(id); sess != nil && n > 0 {
+func wtf_write(id, buf *C.cstr_t, n C.int64_t) {
+	mu.Lock()
+	b := be
+	mu.Unlock()
+	if b == nil || n <= 0 {
+		return
+	}
+	if sess := terminal.Lookup(b.Terminal, goString(id)); sess != nil {
 		_, _ = sess.Write(C.GoBytes(unsafe.Pointer(buf), C.int(n)))
 	}
 }
 
-//export wtf_resize
-func wtf_resize(id C.int64_t, cols, rows C.int) {
-	if sess := get(id); sess != nil {
-		_ = sess.Resize(uint16(max(1, cols)), uint16(max(1, rows)))
-	}
-}
-
-//export wtf_close
-func wtf_close(id C.int64_t) {
-	if sess := get(id); sess != nil {
-		sess.Close()
-	}
-}
-
-func get(id C.int64_t) *terminal.Session {
+// wtf_set_focused tells the backend whether a window is in front; polling
+// pauses while none is. gone=1 forgets a closed window.
+//
+//export wtf_set_focused
+func wtf_set_focused(window *C.cstr_t, focused, gone C.int) {
 	mu.Lock()
-	defer mu.Unlock()
-	return sessions[int64(id)]
+	b := be
+	mu.Unlock()
+	if b == nil {
+		return
+	}
+	if gone != 0 {
+		b.Active.Forget(goString(window))
+		return
+	}
+	b.Active.SetFocused(goString(window), focused != 0)
 }
+
+func goString(p *C.cstr_t) string { return C.GoString((*C.char)(unsafe.Pointer(p))) }
+
+// wtf_free releases a string returned by this library.
+//
+//export wtf_free
+func wtf_free(p *C.char) { C.free(unsafe.Pointer(p)) }
 
 func main() {}

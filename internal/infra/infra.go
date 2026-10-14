@@ -22,17 +22,14 @@ import (
 	"sync"
 	"time"
 
-	"github.com/wailsapp/wails/v3/pkg/application"
 	"gopkg.in/yaml.v3"
+
+	"github.com/dayanraj/wtf/internal/events"
 )
 
 // EventChanged tells the frontend to resolve its shells' contexts again: an
 // AWS account lookup finished.
 const EventChanged = "infra:changed"
-
-func init() {
-	application.RegisterEvent[string](EventChanged)
-}
 
 // Context is what a shell is pointed at. Empty fields mean "nothing".
 type Context struct {
@@ -84,7 +81,7 @@ type cached struct {
 func NewService() *Service {
 	home, _ := os.UserHomeDir()
 	return newService(home, stsLookup, func() {
-		application.Get().Event.Emit(EventChanged, "")
+		events.Emit(EventChanged, "")
 	})
 }
 

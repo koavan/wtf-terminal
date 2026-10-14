@@ -18,7 +18,8 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/wailsapp/wails/v3/pkg/application"
+	"github.com/dayanraj/wtf/internal/events"
+	"github.com/dayanraj/wtf/internal/paths"
 )
 
 // Host is one entry of the list.
@@ -81,27 +82,21 @@ type Service struct {
 	identities *identityStore
 }
 
-func init() {
-	application.RegisterEvent[[]TunnelStatus](EventTunnels)
-}
-
 // NewService keeps its saved tunnels and git identities in stateDir.
 func NewService(stateDir string) *Service {
 	home, _ := os.UserHomeDir()
 	s := &Service{home: home}
-	if cache, err := os.UserCacheDir(); err == nil {
+	if cache, err := paths.UserCacheDir(); err == nil {
 		s.backupDir = filepath.Join(cache, "wtf", "ssh-backups")
 	}
 	s.identities = newIdentityStore(filepath.Join(stateDir, "git-identities.json"))
 	s.tunnels = newTunnelManager(filepath.Join(stateDir, "ssh-tunnels.json"), func(list []TunnelStatus) {
-		if app := application.Get(); app != nil {
-			app.Event.Emit(EventTunnels, list)
-		}
+		events.Emit(EventTunnels, list)
 	})
 	return s
 }
 
-func (s *Service) ServiceStartup(context.Context, application.ServiceOptions) error {
+func (s *Service) startup(context.Context) error {
 	s.tunnels.StartAuto()
 	return nil
 }

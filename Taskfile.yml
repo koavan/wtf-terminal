@@ -32,6 +32,17 @@ tasks:
     cmds:
       - task: "{{.GOOS}}:run"
 
+  native:
+    summary: Builds the native macOS app (bin/native/wtf.app); needs Xcode
+    cmds:
+      - ./macos/build.sh
+
+  native:test:
+    summary: Tests the native app's Go side (dispatcher, headless C smoke test)
+    cmds:
+      - go test -tags native ./cmd/libwtf/
+      - ./cmd/libwtf/smoke/run.sh
+
   dev:
     summary: Runs the application in development mode
     cmds:

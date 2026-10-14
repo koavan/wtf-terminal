@@ -24,7 +24,7 @@ Status legend: ☐ not started · ◐ in progress · ☑ done
 │  Window / tabs / splits (AppKit)   Side pane views (SwiftUI)      │
 │  Terminal view (SwiftTerm)         Manual (WKWebView, shared md)  │
 │                  │                                                │
-│           WtfBridge.swift: call(service, method, json) → json     │
+│           Backend.swift: call(service, method, json) → json       │
 │                  │        events / PTY bytes → callback           │
 └──────────────────┼────────────────────────────────────────────────┘
                    │ C ABI
@@ -44,9 +44,9 @@ Key decisions:
 - **Terminal.** Use SwiftTerm 1.20.0, which is mature and MIT-licensed. Its
   CoreText renderer beat its Metal one in M0, so CoreText is the default. M0 benchmarks libghostty against it, but its embedding API isn't
   stable yet.
-- **Build.** Use SwiftPM with Command Line Tools (installed). A new `darwin:native`
-  task in the Taskfile builds `libwtf.a` and then the app bundle. Full Xcode is
-  optional, but installing it gives XCTest and Instruments.
+- **Build.** Use SwiftPM with full Xcode (installed 2026-10-14), which brings
+  XCTest and Instruments. `macos/build.sh` (or `task native`) builds `libwtf.a`
+  and then the app bundle.
 - **Logic that lives in `frontend/src/lib`** (fuzzy match, secret masking, paste
   checks, prompts/blocks, log view, redaction, themes) is moved to Go where it
   can be, so Linux and macOS share it. The rest is ported to Swift along with
@@ -98,16 +98,39 @@ its idle CPU and memory are upper bounds. A clean 0.7.2 instance would be a
 fairer comparison. Throughput is limited by how fast the PTY delivers output,
 so wall times are close and the CPU gap under load is moderate.
 
-## M1 — Go bridge & app skeleton ☐
+## M1 — Go bridge & app skeleton ☑
 
-- Build `cmd/libwtf` with the c-archive dispatcher, an event callback and a PTY
-  byte callback, and wire up startup and shutdown.
-- `WtfBridge.swift` wraps it in typed async Swift functions, plus Codable models
-  for the service types.
-- Add the SwiftPM package, `Info.plist`, icon, ad-hoc signing and the
-  `darwin:native` task.
-- **Done when:** the app launches, calls `about.Info` and receives a `notify`
-  event.
+- ☑ `cmd/libwtf` (built with `-tags native`):
+  - `wtf_call(service, method, argsJSON)` calls any exported method of the 17
+    services by reflection, with the same result and error shape as Wails.
+  - `wtf_init` / `wtf_shutdown` run the services' startup and shutdown hooks.
+  - Events reach Swift through a callback. PTY output has its own callback with
+    per-frame backpressure and an end-of-stream signal.
+  - `wtf_set_focused` lets polling pause while no window is in front.
+- ☑ Backend separated from Wails:
+  - `internal/backend` builds the services for both UIs.
+  - `internal/events` replaces direct `application.Get().Event.Emit` calls.
+  - Wails lifecycle hooks and event registration are in `wails.go` files
+    (`//go:build !native`), with `native.go` counterparts.
+  - The native archive has no Wails dependencies. The regenerated Wails bindings
+    are byte-identical.
+- ☑ Separate profile until M7: state in `~/Library/Application Support/wtf-native`
+  and caches in `~/Library/Caches/wtf-native` (`internal/paths`). Running both
+  apps side by side can't clear the other's kube overlays or start the same
+  tunnels. `config.toml` is shared.
+- ☑ Swift: `Backend.swift` provides typed async `call`/`run`, `on(event)`,
+  `attach`, `write` and focus. `Models.swift` holds hand-written models (about,
+  terminal events). A Swift model generator from the Go types is deferred to
+  M4, when many more types are needed.
+- ☑ `bin/native/wtf.app` is built by `macos/build.sh` (or `task native`): it
+  reuses the Wails `Info.plist` with bundle id `com.dayanraj.wtf.native`, plus
+  icon, commit/date and ad-hoc signing. The minimum macOS is 14.
+- ☑ Tests: dispatcher unit tests, and a headless C smoke test
+  (`cmd/libwtf/smoke/run.sh`, or `task native:test`) covering init, a call, an
+  error, a shell, output, the exit event and shutdown.
+- ☑ Launch check (2026-10-14): `about.Info` was read, the title followed
+  `terminal:info` (`~`, then `sleep — /private/tmp`), the app quit on the exit
+  event, and only the `wtf-native` directories were written.
 
 ## M2 — Terminal core ☐
 

@@ -16,9 +16,9 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/wailsapp/wails/v3/pkg/application"
-
 	"github.com/dayanraj/wtf/internal/activity"
+	"github.com/dayanraj/wtf/internal/events"
+	"github.com/dayanraj/wtf/internal/paths"
 )
 
 const (
@@ -32,11 +32,6 @@ const (
 type ExitEvent struct {
 	ID   string `json:"id"`
 	Code int    `json:"code"`
-}
-
-func init() {
-	application.RegisterEvent[ExitEvent](EventExit)
-	application.RegisterEvent[Info](EventInfo)
 }
 
 // Endpoint tells the frontend where to stream session I/O.
@@ -80,7 +75,7 @@ func NewService(version string, settings Settings, active *activity.Gate) *Servi
 	}
 }
 
-func (s *Service) ServiceStartup(ctx context.Context, _ application.ServiceOptions) error {
+func (s *Service) startup(ctx context.Context) error {
 	sv, err := newStreamServer(s.get)
 	if err != nil {
 		return fmt.Errorf("starting terminal stream server: %w", err)
@@ -88,7 +83,7 @@ func (s *Service) ServiceStartup(ctx context.Context, _ application.ServiceOptio
 	s.stream = sv
 	s.shell = resolveShell()
 	s.home, _ = os.UserHomeDir()
-	if cache, err := os.UserCacheDir(); err == nil {
+	if cache, err := paths.UserCacheDir(); err == nil {
 		dir := filepath.Join(cache, "wtf", "shell-integration")
 		if err := installIntegration(dir); err == nil {
 			s.integrationDir = dir
@@ -189,7 +184,7 @@ func (s *Service) Create(window string, cols, rows int, cwd string) (string, err
 		delete(s.lastInfo, id)
 		s.mu.Unlock()
 		if !s.shuttingDown.Load() {
-			application.Get().Event.Emit(EventExit, ExitEvent{ID: id, Code: sess.ExitCode()})
+			events.Emit(EventExit, ExitEvent{ID: id, Code: sess.ExitCode()})
 		}
 	}()
 	return id, nil
@@ -365,7 +360,7 @@ func (s *Service) pollInfo(ctx context.Context) {
 			}
 			s.mu.Unlock()
 			if changed {
-				application.Get().Event.Emit(EventInfo, info)
+				events.Emit(EventInfo, info)
 			}
 		}
 	}

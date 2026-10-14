@@ -8,24 +8,8 @@ import (
 
 	"github.com/wailsapp/wails/v3/pkg/application"
 
-	"github.com/dayanraj/wtf/internal/about"
-	"github.com/dayanraj/wtf/internal/activity"
-	"github.com/dayanraj/wtf/internal/awsprofiles"
-	"github.com/dayanraj/wtf/internal/certs"
-	"github.com/dayanraj/wtf/internal/config"
-	"github.com/dayanraj/wtf/internal/files"
-	"github.com/dayanraj/wtf/internal/findings"
-	"github.com/dayanraj/wtf/internal/infra"
-	"github.com/dayanraj/wtf/internal/kube"
-	"github.com/dayanraj/wtf/internal/netconn"
-	"github.com/dayanraj/wtf/internal/notify"
-	"github.com/dayanraj/wtf/internal/procs"
-	"github.com/dayanraj/wtf/internal/snippets"
-	"github.com/dayanraj/wtf/internal/sshhosts"
-	"github.com/dayanraj/wtf/internal/state"
-	"github.com/dayanraj/wtf/internal/terminal"
-	"github.com/dayanraj/wtf/internal/tools"
-	"github.com/dayanraj/wtf/internal/usage"
+	"github.com/dayanraj/wtf/internal/backend"
+	"github.com/dayanraj/wtf/internal/events"
 	wtfwindows "github.com/dayanraj/wtf/internal/windows"
 )
 
@@ -41,45 +25,34 @@ var (
 var assets embed.FS
 
 func main() {
-	stateDir, err := state.DefaultDir()
+	b, err := backend.New(version, commit, buildDate, "")
 	if err != nil {
 		log.Fatal(err)
 	}
-	configDir, err := config.Dir()
-	if err != nil {
-		log.Fatal(err)
-	}
-	active := activity.New()
-	cfg := config.NewService(configDir, active)
-	shellSettings := func() (string, bool) {
-		c := cfg.Current().Config
-		return c.Shell, c.ShellIntegration
-	}
-	term := terminal.NewService(version, shellSettings, active)
-	store := state.NewStore(stateDir)
-	windows := wtfwindows.NewManager(term, store, windowOptions, active)
+	windows := wtfwindows.NewManager(b.Terminal, b.Store, windowOptions, b.Active)
 
 	app := application.New(application.Options{
 		Name:        "wtf",
 		Description: "A browser-like terminal",
+		// Listed one by one: the bindings generator needs each concrete type.
 		Services: []application.Service{
-			application.NewService(cfg),
-			application.NewService(term),
-			application.NewService(state.NewService(store)),
-			application.NewService(notify.NewService()),
-			application.NewService(files.NewService()),
-			application.NewService(infra.NewService()),
-			application.NewService(certs.NewService()),
-			application.NewService(awsprofiles.NewService()),
-			application.NewService(kube.NewService(stateDir)),
-			application.NewService(snippets.NewService(configDir)),
-			application.NewService(about.NewService(version, commit, buildDate, configDir, stateDir, term.ShellInfo)),
-			application.NewService(sshhosts.NewService(stateDir)),
-			application.NewService(tools.NewService(stateDir, term.ShellInfo)),
-			application.NewService(findings.NewService()),
-			application.NewService(usage.NewService(term.ShellPIDs)),
-			application.NewService(netconn.NewService(term.ShellPIDs)),
-			application.NewService(procs.NewService(term.ShellPIDs)),
+			application.NewService(b.Config),
+			application.NewService(b.Terminal),
+			application.NewService(b.State),
+			application.NewService(b.Notify),
+			application.NewService(b.Files),
+			application.NewService(b.Infra),
+			application.NewService(b.Certs),
+			application.NewService(b.AWSProfiles),
+			application.NewService(b.Kube),
+			application.NewService(b.Snippets),
+			application.NewService(b.About),
+			application.NewService(b.SSHHosts),
+			application.NewService(b.Tools),
+			application.NewService(b.Findings),
+			application.NewService(b.Usage),
+			application.NewService(b.NetConn),
+			application.NewService(b.Procs),
 			application.NewService(windows.Service()),
 		},
 		Assets: application.AssetOptions{
@@ -90,6 +63,8 @@ func main() {
 		},
 		ShouldQuit: windows.ShouldQuit,
 	})
+
+	events.SetEmitter(func(name string, data any) { app.Event.Emit(name, data) })
 
 	if runtime.GOOS == "darwin" {
 		app.Menu.SetApplicationMenu(buildMenu(windows))

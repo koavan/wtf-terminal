@@ -1,6 +1,6 @@
 #!/bin/sh
-# M0 benchmark. Run inside the terminal under test (wtf v0.7.2 or the native
-# spike) from a fresh tab, with that window in front and left alone:
+# Benchmark. Run inside the terminal under test (the Wails app, or the native
+# one: bin/native/wtf.app) from a fresh tab, with that window in front and left alone:
 #
 #   macos/bench/workload.sh <label>
 #

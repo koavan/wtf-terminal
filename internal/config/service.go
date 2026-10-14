@@ -12,9 +12,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/wailsapp/wails/v3/pkg/application"
-
 	"github.com/dayanraj/wtf/internal/activity"
+	"github.com/dayanraj/wtf/internal/events"
 )
 
 const (
@@ -30,10 +29,6 @@ type Resolved struct {
 	// Problems found while loading; the frontend shows them.
 	Problems []string `json:"problems"`
 	Path     string   `json:"path"`
-}
-
-func init() {
-	application.RegisterEvent[Resolved](EventChanged)
 }
 
 // Service loads the config, watches it, and pushes changes to the frontend.
@@ -57,7 +52,7 @@ func NewService(dir string, active *activity.Gate) *Service {
 func (s *Service) path() string      { return filepath.Join(s.dir, "config.toml") }
 func (s *Service) themesDir() string { return filepath.Join(s.dir, "themes") }
 
-func (s *Service) ServiceStartup(ctx context.Context, _ application.ServiceOptions) error {
+func (s *Service) startup(ctx context.Context) error {
 	go s.watch(ctx)
 	return nil
 }
@@ -177,9 +172,7 @@ func (s *Service) watch(ctx context.Context) {
 
 func (s *Service) reloadAndNotify() {
 	r := s.reload()
-	if app := application.Get(); app != nil {
-		app.Event.Emit(EventChanged, r)
-	}
+	events.Emit(EventChanged, r)
 }
 
 func (s *Service) reload() Resolved {

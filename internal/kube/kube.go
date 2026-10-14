@@ -27,8 +27,6 @@ import (
 	"time"
 	"unicode/utf8"
 
-	"github.com/wailsapp/wails/v3/pkg/application"
-
 	"github.com/dayanraj/wtf/internal/tools"
 )
 
@@ -137,8 +135,8 @@ func NewService(stateDir string) *Service {
 	return &Service{home: home, stateDir: stateDir}
 }
 
-// ServiceStartup clears the per-shell files of an earlier run.
-func (s *Service) ServiceStartup(context.Context, application.ServiceOptions) error {
+// startup clears the per-shell files of an earlier run.
+func (s *Service) startup(context.Context) error {
 	s.ClearShellConfigs()
 	return nil
 }
