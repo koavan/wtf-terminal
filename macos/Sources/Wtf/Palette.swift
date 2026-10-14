@@ -6,10 +6,10 @@ import WtfCore
 /// Like Palette.svelte. One per window.
 @MainActor
 final class Palette: NSView, NSTextFieldDelegate {
-    enum Mode: Equatable { case commands, themes, workspaces }
+    enum Mode: Equatable { case commands, themes, workspaces, snippets }
 
     struct Entry {
-        enum Section: Int { case commands, tabs, groups, workspaces, themes }
+        enum Section: Int { case commands, tabs, groups, workspaces, snippets, themes }
         let section: Section
         let label: String
         var detail = ""
@@ -67,6 +67,7 @@ final class Palette: NSView, NSTextFieldDelegate {
         case .commands: "Search commands, tabs and workspaces…"
         case .themes: "Search themes…"
         case .workspaces: "Search workspaces…"
+        case .snippets: "Search snippets…"
         }
         field.font = .systemFont(ofSize: 15)
         field.isBordered = false
@@ -125,9 +126,13 @@ final class Palette: NSView, NSTextFieldDelegate {
         case .commands:
             entries = tabEntries() + groupEntries() + commandEntries()
             loadWorkspaces(trailing: false)
+            loadSnippets(trailing: false)
         case .workspaces:
             entries = []
             loadWorkspaces(trailing: true)
+        case .snippets:
+            entries = []
+            loadSnippets(trailing: true)
         case .themes:
             entries = []
             Task {
@@ -223,6 +228,30 @@ final class Palette: NSView, NSTextFieldDelegate {
                       symbol: "square.stack.3d.up") { [owner] in WorkspaceOpen.show(w, in: owner) }
             }
             entries += ws
+            if trailing {
+                entries.append(Entry(section: .workspaces, label: "Save Window as Workspace…", detail: "Its tabs, groups, splits, folders and running commands",
+                                     symbol: "plus") { [owner] in WorkspaceEditor.show(.capture(owner.model.captureWorkspace()), in: owner) })
+            }
+            refilter()
+        }
+    }
+
+    /// Snippets from the snippets files, read afresh; the Snippets tab follows.
+    private func loadSnippets(trailing: Bool) {
+        let cwd = owner.activePane?.cwd ?? ""
+        Task {
+            guard let list = try? await Services.snippets.List(cwd) else { return }
+            SnippetStore.shared.set(list, cwd: cwd)
+            entries += list.snippets.map { s in
+                Entry(section: .snippets, label: s.name,
+                      detail: !s.description.isEmpty ? s.description : s.isRunbook ? "\(s.steps.count) steps" : s.command,
+                      hint: [s.isRunbook ? "runbook" : "", s.project ? "project" : ""].filter { !$0.isEmpty }.joined(separator: " · "),
+                      symbol: "terminal") { [owner] in owner.openSnippet(s) }
+            }
+            if trailing {
+                entries.append(Entry(section: .snippets, label: "Open Snippets File…", detail: "Add your own; examples included",
+                                     symbol: "doc.text") { [owner] in owner.openSnippetsFile() })
+            }
             refilter()
         }
     }
@@ -232,7 +261,7 @@ final class Palette: NSView, NSTextFieldDelegate {
     private func refilter() {
         let q = field.stringValue
         if q.trimmingCharacters(in: .whitespaces).isEmpty {
-            let order: [Entry.Section: Int] = [.commands: 0, .tabs: 1, .groups: 2, .workspaces: 3, .themes: 5]
+            let order: [Entry.Section: Int] = [.commands: 0, .tabs: 1, .groups: 2, .workspaces: 3, .snippets: 4, .themes: 5]
             rows = entries.enumerated().sorted {
                 mode == .themes ? $0.offset < $1.offset
                     : (order[$0.element.section]!, $0.offset) < (order[$1.element.section]!, $1.offset)
@@ -310,6 +339,7 @@ final class Palette: NSView, NSTextFieldDelegate {
                 case .tabs: "Tabs"
                 case .groups: "Groups"
                 case .workspaces: "Workspaces"
+                case .snippets: "Snippets"
                 case .themes: "Themes"
                 }
             }

@@ -383,7 +383,7 @@ final class SshKeysSection: NSView {
         super.init(frame: .zero)
         header.tool("plus", "New key") { [weak self] in
             guard let self else { return }
-            KeyGenSheet.show(in: owner)
+            owner.showGenerator("key")
         }
         header.tool("arrow.clockwise", "Reload") { SshStore.shared.loadKeys() }
         addSubview(header)

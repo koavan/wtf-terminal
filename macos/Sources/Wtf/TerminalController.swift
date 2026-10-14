@@ -24,7 +24,7 @@ final class TerminalController: NSObject, @MainActor TerminalViewDelegate, Outpu
 
     // What the window learns from this pane's shell.
     var onPrompt: (() -> Void)?
-    var onCommandStart: ((String) -> Void)?
+    var onCommandStart: ((_ text: String, _ block: Int) -> Void)?
     var onCommandEnd: ((_ exitCode: Int, _ durationMs: Double) -> Void)?
     var onEnv: ((String) -> Void)?
     /// Output arrived (for the background-tab dot).
@@ -54,9 +54,9 @@ final class TerminalController: NSObject, @MainActor TerminalViewDelegate, Outpu
         tracker = PromptTracker(terminal: view.getTerminal())
         tracker.onChange = { [weak self] in self?.refreshOverlay() }
         tracker.onPrompt = { [weak self] in self?.onPrompt?() }
-        tracker.onCommandStart = { [weak self] text, _ in
+        tracker.onCommandStart = { [weak self] text, block in
             Debug.log("command: \(Redaction.shared.text(text))")
-            self?.onCommandStart?(text)
+            self?.onCommandStart?(text, block)
         }
         tracker.onCommandEnd = { [weak self] code, ms in
             Debug.log("command done: exit \(code) in \(Format.duration(ms: ms))")
@@ -128,6 +128,54 @@ final class TerminalController: NSObject, @MainActor TerminalViewDelegate, Outpu
         scheduleMarks()
         onOutput?()
     }
+
+    // MARK: Blocks, for history, pins and exports
+
+    func block(_ id: Int) -> PromptTracker.Block? { tracker.info(id) }
+    func blockOutput(_ id: Int) -> String? { tracker.output(id) }
+    var lastFinishedBlock: Int? { tracker.lastFinished() }
+    func transcript() -> [Export.Block] { tracker.transcript() }
+
+    /// Scrolls a command's prompt into view and flashes its block; false once
+    /// it has left the scrollback.
+    @discardableResult
+    func revealCommand(_ id: Int) -> Bool {
+        let t = view.getTerminal()
+        guard !t.isCurrentBufferAlternate, let row = tracker.promptRow(id) else { return false }
+        view.scrollTo(row: row - t.buffer.totalLinesTrimmed)
+        refreshOverlay()
+        highlight(id)
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.2) { [weak self] in self?.overlay.highlight = nil }
+        return true
+    }
+
+    /// The whole scrollback as text: soft-wrapped rows joined, trailing blank lines dropped.
+    func plainText() -> String {
+        let t = view.getTerminal()
+        var lines: [String] = []
+        let last = Rows.last(t)
+        var row = t.buffer.totalLinesTrimmed
+        while row <= last {
+            guard let line = t.getScrollInvariantLine(row: row) else { row += 1; continue }
+            var text = line.translateToString(trimRight: true)
+            while row + 1 <= last, let next = t.getScrollInvariantLine(row: row + 1), next.isWrapped {
+                text += next.translateToString(trimRight: true)
+                row += 1
+            }
+            lines.append(text)
+            row += 1
+        }
+        while lines.last?.trimmingCharacters(in: .whitespaces).isEmpty == true { lines.removeLast() }
+        return lines.joined(separator: "\n")
+    }
+
+    /// Puts text at the prompt the way a paste would (bracketed when the shell asks).
+    func insert(_ text: String) {
+        view.pasteText(text)
+        view.window?.makeFirstResponder(view)
+    }
+
+    private var owner: WindowController? { WindowManager.shared.windows.first { $0.name == windowName } }
 
     /// The last rows on screen as text, for the tab overview's preview.
     func snapshot(rows: Int) -> [String] {
@@ -273,10 +321,20 @@ final class TerminalController: NSObject, @MainActor TerminalViewDelegate, Outpu
                 })
             }
             items.append(item("Select Output") { [weak self] in self?.selectOutput(id) })
+            items.append(item(b.running ? "Pin Output (follows it)" : "Pin Output") { [weak self] in
+                guard let self else { return }
+                owner?.pin(block: id, in: self)
+            })
         }
         if !b.text.isEmpty, !b.running {
             items.append(.separator())
             items.append(item("Run Again") { [weak self] in self?.runAgain(b.text) })
+        }
+        if !b.text.isEmpty {
+            items.append(item("Save as Snippet…") { [weak self] in
+                guard let self, let w = WindowManager.shared.windows.first(where: { $0.name == self.windowName }) else { return }
+                SnippetEditor.show(.new(command: b.text), in: w)
+            })
         }
         return items
     }
@@ -296,6 +354,17 @@ final class TerminalController: NSObject, @MainActor TerminalViewDelegate, Outpu
                 [weak self] in self?.toggleSecrets()
             },
         ]
+        if let sel = view.selectedText, !sel.isEmpty {
+            items.insert(item("Pin Selection") { [weak self] in
+                guard let self else { return }
+                owner?.pinSelection(sel, in: self)
+            }, at: 1)
+        }
+        let recording = owner?.isRecording(pane: paneId) == true
+        items.append(item(recording ? "Stop Recording" : "Start Recording…", key: "s", mods: [.command, .option]) { [weak self] in
+            guard let self, let o = owner else { return }
+            o.toggleRecording(pane: o.model.panes[paneId])
+        })
         return items
     }
 

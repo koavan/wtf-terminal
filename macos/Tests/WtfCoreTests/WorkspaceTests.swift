@@ -54,3 +54,30 @@ import Testing
     #expect(m.panes[t.root.leaves[1]]!.initialCommand == "k9s")
     #expect(m.groups.count == 1 && m.groups[0].name == "oncall" && m.groups[0].color == .red && m.tabsIn(m.groups[0].id).count == 2)
 }
+
+@Test func capturesTheWindowAsAWorkspace() {
+    let m = WindowModel()
+    let a = m.open(cwd: "/h/src")
+    m.split(.row, cwd: "/h/logs")
+    m.activePane!.running = true
+    m.activePane!.command = "tail -f app.log"
+    m.rename(a, "api")
+    let g = m.createGroup(a)!
+    m.setGroup(g, name: "on call", color: .red)
+    m.open(cwd: "/tmp")
+    let d = m.captureWorkspace(home: "/h")
+    #expect(d.tabs.count == 2)
+    #expect(d.tabs[0].title == "api" && d.tabs[0].group == "on call" && d.tabs[0].color == "red" && d.tabs[0].layout == "row")
+    #expect(d.tabs[0].panes == [.init(cwd: "~/src", command: ""), .init(cwd: "~/logs", command: "tail -f app.log")])
+    #expect(d.tabs[1].title == "" && d.tabs[1].layout == "" && d.tabs[1].panes == [.init(cwd: "/tmp", command: "")])
+}
+
+@Test func convertsAListedWorkspace() {
+    let g = Go.snippets.Workspace(id: "f#w0", name: "x", window: "new",
+                                  tabs: [.init(title: "t", cwd: "~", panes: [])], params: [.init(name: "ns", default: "$kube_namespace")],
+                                  source: "/f", project: true)
+    let w = Workspace(g)
+    #expect(w.name == "x" && w.window == "new" && w.project && w.source == "/f")
+    #expect(w.tabs[0].allPanes == [.init(cwd: "~", command: "")])
+    #expect(w.params[0].default == "$kube_namespace")
+}

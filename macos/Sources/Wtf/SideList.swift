@@ -22,12 +22,27 @@ final class SideList: NSScrollView, NSTableViewDataSource, NSTableViewDelegate {
         var detail = ""
         /// A second, red line (an error).
         var alert = ""
+        /// The alert line's colour (green for a check that passed).
+        var alertColor: NSColor = .systemRed
         var pills: [Pill] = []
         var tip: String? = nil
         /// A dot instead of an icon (tunnel and resource states).
         var dot: NSColor? = nil
         var highlighted = false
         var button: (symbol: String, tip: String, run: () -> Void)? = nil
+        /// Right-aligned number columns (pid, CPU, memory), left to right.
+        var columns: [Column] = []
+        /// Tree depth: indents the row and shows an elbow.
+        var depth = 0
+        /// A dimmed title (shells in the process tree).
+        var muted = false
+    }
+
+    struct Column {
+        var text: String
+        var width: CGFloat
+        var color: NSColor = .secondaryLabelColor
+        var bold = false
     }
 
     struct Section {
@@ -42,10 +57,14 @@ final class SideList: NSScrollView, NSTableViewDataSource, NSTableViewDelegate {
         var group: String? = nil
         /// A note shown in place of rows (empty states).
         var empty: String? = nil
+        /// A plain heading that runs this when clicked (Go to tab).
+        var action: (() -> Void)? = nil
+        /// A heading shown even with no rows.
+        var always = false
     }
 
     private enum Item {
-        case header(String, String?)
+        case header(String, String?, (() -> Void)?)
         case group(String)
         case heading(title: String, tip: String?, open: Bool, badge: String, toggle: () -> Void)
         case note(String, red: Bool)
@@ -99,8 +118,8 @@ final class SideList: NSScrollView, NSTableViewDataSource, NSTableViewDelegate {
             if let toggle = s.toggle {
                 items.append(.heading(title: s.title ?? "", tip: s.tip, open: s.open, badge: s.badge, toggle: toggle))
                 guard s.open else { continue }
-            } else if let t = s.title, !s.rows.isEmpty {
-                items.append(.header(t, s.tip))
+            } else if let t = s.title, !s.rows.isEmpty || s.always {
+                items.append(.header(t, s.tip, s.action))
             }
             items += s.rows.map { .row($0) }
             if s.rows.isEmpty, let e = s.empty { items.append(.note(e, red: false)) }
@@ -125,11 +144,30 @@ final class SideList: NSScrollView, NSTableViewDataSource, NSTableViewDelegate {
 
     func numberOfRows(in tableView: NSTableView) -> Int { items.count }
 
+    /// Notes wrap to the list's width.
+    private var noteWidth: CGFloat { max(80, contentSize.width - 38) }
+
+    private static func noteHeight(_ text: String, width: CGFloat) -> CGFloat {
+        let l = NSTextField(wrappingLabelWithString: text)
+        l.font = .systemFont(ofSize: 11.5)
+        let h = l.cell?.cellSize(forBounds: NSRect(x: 0, y: 0, width: width, height: 10_000)).height ?? 16
+        return max(22, ceil(h) + 6)
+    }
+
+    override func setFrameSize(_ newSize: NSSize) {
+        let changed = newSize.width != frame.width
+        super.setFrameSize(newSize)
+        if changed, items.contains(where: { if case .note = $0 { true } else { false } }) {
+            table.tableColumns.first?.width = contentSize.width
+            table.reloadData()
+        }
+    }
+
     func tableView(_ tableView: NSTableView, heightOfRow row: Int) -> CGFloat {
         switch items[row] {
         case .header, .group: return 24
         case .heading: return 26
-        case .note(let t, _): return t.count > 60 ? 34 : 22
+        case .note(let t, _): return Self.noteHeight(t, width: noteWidth)
         case .row(let r): return r.detail.isEmpty && r.alert.isEmpty ? 26 : (r.alert.isEmpty ? 38 : 52)
         }
     }
@@ -142,10 +180,10 @@ final class SideList: NSScrollView, NSTableViewDataSource, NSTableViewDelegate {
 
     func tableView(_ tableView: NSTableView, viewFor tableColumn: NSTableColumn?, row: Int) -> NSView? {
         switch items[row] {
-        case .header(let t, let tip):
-            let l = NSTextField(labelWithString: t.uppercased())
-            l.font = .systemFont(ofSize: 10.5, weight: .bold)
-            l.textColor = .secondaryLabelColor
+        case .header(let t, let tip, let action):
+            let l = NSTextField(labelWithString: action == nil ? t.uppercased() : t)
+            l.font = action == nil ? .systemFont(ofSize: 10.5, weight: .bold) : .systemFont(ofSize: 11.5, weight: .semibold)
+            l.textColor = action == nil ? .secondaryLabelColor : .controlAccentColor
             l.toolTip = tip
             let v = NSView()
             l.frame = NSRect(x: 8, y: 4, width: 280, height: 16)
@@ -169,7 +207,7 @@ final class SideList: NSScrollView, NSTableViewDataSource, NSTableViewDelegate {
             l.font = .systemFont(ofSize: 11.5)
             l.textColor = red ? .systemRed : .secondaryLabelColor
             let v = NSView()
-            l.frame = NSRect(x: 30, y: 2, width: 250, height: 30)
+            l.frame = NSRect(x: 30, y: 2, width: noteWidth, height: Self.noteHeight(t, width: noteWidth) - 4)
             l.autoresizingMask = [.width]
             v.addSubview(l)
             return v
@@ -193,6 +231,7 @@ final class SideList: NSScrollView, NSTableViewDataSource, NSTableViewDelegate {
         guard i >= 0, i < items.count else { return }
         switch items[i] {
         case .heading(_, _, _, _, let toggle): toggle()
+        case .header(_, _, let action?): action()
         case .row(let r): onClick?(r.id)
         default: break
         }
@@ -283,6 +322,10 @@ private final class SideRowView: NSTableCellView {
     private let alert = NSTextField(labelWithString: "")
     private let pills = NSStackView()
     private var button: ToolButton?
+    private var columns: [NSTextField] = []
+    private var columnWidths: [CGFloat] = []
+    private var depth = 0
+    private let elbow = NSTextField(labelWithString: "└")
 
     init() {
         super.init(frame: .zero)
@@ -297,7 +340,9 @@ private final class SideRowView: NSTableCellView {
         alert.textColor = .systemRed
         alert.lineBreakMode = .byTruncatingTail
         pills.spacing = 4
-        [icon, dot, title, detail, alert, pills].forEach(addSubview)
+        elbow.font = .systemFont(ofSize: 11)
+        elbow.textColor = .tertiaryLabelColor
+        [icon, dot, title, detail, alert, pills, elbow].forEach(addSubview)
     }
 
     required init?(coder: NSCoder) { fatalError() }
@@ -310,9 +355,23 @@ private final class SideRowView: NSTableCellView {
         dot.layer?.backgroundColor = r.dot?.cgColor
         title.font = r.mono ? .monospacedSystemFont(ofSize: 12, weight: .regular) : .systemFont(ofSize: 12.5)
         title.stringValue = r.title
+        title.textColor = r.muted ? .secondaryLabelColor : .labelColor
+        depth = r.depth
+        elbow.isHidden = r.depth == 0
+        columns.forEach { $0.removeFromSuperview() }
+        columns = r.columns.map { c in
+            let l = NSTextField(labelWithString: c.text)
+            l.font = .monospacedDigitSystemFont(ofSize: 11.5, weight: c.bold ? .semibold : .regular)
+            l.textColor = c.color
+            l.alignment = .right
+            addSubview(l)
+            return l
+        }
+        columnWidths = r.columns.map(\.width)
         detail.stringValue = r.detail
         detail.isHidden = r.detail.isEmpty
         alert.stringValue = r.alert
+        alert.textColor = r.alertColor
         alert.isHidden = r.alert.isEmpty
         pills.arrangedSubviews.forEach { $0.removeFromSuperview() }
         for p in r.pills {
@@ -344,16 +403,23 @@ private final class SideRowView: NSTableCellView {
         let lines = [title, detail, alert].filter { !$0.isHidden }
         let lineH: CGFloat = 16
         var y = (h - CGFloat(lines.count) * lineH) / 2
-        icon.frame = NSRect(x: 8, y: (h - 16) / 2, width: 16, height: 16)
-        dot.frame = NSRect(x: 12, y: (h - 7) / 2, width: 7, height: 7)
-        let trailing: CGFloat = button == nil ? 6 : 30
+        let indent = CGFloat(depth) * 14
+        elbow.frame = NSRect(x: 8 + indent - 12, y: (h - 16) / 2, width: 12, height: 16)
+        icon.frame = NSRect(x: 8 + indent, y: (h - 16) / 2, width: 16, height: 16)
+        dot.frame = NSRect(x: 12 + indent, y: (h - 7) / 2, width: 7, height: 7)
+        var trailing: CGFloat = button == nil ? 6 : 30
+        for (l, w) in zip(columns, columnWidths).reversed() {
+            l.frame = NSRect(x: bounds.width - trailing - w, y: (h - 16) / 2, width: w, height: 16)
+            trailing += w + 4
+        }
         let pillsW = pills.fittingSize.width
         button?.frame = NSRect(x: bounds.width - 28, y: (h - 24) / 2, width: 24, height: 24)
         pills.frame = NSRect(x: bounds.width - trailing - pillsW, y: (h - 16) / 2, width: pillsW, height: 16)
-        let textW = max(0, bounds.width - 32 - trailing - pillsW - 6)
+        let textX = (icon.image == nil && dot.isHidden ? 10 : 30) + indent
+        let textW = max(0, bounds.width - textX - 2 - trailing - pillsW - 6)
         // The table is flipped; rows lay out top-down.
         for l in lines {
-            l.frame = NSRect(x: 30, y: y, width: textW, height: lineH)
+            l.frame = NSRect(x: textX, y: y, width: textW, height: lineH)
             y += lineH
         }
     }

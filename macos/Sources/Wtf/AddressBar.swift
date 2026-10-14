@@ -39,6 +39,17 @@ final class AddressBar: NSView {
     private var clockTimer: Timer?
     private var current: (pane: Pane, group: TabGroup?)?
     var onShowSecrets: (() -> Void)?
+    var onShowUsage: (() -> Void)?
+    var onStopRecording: ((Int) -> Void)?
+    /// The focused pane's recording, if it's being recorded.
+    var recording: (pane: Int, path: String, since: Date)?
+    private let recLabel = NSTextField(labelWithString: "")
+    /// Kept across rebuilds so it doesn't restart sampling on every prompt.
+    private lazy var usage: UsageReadout = {
+        let u = UsageReadout()
+        u.onClick = { [weak self] in self?.onShowUsage?() }
+        return u
+    }()
     var dark = true
     var accent = NSColor.controlAccentColor
     var ok = NSColor.systemGreen
@@ -73,6 +84,11 @@ final class AddressBar: NSView {
         super.layout()
         omnibox.frame = NSRect(x: 8, y: 6, width: bounds.width - 16, height: 28)
         stack.frame = omnibox.bounds
+    }
+
+    override func viewDidMoveToWindow() {
+        super.viewDidMoveToWindow()
+        usage.setWatching(window != nil && (Settings.shared.config?.showUsage ?? false))
     }
 
     // Clicks never move the keyboard here.
@@ -125,7 +141,28 @@ final class AddressBar: NSView {
         addEnd()
     }
 
+    /// Moves the REC clock on (every second while recording).
+    func updateRecording() {
+        guard let r = recording else { return }
+        recLabel.stringValue = "REC " + Export.elapsed(Int(Date().timeIntervalSince(r.since)))
+    }
+
     private func addEnd() {
+        if let r = recording {
+            let pill = Pill(bg: danger.withAlphaComponent(0.16))
+            let dot = Dot(color: danger, size: 7)
+            recLabel.font = .monospacedDigitSystemFont(ofSize: 11.5, weight: .semibold)
+            recLabel.textColor = danger
+            updateRecording()
+            pill.set([dot, recLabel])
+            let b = PillButton(wrapping: pill)
+            b.toolTip = "Recording to \(WindowModel.prettyPath(r.path)). Click to stop (⌥⌘S)"
+            b.onClick = { [weak self] in self?.onStopRecording?(r.pane) }
+            end.addArrangedSubview(b)
+        }
+        let showUsage = Settings.shared.config?.showUsage ?? false
+        usage.setWatching(showUsage && window != nil)
+        if showUsage { end.addArrangedSubview(usage) }
         if Redaction.shared.on {
             let b = PillButton(symbol: "checkmark.shield", text: "Secrets hidden", fg: ok, bg: ok.withAlphaComponent(0.16))
             b.toolTip = "Secrets in the output are covered, and replaced with [REDACTED] when copied. Click to show them (⌥⌘R)"
@@ -275,6 +312,18 @@ final class Pill: NSView {
 @MainActor
 final class PillButton: NSView {
     var onClick: (() -> Void)?
+
+    /// Any pill made clickable.
+    init(wrapping pill: Pill) {
+        super.init(frame: .zero)
+        pill.translatesAutoresizingMaskIntoConstraints = false
+        addSubview(pill)
+        NSLayoutConstraint.activate([
+            pill.leadingAnchor.constraint(equalTo: leadingAnchor), pill.trailingAnchor.constraint(equalTo: trailingAnchor),
+            pill.topAnchor.constraint(equalTo: topAnchor), pill.bottomAnchor.constraint(equalTo: bottomAnchor),
+        ])
+        setAccessibilityRole(.button)
+    }
 
     init(symbol: String, text: String, fg: NSColor, bg: NSColor) {
         super.init(frame: .zero)

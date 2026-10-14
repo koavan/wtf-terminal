@@ -12,6 +12,7 @@ final class FormSheet: NSObject {
     let panel: NSPanel
     private let stack = NSStackView()
     private let errorLabel = NSTextField(wrappingLabelWithString: "")
+    private let subtitleLabel = NSTextField(wrappingLabelWithString: "")
     private var buttonRow = NSStackView()
     private var buttons: [String: NSButton] = [:]
     private weak var parent: NSWindow?
@@ -31,18 +32,22 @@ final class FormSheet: NSObject {
         let t = NSTextField(labelWithString: title)
         t.font = .systemFont(ofSize: 15, weight: .semibold)
         stack.addArrangedSubview(t)
-        if let subtitle, !subtitle.isEmpty {
-            let s = NSTextField(wrappingLabelWithString: subtitle)
-            s.textColor = .secondaryLabelColor
-            s.preferredMaxLayoutWidth = width - 48
-            stack.addArrangedSubview(s)
-        }
+        subtitleLabel.stringValue = subtitle ?? ""
+        subtitleLabel.textColor = .secondaryLabelColor
+        subtitleLabel.preferredMaxLayoutWidth = width - 48
+        subtitleLabel.isHidden = (subtitle ?? "").isEmpty
+        stack.addArrangedSubview(subtitleLabel)
         errorLabel.textColor = .systemRed
         errorLabel.preferredMaxLayoutWidth = width - 48
         errorLabel.isHidden = true
     }
 
     private var inner: CGFloat { width - 48 }
+
+    func setSubtitle(_ s: String) {
+        subtitleLabel.stringValue = s
+        subtitleLabel.isHidden = s.isEmpty
+    }
 
     /// A labelled control, with optional help under it.
     @discardableResult
@@ -169,13 +174,13 @@ final class ClosureButton: NSButton {
 enum Confirm {
     /// "Delete …?" with a destructive button; runs `action` when confirmed.
     static func show(in window: NSWindow?, title: String, message: String, items: [String] = [], button: String,
-                     _ action: @escaping () -> Void) {
+                     limit: Int = 6, _ action: @escaping () -> Void) {
         guard let window else { return }
         let alert = NSAlert()
         alert.messageText = title
         var text = message
         if !items.isEmpty {
-            text += "\n\n" + items.prefix(6).map { "• \($0)" }.joined(separator: "\n") + (items.count > 6 ? "\nand \(items.count - 6) more" : "")
+            text += "\n\n" + items.prefix(limit).map { "• \($0)" }.joined(separator: "\n") + (items.count > limit ? "\nand \(items.count - limit) more" : "")
         }
         alert.informativeText = text
         alert.addButton(withTitle: button)

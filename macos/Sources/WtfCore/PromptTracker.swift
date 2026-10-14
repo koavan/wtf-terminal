@@ -71,6 +71,7 @@ public final class PromptTracker {
         public let exitCode: Int?
         public let durationMs: Double?
         public let finishedAt: Date?
+        public let startedAt: Date?
         /// Its output is still in the scrollback.
         public let hasOutput: Bool
     }
@@ -225,7 +226,7 @@ public final class PromptTracker {
 
     private func block(_ r: Record) -> Block {
         Block(id: r.id, text: r.text, exitCode: r.exitCode, durationMs: r.durationMs, finishedAt: r.finishedAt,
-              hasOutput: r.output?.isValid(in: term) ?? false)
+              startedAt: r.startedAt, hasOutput: r.output?.isValid(in: term) ?? false)
     }
 
     /// The row to scroll to for the previous (-1) or next (1) prompt from the
@@ -248,6 +249,20 @@ public final class PromptTracker {
             if r.prompt.row <= row { found = r } else { break }
         }
         return found?.output != nil ? found?.id : nil
+    }
+
+    /// The command running now, if any.
+    public var runningId: Int? {
+        guard let r = current, r.output != nil, r.end == nil else { return nil }
+        return r.id
+    }
+
+    /// Every command that got as far as running, with its output (nil once
+    /// it has left the scrollback), for a Markdown transcript.
+    public func transcript() -> [Export.Block] {
+        records.filter { $0.output != nil }.map { r in
+            Export.Block(text: r.text, output: output(r.id), startedAt: r.startedAt, exitCode: r.exitCode, durationMs: r.durationMs)
+        }
     }
 
     /// The most recent finished command whose output is still in the scrollback.

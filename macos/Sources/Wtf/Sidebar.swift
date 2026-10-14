@@ -35,7 +35,17 @@ final class Sidebar: NSView {
     static let tabs: [TabInfo] = [
         TabInfo(tab: .files, label: "Files", symbol: "folder", key: "⌘⇧E") { FilesView(window: $0) },
         TabInfo(tab: .ssh, label: "SSH Hosts", symbol: "server.rack", key: "⌘⇧S") { SshView(window: $0) },
+        TabInfo(tab: .aws, label: "AWS Profiles", symbol: "cloud", key: "⌘⇧U") { AwsView(window: $0) },
         TabInfo(tab: .kube, label: "Kubernetes", symbol: "helm", key: "⌘⇧K") { KubeView(window: $0) },
+        TabInfo(tab: .snippets, label: "Snippets", symbol: "scroll", key: "⌘⇧Y") { SnippetsView(window: $0) },
+        TabInfo(tab: .workspaces, label: "Workspaces", symbol: "square.stack.3d.up", key: "⌘⇧L") { WorkspacesView(window: $0) },
+        TabInfo(tab: .history, label: "Command History", symbol: "clock.arrow.circlepath", key: "⌘⇧H") { HistoryView(window: $0) },
+        TabInfo(tab: .pins, label: "Pinned Output", symbol: "pin", key: "⌘⇧I") { PinsView(window: $0) },
+        TabInfo(tab: .findings, label: "Findings (Security Scans)", symbol: "exclamationmark.shield", key: "⌘⇧F") { FindingsView(window: $0) },
+        TabInfo(tab: .share, label: "Share & Record", symbol: "record.circle", key: "⌘⇧J") { ShareView(window: $0) },
+        TabInfo(tab: .generate, label: "Generate Keys & Passwords", symbol: "key", key: "⌘⇧N") { GenerateView(window: $0) },
+        TabInfo(tab: .network, label: "Network", symbol: "network", key: "⌘⇧O") { NetworkView(window: $0) },
+        TabInfo(tab: .processes, label: "Processes", symbol: "cpu", key: "⌘⇧A") { ProcessView(window: $0) },
     ]
 
     private unowned let owner: WindowController

@@ -17,6 +17,8 @@ public struct SidebarState: Equatable, Sendable {
     public var tab: SidebarTab = .files
     public var sshSection = "hosts"
     public var kubeView = "cluster"
+    public var generateSection = "key"
+    public var historyScope = "pane"
     /// Everything else in the saved object, as it was.
     var rest: [String: JSONValue] = [:]
 
@@ -33,6 +35,8 @@ public struct SidebarState: Equatable, Sendable {
         if case .string(let t)? = o["tab"], let tab = SidebarTab(rawValue: t) { self.tab = tab }
         if case .string(let s)? = o["sshSection"], ["hosts", "keys", "git", "tunnels"].contains(s) { sshSection = s }
         if case .string(let k)? = o["kubeView"], ["cluster", "contexts"].contains(k) { kubeView = k }
+        if case .string(let h)? = o["historyScope"], ["pane", "all"].contains(h) { historyScope = h }
+        if case .string(let g)? = o["generateSection"], ["key", "password"].contains(g) { generateSection = g }
     }
 
     public var json: JSONValue {
@@ -43,6 +47,8 @@ public struct SidebarState: Equatable, Sendable {
         o["tab"] = .string(tab.rawValue)
         o["sshSection"] = .string(sshSection)
         o["kubeView"] = .string(kubeView)
+        o["generateSection"] = .string(generateSection)
+        o["historyScope"] = .string(historyScope)
         return .object(o)
     }
 }

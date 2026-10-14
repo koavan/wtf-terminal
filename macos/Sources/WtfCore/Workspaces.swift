@@ -273,3 +273,38 @@ extension WindowModel {
         return first
     }
 }
+
+extension Workspace {
+    /// A workspace as snippets.List returns it.
+    public init(_ g: Go.snippets.Workspace) {
+        self.init(name: g.name, window: g.window,
+                  tabs: g.tabs.map { t in
+                      WTab(title: t.title, group: t.group, color: t.color, cwd: t.cwd, command: t.command, layout: t.layout,
+                           panes: t.panes.map { WPane(cwd: $0.cwd, command: $0.command) })
+                  },
+                  params: g.params.map { Param(name: $0.name, description: $0.description, default: $0.default, choices: $0.choices, raw: $0.raw) })
+        id = g.id
+        description = g.description
+        source = g.source
+        project = g.project
+    }
+}
+
+extension WindowModel {
+    /// "Save Window as Workspace": every tab in strip order with its custom
+    /// title, group and colour, its panes' folders (~ for home) and what runs
+    /// in them now (an ssh host, `kubectl … -w`), and the root split's
+    /// direction. Nested splits flatten to one direction.
+    public func captureWorkspace(home: String = NSHomeDirectory()) -> Go.snippets.WorkspaceDef {
+        Go.snippets.WorkspaceDef(tabs: tabs.map { t in
+            let g = t.groupId.flatMap(group)
+            var layout = ""
+            if case .split(let d, _, _, _) = t.root { layout = d.rawValue }
+            return Go.snippets.WTab(
+                title: t.customTitle ?? "", group: g?.name ?? "", color: g?.color.rawValue ?? "", layout: layout,
+                panes: t.root.leaves.compactMap { panes[$0] }.map {
+                    Go.snippets.WPane(cwd: WindowModel.prettyPath($0.cwd, home: home), command: $0.running ? $0.command : "")
+                })
+        })
+    }
+}

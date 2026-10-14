@@ -201,7 +201,7 @@ final class TabOverview: NSView, NSSearchFieldDelegate {
     }
 }
 
-private final class FlippedView: NSView {
+final class FlippedView: NSView {
     override var isFlipped: Bool { true }
 }
 

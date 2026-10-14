@@ -18,6 +18,9 @@ final class WindowController: NSWindowController, NSWindowDelegate, NSMenuItemVa
     private(set) var terminals: [Int: TerminalController] = [:]
     /// Panes whose shells went to another window: not hung up when they leave.
     private var detached = Set<Int>()
+    /// Commands run, pins, recordings: in memory for this window.
+    let records = WindowRecords()
+    private var recTimer: Timer?
     private var saveTimer: Timer?
     private var lastSaved = ""
     private var closing = false
@@ -49,6 +52,8 @@ final class WindowController: NSWindowController, NSWindowDelegate, NSMenuItemVa
         window.contentView = root
         window.strip = strip
         address.onShowSecrets = { Redaction.shared.on = false }
+        address.onShowUsage = { [weak self] in self.map { UsageDialog.show(in: $0) } }
+        address.onStopRecording = { [weak self] in self?.stopRecording(pane: $0) }
         broadcastBar.onStop = { [weak self] in
             guard let self else { return }
             Broadcast.shared.stopAll(in: self)
@@ -69,6 +74,7 @@ final class WindowController: NSWindowController, NSWindowDelegate, NSMenuItemVa
         strip.onRenamed = { [weak self] in self?.focusActive() }
         strip.onToggleSidebar = { [weak self] in self?.toggleSidebar(nil) }
         strip.broadcasting = { Broadcast.shared.isBroadcasting(tab: $0, in: self) }
+        strip.recording = { [unowned self] tab in model.tab(tab)?.root.leaves.contains { records.recording[$0] != nil } ?? false }
         panes.onRatio = { [weak self] path, r in
             guard let self, let t = model.active else { return }
             model.setRatio(tab: t.id, path: path, r)
@@ -152,7 +158,9 @@ final class WindowController: NSWindowController, NSWindowDelegate, NSMenuItemVa
         let live = Set(model.panes.keys)
         for (id, term) in terminals where !live.contains(id) {
             terminals[id] = nil
-            if detached.remove(id) == nil { term.close() }
+            let moved = detached.remove(id) != nil
+            if !moved { term.close() }
+            recordsPaneGone(id, moved: moved)
             term.container.removeFromSuperview()
         }
         for (id, pane) in model.panes where terminals[id] == nil { startTerminal(pane) }
@@ -181,7 +189,23 @@ final class WindowController: NSWindowController, NSWindowDelegate, NSMenuItemVa
     /// The active tab and its focused pane at the last sync.
     private var lastFront: [Int]?
 
+    /// The REC pill and the tabs' red dots, and the 1s clock only while something records.
+    func refreshRecordingIndicators() {
+        let on = !records.recording.isEmpty
+        if on, recTimer == nil {
+            recTimer = Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { [weak self] _ in
+                MainActor.assumeIsolated { self?.address.updateRecording() }
+            }
+        } else if !on {
+            recTimer?.invalidate()
+            recTimer = nil
+        }
+        strip.refresh()
+        refreshBars()
+    }
+
     private func refreshBars() {
+        address.recording = model.activePane.flatMap { p in records.recording[p.id].map { (p.id, $0.path, $0.since) } }
         address.show(pane: model.activePane, group: model.active?.groupId.flatMap(model.group))
         let on = Broadcast.shared.isOn(in: self)
         broadcastBar.isHidden = !on
@@ -259,8 +283,11 @@ final class WindowController: NSWindowController, NSWindowDelegate, NSMenuItemVa
             guard let p = self?.model.panes[id], !p.integrated else { return }
             p.integrated = true
         }
-        term.onCommandStart = { [weak self] text in
+        term.onCommandStart = { [weak self] text, block in
             guard let self, let p = model.panes[id] else { return }
+            records.history.started(pane: id, id: block, command: text, cwd: p.cwd)
+            records.runningBlock[id] = block
+            records.changed()
             p.running = true
             p.command = text
             strip.refresh()
@@ -270,6 +297,13 @@ final class WindowController: NSWindowController, NSWindowDelegate, NSMenuItemVa
             guard let self, let p = model.panes[id] else { return }
             p.lastCommand = (p.command, code, ms)
             SshStore.shared.commandFinished(p.command)
+            records.history.finished(pane: id, exitCode: code, durationMs: ms)
+            // A pin following this command gets its final output.
+            if let b = records.runningBlock.removeValue(forKey: id), let term = terminals[id] {
+                records.pins.update(pane: id, block: b, text: term.blockOutput(b) ?? "", done: (code, ms))
+            }
+            records.changed()
+            if Findings.isScan(p.command) { records.scanFinished() }
             p.running = false
             p.command = ""
             model.markFinished(pane: id, ok: code == 0)
@@ -476,6 +510,7 @@ final class WindowController: NSWindowController, NSWindowDelegate, NSMenuItemVa
             wire(term)
             terminals[id] = term
             if let info = term.info { apply(info) }
+            syncRecording(pane: id)
         }
         sync()
         window?.makeKeyAndOrderFront(nil)

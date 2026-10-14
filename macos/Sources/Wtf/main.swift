@@ -93,6 +93,56 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             }
             NSApp.terminate(nil)
         }
+        if env["WTF_NATIVE_DEBUG"] == "m5", let dir = env["WTF_NATIVE_SNAPSHOT_DIR"] {
+            // Runs a few commands and a local web server, then renders every
+            // M5 side-pane tab and the Resource Usage dialog. Read-only.
+            func snap(_ name: String, _ v: NSView?) {
+                guard let v, let rep = v.bitmapImageRepForCachingDisplay(in: v.bounds) else { return }
+                v.cacheDisplay(in: v.bounds, to: rep)
+                try? rep.representation(using: .png, properties: [:])?.write(to: URL(fileURLWithPath: "\(dir)/\(name).png"))
+                NSLog("snapshot \(name): \(w.sidePane?.debugSummary() ?? "-")")
+            }
+            func tab(_ t: SidebarTab, _ name: String, wait: Double = 2.5) async {
+                w.sidebar.tab = t
+                w.sidebar.open = true
+                w.layoutSidebar()
+                try? await Task.sleep(for: .seconds(wait))
+                snap(name, w.window?.contentView)
+            }
+            w.window?.makeKey()
+            w.activeTerminal?.type("cd /tmp\recho hello from wtf\rfalse\rls -1 / | head -5\r")
+            try? await Task.sleep(for: .seconds(2.5))
+            w.pinLastOutput()
+            w.activeTerminal?.type("python3 -m http.server 8765 --bind 127.0.0.1\r")
+            try? await Task.sleep(for: .seconds(2))
+            await tab(.network, "network")
+            await tab(.processes, "processes")
+            ProcStore.shared.terminalsOnly = false
+            ProcStore.shared.changed()
+            try? await Task.sleep(for: .seconds(0.5))
+            snap("processes-all", w.window?.contentView)
+            ProcStore.shared.terminalsOnly = true
+            await tab(.history, "history", wait: 1)
+            w.sidebar.historyScope = "all"
+            await tab(.pins, "pins", wait: 1)
+            await tab(.history, "history-all", wait: 1)
+            await tab(.share, "share", wait: 1)
+            await tab(.snippets, "snippets")
+            await tab(.aws, "aws")
+            await tab(.findings, "findings")
+            w.sidebar.generateSection = "key"
+            await tab(.generate, "generate-key")
+            w.showGenerator("password")
+            try? await Task.sleep(for: .seconds(1))
+            snap("generate-password", w.window?.contentView)
+            UsageDialog.show(in: w)
+            try? await Task.sleep(for: .seconds(4.5))
+            snap("usage", w.window?.attachedSheet?.contentView)
+            if let sheet = w.window?.attachedSheet { w.window?.endSheet(sheet) }
+            w.activeTerminal?.type("\u{03}")
+            try? await Task.sleep(for: .seconds(0.5))
+            NSApp.terminate(nil)
+        }
         if env["WTF_NATIVE_DEBUG"] == "kubeclicks" {
             // Clicks Kubernetes section headings through the real mouse path
             // (without reading the cluster), then quits.
@@ -223,7 +273,13 @@ func buildMenu() -> NSMenu {
         cmd("Split Right", "pane.splitRight", "d"),
         cmd("Split Down", "pane.splitDown", "d", [.command, .shift]),
         cmd("Duplicate Tab", "tab.duplicate"),
+        cmd("Run Snippet…", "snippets.run", "r", [.command, .shift]),
+        cmd("Start or Stop Recording…", "record.toggle", "s", [.command, .option]),
+        cmd("Save Output as Text…", "export.text"),
+        cmd("Save Commands as Markdown…", "export.markdown"),
+        cmd("Run Security Scan…", "findings.scan"),
         cmd("Open Workspace…", "workspace.open"),
+        cmd("Save Window as Workspace…", "workspace.save"),
         .separator(),
         cmd("Broadcast Input", "broadcast.toggle", "b", [.command, .option]),
         cmd("Move Tab to New Window", "tab.toNewWindow"),
@@ -251,7 +307,18 @@ func buildMenu() -> NSMenu {
         cmd("Toggle Sidebar", "sidebar.toggle", "b"),
         cmd("Show Files", "sidebar.files", "e", [.command, .shift]),
         cmd("Show SSH Hosts", "sidebar.ssh", "s", [.command, .shift]),
+        cmd("Show AWS Profiles", "sidebar.aws", "u", [.command, .shift]),
         cmd("Show Kubernetes", "sidebar.kube", "k", [.command, .shift]),
+        cmd("Show Snippets", "sidebar.snippets", "y", [.command, .shift]),
+        cmd("Show Workspaces", "sidebar.workspaces", "l", [.command, .shift]),
+        cmd("Show Network", "sidebar.network", "o", [.command, .shift]),
+        cmd("Show Processes", "sidebar.processes", "a", [.command, .shift]),
+        cmd("Show Command History", "sidebar.history", "h", [.command, .shift]),
+        cmd("Show Pinned Output", "sidebar.pins", "i", [.command, .shift]),
+        cmd("Show Findings", "sidebar.findings", "f", [.command, .shift]),
+        cmd("Show Share & Record", "sidebar.share", "j", [.command, .shift]),
+        cmd("Show Generate Keys & Passwords", "sidebar.generate", "n", [.command, .shift]),
+        cmd("Resource Usage…", "usage.show"),
         cmd("Hide Secrets", "secrets.toggle", "r", [.command, .option]),
         .separator(),
         cmd("Previous Prompt", "prompt.prev", up),

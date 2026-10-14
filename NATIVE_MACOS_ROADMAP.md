@@ -284,14 +284,34 @@ Kubernetes), and the port follows them.
   New self-checks: `commands`, `kubeclicks` (no cluster reads), and `snapshot`
   (the app renders its window to PNGs for layout checks).
 
-## M5 — Side pane II ☐
+## M5 — Side pane II ◐ (built, awaiting hands-on check)
 
-- **AWS:** `AwsView`, `AwsProfileEditor`, `AwsRotate`, expiry clocks (#10).
-- **Network** and **Processes** views, with refresh controls and the paused note.
-- **Findings** (#12), **History**, **Snippets** (view, editor, dialog), **Pins**.
-- **Share & Record:** recording and transcripts. This replaces
-  `@xterm/addon-serialize`, so the recording format may need a backend change.
-- Resource usage readout and dialog.
+- **AWS:** `AwsView`, `AwsProfileEditor` (form → planned changes → confirm),
+  `AwsRotate`. Expiry clocks were already on the address-bar badge (M3).
+- **Network** and **Processes** views, with refresh controls and the paused
+  note. A shared `Poller` refreshes only the visible tab while its window is in
+  front, and catches up when the window comes back to the front.
+- **Findings** (#12) with the Scan dialog, **History** (scope saved with the
+  window), **Snippets** (tab, run dialog with runbook steps, editor, palette
+  mode ⌘⇧R, Save as Snippet… from command blocks, History and Pins) and
+  **Pins** (following running commands every 1.5 s, only while shown).
+- **Share & Record:** Hide Secrets, recording (`terminal.StartRecording`: the
+  Go side writes asciicast, so no format change was needed), REC pill in the
+  address bar and a red dot on the tab, Save Output as Text, Save Commands as
+  Markdown.
+- Resource usage readout (sampled only while shown) and dialog. The Windows
+  group shows only if something lands there; the native app draws its own
+  windows.
+- **Generate** tab: SSH key form (made in Go, with a passphrase), password
+  generator (`SecRandomCopyBytes`). The SSH tab's + New key opens it.
+- **Workspaces** tab and workspace editor (moved here from M3).
+- Self-check: `WTF_NATIVE_DEBUG=m5 WTF_NATIVE_SNAPSHOT_DIR=…` (set
+  `AWS_CONFIG_FILE`/`AWS_SHARED_CREDENTIALS_FILE` to throwaway files) renders
+  every M5 tab and the usage dialog.
+- Known: bash integration reports `$BASH_COMMAND`, so a pipeline shows only its
+  first command in History and Pins (zsh is fine; same in the Wails build).
+  The Tools dialog (“Install…” links) comes with M6; until then, the hints say
+  how to install.
 
 ## M6 — Viewers, generators, dialogs, manual ☐
 

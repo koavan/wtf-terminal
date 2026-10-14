@@ -11,3 +11,16 @@ import Testing
     #expect(SidebarState(json: .string("junk")) == SidebarState())
     #expect(SidebarState.clampWidth(100) == 220)
 }
+
+@Test func generateSectionRoundTrips() {
+    var s = SidebarState(json: .object(["generateSection": .string("password")]))
+    #expect(s.generateSection == "password")
+    #expect(SidebarState(json: .object(["generateSection": .string("bogus")])).generateSection == "key")
+    s.generateSection = "key"
+    #expect(SidebarState(json: s.json).generateSection == "key")
+}
+
+@Test func historyScopeRoundTrips() {
+    #expect(SidebarState(json: .object(["historyScope": .string("all")])).historyScope == "all")
+    #expect(SidebarState(json: .object(["historyScope": .string("x")])).historyScope == "pane")
+}
