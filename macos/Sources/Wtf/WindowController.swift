@@ -230,7 +230,11 @@ final class WindowController: NSWindowController, NSWindowDelegate, NSMenuItemVa
     }
 
     /// A pane's context badges were resolved.
-    func paneContextChanged() { refreshBars() }
+    func paneContextChanged() {
+        refreshBars()
+        // The side pane follows it too (the AWS profile in use, the cluster).
+        sidePane?.paneChanged()
+    }
 
     /// Re-resolves every pane's context (an AWS account lookup finished, or
     /// badges were turned on).
