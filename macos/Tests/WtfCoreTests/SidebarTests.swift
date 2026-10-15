@@ -24,3 +24,11 @@ import Testing
     #expect(SidebarState(json: .object(["historyScope": .string("all")])).historyScope == "all")
     #expect(SidebarState(json: .object(["historyScope": .string("x")])).historyScope == "pane")
 }
+
+@Test func paneViewsRoundTrip() {
+    var s = SidebarState(json: .object(["networkScope": .string("all"), "processSort": .string("memory"), "processScope": .string("bogus")]))
+    #expect(s.networkScope == "all" && s.processSort == "memory" && s.processScope == "terminals")
+    s.processScope = "all"
+    let back = SidebarState(json: s.json)
+    #expect(back.processScope == "all" && back.networkScope == "all")
+}

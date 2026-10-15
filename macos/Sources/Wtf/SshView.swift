@@ -21,7 +21,23 @@ final class SshStore {
     private var listening = false
 
     func observe<T: AnyObject>(_ owner: T, _ fn: @escaping (T) -> Void) { observers.add(owner, fn) }
-    func changed() { observers.notify() }
+    func changed() {
+        observers.notify()
+        let ready = waiting.filter { (!$0.keys || keysLoaded) && (!$0.hosts || hostsLoaded) }
+        waiting.removeAll { w in ready.contains { $0.id == w.id } }
+        ready.forEach { $0.run() }
+    }
+
+    private var waiting: [(id: UUID, keys: Bool, hosts: Bool, run: () -> Void)] = []
+
+    /// Runs once the keys and/or hosts are loaded (loading them if needed),
+    /// so dialogs built from them never open with empty lists.
+    func whenLoaded(keys: Bool = false, hosts: Bool = false, _ run: @escaping () -> Void) {
+        if (!keys || keysLoaded), (!hosts || hostsLoaded) { return run() }
+        waiting.append((UUID(), keys, hosts, run))
+        if keys, !keysLoaded { loadKeys() }
+        if hosts, !hostsLoaded { loadHosts() }
+    }
 
     func loadHosts() {
         Task {
@@ -648,8 +664,12 @@ final class TunnelsSection: NSView {
         let on = Tunnels.isOn(t)
         add(on ? "Stop" : "Start") {
             Task {
-                SshStore.shared.tunnels = (try? await (on ? Services.sshhosts.StopTunnel(t.id) : Services.sshhosts.StartTunnel(t.id))) ?? SshStore.shared.tunnels
-                SshStore.shared.changed()
+                do {
+                    SshStore.shared.tunnels = try await on ? Services.sshhosts.StopTunnel(t.id) : Services.sshhosts.StartTunnel(t.id)
+                    SshStore.shared.changed()
+                } catch {
+                    Toast.show(error.localizedDescription, in: w.rootView, seconds: 6)
+                }
             }
         }
         if let port = Tunnels.localPort(t) {
@@ -671,8 +691,12 @@ final class TunnelsSection: NSView {
             Confirm.show(in: w.window, title: "Delete \(t.name.isEmpty ? "this port forward" : t.name)?",
                          message: Tunnels.describe(t) + (on ? ". It stops now." : "."), button: "Delete") {
                 Task {
-                    SshStore.shared.tunnels = (try? await Services.sshhosts.DeleteTunnel(t.id)) ?? SshStore.shared.tunnels
-                    SshStore.shared.changed()
+                    do {
+                        SshStore.shared.tunnels = try await Services.sshhosts.DeleteTunnel(t.id)
+                        SshStore.shared.changed()
+                    } catch {
+                        Toast.show(error.localizedDescription, in: w.rootView, seconds: 6)
+                    }
                 }
             }
         }

@@ -34,7 +34,11 @@ enum Commands {
 
     static var all: [Command] { [
         Command("palette", "Command Palette", "⌘⇧P") { Palette.toggle(.commands, in: $0) },
-        Command("app.about", "About wtf") { _ in NSApp.orderFrontStandardAboutPanel(nil) },
+        Command("app.about", "About wtf") { AboutDialog.show(in: $0) },
+        Command("inspect.tls", "Inspect TLS Certificate…") { CertViewer(.host(""), owner: $0).show() },
+        Command("tools.show", "Command-Line Tools (kubectl, AWS CLI, git…)") { ToolsDialog.show(in: $0) },
+        Command("help.manual", "Open Manual", "⌘?") { ManualWindow.show(from: $0) },
+        Command("help.shortcuts", "Show Keyboard Shortcuts") { _ in ManualWindow.show("shortcuts") },
         Command("workspace.open", "Open Workspace…") { Palette.toggle(.workspaces, in: $0) },
         Command("theme.pick", "Change Theme…") { Palette.toggle(.themes, in: $0) },
         Command("config.open", "Open Settings File", "⌘,") { w in

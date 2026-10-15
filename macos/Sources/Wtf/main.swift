@@ -143,6 +143,149 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             try? await Task.sleep(for: .seconds(0.5))
             NSApp.terminate(nil)
         }
+        if env["WTF_NATIVE_DEBUG"] == "m6", let dir = env["WTF_NATIVE_SNAPSHOT_DIR"] {
+            // The manual's commands, the terminal's inspector menu over real
+            // output, and each M6 dialog rendered to a PNG. Read-only.
+            func snapSheet(_ name: String) {
+                guard let v = w.window?.attachedSheet?.contentView, let rep = v.bitmapImageRepForCachingDisplay(in: v.bounds) else {
+                    NSLog("snapshot \(name): no sheet")
+                    return
+                }
+                v.cacheDisplay(in: v.bounds, to: rep)
+                try? rep.representation(using: .png, properties: [:])?.write(to: URL(fileURLWithPath: "\(dir)/\(name).png"))
+                NSLog("snapshot \(name)")
+            }
+            func endSheet() { if let s = w.window?.attachedSheet { w.window?.endSheet(s) } }
+            NSLog("manual unknown commands: \(ManualWindow.missingCommands())")
+            NSLog("terminal font: \(w.activeTerminal?.view.font.fontName ?? "-")")
+            w.window?.makeKey()
+            let header = #"{"alg":"HS256","typ":"JWT"}"#, claims = #"{"sub":"ada","iss":"https://idp.example.com","exp":1791829800,"iat":1791826200,"aud":["api"]}"#
+            func b64u(_ s: String) -> String {
+                Data(s.utf8).base64EncodedString().replacingOccurrences(of: "+", with: "-").replacingOccurrences(of: "/", with: "_").replacingOccurrences(of: "=", with: "")
+            }
+            let token = b64u(header) + "." + b64u(claims) + ".c2lnbmF0dXJlLXNpZ25hdHVyZQ"
+            w.activeTerminal?.type("clear; printf '%s\\n' '2026-10-15 INFO {\"user\":\"ada\",\"roles\":[\"admin\"],\"ok\":true}' 'Authorization: Bearer \(token)' '  password: cGFzc3dvcmQxMjM=' 'see https://example.com/docs'\r")
+            try? await Task.sleep(for: .seconds(2))
+            if let t = w.activeTerminal {
+                NSLog("menu json line: \(t.debugInspectTitles(at: "INFO"))")
+                NSLog("menu jwt: \(t.debugInspectTitles(at: "eyJ", offset: 3))")
+                NSLog("menu yaml: \(t.debugInspectTitles(at: "cGFzc3dvcmQxMjM=", offset: 2))")
+                NSLog("menu url: \(t.debugInspectTitles(at: "https://", offset: 4))")
+            }
+            ManualWindow.show("inspect", from: w)
+            try? await Task.sleep(for: .seconds(2))
+            await withCheckedContinuation { c in ManualWindow.debugSnapshot(to: "\(dir)/manual.png") { c.resume() } }
+            NSApp.windows.first { $0.title == "wtf Manual" }?.close()
+            w.window?.makeKey()
+            try? await Task.sleep(for: .seconds(0.5))
+            AboutDialog.show(in: w)
+            try? await Task.sleep(for: .seconds(2.5))
+            snapSheet("about")
+            endSheet()
+            ToolsDialog.show(in: w)
+            try? await Task.sleep(for: .seconds(6))
+            snapSheet("tools")
+            endSheet()
+            JsonViewer(json: OrderedJSON.find(#"{"user":"ada","roles":["admin"],"ok":true,"n":1.5}"#)!, owner: w).show()
+            try? await Task.sleep(for: .seconds(1))
+            snapSheet("json")
+            JwtViewer(token: token, owner: w).show()
+            try? await Task.sleep(for: .seconds(1))
+            snapSheet("jwt")
+            let dv = DecodedViewer(text: "cGFzc3dvcmQxMjM=", owner: w)
+            dv.show()
+            try? await Task.sleep(for: .seconds(1))
+            snapSheet("decoded")
+            CertViewer(.file("/etc/ssl/cert.pem"), owner: w).show()
+            try? await Task.sleep(for: .seconds(3))
+            snapSheet("cert")
+            endSheet()
+            try? await Task.sleep(for: .seconds(0.5))
+            WorkspaceEditor.show(.capture(w.model.captureWorkspace()), in: w)
+            try? await Task.sleep(for: .seconds(1.5))
+            snapSheet("workspace-editor")
+            endSheet()
+            try? await Task.sleep(for: .seconds(0.5))
+            NSApp.terminate(nil)
+        }
+        if env["WTF_NATIVE_DEBUG"] == "perf", let bench = env["WTF_NATIVE_BENCH"] {
+            // M7 performance check: the terminal benchmark (macos/bench/workload.sh,
+            // run in this window's shell), then 30s with each side-pane tab shown,
+            // and the manual opened and closed. Same meter, same results.csv.
+            let label = env["WTF_NATIVE_BENCH_LABEL"] ?? "native"
+            let done = "\(bench)/.workload-done"
+            try? FileManager.default.removeItem(atPath: done)
+            w.window?.makeKey()
+            w.activeTerminal?.type("cd \(Shell.quote(bench))/../.. && macos/bench/workload.sh \(label); touch \(Shell.quote(done))\r")
+            for _ in 0..<180 where !FileManager.default.fileExists(atPath: done) { try? await Task.sleep(for: .seconds(2)) }
+            func meter() -> (cpu: Double, mib: Double) {
+                let p = Process()
+                p.executableURL = URL(fileURLWithPath: "\(bench)/respcpu")
+                p.arguments = ["\(ProcessInfo.processInfo.processIdentifier)"]
+                let out = Pipe()
+                p.standardOutput = out
+                try? p.run()
+                p.waitUntilExit()
+                let f = String(decoding: out.fileHandleForReading.readDataToEndOfFile(), as: UTF8.self).split(separator: " ")
+                return (Double(f.first ?? "0") ?? 0, Double(f.count > 1 ? f[1] : "0") ?? 0)
+            }
+            func record(_ phase: String, seconds: Double) async {
+                let a = meter()
+                try? await Task.sleep(for: .seconds(seconds))
+                let b = meter()
+                let line = String(format: "%@,%@,%.2f,%.2f,%.0f,%.0f\n", label, phase, seconds, b.cpu - a.cpu, 100 * (b.cpu - a.cpu) / seconds, b.mib)
+                if let h = FileHandle(forWritingAtPath: "\(bench)/results.csv") {
+                    h.seekToEndOfFile()
+                    h.write(Data(line.utf8))
+                    h.closeFile()
+                }
+                NSLog("perf \(line)")
+            }
+            w.activeTerminal?.type("clear\r")
+            for tab in [SidebarTab.files, .network, .processes, .history, .pins, .findings, .kube] {
+                w.sidebar.tab = tab
+                w.sidebar.open = true
+                w.layoutSidebar()
+                w.window?.makeKey()
+                try? await Task.sleep(for: .seconds(3))
+                await record("pane-\(tab)-30s", seconds: 30)
+            }
+            w.sidebar.open = false
+            w.layoutSidebar()
+            ManualWindow.show("getting-started", from: w)
+            try? await Task.sleep(for: .seconds(3))
+            await record("manual-open-15s", seconds: 15)
+            NSApp.windows.first { $0.title == "wtf Manual" }?.close()
+            w.window?.makeKey()
+            try? await Task.sleep(for: .seconds(5))
+            await record("manual-closed-15s", seconds: 15)
+            NSApp.terminate(nil)
+        }
+        if env["WTF_NATIVE_DEBUG"] == "m7", let dir = env["WTF_NATIVE_SNAPSHOT_DIR"] {
+            // Log colors and token menus over real output, the tab title a
+            // program sets, and a window snapshot. Read-only.
+            w.window?.makeKey()
+            let repo = env["WTF_NATIVE_REPO"] ?? "/tmp"
+            w.activeTerminal?.type("cd \(Shell.quote(repo)) && clear && printf '%s\\n' '2026-10-15T10:00:01Z INFO server started on 10.0.0.5:8080' '2026-10-15 10:00:02,120 WARN slow request pod/web-7d9f8 took 3s' 'Oct 15 10:00:03 host sshd[42]: ERROR from 192.168.1.20' 'panic at macos/build.sh:12 +0x1d' 'deployment.apps/api restarted, see https://example.com/x' && printf '\\033]0;custom title from a program\\007'\r")
+            try? await Task.sleep(for: .seconds(2.5))
+            if let t = w.activeTerminal {
+                NSLog("tints: \(t.container.tints.runs.map { "\($0.row):\($0.col)+\($0.width) \($0.color)" })")
+                NSLog("menu k8s: \(t.debugInspectTitles(at: "pod/web", offset: 5))")
+                NSLog("menu timestamp: \(t.debugInspectTitles(at: "2026-10-15T10", offset: 3))")
+                NSLog("menu ip: \(t.debugInspectTitles(at: "10.0.0.5", offset: 1))")
+                NSLog("menu path: \(t.debugInspectTitles(at: "macos/build.sh", offset: 2))")
+                NSLog("menu deployment: \(t.debugInspectTitles(at: "deployment.apps", offset: 2))")
+            }
+            NSLog("tab title: \(w.model.active.map { w.model.title($0) } ?? "-")")
+            // The live window, blending and all, for screencapture -l from outside.
+            NSLog("window id: \(w.window?.windowNumber ?? 0)")
+            try? await Task.sleep(for: .seconds(4))
+            if let v = w.window?.contentView, let rep = v.bitmapImageRepForCachingDisplay(in: v.bounds) {
+                v.cacheDisplay(in: v.bounds, to: rep)
+                try? rep.representation(using: .png, properties: [:])?.write(to: URL(fileURLWithPath: "\(dir)/logs.png"))
+            }
+            NSApp.terminate(nil)
+        }
         if env["WTF_NATIVE_DEBUG"] == "kubeclicks" {
             // Clicks Kubernetes section headings through the real mouse path
             // (without reading the cluster), then quits.
@@ -245,6 +388,13 @@ func buildMenu() -> NSMenu {
         i.keyEquivalentModifierMask = mods
         return i
     }
+    func servicesItem() -> NSMenuItem {
+        let item = NSMenuItem(title: "Services", action: nil, keyEquivalent: "")
+        let menu = NSMenu(title: "Services")
+        item.submenu = menu
+        NSApp.servicesMenu = menu
+        return item
+    }
     func role(_ title: String, _ action: Selector, _ key: String = "", _ mods: NSEvent.ModifierFlags = .command) -> NSMenuItem {
         let i = NSMenuItem(title: title, action: action, keyEquivalent: key)
         i.keyEquivalentModifierMask = mods
@@ -259,6 +409,9 @@ func buildMenu() -> NSMenu {
         .separator(),
         cmd("Settings…", "config.open", ","),
         cmd("Change Theme…", "theme.pick"),
+        cmd("Command-Line Tools…", "tools.show"),
+        .separator(),
+        servicesItem(),
         .separator(),
         role("Hide wtf", #selector(NSApplication.hide(_:)), "h"),
         role("Hide Others", #selector(NSApplication.hideOtherApplications(_:)), "h", [.command, .option]),
@@ -300,6 +453,7 @@ func buildMenu() -> NSMenu {
         cmd("Find Previous", "find.prev", "g", [.command, .shift]),
         .separator(),
         cmd("Copy Last Command Output", "term.copyOutput", "c", [.command, .option]),
+        cmd("Pin Last Command Output", "term.pinOutput"),
         cmd("Clear Buffer", "term.clear", "k"),
     ])
     _ = submenu("View", [
@@ -358,6 +512,11 @@ func buildMenu() -> NSMenu {
         role("Bring All to Front", #selector(NSApplication.arrangeInFront(_:))),
     ])
     NSApp.windowsMenu = windowMenu
+    let helpMenu = submenu("Help", [
+        cmd("wtf Manual", "help.manual", "?"),
+        cmd("Keyboard Shortcuts", "help.shortcuts"),
+    ])
+    NSApp.helpMenu = helpMenu
     return menu
 }
 

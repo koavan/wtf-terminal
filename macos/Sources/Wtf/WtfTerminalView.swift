@@ -14,11 +14,30 @@ final class WtfTerminalView: TerminalView {
     var contextMenu: ((NSEvent) -> NSMenu?)?
     var onSelectionChanged: (() -> Void)?
     var onFocus: (() -> Void)?
+    /// ⌘-click on a token (timestamp, address, path, resource, JWT): true when it took the click.
+    var onCommandClick: ((NSEvent) -> Bool)?
 
     /// A click into the pane focuses it (keyboard moves go through the model).
     override func mouseDown(with event: NSEvent) {
         onFocus?()
+        let mods = event.modifierFlags.intersection(.deviceIndependentFlagsMask)
+        if mods == .command, onCommandClick?(event) == true { return }
+        // ⌥-drag selects even in programs that take the mouse (vim, htop, tmux), as in the Wails build.
+        if mods.contains(.option), allowMouseReporting {
+            allowMouseReporting = false
+            optionSelecting = true
+        }
         super.mouseDown(with: event)
+    }
+
+    private var optionSelecting = false
+
+    override func mouseUp(with event: NSEvent) {
+        super.mouseUp(with: event)
+        if optionSelecting {
+            optionSelecting = false
+            allowMouseReporting = true
+        }
     }
 
     var selectedText: String? {
@@ -64,7 +83,21 @@ final class WtfTerminalView: TerminalView {
     }
 
     override func menu(for event: NSEvent) -> NSMenu? {
-        contextMenu?(event) ?? super.menu(for: event)
+        // Right-click selects the word under the mouse (unless it's in the
+        // selection already), so the menu can copy or inspect it.
+        let t = getTerminal()
+        if !t.isCurrentBufferAlternate, let c = cell(at: event) {
+            let at = Position(col: c.col, row: t.buffer.yDisp + c.row)
+            if !(selectionActive && Self.contains(selection.start, selection.end, at)) {
+                selection.selectWordOrExpression(at: at, in: t.buffer)
+            }
+        }
+        return contextMenu?(event) ?? super.menu(for: event)
+    }
+
+    private static func contains(_ a: Position, _ b: Position, _ p: Position) -> Bool {
+        let (s, e) = Position.compare(a, b) == .after ? (b, a) : (a, b)
+        return Position.compare(p, s) != .before && Position.compare(p, e) == .before
     }
 
     override func validateUserInterfaceItem(_ item: NSValidatedUserInterfaceItem) -> Bool {

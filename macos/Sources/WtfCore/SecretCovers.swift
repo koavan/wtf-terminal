@@ -23,6 +23,8 @@ public enum SecretCovers {
         var text = ""
         var rows: [Int] = []
         var cols: [Int] = []
+        /// The cell is in the default color (no program colored it).
+        var plain: [Bool] = []
         var first = 0
         var last = 0
     }
@@ -46,9 +48,11 @@ public enum SecretCovers {
                 if cell.width == 0 { col += 1; continue } // the right half of a wide character
                 let c = t.getCharacter(for: cell)
                 let ch: Character = c == "\u{0}" ? " " : c
+                let plain = cell.attribute.fg == .defaultColor
                 for _ in String(ch).utf16 {
                     out.rows.append(r)
                     out.cols.append(col)
+                    out.plain.append(plain)
                 }
                 out.text.append(ch)
                 col += max(1, Int(cell.width))

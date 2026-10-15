@@ -194,6 +194,10 @@ final class FieldWatcher: NSObject, NSTextFieldDelegate, NSComboBoxDelegate {
 @MainActor
 enum KeyInstallSheet {
     static func show(key: Go.sshhosts.Key?, host: SshHost?, in w: WindowController) {
+        SshStore.shared.whenLoaded(keys: true, hosts: true) { build(key: key, host: host, in: w) }
+    }
+
+    private static func build(key: Go.sshhosts.Key?, host: SshHost?, in w: WindowController) {
         let store = SshStore.shared
         let keys = store.keys.keys.filter { !$0.path.isEmpty }
         let hosts = store.list.hosts
@@ -239,8 +243,6 @@ enum KeyInstallSheet {
         })])
         s.present(in: w.window)
         refresh()
-        if !store.keysLoaded { store.loadKeys() }
-        if !store.hostsLoaded { store.loadHosts() }
     }
 }
 
@@ -325,6 +327,11 @@ enum TunnelEditor {
     ]
 
     static func show(_ t: Go.sshhosts.TunnelStatus?, host: SshHost?, prefill: TunnelDraft? = nil, in w: WindowController) {
+        // "Through host" lists your ssh hosts.
+        SshStore.shared.whenLoaded(hosts: true) { build(t, host: host, prefill: prefill, in: w) }
+    }
+
+    private static func build(_ t: Go.sshhosts.TunnelStatus?, host: SshHost?, prefill: TunnelDraft?, in w: WindowController) {
         var d = t.map(TunnelDraft.init) ?? prefill ?? TunnelDraft(host: host?.alias ?? "", port: host.map { $0.known && $0.port != "22" ? $0.port : "" } ?? "")
         let editing = t != nil
         let s = FormSheet(title: editing ? "Edit Port Forward" : "New Port Forward",
@@ -355,7 +362,10 @@ enum TunnelEditor {
         let listenRow = s.field("Port here", listen)
         let destRow = s.field("Destination", NSStackView(views: [destHost, destPort]))
         destPort.widthAnchor.constraint(equalToConstant: 80).isActive = true
-        let resRow = s.field("Target and its port", NSStackView(views: [resource, destPort]))
+        // Its own field: a view lives in one row only.
+        let targetPort = s.text(d.destPort, placeholder: "80")
+        targetPort.widthAnchor.constraint(equalToConstant: 80).isActive = true
+        let resRow = s.field("Target and its port", NSStackView(views: [resource, targetPort]))
 
         func read() {
             d.kind = kinds[max(0, kind.indexOfSelectedItem)].0
@@ -363,7 +373,7 @@ enum TunnelEditor {
             d.port = portField.stringValue
             d.listenPort = listen.stringValue
             d.destHost = destHost.stringValue
-            d.destPort = destPort.stringValue
+            d.destPort = (d.kind == "kubectl" ? targetPort : destPort).stringValue
             d.context = context.stringValue
             d.namespace = namespace.stringValue
             d.resource = resource.stringValue
@@ -380,6 +390,9 @@ enum TunnelEditor {
             resRow.isHidden = !kube
             destRow.isHidden = kube || k == "dynamic"
             (listenRow.subviews.first as? NSTextField)?.stringValue = k == "dynamic" ? "SOCKS port here" : (k == "remote" ? "Port on server" : "Port here")
+            let via = d.host.trimmingCharacters(in: .whitespaces)
+            (destRow.subviews.first as? NSTextField)?.stringValue = k == "remote" ? "Destination, as seen from here" : "Destination, as seen from \(via.isEmpty ? "the host" : via)"
+            s.button("Run in Terminal")?.isHidden = !kube
             let spec = d.spec.isEmpty ? "…" : d.spec
             if kube {
                 let env = d.env.isEmpty ? TunnelDraft.kubectlEnv(w.activePane?.env ?? [:]) : d.env
@@ -394,7 +407,7 @@ enum TunnelEditor {
             if editing, let t, t.state != "stopped", t.state != "failed" { hint.stringValue += " Saving restarts it." }
         }
         let watch = FieldWatcher { refresh() }
-        for f in [portField, listen, destHost, destPort, context, namespace, resource, name] { f.delegate = watch }
+        for f in [portField, listen, destHost, destPort, targetPort, context, namespace, resource, name] { f.delegate = watch }
         hostField.delegate = watch
         let pw = PopupWatcher { refresh() }
         kind.target = pw
@@ -429,7 +442,8 @@ enum TunnelEditor {
         }
         var buttons: [(String, Bool, () -> Void)] = []
         if !editing {
-            buttons.append(("Run in Terminal", false, {
+            buttons.append(("Run in Terminal", false, { [weak s] in
+                guard let s else { return }
                 read()
                 guard d.kind == "kubectl" else { return }
                 s.close()
@@ -441,6 +455,7 @@ enum TunnelEditor {
             buttons.append(("Save", true, { save(start: false) }))
         }
         s.buttons(buttons)
+        s.button("Run in Terminal")?.toolTip = "A one-off kubectl port-forward in a new tab, not saved"
         s.present(in: w.window, focus: d.kind == "kubectl" ? context : hostField)
         refresh()
     }
@@ -453,9 +468,10 @@ enum HostKeysSheet {
     static func show(_ h: SshHost, in w: WindowController) {
         let port = h.known ? h.port : ""
         let s = FormSheet(title: "Host Keys — \(h.alias)", subtitle: "Reading known_hosts…", width: 520)
-        let storedList = s.note("")
+        // Fingerprints are selectable, to copy and compare.
+        let storedList = s.note("", mono: true)
         let scanNote = s.note("")
-        let scanList = s.note("")
+        let scanList = s.note("", mono: true)
         var info: Go.sshhosts.HostKeys?
         var scanned: [Go.sshhosts.HostKey] = []
         var reallyForget = false
@@ -556,6 +572,10 @@ enum HostKeysSheet {
 @MainActor
 enum GitIdentityEditor {
     static func show(_ i: Go.sshhosts.GitIdentity?, keyPath: String? = nil, in w: WindowController) {
+        SshStore.shared.whenLoaded(keys: true) { build(i, keyPath: keyPath, in: w) }
+    }
+
+    private static func build(_ i: Go.sshhosts.GitIdentity?, keyPath: String?, in w: WindowController) {
         let store = SshStore.shared
         let s = FormSheet(title: i.map { "Edit \($0.name)" } ?? "New Git Identity",
                           subtitle: "An SSH key for GitHub and the author to commit as, for the tabs you choose", width: 470)

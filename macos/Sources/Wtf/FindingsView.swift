@@ -254,7 +254,13 @@ final class FindingsView: NSView, SidePaneTab, NSSearchFieldDelegate {
             return m
         }
         if id.hasPrefix("s:"), let i = Int(id.dropFirst(2)), let s = report?.sources[safe: i] {
-            add("Reveal in Finder") { Task { try? await Services.files.Reveal(s.path) } }
+            add("Reveal in Finder") {
+                Task {
+                    do { try await Services.files.Reveal(s.path) } catch {
+                        Toast.show("Couldn't reveal it: \(error.localizedDescription)", in: o.rootView)
+                    }
+                }
+            }
             add("Copy Path") { copy(s.path, "Copied path") }
             if s.fromScan {
                 m.addItem(.separator())
@@ -397,7 +403,13 @@ final class ScanDialog: NSObject {
                 body.addArrangedSubview(label("Runs in your shell (a new tab if it’s busy). The SARIF goes to \(WindowModel.prettyPath(scan.output)), not into the repository.", size: 11, muted: true))
             }
             if let c = chosen, !c.found {
-                body.addArrangedSubview(label("\(c.name) isn't installed. Install it (for example with Homebrew: brew install \(c.tool)), then open this again.", size: 11, muted: true))
+                let o = owner
+                let b = ClosureButton(title: "Install \(c.name)…") { [weak self] in
+                    self?.sheet.close()
+                    // After the sheet has gone: one sheet at a time.
+                    DispatchQueue.main.async { ToolsDialog.show(focus: c.tool, in: o) }
+                }
+                body.addArrangedSubview(b)
             }
         } else {
             body.addArrangedSubview(label("Looking for scanners…", muted: true))

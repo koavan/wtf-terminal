@@ -496,6 +496,12 @@ final class FilesView: NSView, SidePaneTab, NSTableViewDataSource, NSTableViewDe
                         do { try await Services.files.Open(p.path) } catch { if let self { Toast.show("Couldn't open it: \(error.localizedDescription)", in: self) } }
                     }
                 }
+                if Inspect.isCertFile(p.path) {
+                    add("Inspect Certificate…") { [weak self] in
+                        guard let self else { return }
+                        CertViewer(.file(p.path), owner: owner).show()
+                    }
+                }
                 m.addItem(.separator())
             }
             add("Reveal in Finder") { [weak self] in

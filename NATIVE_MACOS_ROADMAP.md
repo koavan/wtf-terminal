@@ -284,7 +284,7 @@ Kubernetes), and the port follows them.
   New self-checks: `commands`, `kubeclicks` (no cluster reads), and `snapshot`
   (the app renders its window to PNGs for layout checks).
 
-## M5 — Side pane II ◐ (built, awaiting hands-on check)
+## M5 — Side pane II ☑ (pushed 2159b9f)
 
 - **AWS:** `AwsView`, `AwsProfileEditor` (form → planned changes → confirm),
   `AwsRotate`. Expiry clocks were already on the address-bar badge (M3).
@@ -313,16 +313,57 @@ Kubernetes), and the port follows them.
   The Tools dialog (“Install…” links) comes with M6; until then, the hints say
   how to install.
 
-## M6 — Viewers, generators, dialogs, manual ☐
+## M6 — Viewers, generators, dialogs, manual ☑ (built, awaiting hands-on check)
 
-- `JsonViewer`, `JwtViewer`, `CertViewer`, `DecodedViewer`, `SecretViewer`
-  (token/cert inspector #11).
-- `GenerateView`, `PasswordGenerator`, `ToolsDialog` (tool check and install, #20),
-  `ToolHint`.
-- `AboutDialog`, `UsageDialog`, `CommandPromptDialog`, `Confirm`.
-- Manual in a WKWebView, rendering the same `frontend/src/manual/*.md` pages.
+- **Viewers** (`Viewers.swift`): JSON (key-order-preserving, JS-style
+  printing in `WtfCore/OrderedJSON.swift`), JWT, Decoded Base64 (masked,
+  re-masked on focus loss), Certificate/TLS, and the Kubernetes secret viewer
+  rewritten on the same base (Reveal All ⇄ Hide All, eye/copy icons, scroll
+  limits, masks when another wtf window takes focus). Rules in
+  `WtfCore/Inspect.swift`, tests ported from `inspect.test.ts`.
+- **Entry points:** terminal right-click (URL or JWT under the mouse, what the
+  selection can be inspected as, a YAML base64 value, Pretty-print JSON), Files
+  → Inspect Certificate…, palette Inspect TLS Certificate…. Not yet: ⌘-click
+  on a JWT (right-click works) and Kubernetes-resource tokens in output (they
+  need the output token scanner, M7 parity).
+- **Command-Line Tools** dialog with Install view (commands/scripts shown, run
+  in a new tab), first-run welcome, Install… links (Network, Kubernetes,
+  Scan dialog; AWS and kube contexts via the row menu), wtf menu item, rail
+  wrench button. **About** sheet (true native credits). **Help** menu, ⌘?,
+  rail ? button.
+- **Manual** (`ManualWindow.swift`): the same `frontend/src/manual/*.md`,
+  bundled into the app, rendered in Swift (`WtfCore/Manual.swift`, tests
+  ported, plus a check that every page's links resolve), native nav and
+  search, WKWebView with JavaScript off, made on open and released on close.
+- Self-check: `WTF_NATIVE_DEBUG=m6 WTF_NATIVE_SNAPSHOT_DIR=…` (manual command
+  ids, inspector menus over real output, every dialog rendered).
+- Lesson: an NSBox doesn't size to auto-layout contents; cards are bordered
+  NSStackViews.
 
-## M7 — Parity, perf, tests, release ☐
+## M7 — Parity, perf, tests, release ◐
+
+- **Font:** JetBrains Mono bundled (static TTFs, OFL) via `ATSApplicationFontsPath`.
+- **Release build:** `macos/build.sh [release|debug] [universal] [dmg]` makes a
+  universal app (fat Go archive + `swift build --arch arm64 --arch x86_64`) and
+  a DMG (ad-hoc signed; no Developer ID, so no notarization).
+- **Performance** (`WTF_NATIVE_DEBUG=perf`, results in `macos/bench/results.csv`
+  as `native-m6`): idle 0% CPU, 49 MB; heavy output on par with M0; every
+  side-pane tab 0% over 30 s; the manual costs ~40 MB while open, released on close.
+- **Parity:** all 77 palette commands match. Gap audit done; fixed so far:
+  - Terminal: program titles (OSC 0/2), a silent bell, and no clipboard writes from programs (OSC 52), all as in Wails.
+  - Find bar: N of M, every match highlighted, typing refines the search.
+  - Mouse: ⌥-drag selects in mouse-using programs; right-click selects the word.
+  - Log colours (`log-highlighting`): blended over the text, no buffer change; ⌘-click and right-click token menus for timestamps, IPs, file:line, Kubernetes resources, URLs and JWTs.
+  - Menus: the tab menu's recording/export section; red destructive items; Services; Pin Last Command Output; the Pin Selection item.
+  - Settings: warnings shown at launch; Network/Processes view saved per window; the pause button follows the setting.
+  - SSH: the tunnel editor's Port field, plus SSH dialogs waiting for their lists to load.
+  - Workspaces: the editor's placeholders update live.
+  - Pins: the output box resizes.
+  - Plus many smaller strings and fixes.
+- Left: smaller audit items (tab tear-off look, overview card ×, AWS check lines, a few
+  tooltips); ⌥-click cursor moves (needs shell-integration `cl=`); switching to the
+  real `wtf` bundle id and folders before shipping v0.8.0.
+
 
 - Go through a parity checklist covering every manual page and every right-click
   menu against the Svelte build.

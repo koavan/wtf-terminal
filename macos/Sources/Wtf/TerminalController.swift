@@ -66,6 +66,7 @@ final class TerminalController: NSObject, @MainActor TerminalViewDelegate, Outpu
         view.confirmPaste = { [weak self] in self?.confirmPaste($0) }
         view.contextMenu = { [weak self] in self?.contextMenu(for: $0) }
         view.onFocus = { [weak self] in self?.onFocus?() }
+        view.onCommandClick = { [weak self] in self?.commandClick($0) ?? false }
         overlay.onMarkClick = { [weak self] id, event in self?.showBlockMenu(id, event) }
 
         Settings.shared.observe(self) { $0.applySettings() }
@@ -126,6 +127,7 @@ final class TerminalController: NSObject, @MainActor TerminalViewDelegate, Outpu
         // Covers go on before the frame is drawn; marks can wait a moment.
         if Redaction.shared.on { refreshCovers() }
         scheduleMarks()
+        scheduleTints()
         onOutput?()
     }
 
@@ -175,7 +177,7 @@ final class TerminalController: NSObject, @MainActor TerminalViewDelegate, Outpu
         view.window?.makeFirstResponder(view)
     }
 
-    private var owner: WindowController? { WindowManager.shared.windows.first { $0.name == windowName } }
+    var owner: WindowController? { WindowManager.shared.windows.first { $0.name == windowName } }
 
     /// The last rows on screen as text, for the tab overview's preview.
     func snapshot(rows: Int) -> [String] {
@@ -190,13 +192,22 @@ final class TerminalController: NSObject, @MainActor TerminalViewDelegate, Outpu
 
     // MARK: Look
 
+    /// A font by family ("JetBrains Mono") or by name ("JetBrainsMono-Regular").
+    static func font(_ name: String, _ size: CGFloat) -> NSFont? {
+        guard !name.isEmpty else { return nil }
+        return NSFontManager.shared.font(withFamily: name, traits: [], weight: 5, size: size) ?? NSFont(name: name, size: size)
+    }
+
     private func applySettings() {
         let s = Settings.shared
         guard let cfg = s.config, let theme = s.theme else { return }
         let size = CGFloat(s.fontSize)
-        let font = [cfg.fontFamily, "JetBrains Mono", "Menlo"].lazy.compactMap { NSFont(name: $0, size: size) }.first
+        let font = [cfg.fontFamily, "JetBrains Mono", "Menlo"].lazy.compactMap { Self.font($0, size) }.first
             ?? .monospacedSystemFont(ofSize: size, weight: .regular)
-        if view.font != font { view.font = font }
+        if view.font != font {
+            view.font = font
+            Debug.log("terminal font: \(font.fontName) \(font.pointSize)")
+        }
         view.lineSpacing = CGFloat(max(1, cfg.lineHeight))
         view.optionAsMetaKey = cfg.optionAsMeta
         view.changeScrollback(cfg.scrollback)
@@ -219,6 +230,13 @@ final class TerminalController: NSObject, @MainActor TerminalViewDelegate, Outpu
         container.layer?.backgroundColor = bg.cgColor
 
         overlay.dark = theme.dark
+        let colors = Logs.Colors(palette: theme.palette, foreground: theme.foreground, background: theme.background)
+        if colors != logColors {
+            logColors = colors
+            container.tints.runs = []
+        }
+        container.tints.dark = theme.dark
+        scheduleTints()
         overlay.coverColor = Self.ns(theme.coverColor.hex) ?? .gray
         overlay.accent = Self.ns(theme.cursor) ?? .controlAccentColor
         container.needsLayout = true
@@ -240,6 +258,43 @@ final class TerminalController: NSObject, @MainActor TerminalViewDelegate, Outpu
 
     /// Marks for what's on screen, once per pass of the main loop however
     /// many output frames arrived.
+    /// Find's matches that are on screen, for the overlay.
+    private func refreshFound() {
+        guard let bar = searchBar else {
+            overlay.found = []
+            overlay.foundCurrent = nil
+            return
+        }
+        let t = view.getTerminal()
+        let top = t.buffer.yDisp
+        func cover(_ m: Find.Match) -> TerminalOverlay.Cover { .init(row: m.row - top, col: m.col, width: m.width) }
+        overlay.found = bar.found.filter { $0.row >= top && $0.row < top + t.rows }.map(cover)
+        overlay.foundCurrent = bar.current.map { cover(bar.found[$0]) }
+    }
+
+    // MARK: Log colors
+
+    private var tintsScheduled = false
+    private var logColors: Logs.Colors?
+
+    /// Colors what's on screen 120ms after output, a scroll or a resize: one
+    /// scan however much arrives meanwhile, none while highlighting is off.
+    func scheduleTints() {
+        guard Settings.shared.config?.logHighlighting ?? true else {
+            container.tints.runs = []
+            return
+        }
+        guard !tintsScheduled else { return }
+        tintsScheduled = true
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.12) { [weak self] in
+            guard let self else { return }
+            tintsScheduled = false
+            // A hidden pane is colored when it shows again.
+            guard let colors = logColors, view.window != nil, !container.isHiddenOrHasHiddenAncestor else { return }
+            container.tints.runs = Logs.tints(view.getTerminal(), colors: colors)
+        }
+    }
+
     private func scheduleMarks() {
         guard !marksScheduled else { return }
         marksScheduled = true
@@ -380,12 +435,177 @@ final class TerminalController: NSObject, @MainActor TerminalViewDelegate, Outpu
     private func contextMenu(for event: NSEvent) -> NSMenu? {
         var items: [NSMenuItem] = []
         let t = view.getTerminal()
-        if let cell = view.cell(at: event), !t.isCurrentBufferAlternate,
-           let id = tracker.blockAt(Rows.top(t) + cell.row) {
-            items = blockItems(id) + [.separator()]
+        let cell = view.cell(at: event)
+        let inspect = cell.map { inspectItems(row: Rows.top(t) + $0.row, col: $0.col) } ?? inspectItems(row: nil, col: nil)
+        if !inspect.isEmpty { items = inspect + [.separator()] }
+        if let cell, !t.isCurrentBufferAlternate, let id = tracker.blockAt(Rows.top(t) + cell.row) {
+            items += blockItems(id) + [.separator()]
             highlight(id)
         }
         return menu(items + generalItems())
+    }
+
+    /// The inspector entries over the first row holding some text (debug self-checks).
+    func debugInspectTitles(at text: String, offset: Int = 0) -> [String] {
+        let t = view.getTerminal()
+        for row in stride(from: Rows.last(t), through: t.buffer.totalLinesTrimmed, by: -1) {
+            guard let line = t.getScrollInvariantLine(row: row)?.translateToString(trimRight: true),
+                  let r = line.range(of: text), !line.contains("echo"), !line.contains("printf") else { continue }
+            let col = line.distance(from: line.startIndex, to: r.lowerBound) + offset
+            return inspectItems(row: row, col: col).map { $0.isSeparatorItem ? "—" : $0.title }
+        }
+        return ["(not found: \(text))"]
+    }
+
+    /// The soft-wrapped line holding an absolute row, and the index of a column in it.
+    private func logicalLine(row: Int, col: Int) -> (text: String, index: Int)? {
+        let t = view.getTerminal()
+        var start = row
+        while start > t.buffer.totalLinesTrimmed, t.getScrollInvariantLine(row: start)?.isWrapped == true { start -= 1 }
+        var text = "", index = 0, r = start
+        let last = Rows.last(t)
+        while r <= last, let line = t.getScrollInvariantLine(row: r) {
+            let next = r + 1 <= last ? t.getScrollInvariantLine(row: r + 1) : nil
+            let continues = next?.isWrapped == true
+            if r == row { index = (text as NSString).length + col }
+            text += line.translateToString(trimRight: !continues)
+            guard continues else { break }
+            r += 1
+        }
+        return r >= row ? (text, index) : nil
+    }
+
+    /// The token at a cell (absolute row), as the menus use it: none for a JWT
+    /// while Hide Secrets is on; a path only when the file is on this computer
+    /// (made absolute).
+    private func token(row: Int, col: Int) -> Logs.Token? {
+        guard var tok = Logs.token(view.getTerminal(), row: row, col: col) else { return nil }
+        switch tok.kind {
+        case .jwt where Redaction.shared.on: return nil
+        case .path(let p, let line, let c):
+            guard let abs = resolve(p) else { return nil }
+            tok.kind = .path(path: abs, line: line, col: c)
+        default: break
+        }
+        return tok
+    }
+
+    /// Paths found lately, per folder and name (5s; cleared past 200).
+    private var resolved: [String: (path: String?, at: Date)] = [:]
+
+    private func resolve(_ name: String) -> String? {
+        let cwd = owner?.model.panes[paneId]?.cwd ?? ""
+        let key = cwd + "\u{0}" + name
+        if let r = resolved[key], Date().timeIntervalSince(r.at) < 5 { return r.path }
+        if resolved.count > 200 { resolved = [:] }
+        let p = Logs.resolveFile(name, cwd: cwd)
+        resolved[key] = (p, Date())
+        return p
+    }
+
+    /// The cluster the shell reported at its last prompt (not the Kubernetes tab's).
+    private var kubeTarget: Kube.Target {
+        let p = owner?.model.panes[paneId]
+        return Kube.Target(context: p?.infra?.kubeContext ?? "", namespace: p?.infra?.kubeNamespace ?? "", env: p?.env ?? [:])
+    }
+
+    /// ⌘-click: a URL opens (SwiftTerm does that); other tokens show their menu.
+    func commandClick(_ event: NSEvent) -> Bool {
+        let t = view.getTerminal()
+        guard !t.isCurrentBufferAlternate, let cell = view.cell(at: event),
+              let raw = Logs.token(t, row: Rows.top(t) + cell.row, col: cell.col) else { return false }
+        if case .url = raw.kind { return false }
+        guard Logs.isLink(raw.kind) else { return false }
+        if case .jwt = raw.kind, Redaction.shared.on {
+            Toast.show("Hide Secrets is on: turn it off to inspect tokens", in: view)
+            return true
+        }
+        guard let tok = token(row: Rows.top(t) + cell.row, col: cell.col) else { return false }
+        let items = menuItems(Logs.menu(tok, target: kubeTarget))
+        guard !items.isEmpty else { return false }
+        NSMenu.popUpContextMenu(menu(items), with: event, for: view)
+        return true
+    }
+
+    /// A token menu as menu items, each running its action.
+    private func menuItems(_ entries: [Logs.Entry]) -> [NSMenuItem] {
+        entries.map { e in
+            switch e {
+            case .heading(let h):
+                let i = NSMenuItem(title: h, action: nil, keyEquivalent: "")
+                i.isEnabled = false
+                return i
+            case .separator:
+                return .separator()
+            case .item(let label, let hint, let action):
+                let i = item(label) { [weak self] in self?.run(action) }
+                i.toolTip = hint
+                return i
+            }
+        }
+    }
+
+    private func run(_ a: Logs.Action) {
+        guard let o = owner else { return }
+        let cwd = o.model.panes[paneId]?.cwd
+        switch a {
+        case .openUrl(let u): if let url = URL(string: u) { NSWorkspace.shared.open(url) }
+        case .copy(let text, let what): copy(text, what)
+        case .copySecret(let text, let what): Clipboard.copySecret(text, what: what, in: view)
+        case .runInTab(let cmd): o.model.open(cwd: cwd, command: cmd)
+        case .runHere(let cmd): o.runInPane(paneId, cmd)
+        case .describe(let kind, let name):
+            // At the prompt, the shell has its own variables; a new tab needs them in front.
+            var bare = kubeTarget
+            bare.env = [:]
+            if let p = o.model.panes[paneId], p.isShell, !p.running {
+                o.runInPane(paneId, Kube.describe(bare, kind, name))
+            } else {
+                o.model.open(cwd: cwd, command: Kube.describe(kubeTarget, kind, name))
+            }
+        case .openInEditor(let path, let line): FilesView.openInEditor(path, line: line, in: o)
+        case .openFile(let path):
+            Task {
+                do { try await Services.files.Open(path) } catch { Toast.show("Couldn't open it: \(error.localizedDescription)", in: view) }
+            }
+        case .reveal(let path):
+            Task {
+                do { try await Services.files.Reveal(path) } catch { Toast.show("Couldn't reveal it: \(error.localizedDescription)", in: view) }
+            }
+        case .showSecret(let name): SecretViewer.show(name: name, target: kubeTarget, in: o)
+        case .inspectJwt(let t): JwtViewer(token: t, owner: o).show()
+        case .inspectTls(let u): CertViewer(.host(u), owner: o).show()
+        }
+    }
+
+    /// Inspector entries: the URL or token under the mouse, what the
+    /// selection can be inspected as, a YAML base64 value, JSON in the line.
+    /// Like outputEntries in TerminalPane.svelte.
+    private func inspectItems(row: Int?, col: Int?) -> [NSMenuItem] {
+        guard let owner else { return [] }
+        let hide = Redaction.shared.on
+        var groups: [[NSMenuItem]] = []
+        let logical = row.flatMap { r in col.flatMap { logicalLine(row: r, col: $0) } }
+        let selection = view.selectedText.flatMap { $0.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? nil : $0 }
+
+        // The token under the mouse, and its menu.
+        if let r = row, let c = col, let tok = token(row: r, col: c) {
+            let g = menuItems(Logs.menu(tok, target: kubeTarget))
+            if !g.isEmpty { groups.append(g) }
+        }
+        // What the selection can be inspected as.
+        if let selection {
+            let entries = Inspect.selectionEntries(selection, secrets: !hide)
+            if !entries.isEmpty { groups.append(entries.map { e in item(e.label) { Viewer.open(e.action, in: owner) } }) }
+        } else if !hide, let l = logical, let value = Inspect.yamlBase64At(l.text, l.index) {
+            groups.append([item("Decode Base64…") { DecodedViewer(text: value, owner: owner).show() }])
+        }
+        // JSON in the selection, or in the line.
+        // (Right-click selects the word under it: the line is the fallback.)
+        if let json = [selection, logical?.text].compactMap({ $0 }).lazy.compactMap({ OrderedJSON.find(Redaction.shared.text($0)) }).first {
+            groups.append([item("Pretty-print JSON") { JsonViewer(json: json, owner: owner).show() }])
+        }
+        return groups.enumerated().flatMap { i, g in i == 0 ? g : [.separator()] + g }
     }
 
     private func showBlockMenu(_ id: Int, _ event: NSEvent) {
@@ -437,10 +657,12 @@ final class TerminalController: NSObject, @MainActor TerminalViewDelegate, Outpu
 
     func copyLastOutput() {
         guard let id = tracker.lastFinished(), let out = tracker.output(id) else {
-            Toast.show("No finished command output to copy", in: view)
+            Toast.show("No finished command yet", in: view)
             return
         }
-        copy(out, "output")
+        Clipboard.copy(Redaction.shared.text(out))
+        let lines = out.isEmpty ? 0 : out.components(separatedBy: "\n").count
+        Toast.show(lines == 0 ? "Command had no output" : "Copied \(lines) \(lines == 1 ? "line" : "lines") of output", in: view)
     }
 
     func toggleSecrets() {
@@ -479,6 +701,7 @@ final class TerminalController: NSObject, @MainActor TerminalViewDelegate, Outpu
             return
         }
         let bar = SearchBar(terminal: view)
+        bar.onFound = { [weak self] in self?.refreshFound() }
         bar.translatesAutoresizingMaskIntoConstraints = false
         container.addSubview(bar)
         NSLayoutConstraint.activate([
@@ -489,6 +712,7 @@ final class TerminalController: NSObject, @MainActor TerminalViewDelegate, Outpu
             guard let self else { return }
             searchBar?.removeFromSuperview()
             searchBar = nil
+            refreshFound()
             view.window?.makeFirstResponder(view)
         }
         searchBar = bar
@@ -513,6 +737,7 @@ final class TerminalController: NSObject, @MainActor TerminalViewDelegate, Outpu
 
     func sizeChanged(source: TerminalView, newCols: Int, newRows: Int) {
         tracker?.relocate()
+        scheduleTints()
         guard let id else { return }
         Task { try? await Backend.run("terminal", "Resize", [id, newCols, newRows]) }
     }
@@ -521,21 +746,28 @@ final class TerminalController: NSObject, @MainActor TerminalViewDelegate, Outpu
     func scrolled(source: TerminalView, position: Double) {
         if Redaction.shared.on { refreshCovers() }
         scheduleMarks()
+        scheduleTints()
+        if searchBar != nil { refreshFound() }
     }
 
-    // The shell's own title (OSC 0/2) is ignored, as in the Wails build:
-    // the title comes from terminal:info.
-    func setTerminalTitle(source: TerminalView, title: String) {}
+    // A program's own title (OSC 0/2: vim, htop, a remote shell) names the
+    // tab while it runs, as in the Wails build.
+    func setTerminalTitle(source: TerminalView, title: String) {
+        guard let o = owner, let p = o.model.panes[paneId], p.oscTitle != title else { return }
+        p.oscTitle = title
+        o.paneTitleChanged()
+    }
     func hostCurrentDirectoryUpdate(source: TerminalView, directory: String?) {}
     func requestOpenLink(source: TerminalView, link: String, params: [String: String]) {
         if let url = URL(string: link), ["http", "https", "mailto", "file"].contains(url.scheme?.lowercased() ?? "") {
             NSWorkspace.shared.open(url)
         }
     }
-    func bell(source: TerminalView) { NSSound.beep() }
-    func clipboardCopy(source: TerminalView, content: Data) {
-        if let s = String(data: content, encoding: .utf8) { Clipboard.copy(s) }
-    }
+    // Silent, as in the Wails build (a beep on every completion miss).
+    func bell(source: TerminalView) {}
+    // Programs (remote ones too, over ssh) can't set the clipboard (OSC 52),
+    // as in the Wails build.
+    func clipboardCopy(source: TerminalView, content: Data) {}
     func clipboardRead(source: TerminalView) -> Data? { nil }
     func iTermContent(source: TerminalView, content: ArraySlice<UInt8>) {}
     func rangeChanged(source: TerminalView, startY: Int, endY: Int) {}
@@ -549,7 +781,13 @@ final class ClosureMenuItem: NSMenuItem {
         run = action
         super.init(title: title, action: #selector(fire), keyEquivalent: keyEquivalent)
         target = self
+        // Destructive items are red, as in the Wails build's menus.
+        if Self.danger.contains(where: { title.hasPrefix($0) }) {
+            attributedTitle = NSAttributedString(string: title, attributes: [.foregroundColor: NSColor.systemRed, .font: NSFont.menuFont(ofSize: 0)])
+        }
     }
+
+    static let danger = ["Delete", "End ", "Force Quit", "Remove These", "Close Tab…", "Unpin All", "Forget Stored"]
 
     required init(coder: NSCoder) { fatalError() }
 

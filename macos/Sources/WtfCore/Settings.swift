@@ -24,6 +24,7 @@ public struct Config: Decodable, Equatable, Sendable {
     public var redactSecrets: Bool
     public var clipboardClear: Double
     public var confirmPaste: Bool
+    public var logHighlighting: Bool
 }
 
 public struct Theme: Decodable, Equatable, Sendable {

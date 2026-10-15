@@ -148,7 +148,10 @@ final class WorkspaceOpen: NSObject, NSTextFieldDelegate {
 
     private func open(newWindow: Bool) {
         let plan: Plan
-        do { plan = try workspace.plan(values) } catch { return }
+        do { plan = try workspace.plan(values) } catch {
+            Toast.show("Couldn't open \(workspace.name): \(error.localizedDescription)", in: owner.rootView, seconds: 6)
+            return
+        }
         finish()
         if newWindow {
             WindowManager.shared.open(plan: plan)

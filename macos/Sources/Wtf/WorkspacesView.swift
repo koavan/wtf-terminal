@@ -54,6 +54,7 @@ final class WorkspacesView: NSView, SidePaneTab, NSSearchFieldDelegate {
             guard let self else { return }
             WorkspaceEditor.show(.new, in: owner)
         }
+        header.tool("doc.text", "Open your snippets file in a text editor") { [weak self] in self?.owner.openSnippetsFile() }
         header.tool("arrow.clockwise", "Reload") { [weak self] in self?.reload() }
         addSubview(header)
         filter.placeholderString = "Filter workspaces"
@@ -306,24 +307,19 @@ final class WorkspaceEditor: NSObject {
             tabs.append(TabDraft(group: tabs.last?.group ?? ""))
             render()
         })
-        let help = label("Names, groups, folders and commands can use placeholders, asked for when it opens: {{service}}, or {{ns=$kube_namespace}}.", size: 11)
+        let help = NSTextField(wrappingLabelWithString: "Names, groups, folders and commands can use placeholders, asked for when it opens: {{service}}, or {{ns=$kube_namespace}}.")
+        help.font = .systemFont(ofSize: 11)
         help.textColor = .secondaryLabelColor
+        help.preferredMaxLayoutWidth = 618
         content.addArrangedSubview(help)
 
-        // Placeholders, as used now in titles, groups, folders and commands.
-        let names = placeholderNames()
-        if !names.isEmpty {
-            content.addArrangedSubview(label("Placeholders", bold: true))
-            for n in names {
-                let p = params[n] ?? ParamDraft()
-                content.addArrangedSubview(NSStackView(views: [
-                    label(n),
-                    field(p.description, "what to enter", width: 170) { [weak self] in self?.params[n, default: ParamDraft()].description = $0 },
-                    field(p.def, "default", width: 150) { [weak self] in self?.params[n, default: ParamDraft()].def = $0 },
-                    field(p.choices, "choices, comma-separated", width: 190) { [weak self] in self?.params[n, default: ParamDraft()].choices = $0 },
-                ]))
-            }
-        }
+        // Placeholders, as used now in titles, groups, folders and commands:
+        // redrawn as they're typed, so the field being typed in keeps the keyboard.
+        paramsBox.orientation = .vertical
+        paramsBox.alignment = .leading
+        paramsBox.spacing = 6
+        content.addArrangedSubview(paramsBox)
+        renderParams()
 
         let nw = NSButton(checkboxWithTitle: "Open in a new window (otherwise as new tabs in the current one)", target: nil, action: nil)
         nw.state = newWindow ? .on : .off
@@ -373,12 +369,6 @@ final class WorkspaceEditor: NSObject {
     }
 
     private func card(_ i: Int, _ t: TabDraft) -> NSView {
-        let box = NSBox()
-        box.boxType = .custom
-        box.cornerRadius = 8
-        box.borderColor = .separatorColor
-        box.fillColor = NSColor.labelColor.withAlphaComponent(0.03)
-        box.contentViewMargins = NSSize(width: 10, height: 8)
         let colors = ["color"] + GroupColor.allCases.map(\.rawValue)
         let colorPop = NSPopUpButton()
         colorPop.addItems(withTitles: colors)
@@ -406,9 +396,10 @@ final class WorkspaceEditor: NSObject {
         remove.setAccessibilityLabel("Remove tab \(i + 1)")
         let head = NSStackView(views: [
             label("\(i + 1)", bold: true),
-            field(t.title, "Tab name (optional)", width: 180) { [weak self] in self?.tabs[i].title = $0 },
+            field(t.title, "Tab name (optional)", width: 180) { [weak self] in self?.tabs[i].title = $0; self?.renderParams() },
             field(t.group, "Group (optional)", width: 150) { [weak self] v in
                 self?.tabs[i].group = v
+                self?.renderParams()
                 colorPop.isEnabled = !v.trimmingCharacters(in: .whitespaces).isEmpty
             },
             colorPop, up, down, remove,
@@ -416,8 +407,8 @@ final class WorkspaceEditor: NSObject {
         var rows: [NSView] = [head]
         for (j, p) in t.panes.enumerated() {
             var views: [NSView] = [
-                field(p.cwd, "folder (e.g. ~/src/app)", width: 230) { [weak self] in self?.tabs[i].panes[j].cwd = $0 },
-                field(p.command, "startup command (optional)", width: 300) { [weak self] in self?.tabs[i].panes[j].command = $0 },
+                field(p.cwd, "folder (e.g. ~/src/app)", width: 230) { [weak self] in self?.tabs[i].panes[j].cwd = $0; self?.renderParams() },
+                field(p.command, "startup command (optional)", width: 300) { [weak self] in self?.tabs[i].panes[j].command = $0; self?.renderParams() },
             ]
             if t.panes.count > 1 {
                 let x = button("×") { [weak self] in
@@ -449,10 +440,16 @@ final class WorkspaceEditor: NSObject {
         stack.orientation = .vertical
         stack.alignment = .leading
         stack.spacing = 6
-        box.contentView = stack
-        box.translatesAutoresizingMaskIntoConstraints = false
-        box.widthAnchor.constraint(equalToConstant: 618).isActive = true
-        return box
+        stack.edgeInsets = NSEdgeInsets(top: 8, left: 10, bottom: 8, right: 10)
+        // A plain bordered card: unlike NSBox, it takes its contents' height.
+        stack.wantsLayer = true
+        stack.layer?.cornerRadius = 8
+        stack.layer?.borderWidth = 1
+        stack.layer?.borderColor = NSColor.separatorColor.cgColor
+        stack.layer?.backgroundColor = NSColor.labelColor.withAlphaComponent(0.03).cgColor
+        stack.translatesAutoresizingMaskIntoConstraints = false
+        stack.widthAnchor.constraint(equalToConstant: 618).isActive = true
+        return stack
     }
 
     private func move(_ i: Int, _ d: Int) {
@@ -460,6 +457,28 @@ final class WorkspaceEditor: NSObject {
         guard j >= 0, j < tabs.count else { return }
         tabs.swapAt(i, j)
         render()
+    }
+
+    private let paramsBox = NSStackView()
+    private var shownParams: [String] = []
+
+    private func renderParams() {
+        let names = placeholderNames()
+        guard names != shownParams || paramsBox.arrangedSubviews.isEmpty != names.isEmpty else { return }
+        shownParams = names
+        paramsBox.arrangedSubviews.forEach { $0.removeFromSuperview() }
+        guard !names.isEmpty else { return }
+        paramsBox.addArrangedSubview(label("Placeholders", bold: true))
+        for n in names {
+            let p = params[n] ?? ParamDraft()
+            paramsBox.addArrangedSubview(NSStackView(views: [
+                label(n),
+                field(p.description, "what to enter", width: 170) { [weak self] in self?.params[n, default: ParamDraft()].description = $0 },
+                field(p.def, "default", width: 150) { [weak self] in self?.params[n, default: ParamDraft()].def = $0 },
+                field(p.choices, "choices, comma-separated", width: 190) { [weak self] in self?.params[n, default: ParamDraft()].choices = $0 },
+            ]))
+        }
+        resize()
     }
 
     private func placeholderNames() -> [String] {
@@ -490,14 +509,15 @@ final class WorkspaceEditor: NSObject {
             render()
             return
         }
-        let names = Set(placeholderNames())
+        let names = placeholderNames()
         let def = Go.snippets.WorkspaceDef(
             name: name.trimmingCharacters(in: .whitespaces), description: summary.trimmingCharacters(in: .whitespaces),
             window: newWindow ? "new" : "",
             tabs: tabs.map { .init(title: $0.title, group: $0.group, color: $0.color, layout: $0.layout,
                                    panes: $0.panes.map { .init(cwd: $0.cwd, command: $0.command) }) },
-            params: params.filter { names.contains($0.key) }.sorted { $0.key < $1.key }.map { n, p in
-                .init(name: n, description: p.description, default: p.def,
+            params: names.map { n in
+                let p = params[n] ?? ParamDraft()
+                return .init(name: n, description: p.description, default: p.def,
                       choices: p.choices.split(separator: ",").map { $0.trimmingCharacters(in: .whitespaces) }.filter { !$0.isEmpty }, raw: p.raw)
             })
         let edit = Go.snippets.Edit(kind: "workspace", file: file, index: editing?.index ?? -1,

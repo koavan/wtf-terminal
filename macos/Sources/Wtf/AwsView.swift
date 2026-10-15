@@ -188,9 +188,9 @@ final class AwsView: NSView, SidePaneTab, NSSearchFieldDelegate {
         return r
     }
 
-    /// A missing aws CLI says how to get it.
+    /// A missing aws CLI points at its Install… (in the row's menu).
     private static func withHint(_ e: String) -> String {
-        e.contains("aws CLI isn't installed") ? e + " — install it with Homebrew (brew install awscli)" : e
+        Tools.missingTool(e) == nil ? e : e + " — right-click to install it"
     }
 
     /// Exports AWS_PROFILE in the focused shell (no Ctrl-U first), or opens a tab with it.
@@ -214,6 +214,10 @@ final class AwsView: NSView, SidePaneTab, NSSearchFieldDelegate {
         func copy(_ text: String, _ toast: String) {
             Clipboard.copy(text)
             Toast.show(toast, in: o.rootView)
+        }
+        if let c = AwsStore.shared.checks[p.name], let tool = Tools.missingTool(c.identityError) ?? Tools.missingTool(c.keysError) {
+            add("Install the AWS CLI…") { ToolsDialog.show(focus: tool, in: o) }
+            m.addItem(.separator())
         }
         add("Use in This Shell") { [weak self] in self?.use(p) }
         add("Open New Tab with Profile") { o.model.open(command: Aws.useCommand(p.name)) }

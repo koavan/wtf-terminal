@@ -1,0 +1,4 @@
+JetBrains Mono 2.304 (static TTFs), from
+https://github.com/JetBrains/JetBrainsMono/releases/tag/v2.304
+SIL Open Font License 1.1: see OFL.txt. Loaded at launch through
+ATSApplicationFontsPath in the app's Info.plist (macos/build.sh).

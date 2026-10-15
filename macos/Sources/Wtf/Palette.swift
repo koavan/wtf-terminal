@@ -64,7 +64,7 @@ final class Palette: NSView, NSTextFieldDelegate {
         panel.layer?.masksToBounds = true
         addSubview(panel)
         field.placeholderString = switch mode {
-        case .commands: "Search commands, tabs and workspaces…"
+        case .commands: "Search commands, tabs, snippets and workspaces…"
         case .themes: "Search themes…"
         case .workspaces: "Search workspaces…"
         case .snippets: "Search snippets…"

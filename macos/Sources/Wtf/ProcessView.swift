@@ -130,11 +130,13 @@ final class ProcessView: NSView, SidePaneTab, NSSearchFieldDelegate {
 
     @objc private func scopeChanged() {
         store.terminalsOnly = scope.selectedSegment == 0
+        owner.scheduleSave()
         rebuild()
     }
 
     @objc private func sortChanged() {
         store.sort = [.cpu, .memory, .name][max(0, sort.selectedSegment)]
+        owner.scheduleSave()
         rebuild()
     }
 

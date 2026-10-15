@@ -176,6 +176,7 @@ final class UsageDialog: NSObject {
         }
         let t = Usage.total(u)
         body.addArrangedSubview(line("wtf in all", Usage.cpu(t.cpu), Usage.bytes(t.memory), size: 13, weight: .bold, highlight: true))
+        if !u.note.isEmpty { body.addArrangedSubview(sheet.note(u.note)) }
         let measured = u.interval > 0
         var groups: [(String, String, Go.usage.Group)] = [
             ("wtf", "The app — its windows, terminals and backend — and what it runs itself (tunnels, git and kubectl checks)", u.app),

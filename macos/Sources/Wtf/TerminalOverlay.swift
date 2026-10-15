@@ -10,6 +10,7 @@ final class TerminalContainer: NSView {
 
     let terminal: TerminalView
     let overlay: TerminalOverlay
+    let tints = TintView()
 
     init(terminal: TerminalView) {
         self.terminal = terminal
@@ -18,17 +19,42 @@ final class TerminalContainer: NSView {
         wantsLayer = true
         terminal.autoresizingMask = []
         overlay.autoresizingMask = [.width, .height]
+        tints.overlay = overlay
         addSubview(terminal)
+        addSubview(tints)
         addSubview(overlay)
         registerForDraggedTypes([FilesView.pathType])
     }
 
-    // A path dragged from the Files tab: pasted at the prompt.
+    // A path dragged from the Files tab: pasted at the prompt. The pane
+    // shows it'll take the drop.
     override func draggingEntered(_ sender: NSDraggingInfo) -> NSDragOperation {
-        sender.draggingPasteboard.availableType(from: [FilesView.pathType]) != nil ? .copy : []
+        let ok = sender.draggingPasteboard.availableType(from: [FilesView.pathType]) != nil
+        dropTarget = ok
+        return ok ? .copy : []
+    }
+
+    override func draggingExited(_ sender: NSDraggingInfo?) { dropTarget = false }
+    override func draggingEnded(_ sender: NSDraggingInfo) { dropTarget = false }
+
+    private var dropTarget = false {
+        didSet {
+            guard dropTarget != oldValue else { return }
+            layer?.sublayers?.filter { $0.name == "drop" }.forEach { $0.removeFromSuperlayer() }
+            guard dropTarget else { return }
+            let l = CALayer()
+            l.name = "drop"
+            l.backgroundColor = NSColor.controlAccentColor.withAlphaComponent(0.12).cgColor
+            l.borderColor = NSColor.controlAccentColor.cgColor
+            l.borderWidth = 2
+            l.cornerRadius = 6
+            l.frame = bounds.insetBy(dx: 2, dy: 2)
+            layer?.addSublayer(l)
+        }
     }
 
     override func performDragOperation(_ sender: NSDraggingInfo) -> Bool {
+        dropTarget = false
         guard let text = sender.draggingPasteboard.string(forType: .string),
               let view = terminal as? WtfTerminalView else { return false }
         window?.makeFirstResponder(view)
@@ -48,6 +74,8 @@ final class TerminalContainer: NSView {
                                 height: max(0, bounds.height - p.top - p.bottom))
         overlay.frame = bounds
         overlay.needsDisplay = true
+        tints.frame = bounds
+        tints.needsDisplay = true
         layer?.sublayers?.filter { $0.name == "broadcast" }.forEach { $0.frame = bounds.insetBy(dx: 2, dy: 2) }
     }
 
@@ -89,6 +117,9 @@ final class TerminalOverlay: NSView, NSViewToolTipOwner {
     // overlay is hidden while it has nothing to draw, so streaming output
     // costs it nothing.
     var covers: [Cover] = [] { didSet { if covers != oldValue { changed() } } }
+    /// Find's matches on screen, and the selected one.
+    var found: [Cover] = [] { didSet { if found != oldValue { changed() } } }
+    var foundCurrent: Cover? { didSet { if foundCurrent != oldValue { changed() } } }
     var marks: [Mark] = [] {
         didSet {
             guard marks != oldValue else { return }
@@ -100,7 +131,7 @@ final class TerminalOverlay: NSView, NSViewToolTipOwner {
     var highlight: ClosedRange<Int>? { didSet { if highlight != oldValue { changed() } } }
 
     private func changed() {
-        isHidden = covers.isEmpty && marks.isEmpty && highlight == nil
+        isHidden = covers.isEmpty && marks.isEmpty && highlight == nil && found.isEmpty
         needsDisplay = true
     }
     var coverColor = NSColor.gray
@@ -170,6 +201,16 @@ final class TerminalOverlay: NSView, NSViewToolTipOwner {
             s.draw(at: NSPoint(x: at.maxX - size.width - cell.width, y: at.midY - size.height / 2))
         }
 
+        // Every match on screen, the selected one outlined.
+        accent.withAlphaComponent(dark ? 0.28 : 0.22).setFill()
+        for f in found { NSBezierPath(roundedRect: rect(row: f.row, col: f.col, width: f.width), xRadius: 2, yRadius: 2).fill() }
+        if let c = foundCurrent {
+            accent.setStroke()
+            let p = NSBezierPath(roundedRect: rect(row: c.row, col: c.col, width: c.width).insetBy(dx: 0.5, dy: 0.5), xRadius: 2, yRadius: 2)
+            p.lineWidth = 1.5
+            p.stroke()
+        }
+
         coverColor.setFill()
         for c in covers { rect(row: c.row, col: c.col, width: c.width).fill() }
     }
@@ -210,5 +251,48 @@ final class TerminalOverlay: NSView, NSViewToolTipOwner {
         removeAllToolTips()
         for m in marks where m.block.exitCode != nil { addToolTip(markRect(m.row), owner: self, userData: nil) }
         window?.invalidateCursorRects(for: self)
+    }
+}
+
+/// The log colors: runs of cells blended over the text below. On a dark
+/// theme the darker of text and tint shows (light text takes the tint, the
+/// dark background stays); on a light theme the lighter. The buffer isn't
+/// touched, so copying, recordings and a program's own colors are exact.
+@MainActor
+final class TintView: NSView {
+    weak var overlay: TerminalOverlay?
+    var runs: [Logs.Tint] = [] {
+        didSet {
+            guard runs != oldValue else { return }
+            isHidden = runs.isEmpty
+            needsDisplay = true
+        }
+    }
+    var dark = true {
+        didSet {
+            guard dark != oldValue || compositingFilter == nil else { return }
+            compositingFilter = CIFilter(name: dark ? "CIDarkenBlendMode" : "CILightenBlendMode")
+        }
+    }
+
+    override init(frame: NSRect) {
+        super.init(frame: frame)
+        wantsLayer = true
+        compositingFilter = CIFilter(name: "CIDarkenBlendMode")
+        autoresizingMask = [.width, .height]
+        isHidden = true
+    }
+
+    required init?(coder: NSCoder) { fatalError() }
+
+    override var isFlipped: Bool { true }
+    override func hitTest(_ point: NSPoint) -> NSView? { nil }
+
+    override func draw(_ dirty: NSRect) {
+        guard let overlay else { return }
+        for t in runs {
+            NSColor(hex: t.color).setFill()
+            overlay.rect(row: t.row, col: t.col, width: t.width).fill()
+        }
     }
 }

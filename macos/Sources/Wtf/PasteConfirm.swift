@@ -36,7 +36,7 @@ enum PasteConfirm {
         if f.finalNewline { alert.addButton(withTitle: "Paste Without Final Newline") }
         alert.addButton(withTitle: "Cancel")
         alert.addButton(withTitle: "Don’t Ask Again")
-        alert.buttons.last?.toolTip = "Turns off confirm-paste in config.toml."
+        alert.buttons.last?.toolTip = "Turns off confirm-paste. Toggle Paste Confirmation in the palette turns it back on."
 
         Debug.log("paste confirm shown: \(alert.messageText)")
         alert.beginSheetModal(for: window) { response in
@@ -52,7 +52,7 @@ enum PasteConfirm {
                 Task {
                     do {
                         try await Backend.run("config", "SetConfirmPaste", [false])
-                        Toast.show("Pastes go straight in now. Set confirm-paste in config.toml to change it", in: window.contentView)
+                        Toast.show("Pastes go straight in now. Toggle Paste Confirmation in the palette to change it", in: window.contentView)
                     } catch {
                         Toast.show("Couldn't save the setting: \(error.localizedDescription)", in: window.contentView)
                     }

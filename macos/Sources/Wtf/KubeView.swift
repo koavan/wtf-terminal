@@ -137,6 +137,7 @@ final class KubeResources: NSView, SidePaneTab, NSComboBoxDelegate, NSSearchFiel
     private let paused = NSTextField(labelWithString: "Paused")
     private let filter = NSSearchField()
     private let list = SideList()
+    private var noteLink: NSButton?
     private var note: NoteView?
     private var timer: Timer?
     private var lastShell: Kube.Target?
@@ -206,6 +207,7 @@ final class KubeResources: NSView, SidePaneTab, NSComboBoxDelegate, NSSearchFiel
         let auto = Settings.shared.config?.sidebarAutoRefresh ?? true
         paused.isHidden = !(anyOpen && !auto)
         if !paused.isHidden {
+            paused.stringValue = Poller.pausedText(state.open.compactMap { state.section($0).updatedAt }.max())
             paused.frame = NSRect(x: 10, y: y, width: bounds.width - 20, height: 16)
             y += 18
         }
@@ -217,6 +219,10 @@ final class KubeResources: NSView, SidePaneTab, NSComboBoxDelegate, NSSearchFiel
         if let note {
             note.frame = NSRect(x: 0, y: y, width: bounds.width, height: note.height(for: bounds.width))
             y += note.frame.height
+            if let l = noteLink {
+                l.frame = NSRect(x: NoteView.inset - 4, y: y - 6, width: l.fittingSize.width, height: 22)
+                y += 20
+            }
         }
         list.frame = NSRect(x: 0, y: y, width: bounds.width, height: max(0, bounds.height - y))
     }
@@ -364,8 +370,12 @@ final class KubeResources: NSView, SidePaneTab, NSComboBoxDelegate, NSSearchFiel
         }
         note?.removeFromSuperview()
         note = nil
+        noteLink?.removeFromSuperview()
+        noteLink = nil
         if !state.targetError.isEmpty {
             note = paneNote("Can’t find a Kubernetes context", state.targetError)
+            noteLink = owner.installLink(for: state.targetError)
+            if let noteLink { addSubview(noteLink) }
         } else if t != nil, state.open.isEmpty {
             note = paneNote(nil, "Open a section to load it. Only open sections are read from the cluster, and refreshed.")
         }
@@ -393,7 +403,14 @@ final class KubeResources: NSView, SidePaneTab, NSComboBoxDelegate, NSSearchFiel
                 let label = Self.label(id)
                 let note = Kube.tableKinds.first { $0.id == id }?.note ?? ""
                 var rows: [SideList.Row] = []
-                if !s.error.isEmpty { rows.append(.init(id: "\(id):!error", symbol: "exclamationmark.triangle", tint: .systemRed, title: s.error)) }
+                if !s.error.isEmpty {
+                    let tool = Tools.missingTool(s.error)
+                    rows.append(.init(id: "\(id):!error", symbol: "exclamationmark.triangle", tint: .systemRed, title: s.error, tip: s.error,
+                                      button: tool.map { t in ("wrench.and.screwdriver", "Show how to install it", { [weak self] in
+                                          guard let self else { return }
+                                          ToolsDialog.show(focus: t, in: owner)
+                                      }) }))
+                }
                 switch id {
                 case "deployments":
                     for d in deployments where matches(d.name) {
@@ -679,105 +696,6 @@ final class KubeResources: NSView, SidePaneTab, NSComboBoxDelegate, NSSearchFiel
     }
 }
 
-// MARK: - Secret viewer
-
-/// A secret's values, masked until revealed, hidden again when wtf loses
-/// focus, never cached. Like SecretViewer.svelte.
-@MainActor
-final class SecretViewer {
-    private static var open: [SecretViewer] = []
-
-    private let sheet: FormSheet
-    private let body = NSStackView()
-    private let owner: WindowController
-    private var entries: [Go.kube.SecretEntry] = []
-    private var revealed = Set<String>()
-    private var status = "Reading the secret…"
-    private var statusRed = false
-    private var observer: NSObjectProtocol?
-
-    static func show(name: String, target t: Kube.Target, in w: WindowController) {
-        let v = SecretViewer(name: name, target: t, window: w)
-        open.append(v)
-    }
-
-    private init(name: String, target t: Kube.Target, window w: WindowController) {
-        owner = w
-        sheet = FormSheet(title: "Secret \(name)", subtitle: "Context \(t.context), namespace \(t.namespace). Values hide again when wtf loses focus.", width: 560)
-        body.orientation = .vertical
-        body.alignment = .leading
-        body.spacing = 8
-        sheet.add(body)
-        sheet.buttons([], cancel: "Done", left: [("Reveal All", { [weak self] in self?.toggleAll() })])
-        sheet.present(in: w.window)
-        sheet.onClose = { [weak self] in
-            guard let self else { return }
-            if let observer { NotificationCenter.default.removeObserver(observer) }
-            Self.open.removeAll { $0 === self }
-        }
-        observer = NotificationCenter.default.addObserver(forName: NSApplication.didResignActiveNotification, object: nil, queue: .main) { [weak self] _ in
-            MainActor.assumeIsolated {
-                self?.revealed.removeAll()
-                self?.render()
-            }
-        }
-        render()
-        Task {
-            do {
-                entries = try await Services.kube.SecretValues(Go.kube.Request(env: t.env, context: t.context, namespace: t.namespace), name)
-                if entries.isEmpty { status = "This secret has no data." }
-            } catch {
-                status = error.localizedDescription
-                statusRed = true
-            }
-            render()
-        }
-    }
-
-    private func size(_ n: Int) -> String { n < 1024 ? "\(n) B" : String(format: "%.1f KB", Double(n) / 1024) }
-
-    private func toggleAll() {
-        if revealed.count == entries.count { revealed.removeAll() } else { revealed = Set(entries.map(\.key)) }
-        render()
-    }
-
-    private func render() {
-        body.arrangedSubviews.forEach { $0.removeFromSuperview() }
-        if entries.isEmpty {
-            let n = sheet.note(status)
-            if statusRed { n.textColor = .systemRed }
-            body.addArrangedSubview(n)
-            return
-        }
-        for e in entries {
-            let key = NSTextField(labelWithString: e.key)
-            key.font = .systemFont(ofSize: 12, weight: .semibold)
-            let meta = NSTextField(labelWithString: e.binary ? "binary · \(size(e.size))" : size(e.size))
-            meta.font = .systemFont(ofSize: 11)
-            meta.textColor = .secondaryLabelColor
-            let shown = revealed.contains(e.key)
-            let eye = ClosureButton(title: shown ? "Hide" : "Reveal") { [weak self] in
-                guard let self else { return }
-                if shown { revealed.remove(e.key) } else { revealed.insert(e.key) }
-                render()
-            }
-            let owner = owner
-            let copy = ClosureButton(title: e.binary ? "Copy (base64)" : "Copy") {
-                Clipboard.copySecret(e.value, what: e.binary ? "\(e.key) (base64)" : e.key, in: owner.rootView)
-            }
-            [eye, copy].forEach { $0.controlSize = .small }
-            let head = NSStackView(views: [key, meta, NSView(), eye, copy])
-            head.widthAnchor.constraint(equalToConstant: 512).isActive = true
-            let value = NSTextField(wrappingLabelWithString: shown ? e.value : "••••••••")
-            value.font = .monospacedSystemFont(ofSize: 11.5, weight: .regular)
-            value.isSelectable = shown
-            value.preferredMaxLayoutWidth = 512
-            body.addArrangedSubview(head)
-            body.addArrangedSubview(value)
-        }
-    }
-}
-
 // MARK: - Contexts
 
 @MainActor
@@ -918,7 +836,8 @@ final class KubeContextsSection: NSView, SidePaneTab, NSSearchFieldDelegate {
     }
 
     private func confirmEdit(_ op: Go.kube.Op, _ title: String, _ button: String, note: String = "") {
-        Task {
+        Task { [weak self] in
+            guard let self else { return }
             do {
                 let steps = try await Services.kube.PlanEdit(env, op)
                 Confirm.show(in: window, title: title, message: "wtf will make these changes\(note). A copy of the kubeconfig is kept first (kube-backups).",
@@ -982,6 +901,11 @@ final class KubeContextsSection: NSView, SidePaneTab, NSSearchFieldDelegate {
         let m = NSMenu()
         m.autoenablesItems = false
         func add(_ t: String, _ run: @escaping () -> Void) { m.addItem(ClosureMenuItem(title: t, keyEquivalent: "", action: run)) }
+        if let ch = checks[key(c)], let tool = Tools.missingTool(ch.error) {
+            let o = owner
+            add(tool == "aws" ? "Install the AWS CLI…" : "Install \(tool)…") { ToolsDialog.show(focus: tool, in: o) }
+            m.addItem(.separator())
+        }
         add("Use in This Shell") { [weak self] in self?.use(c) }
         add("Open New Tab with Context") { [weak self] in self?.use(c, newTab: true) }
         add("Show Its Resources") { [weak self] in
@@ -1105,6 +1029,9 @@ final class KubeContextsSection: NSView, SidePaneTab, NSSearchFieldDelegate {
                 } catch {
                     found.stringValue = error.localizedDescription
                     found.textColor = .systemRed
+                    if Tools.missingTool(error.localizedDescription) != nil {
+                        found.stringValue += " — Command-Line Tools (wtf menu) shows how to install it"
+                    }
                 }
                 refresh()
             }

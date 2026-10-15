@@ -37,7 +37,7 @@ enum Clipboard {
 /// A short message at the bottom of the window that fades after a moment.
 @MainActor
 enum Toast {
-    static func show(_ message: String, in view: NSView?) {
+    static func show(_ message: String, in view: NSView?, seconds: Double = 2.4) {
         guard let content = view?.window?.contentView else { return }
         content.subviews.filter { $0.identifier == id }.forEach { $0.removeFromSuperview() }
 
@@ -62,7 +62,7 @@ enum Toast {
             box.centerXAnchor.constraint(equalTo: content.centerXAnchor),
             box.bottomAnchor.constraint(equalTo: content.bottomAnchor, constant: -16),
         ])
-        DispatchQueue.main.asyncAfter(deadline: .now() + 2.4) {
+        DispatchQueue.main.asyncAfter(deadline: .now() + seconds) {
             NSAnimationContext.runAnimationGroup({ $0.duration = 0.25; box.animator().alphaValue = 0 }) {
                 MainActor.assumeIsolated { box.removeFromSuperview() }
             }

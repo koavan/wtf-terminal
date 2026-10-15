@@ -47,6 +47,10 @@ final class WindowManager {
         } else {
             for w in saved { open(name: w.name, session: w.session) }
         }
+        // Problems in config.toml found at launch.
+        Settings.shared.showProblems()
+        // Once ever: which tools the side pane needs aren't installed.
+        if ProcessInfo.processInfo.environment["WTF_NATIVE_DEBUG"] == nil { keyWindow?.toolsFirstRun() ?? windows.first?.toolsFirstRun() }
     }
 
     private var badgesOn = true

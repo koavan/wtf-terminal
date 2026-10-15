@@ -111,6 +111,7 @@ final class ShareView: NSView, SidePaneTab {
         }
         form.add(startup, full: false)
         form.add(form.note("Access keys, tokens, JWTs, passwords and private keys in every terminal. Best effort — it can miss a secret it doesn't recognize. ⌥⌘R"))
+        form.add(form.link("What it covers") { ManualWindow.show("secrets") }, full: false)
         form.add(spacer(8))
 
         // Record this terminal

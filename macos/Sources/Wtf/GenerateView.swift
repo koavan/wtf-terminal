@@ -384,6 +384,11 @@ final class PasswordGenerator: PaneForm, NSTextFieldDelegate {
         super.init()
         build()
         regenerate()
+        // Turning Hide Secrets on covers the password again.
+        Redaction.shared.observe(self) { g in
+            if Redaction.shared.on { g.revealed = false }
+            g.update()
+        }
     }
 
     required init?(coder: NSCoder) { fatalError() }

@@ -39,17 +39,18 @@ final class Sidebar: NSView {
         TabInfo(tab: .kube, label: "Kubernetes", symbol: "helm", key: "⌘⇧K") { KubeView(window: $0) },
         TabInfo(tab: .snippets, label: "Snippets", symbol: "scroll", key: "⌘⇧Y") { SnippetsView(window: $0) },
         TabInfo(tab: .workspaces, label: "Workspaces", symbol: "square.stack.3d.up", key: "⌘⇧L") { WorkspacesView(window: $0) },
-        TabInfo(tab: .history, label: "Command History", symbol: "clock.arrow.circlepath", key: "⌘⇧H") { HistoryView(window: $0) },
-        TabInfo(tab: .pins, label: "Pinned Output", symbol: "pin", key: "⌘⇧I") { PinsView(window: $0) },
-        TabInfo(tab: .findings, label: "Findings (Security Scans)", symbol: "exclamationmark.shield", key: "⌘⇧F") { FindingsView(window: $0) },
-        TabInfo(tab: .share, label: "Share & Record", symbol: "record.circle", key: "⌘⇧J") { ShareView(window: $0) },
-        TabInfo(tab: .generate, label: "Generate Keys & Passwords", symbol: "key", key: "⌘⇧N") { GenerateView(window: $0) },
         TabInfo(tab: .network, label: "Network", symbol: "network", key: "⌘⇧O") { NetworkView(window: $0) },
         TabInfo(tab: .processes, label: "Processes", symbol: "cpu", key: "⌘⇧A") { ProcessView(window: $0) },
+        TabInfo(tab: .history, label: "History", symbol: "clock.arrow.circlepath", key: "⌘⇧H") { HistoryView(window: $0) },
+        TabInfo(tab: .pins, label: "Pinned Output", symbol: "pin", key: "⌘⇧I") { PinsView(window: $0) },
+        TabInfo(tab: .findings, label: "Findings", symbol: "exclamationmark.shield", key: "⌘⇧F") { FindingsView(window: $0) },
+        TabInfo(tab: .share, label: "Share & Record", symbol: "record.circle", key: "⌘⇧J") { ShareView(window: $0) },
+        TabInfo(tab: .generate, label: "Generate Keys & Passwords", symbol: "key", key: "⌘⇧N") { GenerateView(window: $0) },
     ]
 
     private unowned let owner: WindowController
     private let rail = NSStackView()
+    private let bottom = NSStackView()
     private var railButtons: [SidebarTab: NSButton] = [:]
     private(set) var content: SidePaneTab?
     private var shownTab: SidebarTab?
@@ -80,6 +81,23 @@ final class Sidebar: NSView {
             rail.addArrangedSubview(b)
         }
         addSubview(rail)
+        for (symbol, tip, run) in [
+            ("wrench.and.screwdriver", "Command-Line Tools: kubectl, AWS CLI, git, OpenSSH", { [weak self] in
+                guard let self else { return }
+                ToolsDialog.show(in: owner)
+            }),
+            ("questionmark.circle", "Help for this tab (⌘?)", { [weak self] in
+                guard let self else { return }
+                ManualWindow.show(from: owner)
+            }),
+        ] as [(String, String, () -> Void)] {
+            let b = ToolButton(symbol: symbol, tip: tip, action: run)
+            b.symbolConfiguration = .init(pointSize: 14, weight: .regular)
+            bottom.addArrangedSubview(b)
+        }
+        bottom.orientation = .vertical
+        bottom.spacing = 4
+        addSubview(bottom)
         let line = NSBox()
         line.boxType = .separator
         line.identifier = .init("railLine")
@@ -126,6 +144,8 @@ final class Sidebar: NSView {
         super.layout()
         let railW: CGFloat = 44
         rail.frame = NSRect(x: 0, y: 0, width: railW, height: bounds.height)
+        let bh = bottom.fittingSize.height
+        bottom.frame = NSRect(x: 4, y: bounds.height - bh - 8, width: railW - 10, height: bh)
         subviews.first { $0.identifier?.rawValue == "railLine" }?.frame = NSRect(x: railW - 1, y: 4, width: 1, height: bounds.height - 8)
         content?.frame = NSRect(x: railW + 4, y: 0, width: max(0, bounds.width - railW - 4), height: bounds.height)
         handle.frame = NSRect(x: bounds.width - 4, y: 0, width: 8, height: bounds.height)
@@ -235,9 +255,7 @@ final class PaneHeader: NSView {
 
     /// Pause/resume auto-refresh (the shared side-pane setting) and refresh now.
     func refreshControls(in view: NSView, refresh: @escaping () -> Void) {
-        let auto = Settings.shared.config?.sidebarAutoRefresh ?? true
-        let pause = tool(auto ? "pause.fill" : "play.fill",
-                         auto ? "Pause auto-refresh (side pane updates only when you ask)" : "Resume auto-refresh") {
+        let pause = tool("pause.fill", "") {
             let on = !(Settings.shared.config?.sidebarAutoRefresh ?? true)
             Task { @MainActor in
                 do {
@@ -248,7 +266,16 @@ final class PaneHeader: NSView {
                 }
             }
         }
-        if !auto { pause.contentTintColor = .controlAccentColor }
+        // The button follows the setting, however it's changed.
+        func look(_ b: ToolButton) {
+            let auto = Settings.shared.config?.sidebarAutoRefresh ?? true
+            b.image = NSImage(systemSymbolName: auto ? "pause.fill" : "play.fill", accessibilityDescription: nil)
+            b.toolTip = auto ? "Pause auto-refresh (side pane updates only when you ask)" : "Resume auto-refresh"
+            b.setAccessibilityLabel(auto ? "Pause auto-refresh" : "Resume auto-refresh")
+            b.contentTintColor = auto ? .secondaryLabelColor : .controlAccentColor
+        }
+        look(pause)
+        Settings.shared.observe(pause) { look($0) }
         tool("arrow.clockwise", "Refresh now", refresh)
     }
 }

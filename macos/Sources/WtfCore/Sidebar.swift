@@ -19,6 +19,10 @@ public struct SidebarState: Equatable, Sendable {
     public var kubeView = "cluster"
     public var generateSection = "key"
     public var historyScope = "pane"
+    /// The Network and Processes tabs' views (shared by the app, saved per window).
+    public var networkScope = "terminals"
+    public var processScope = "terminals"
+    public var processSort = "cpu"
     /// Everything else in the saved object, as it was.
     var rest: [String: JSONValue] = [:]
 
@@ -35,6 +39,9 @@ public struct SidebarState: Equatable, Sendable {
         if case .string(let t)? = o["tab"], let tab = SidebarTab(rawValue: t) { self.tab = tab }
         if case .string(let s)? = o["sshSection"], ["hosts", "keys", "git", "tunnels"].contains(s) { sshSection = s }
         if case .string(let k)? = o["kubeView"], ["cluster", "contexts"].contains(k) { kubeView = k }
+        if case .string(let n)? = o["networkScope"], ["terminals", "all"].contains(n) { networkScope = n }
+        if case .string(let n)? = o["processScope"], ["terminals", "all"].contains(n) { processScope = n }
+        if case .string(let n)? = o["processSort"], ["cpu", "memory", "name"].contains(n) { processSort = n }
         if case .string(let h)? = o["historyScope"], ["pane", "all"].contains(h) { historyScope = h }
         if case .string(let g)? = o["generateSection"], ["key", "password"].contains(g) { generateSection = g }
     }
@@ -49,6 +56,9 @@ public struct SidebarState: Equatable, Sendable {
         o["kubeView"] = .string(kubeView)
         o["generateSection"] = .string(generateSection)
         o["historyScope"] = .string(historyScope)
+        o["networkScope"] = .string(networkScope)
+        o["processScope"] = .string(processScope)
+        o["processSort"] = .string(processSort)
         return .object(o)
     }
 }

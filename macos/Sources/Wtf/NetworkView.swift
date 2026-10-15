@@ -167,6 +167,7 @@ final class NetworkView: NSView, SidePaneTab, NSSearchFieldDelegate {
 
     @objc private func scopeChanged() {
         store.terminalsOnly = scope.selectedSegment == 0
+        owner.scheduleSave()
         rebuild()
     }
 
@@ -232,7 +233,8 @@ final class NetworkView: NSView, SidePaneTab, NSSearchFieldDelegate {
         noteButton?.removeFromSuperview()
         noteButton = nil
         if let e = store.error {
-            note = paneNote("Can't list connections", e.contains("lsof isn't installed") ? e + ". Install it with your package manager, then refresh." : e)
+            note = paneNote("Can't list connections", e)
+            noteButton = owner.installLink(for: e)
         } else if store.loaded, shown.isEmpty {
             if !q.isEmpty {
                 note = paneNote(nil, "No connections match “\(store.filter)”.")

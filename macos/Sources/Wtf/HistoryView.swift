@@ -98,7 +98,7 @@ final class HistoryView: NSView, SidePaneTab, NSSearchFieldDelegate {
             let q = filter.stringValue.trimmingCharacters(in: .whitespaces)
             if !q.isEmpty {
                 note = paneNote(nil, "No commands match “\(filter.stringValue)”.")
-            } else if !all, owner.activePane?.integrated != true {
+            } else if !all, let p = owner.activePane, !p.integrated {
                 note = paneNote("No history for this shell", "History comes from shell integration, which supports bash and zsh. Check that shell-integration is on in your settings; it applies to new panes.")
             } else {
                 note = paneNote("No commands yet", "Commands you run here appear with when they finished and how long they took.")
@@ -112,10 +112,9 @@ final class HistoryView: NSView, SidePaneTab, NSSearchFieldDelegate {
         let cmd = Redaction.shared.text(e.command)
         let cwd = WindowModel.prettyPath(e.cwd)
         let detail: String
-        var alert = ""
+        let alert = ""
         if let fin = e.finishedAt {
-            detail = "\(clockTime(fin)) · \(Format.duration(ms: e.durationMs ?? 0))" + (e.exitCode == 0 ? "" : " · exit \(e.exitCode ?? 0)") + " · \(cwd)"
-            if e.exitCode != 0 { alert = "" }
+            detail = "\(clockTime(fin)) · \(Format.duration(ms: e.durationMs ?? 0)) · \(cwd)"
         } else {
             detail = "running · since \(clockTime(e.startedAt)) · \(cwd)"
         }
@@ -123,9 +122,10 @@ final class HistoryView: NSView, SidePaneTab, NSSearchFieldDelegate {
                              tint: e.running ? .controlAccentColor : e.exitCode == 0 ? .systemGreen : .systemRed,
                              title: cmd, mono: true, detail: detail, alert: alert,
                              tip: "\(cmd)\nin \(cwd)\nstarted \(clockTime(e.startedAt))")
+        if let code = e.exitCode, code != 0 { r.pills.append(.init(text: "exit \(code)", color: .systemRed)) }
         if all, let t = owner.model.tabOf(pane: e.paneId) {
             let title = owner.model.title(t)
-            r.pills = [.init(text: title.count > 16 ? String(title.prefix(15)) + "…" : title, color: .controlAccentColor, tip: "In “\(title)”")]
+            r.pills.append(.init(text: title.count > 16 ? String(title.prefix(15)) + "…" : title, color: .controlAccentColor, tip: "In “\(title)”"))
         }
         return r
     }
@@ -276,6 +276,7 @@ final class PinsView: NSView, SidePaneTab {
         }
         for (i, p) in pins.enumerated() {
             let c = cards[p.id] ?? PinCard(owner: owner)
+            c.onResize = { [weak self] in self?.needsLayout = true }
             cards[p.id] = c
             c.set(p)
             if stack.arrangedSubviews.firstIndex(of: c) != i {
@@ -338,6 +339,11 @@ final class PinCard: NSView {
     private let head = PinHead()
     var width: CGFloat = 280 { didSet { if width != oldValue { needsLayout = true; invalidateIntrinsicContentSize() } } }
     private var bodyHeight: CGFloat = 180
+    /// Set by dragging the bottom edge: kept as the output grows.
+    private var chosenHeight: CGFloat?
+    private let grip = PinGrip()
+    /// The list lays itself out again (a pin changed height).
+    var onResize: (() -> Void)?
 
     init(owner: WindowController) {
         self.owner = owner
@@ -375,6 +381,18 @@ final class PinCard: NSView {
         textScroll.drawsBackground = false
         addSubview(note)
         addSubview(textScroll)
+        // Drag the bottom edge to make the output taller (60pt to 70% of the window).
+        grip.onDrag = { [weak self] dy, start in
+            guard let self else { return }
+            let maxH = (window?.contentView?.bounds.height ?? 700) * 0.7
+            chosenHeight = min(maxH, max(60, start + dy))
+            bodyHeight = chosenHeight!
+            invalidateIntrinsicContentSize()
+            needsLayout = true
+            onResize?()
+        }
+        grip.startHeight = { [weak self] in self?.bodyHeight ?? 180 }
+        addSubview(grip)
     }
 
     required init?(coder: NSCoder) { fatalError() }
@@ -421,7 +439,7 @@ final class PinCard: NSView {
             // As tall as the output, up to 180pt; longer output scrolls.
             text.layoutManager?.ensureLayout(for: text.textContainer!)
             let used = text.layoutManager?.usedRect(for: text.textContainer!).height ?? 0
-            bodyHeight = min(180, max(40, ceil(used) + 12))
+            bodyHeight = chosenHeight ?? min(180, max(40, ceil(used) + 12))
             if atEnd { text.scrollToEndOfDocument(nil) }
         }
         invalidateIntrinsicContentSize()
@@ -446,6 +464,8 @@ final class PinCard: NSView {
             y += 18
         }
         textScroll.frame = NSRect(x: 4, y: y, width: bounds.width - 8, height: bodyHeight)
+        grip.frame = NSRect(x: 0, y: y + bodyHeight, width: bounds.width, height: 6)
+        grip.isHidden = textScroll.isHidden
     }
 
     private func copy() {
@@ -509,4 +529,20 @@ final class PinHead: NSView {
     }
 
     override func menu(for event: NSEvent) -> NSMenu? { menuProvider?() }
+}
+
+/// A pin's bottom edge: drag it to resize the output.
+@MainActor
+final class PinGrip: NSView {
+    var onDrag: ((_ dy: CGFloat, _ start: CGFloat) -> Void)?
+    var startHeight: (() -> CGFloat)?
+    private var start: (y: CGFloat, h: CGFloat)?
+
+    override func resetCursorRects() { addCursorRect(bounds, cursor: .resizeUpDown) }
+    override func mouseDown(with event: NSEvent) { start = (NSEvent.mouseLocation.y, startHeight?() ?? 180) }
+    override func mouseDragged(with event: NSEvent) {
+        guard let start else { return }
+        onDrag?(start.y - NSEvent.mouseLocation.y, start.h)
+    }
+    override func mouseUp(with event: NSEvent) { start = nil }
 }

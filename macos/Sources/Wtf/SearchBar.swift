@@ -1,5 +1,6 @@
 import AppKit
 import SwiftTerm
+import WtfCore
 
 /// Find in the terminal's output: as you type, Return for the next match,
 /// Shift-Return for the previous, Escape to close. Like SearchBar.svelte.
@@ -73,29 +74,70 @@ final class SearchBar: NSView, NSSearchFieldDelegate {
 
     private var query: String { field.stringValue }
 
-    /// Search as you type: from the top of the matches each time.
+    /// Every match in the scrollback, and the one selected.
+    private(set) var found: [Find.Match] = []
+    private(set) var current: Int?
+    /// The matches changed: the overlay highlights the ones on screen.
+    var onFound: (() -> Void)?
+
+    /// Search as you type: the match at or after the current one, so typing
+    /// more refines it rather than jumping back to the top.
     @objc private func changed() {
+        let from = current.map { found[$0] }
         guard !query.isEmpty else {
-            terminal.clearSearch()
+            found = []
+            current = nil
+            terminal.selection.selectNone()
             status.stringValue = ""
+            onFound?()
             return
         }
-        report(terminal.findNext(query, options: options))
+        found = Find.matches(in: terminal.getTerminal(), query, caseSensitive: caseButton.state == .on)
+        if found.isEmpty {
+            current = nil
+        } else if let from {
+            current = found.firstIndex { ($0.row, $0.col) >= (from.row, from.col) } ?? 0
+        } else {
+            // The first match from the bottom of the screen up, as a terminal search reads.
+            let t = terminal.getTerminal()
+            let bottom = t.buffer.yDisp + t.rows
+            current = found.lastIndex { $0.row < bottom } ?? 0
+        }
+        show()
     }
 
-    @objc func next() {
-        if !query.isEmpty { report(terminal.findNext(query, options: options)) }
+    @objc func next() { step(1) }
+    @objc func previous() { step(-1) }
+
+    private func step(_ d: Int) {
+        guard !query.isEmpty else { return }
+        if found.isEmpty { changed() }
+        guard !found.isEmpty else { return }
+        current = ((current ?? -d) + d + found.count) % found.count
+        show()
     }
 
-    @objc func previous() {
-        if !query.isEmpty { report(terminal.findPrevious(query, options: options)) }
-    }
-
-    private func report(_ found: Bool) {
-        status.stringValue = found ? "" : "No results"
+    /// Selects the current match, scrolls to it, and says where it is.
+    private func show() {
+        status.stringValue = Find.status(found, current: current)
+        status.textColor = found.isEmpty ? .systemOrange : .secondaryLabelColor
+        if let i = current {
+            let m = found[i]
+            terminal.selection.setSelection(start: Position(col: m.col, row: m.row), end: Position(col: m.col + m.width, row: m.row))
+            let t = terminal.getTerminal()
+            if m.row < t.buffer.yDisp || m.row >= t.buffer.yDisp + t.rows {
+                terminal.scrollTo(row: max(0, m.row - t.rows / 2))
+            }
+        } else {
+            terminal.selection.selectNone()
+        }
+        onFound?()
     }
 
     @objc func closeBar() {
+        found = []
+        current = nil
+        onFound?()
         terminal.clearSearch()
         onClose?()
     }

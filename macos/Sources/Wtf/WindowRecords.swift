@@ -109,7 +109,7 @@ extension WindowController {
                     self.refreshRecordingIndicators()
                     let where_ = WindowModel.prettyPath(url.path)
                     Toast.show(Redaction.shared.on ? "Recording to \(where_) — output is recorded as is; Hide Secrets doesn't apply to it"
-                        : "Recording to \(where_)", in: self.rootView)
+                        : "Recording to \(where_)", in: self.rootView, seconds: 5)
                 } catch {
                     Toast.show("Couldn't start recording: \(error.localizedDescription)", in: self.rootView)
                 }
@@ -126,9 +126,9 @@ extension WindowController {
             do {
                 let s = try await Services.terminal.StopRecording(session)
                 records.remember(rec.path, .recording)
-                Toast.show("Saved recording to \(WindowModel.prettyPath(rec.path)) (\(Format.duration(ms: s.seconds * 1000)))", in: rootView)
+                Toast.show("Saved recording to \(WindowModel.prettyPath(rec.path)) (\(Format.duration(ms: s.seconds * 1000)))", in: rootView, seconds: 5)
             } catch {
-                Toast.show("The recording ended with an error: \(error.localizedDescription)", in: rootView)
+                Toast.show("The recording ended with an error: \(error.localizedDescription)", in: rootView, seconds: 5)
             }
         }
     }
@@ -140,7 +140,7 @@ extension WindowController {
         records.runningBlock[id] = nil
         if let rec = records.recording.removeValue(forKey: id), !moved {
             records.remember(rec.path, .recording)
-            Toast.show("Saved recording to \(WindowModel.prettyPath(rec.path))", in: rootView)
+            Toast.show("Saved recording to \(WindowModel.prettyPath(rec.path))", in: rootView, seconds: 5)
         }
         records.changed()
     }

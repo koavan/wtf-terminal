@@ -86,13 +86,25 @@ final class TabOverview: NSView, NSSearchFieldDelegate {
     override func hitTest(_ point: NSPoint) -> NSView? { super.hitTest(point) ?? self }
 
     private func haystack(_ t: Tab) -> String {
-        let g = t.groupId.flatMap(owner.model.group).map { $0.name.isEmpty ? "Unnamed group" : $0.name } ?? ""
+        let g = t.groupId.flatMap(owner.model.group).map(\.name) ?? ""
         return "\(owner.model.title(t)) \(WindowModel.prettyPath(owner.model.focusedPane(t)?.cwd ?? "")) \(g)"
     }
 
     private var matching: [Tab] {
         let q = search.stringValue.trimmingCharacters(in: .whitespaces)
         return q.isEmpty ? owner.model.tabs : owner.model.tabs.filter { Fuzzy.score(q, haystack($0)) != nil }
+    }
+
+    private var builtWidth: CGFloat = 0
+
+    /// The grid flows to the width: built again when it changes (and once it has one).
+    override func layout() {
+        super.layout()
+        let w = scroll.contentSize.width
+        if w > 0, abs(w - builtWidth) > 1 {
+            builtWidth = w
+            build()
+        }
     }
 
     private func build() {

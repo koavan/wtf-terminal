@@ -98,6 +98,9 @@ final class WindowController: NSWindowController, NSWindowDelegate, NSMenuItemVa
         } else if let session, model.restore(session) {
             sessionExtra = session.extra
             sidebar = SidebarState(json: session.extra["sidebar"])
+            NetStore.shared.terminalsOnly = sidebar.networkScope == "terminals"
+            ProcStore.shared.terminalsOnly = sidebar.processScope == "terminals"
+            ProcStore.shared.sort = Procs.Sort(rawValue: sidebar.processSort) ?? .cpu
         } else {
             model.open(cwd: "")
         }
@@ -170,6 +173,7 @@ final class WindowController: NSWindowController, NSWindowDelegate, NSMenuItemVa
             for id in t.root.leaves { if let term = terminals[id] { views[id] = term.container } }
             panes.dimAmount = Settings.shared.config?.unfocusedSplitDim ?? 0.35
             panes.show(t.root, focused: t.focusedPaneId, zoomed: t.zoomedPaneId, views: views)
+            for id in t.root.leaves { terminals[id]?.scheduleTints() }
         }
         strip.refresh()
         Broadcast.shared.prune(in: self)
@@ -212,6 +216,12 @@ final class WindowController: NSWindowController, NSWindowDelegate, NSMenuItemVa
         if on { broadcastBar.set(Broadcast.shared.describe(in: self)) }
         for (id, term) in terminals { term.container.outlined = on && Broadcast.shared.includes(id, in: self) }
         root.needsLayout = true
+    }
+
+    /// A program set its pane's title: the tab and window show it.
+    func paneTitleChanged() {
+        strip.refresh()
+        window?.title = model.active.map { Redaction.shared.text(model.title($0)) } ?? "wtf"
     }
 
     func broadcastChanged() {
@@ -378,6 +388,9 @@ final class WindowController: NSWindowController, NSWindowDelegate, NSMenuItemVa
 
     private func sessionJSON() -> String {
         var extra = sessionExtra
+        sidebar.networkScope = NetStore.shared.terminalsOnly ? "terminals" : "all"
+        sidebar.processScope = ProcStore.shared.terminalsOnly ? "terminals" : "all"
+        sidebar.processSort = ProcStore.shared.sort.rawValue
         extra["sidebar"] = sidebar.json
         let s = model.snapshot(fontSize: Settings.shared.fontSize, extra: extra)
         let enc = JSONEncoder()
@@ -573,6 +586,15 @@ final class WindowController: NSWindowController, NSWindowDelegate, NSMenuItemVa
                 Broadcast.shared.toggle(panesOf: id, in: self)
             }
         }
+        // Recording and saving the tab's focused pane.
+        if let p = model.focusedPane(t) {
+            m.addItem(.separator())
+            add(isRecording(pane: p.id) ? "Stop Recording" : "Start Recording…", key: "s", mods: [.command, .option]) { [weak self] in
+                self?.toggleRecording(pane: p)
+            }
+            add("Save Output as Text…") { [weak self] in self?.saveOutputAsText(pane: p) }
+            if p.integrated { add("Save Commands as Markdown…") { [weak self] in self?.saveTranscript(pane: p) } }
+        }
         m.addItem(.separator())
         // Git identities: switch this tab's shell to one, or back.
         let identities = SshStore.shared.identities
@@ -601,11 +623,12 @@ final class WindowController: NSWindowController, NSWindowDelegate, NSMenuItemVa
         }
         m.addItem(.separator())
         add("Duplicate") { [weak self] in self?.model.openNextTo(id, duplicate: true) }
-        m.addItem(.separator())
+        let otherWindows = WindowManager.shared.windows.filter { $0 !== self }
+        if model.tabs.count > 1 || !otherWindows.isEmpty { m.addItem(.separator()) }
         if model.tabs.count > 1 {
             add("Move to New Window") { [weak self] in self?.moveToNewWindow(id) }
         }
-        for other in WindowManager.shared.windows where other !== self {
+        for other in otherWindows {
             add("Move to “\(other.window?.title ?? other.name)”") { [weak self] in self?.moveTab(id, to: other) }
         }
         m.addItem(.separator())

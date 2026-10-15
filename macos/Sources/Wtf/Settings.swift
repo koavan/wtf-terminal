@@ -48,10 +48,22 @@ final class Settings {
         // A saved theme replaces the one previewed.
         previewing = nil
         if initial || sizeChanged { fontSize = r.config.fontSize }
-        if !initial, !r.problems.isEmpty, let w = WindowManager.shared.keyWindow {
-            Toast.show("Settings: \(r.problems[0])" + (r.problems.count > 1 ? " (+\(r.problems.count - 1) more)" : ""), in: w.rootView)
+        // Problems show once each time they change: at launch too (once a window is up).
+        if r.problems != shownProblems {
+            shownProblems = r.problems
+            if !r.problems.isEmpty { showProblems() }
         }
         changed()
+    }
+
+    private var shownProblems: [String] = []
+
+    /// "Settings: <first problem> (+N more)" in the front window, now or when it opens.
+    func showProblems() {
+        guard !shownProblems.isEmpty else { return }
+        guard let w = WindowManager.shared.keyWindow ?? WindowManager.shared.windows.first else { return }
+        let p = shownProblems
+        Toast.show("Settings: \(p[0])" + (p.count > 1 ? " (+\(p.count - 1) more)" : ""), in: w.rootView, seconds: 6)
     }
 
     /// Runs whenever the config, theme or text size changes, while `owner` lives.
