@@ -57,13 +57,10 @@ cp frontend/src/manual/*.md "$app/Contents/Resources/manual/"
 if [ -d "$bin/SwiftTerm_SwiftTerm.bundle" ]; then
 	cp -R "$bin/SwiftTerm_SwiftTerm.bundle" "$app/Contents/Resources/"
 fi
-# The Wails app's Info.plist, as a separate app (own bundle id) until the
-# native one replaces it.
+# wtf's Info.plist (bundle id com.dayanraj.wtf): this app is wtf on macOS.
 plist=$app/Contents/Info.plist
 cp build/darwin/Info.plist "$plist"
 pb() { /usr/libexec/PlistBuddy -c "$1" "$plist"; }
-pb "Set :CFBundleIdentifier com.dayanraj.wtf.native"
-pb "Set :CFBundleName wtf native"
 pb "Set :CFBundleVersion $version"
 pb "Set :CFBundleShortVersionString $version"
 pb "Set :LSMinimumSystemVersion 14.0.0"

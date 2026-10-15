@@ -331,10 +331,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         if let cmd = env["WTF_NATIVE_RUN"], !cmd.isEmpty { w.activeTerminal?.type(cmd + "\r") }
     }
 
-    /// Until the native app replaces the Wails one (M7), it keeps state and
-    /// caches apart from it, so the two can run side by side without
-    /// clearing each other's files or starting the same tunnels.
+    /// Where state and caches live: wtf's own folders (~/Library/Application
+    /// Support/wtf, ~/Library/Caches/wtf), shared with earlier versions, so
+    /// windows, settings and port forwards carry over. Debug self-checks keep
+    /// theirs apart ("wtf-native"), so a test run never touches the real session.
     private static func profileDirs() throws -> (state: String, cache: String) {
+        let env = ProcessInfo.processInfo.environment
+        guard env["WTF_NATIVE_DEBUG"] != nil || env["WTF_NATIVE_PROFILE"] == "separate" else { return ("", "") }
         let fm = FileManager.default
         let support = try fm.url(for: .applicationSupportDirectory, in: .userDomainMask, appropriateFor: nil, create: true)
         let caches = try fm.url(for: .cachesDirectory, in: .userDomainMask, appropriateFor: nil, create: true)
