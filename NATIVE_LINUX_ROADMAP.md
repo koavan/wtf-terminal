@@ -1,0 +1,221 @@
+# Roadmap: native Linux UI
+
+Goal: replace the Wails + WebKitGTK UI on Linux with a native GTK 4 app, the
+way 1.0 replaced it on macOS. The Go backend (`internal/`) stays as it is, and
+the app keeps the same features, manual and saved state as the macOS app.
+
+Ground rules (same as NATIVE_MACOS_ROADMAP.md):
+
+- The terminal must be at least as fast as the Wails build. Measure it, don't assume it.
+- Side-pane data loads only when the pane is shown, and only visible data is polled.
+- Pulses play three times then hold still. No endless animations or timers.
+- Every write or cloud change is confirmed in-app. Dev builds never touch the
+  real `~/.aws` or `~/.ssh`.
+- Every feature has a clickable home (side pane, menu or right-click), not just a
+  shortcut.
+- The manual is updated with every feature, and all builds share the same pages.
+
+Status legend: ☐ not started · ◐ in progress · ☑ done
+
+## Architecture
+
+```
+┌──────────────── wtf (one Go binary, cgo) ─────────────────────────┐
+│  internal/gtkui: windows, tab strip, splits, side pane (GTK 4)    │
+│  Terminal view: VTE (vte-2.91-gtk4) via a thin cgo shim           │
+│        │ direct Go calls                │ events → main loop      │
+│  internal/uicore: pure-Go UI logic (secrets, prompts, layout,     │
+│  fuzzy, inspect, workspaces…), tested against shared testdata     │
+│        │                                                          │
+│  internal/backend: the same 17 services the other UIs use         │
+└───────────────────────────────────────────────────────────────────┘
+```
+
+Key decisions:
+
+- **Language: Go, with GTK 4 through gotk4.** The UI lives in the same process
+  and language as the backend, so:
+  - There's no C bridge, no JSON dispatcher and no code generator: the UI calls
+    services directly, with their real types.
+  - There's no c-archive, so the 1.0.0 signal-mask problem can't happen. Shells
+    are forked by a normal Go binary, as in today's Linux Wails build. M0 still
+    checks the mask.
+  - Fallback if gotk4 fails the M0 gate (crashes, leaks, slow callbacks): Rust
+    with gtk4-rs and vte4, over the existing `libwtf` c-archive, like the macOS
+    app, with a `wtf-exec` launcher.
+- **Terminal: VTE**, the widget behind GNOME Terminal, Ptyxis and Tilix. gotk4
+  doesn't ship VTE bindings, so `internal/gtkui/vte` is a small hand-written cgo
+  shim (about 40 functions) that wraps a `VteTerminal` as a gotk4 `gtk.Widget`.
+  Generating the bindings from `Vte-3.91.gir` with gotk4's generator is the
+  alternative.
+- **Who owns the PTY: Go.** Go keeps reading the PTY, as it does today, and
+  feeds VTE with `vte_terminal_feed`. Keys come back through VTE's `commit`
+  signal. Recording, shell integration and secret scanning keep working on the
+  byte stream. M0 also measures VTE reading the PTY itself (`vte_pty_new_foreign_sync`),
+  in case feeding costs too much.
+- **Shared logic moves to Go.** `macos/Sources/WtfCore` (about 5,000 lines) and the
+  remaining `frontend/src/lib` rules are ported into `internal/uicore`, and the
+  shared `testdata` cases (secrets and others) run against it. The macOS app keeps
+  its Swift copy for now. Moving it onto `uicore` over the bridge is a later,
+  optional step.
+- **No WebKit at all.** WebKitGTK is most of today's memory. The manual is
+  rendered by `uicore` into GTK widgets (a `GtkTextView` with tags, plus native
+  navigation), not a web view.
+- **Toolkit look:** GTK 4 with libadwaita for the window chrome (header bar, dialogs,
+  toasts, dark and light styles that follow the desktop). Tabs are custom-drawn
+  in the header bar, as on macOS, not `AdwTabBar`, so groups, chips and dots
+  match.
+- **Build tags:** reuse `native` (no Wails), so the existing `native.go` files
+  apply. The entry point is `cmd/wtf-gtk`. The Wails build still compiles until
+  M7.
+- **Supported systems:** GTK ≥ 4.14, VTE ≥ 0.76, libadwaita ≥ 1.5. That means
+  Ubuntu 24.04+, Debian 13+, Fedora 40+, Arch. Both X11 and Wayland,
+  amd64 and arm64.
+
+## Linux-specific behaviour
+
+| Area | macOS app | Linux app |
+|---|---|---|
+| Shortcuts | ⌘ | Ctrl+Shift for terminal-conflicting keys (Ctrl+Shift+C/V/T/W/F…), Ctrl elsewhere; one keymap table in `uicore` |
+| Clipboard | NSPasteboard change count | `GdkClipboard`, plus the PRIMARY selection (select to copy, middle-click to paste); secret copies are cleared only if we still own the clipboard |
+| Tab drag-out | window placed at the cursor | new window; Wayland can't position it, so it opens where the compositor puts it |
+| Font | bundled via ATSApplicationFontsPath | JetBrains Mono in `/usr/share/wtf/fonts`, added with `FcConfigAppFontAddDir` |
+| Theme | system appearance | `AdwStyleManager` (follows the desktop's dark preference) |
+| Notifications | NSUserNotification | `GNotification` (portal-friendly) |
+| Usage readout | task_info | `/proc/self/stat` and `smaps_rollup` (PSS) |
+| Packaging | DMG + .app.zip | .deb and .rpm (nfpm), AppImage; no Flatpak, because a sandboxed terminal needs `flatpak-spawn --host` |
+
+## Terminal features on VTE: how each maps
+
+- **Look from config:** font, colours (`vte_terminal_set_colors`), cursor shape
+  and blink, scrollback, bold-is-bright, zoom (`set_font_scale`).
+- **Find:** `search_set_regex` (PCRE2) plus next and previous. VTE has no match
+  count, so "N of M" comes from counting over `get_text_range_format`, only
+  while the find bar is open.
+- **Links:** `match_add_regex` for URL, file and JWT tokens, and OSC 8 hyperlinks
+  turned on. Ctrl-click opens them, and right-click asks `check_match_at` what's under the mouse.
+- **OSC 133 blocks:** Go splits each feed at the 133 markers, and reads
+  `get_cursor_position` right after each part, so mark rows are exact. VTE
+  rewraps lines on resize, so marks re-anchor when the column count changes.
+  This is the biggest unknown, and M0 tests it.
+- **Hide Secrets and log tints:** a `GtkOverlay` with a drawing layer over the
+  VTE, using cell metrics (`get_char_width/height`). Tints use a GSK blend node
+  (darken or lighten). The macOS M2 lesson applies: recompute at most once per
+  frame clock tick, and only when something changed.
+- **Program titles, bell, OSC 52:** VTE's `window-title-changed` signal; the bell
+  is silent; OSC 52 clipboard writes stay off.
+- **Paste confirmation and broadcast:** catch paste before VTE does
+  (`paste-clipboard` signal) and route through `uicore.Paste`. Broadcast uses
+  `commit`.
+
+## Milestones
+
+Same shape as the macOS plan. Days are working sessions. The macOS app's 20
+planned days took far fewer, so treat these as an upper bound.
+
+| # | Milestone | Days |
+|---|---|---|
+| M0 | Spike & go/no-go | 1–2 |
+| M1 | App skeleton, `uicore` start, build & test setup | 2 |
+| M2 | Terminal core | 3 |
+| M3 | Window shell — **dogfood point** | 3 |
+| M4 | Side pane I: Files, SSH, Kubernetes | 3 |
+| M5 | Side pane II: AWS, Network, Processes, Findings, History, Snippets, Pins, Share, Generate, Workspaces | 3 |
+| M6 | Viewers, tools, About, manual | 2 |
+| M7 | Parity, perf, packaging, release | 3 |
+| — | Buffer | 5 |
+
+### M0 — Spike & go/no-go ☐
+
+- `cmd/wtf-gtk`: one window, gotk4 + the VTE shim, one shell from
+  `internal/terminal`, fed by Go.
+- Benchmark against the Wails 1.0.1 Linux build in the same VM: a Linux port of
+  `macos/bench/workload.sh` (CPU from `/proc/<pid>/stat`, memory as PSS from
+  the app plus its WebKit helpers). Phases: idle 30 s, `seq`, coloured 42 MB
+  `cat`, `yes`. Also try VTE reading the PTY itself.
+- Check: the shell's signal mask is empty (`grep SigBlk /proc/<pid>/status`),
+  Ctrl-C, resize and quitting kill the programs.
+- Check: OSC 133 marks survive scrollback trimming and a resize rewrap.
+- Hands-on: vim, htop, tmux, ssh, resize, copy/paste (CLIPBOARD and PRIMARY),
+  IME (ibus), on GNOME Wayland and on X11.
+- **Gate:** clearly lower idle CPU and memory than the Wails build, and heavy
+  output no worse. Otherwise try the Rust/vte4 fallback, or stop.
+
+### M1 — Skeleton, shared core, tooling ☐
+
+- `internal/gtkui` app shell: `AdwApplication`, single instance (a second
+  `wtf` opens a window in the running one), the `native` lifecycle hooks, and
+  `internal/events` delivered on the GTK main loop (`glib.IdleAdd`, batched).
+- `internal/uicore` begins: secrets (shared `cases.json`), paste rules, fuzzy,
+  keymap. Port the Swift and TS tests.
+- Build: extend the `wtf-linux-build:ubuntu24` Docker image with
+  `libgtk-4-dev libadwaita-1-dev libvte-2.91-gtk4-dev`, cache `GOCACHE` in a
+  volume (gotk4's first build is slow), and add `task linux:native`.
+- Self-checks run headless: Xvfb in an OrbStack Ubuntu machine,
+  `WTF_NATIVE_DEBUG=snapshot` renders windows to PNG through
+  `gtk_widget_snapshot` → `gsk_renderer_render_texture`, so I can check layouts
+  without your time.
+- Separate profile until M7 (`~/.local/state/wtf-native`, `~/.cache/wtf-native`),
+  as on macOS, so a running Wails wtf keeps its kube overlays and tunnels.
+
+### M2 — Terminal core ☐
+
+Ports the macOS M2 list onto VTE: look from `config.toml` and `config:changed`,
+zoom, find bar, links, paste confirmation, bracketed paste, Hide Secrets
+covers, clipboard clearing, OSC 133 blocks (marks, durations, block menu,
+previous/next prompt, copy last output, clear), right-click menu. `uicore`
+gains `PromptTracker` and `SecretCovers`. Benchmark again after this milestone.
+
+### M3 — Window shell (dogfood point) ☐
+
+`uicore` gains `WindowModel`, `Layout`, `SavedSession` (same `session.json`), the
+infra badges and workspaces, with their tests. GTK: tab strip in the header bar
+(drag, groups, dots, rename, tear-off), split panes with `GtkPaned`-style
+dividers, address bar, broadcast, palette, workspace open, several windows,
+restore, menus as a header-bar menu plus a shortcuts window, quit confirmations.
+
+### M4 — Side pane I ☐
+
+Rail and container, Files (git letters, drag a path into a terminal), SSH
+(hosts, keys, identities, tunnels and their dialogs), Kubernetes (resources,
+contexts, port-forward, secret viewer). Lists are `GtkListView` with
+recycled rows, so long lists cost nothing. `uicore` gains the SSH and Kube rules.
+
+### M5 — Side pane II ☐
+
+AWS, Network, Processes (one shared poller: only the visible tab, only while a
+window is in front), Findings, History, Snippets, Pins, Share & Record,
+usage readout, Generate, Workspaces and the editor.
+
+### M6 — Viewers, tools, About, manual ☐
+
+JSON, JWT, Base64, certificate/TLS and secret viewers (masked, hidden on blur),
+the Command-Line Tools dialog (install commands for apt, dnf and pacman come from
+`internal/tools`), About, and the manual rendered natively from
+`frontend/src/manual`, with a check that every link resolves.
+
+### M7 — Parity, perf, packaging, release ☐
+
+- Parity checklist against the macOS app (all palette commands, every
+  right-click menu, every manual page). The manual gets Linux shortcut text.
+- Perf: idle 0%, every side-pane tab 0% over 30 s, heavy output vs M0.
+- Packaging: .deb and .rpm for amd64 and arm64 (nfpm: depends on
+  `libgtk-4-1`, `libadwaita-1-0`, `libvte-2.91-gtk4-0`), `.desktop` file, icon,
+  font, AppImage if it bundles cleanly. Test-install on clean Ubuntu 24.04,
+  Debian 13 and Fedora containers.
+- Switch to the real folders. Release as the next minor version, with Linux
+  native and macOS native.
+- Afterwards: decide whether to delete the Wails/Svelte UI. Nothing would ship it
+  any more; the manual pages move to `manual/`.
+
+## Risks
+
+| Risk | Impact | Mitigation |
+|---|---|---|
+| gotk4 leaks, crashes or slow cgo callbacks | Unstable app | M0 gate; keep callbacks off the output path; Rust/vte4 fallback |
+| VTE rewrap moves OSC 133 marks | Wrong block marks after resize | Tested in M0; re-anchor on column change |
+| Overlays (covers, tints) slow VTE | Terminal slower than Wails | Once per frame, only on change; benchmark after M2 |
+| Wayland limits (window placement, global shortcuts) | Small gaps vs macOS | Accept; document in the manual |
+| Distro spread (old GTK/VTE) | Won't start on older systems | Clear minimum versions in package deps |
+| Hands-on needs a Linux desktop | Calendar slips | A UTM Ubuntu 24.04 desktop VM on this Mac; headless snapshot checks for everything else |
+| Three UIs until Wails is retired | Features cost 3× | Most logic goes to `uicore`; no new features until M7 is done |
