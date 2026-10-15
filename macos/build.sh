@@ -47,6 +47,10 @@ app=bin/native/wtf.app
 rm -rf "$app"
 mkdir -p "$app/Contents/MacOS" "$app/Contents/Resources"
 cp "$bin/wtf" "$app/Contents/MacOS/wtf"
+# Starts shells with a clean signal mask (see macos/exec/wtf-exec.c).
+if [ -n "$universal" ]; then helper_archs="-arch arm64 -arch x86_64"; else helper_archs=; fi
+# shellcheck disable=SC2086
+cc -O2 -Wall $helper_archs -mmacosx-version-min=14.0 -o "$app/Contents/MacOS/wtf-exec" macos/exec/wtf-exec.c
 cp build/darwin/icons.icns build/darwin/Assets.car "$app/Contents/Resources/"
 # JetBrains Mono (OFL), the terminal's default font, as in the Wails build.
 mkdir -p "$app/Contents/Resources/Fonts"
@@ -67,6 +71,7 @@ pb "Set :LSMinimumSystemVersion 14.0.0"
 pb "Add :ATSApplicationFontsPath string Fonts"
 pb "Add :WtfCommit string $commit"
 pb "Add :WtfBuildDate string $date"
+codesign --force --sign - --timestamp=none "$app/Contents/MacOS/wtf-exec" >/dev/null
 codesign --force --sign - --timestamp=none "$app" >/dev/null
 echo "built: $app ($version, $commit)"
 

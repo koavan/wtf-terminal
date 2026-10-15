@@ -202,7 +202,7 @@ final class NetworkView: NSView, SidePaneTab, NSSearchFieldDelegate {
             q.isEmpty || "\(t.name) \(Tunnels.describe(t)) \(t.command)".lowercased().contains(q)
         }
         var sections: [SideList.Section] = [
-            .init(title: "Forwards", rows: forwards.map { t in
+            .init(title: forwards.isEmpty ? "Forwards" : "Forwards (\(forwards.count))", rows: forwards.map { t in
                 var r = TunnelsSection.row(t, window: owner)
                 r.id = "t:" + t.id
                 return r
@@ -262,7 +262,9 @@ final class NetworkView: NSView, SidePaneTab, NSSearchFieldDelegate {
         let (host, port) = Net.splitAddress(c.local)
         let exposed = Net.isExposed(host)
         var detail = c.protocol + (Net.serviceName(port).map { " · \($0)" } ?? "")
+        var forwardTip: String?
         if let f = tunnels.first(where: { Tunnels.isOn($0) && Tunnels.localPort($0) == port }) {
+            forwardTip = "Forward: " + Tunnels.describe(f)
             detail += " · forward · " + (f.name.isEmpty ? Tunnels.describe(f) : f.name)
         }
         var pills: [SideList.Pill] = [exposed
@@ -270,7 +272,7 @@ final class NetworkView: NSView, SidePaneTab, NSSearchFieldDelegate {
             : .init(text: "local", tip: "Only reachable from this computer")]
         if let p = owner.ownerPill(c.session) { pills.append(p) }
         return .init(id: Self.key(c), symbol: "dot.radiowaves.left.and.right", title: ":\(port)  \(c.process)", detail: detail,
-                     pills: pills, tip: "\(c.process) (pid \(c.pid)) listening on \(c.local)")
+                     pills: pills, tip: "\(c.process) (pid \(c.pid)) listening on \(c.local)" + (forwardTip.map { "\n" + $0 } ?? ""))
     }
 
     private func connectionRow(_ c: Conn) -> SideList.Row {

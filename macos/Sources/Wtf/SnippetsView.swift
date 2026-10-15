@@ -161,7 +161,8 @@ final class SnippetsView: NSView, SidePaneTab, NSSearchFieldDelegate {
         return .init(id: s.id, symbol: s.isRunbook ? "square.3.layers.3d" : "terminal", title: s.name,
                      mono: false, detail: s.subtitle, pills: s.isRunbook ? [.init(text: "\(s.steps.count) steps")] : [],
                      tip: s.tooltip,
-                     button: ("play.fill", asks ? "Fill in and run" : "Put it at the prompt", { [weak self] in self?.owner.openSnippet(s) }))
+                     button: ("play.fill", asks ? "Fill in and run" : "Put it at the prompt", { [weak self] in self?.owner.openSnippet(s) }),
+                     monoDetail: !s.isRunbook && s.description.isEmpty)
     }
 
     private func menu(_ s: Snippet) -> NSMenu {
@@ -494,7 +495,10 @@ final class SnippetEditor: NSObject {
         let sub = label("A command with blanks to fill in, or a runbook of steps")
         sub.textColor = .secondaryLabelColor
         content.addArrangedSubview(sub)
-        let nameField = field(name, "Restart a deployment", width: inner) { [weak self] in self?.name = $0 }
+        let nameField = field(name, "Restart a deployment", width: inner) { [weak self] in
+            self?.name = $0
+            self?.updateReview()
+        }
         content.addArrangedSubview(labelled("Name", nameField))
         content.addArrangedSubview(labelled("Description", field(summary, "optional — shown in the list", width: inner) { [weak self] in self?.summary = $0 }))
         let kind = NSSegmentedControl(labels: ["Command", "Runbook (steps)"], trackingMode: .selectOne, target: nil, action: nil)
@@ -560,13 +564,17 @@ final class SnippetEditor: NSObject {
         cancel.keyEquivalent = "\u{1b}"
         let next = ClosureButton(title: "Review…") { [weak self] in self?.startReview() }
         next.keyEquivalent = "\r"
-        next.isEnabled = !busy
+        reviewButton = next
+        updateReview()
         let row = NSStackView(views: [NSView(), cancel, next])
         row.widthAnchor.constraint(equalToConstant: inner).isActive = true
         content.addArrangedSubview(row)
         panel.initialFirstResponder = nameField
         resize()
     }
+
+    private weak var reviewButton: NSButton?
+    private func updateReview() { reviewButton?.isEnabled = !busy && !name.trimmingCharacters(in: .whitespaces).isEmpty && !file.isEmpty }
 
     private func labelled(_ title: String, _ control: NSView) -> NSView {
         let s = NSStackView(views: [label(title, bold: true), control])

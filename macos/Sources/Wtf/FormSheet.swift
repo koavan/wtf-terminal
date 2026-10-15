@@ -22,7 +22,7 @@ final class FormSheet: NSObject {
 
     init(title: String, subtitle: String? = nil, width: CGFloat = 480) {
         self.width = width
-        panel = NSPanel(contentRect: NSRect(x: 0, y: 0, width: width, height: 200), styleMask: [.titled, .docModalWindow],
+        panel = SubmitPanel(contentRect: NSRect(x: 0, y: 0, width: width, height: 200), styleMask: [.titled, .docModalWindow],
                         backing: .buffered, defer: false)
         super.init()
         stack.orientation = .vertical
@@ -112,7 +112,11 @@ final class FormSheet: NSObject {
     /// Buttons, left to right after a spacer; the primary is the default (Return).
     func buttons(_ list: [(title: String, primary: Bool, run: () -> Void)], cancel: String = "Cancel", left: [(String, () -> Void)] = []) {
         var views: [NSView] = []
-        for (title, run) in left { views.append(ClosureButton(title: title, run)) }
+        for (title, run) in left {
+            let b = ClosureButton(title: title, run)
+            buttons[title] = b
+            views.append(b)
+        }
         views.append(NSView())
         let c = ClosureButton(title: cancel) { [weak self] in self?.close() }
         c.keyEquivalent = "\u{1b}"
@@ -222,5 +226,26 @@ extension WindowController {
             if where_ == .broadcast { Broadcast.shared.toggle(group: g, in: self) }
             model.activate(ids[0])
         }
+    }
+}
+
+/// A sheet where ⌘↩ presses the default button from anywhere, even a
+/// multi-line field (where ↩ makes a new line).
+@MainActor
+final class SubmitPanel: NSPanel {
+    override func performKeyEquivalent(with event: NSEvent) -> Bool {
+        if event.modifierFlags.intersection(.deviceIndependentFlagsMask) == .command, event.keyCode == 36 || event.keyCode == 76,
+           let b = Self.defaultButton(in: contentView), b.isEnabled {
+            b.performClick(nil)
+            return true
+        }
+        return super.performKeyEquivalent(with: event)
+    }
+
+    private static func defaultButton(in v: NSView?) -> NSButton? {
+        guard let v else { return nil }
+        if let b = v as? NSButton, b.keyEquivalent == "\r", b.keyEquivalentModifierMask.isEmpty, !b.isHidden { return b }
+        for s in v.subviews { if let b = defaultButton(in: s) { return b } }
+        return nil
     }
 }

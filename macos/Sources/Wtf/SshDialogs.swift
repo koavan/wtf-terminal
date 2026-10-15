@@ -45,12 +45,21 @@ enum HostEditor {
         more.autoresizingMask = [.width]
         s.field("Name", name, help: "What you type after ssh. Separate several names with spaces.")
         s.field("Address", address)
-        let row = NSStackView(views: [user, port])
         port.widthAnchor.constraint(equalToConstant: 80).isActive = true
-        s.field("User and port", row)
+        func column(_ label: String, _ control: NSView) -> NSStackView {
+            let l = NSTextField(labelWithString: label)
+            l.font = .systemFont(ofSize: 12, weight: .medium)
+            let c = NSStackView(views: [l, control])
+            c.orientation = .vertical
+            c.alignment = .leading
+            c.spacing = 4
+            return c
+        }
+        user.widthAnchor.constraint(equalToConstant: 330).isActive = true
+        s.add(NSStackView(views: [column("User", user), column("Port", port)]))
         s.field("Key file", key)
         s.field("Jump host", jump)
-        s.field("More settings", moreScroll, help: "One per line, as in an ssh config file.")
+        s.field("More settings", moreScroll, help: "One per line, as in an ssh config file. ⌘↩ saves.")
 
         func save(connect: Bool) {
             var draft = HostDraft()
@@ -123,7 +132,10 @@ enum TransferSheet {
         var locals = files
         var localDir = NSHomeDirectory() + "/Downloads"
         let preview = s.note("", mono: true)
-        let listLabel = s.note("")
+        let listBox = NSStackView()
+        listBox.orientation = .vertical
+        listBox.alignment = .leading
+        listBox.spacing = 2
         let remote = s.text(placeholder: upload ? "your home folder" : "/var/log/app.log")
         let localLabel = NSTextField(labelWithString: WindowModel.prettyPath(localDir))
 
@@ -133,7 +145,22 @@ enum TransferSheet {
             return r.isEmpty ? nil : Ssh.download(h, r, localDir)
         }
         func refresh() {
-            listLabel.stringValue = locals.map { WindowModel.prettyPath($0) }.joined(separator: "\n")
+            // One row per file, each with a × to leave it out.
+            listBox.arrangedSubviews.forEach { $0.removeFromSuperview() }
+            for f in locals {
+                let name = NSTextField(labelWithString: WindowModel.prettyPath(f))
+                name.font = .monospacedSystemFont(ofSize: 11.5, weight: .regular)
+                name.lineBreakMode = .byTruncatingMiddle
+                name.widthAnchor.constraint(lessThanOrEqualToConstant: 330).isActive = true
+                let x = ClosureButton(title: "×") {
+                    locals.removeAll { $0 == f }
+                    refresh()
+                }
+                x.isBordered = false
+                x.setAccessibilityLabel("Remove \(WindowModel.prettyPath(f))")
+                x.toolTip = "Remove"
+                listBox.addArrangedSubview(NSStackView(views: [name, x]))
+            }
             preview.stringValue = command() ?? ""
             s.button(upload ? "Upload" : "Download")?.isEnabled = command() != nil
         }
@@ -146,6 +173,7 @@ enum TransferSheet {
             p.allowsMultipleSelection = upload
             p.showsHiddenFiles = upload
             p.canCreateDirectories = !upload
+            if !upload { p.directoryURL = URL(fileURLWithPath: localDir) }
             p.beginSheetModal(for: s.panel) { r in
                 guard r == .OK else { return }
                 if upload {
@@ -159,7 +187,10 @@ enum TransferSheet {
         }
         let chooseButton = ClosureButton(title: "Choose…") { choose() }
         if upload {
-            s.field("Files and folders", NSStackView(views: [listLabel, chooseButton]))
+            let filesCol = NSStackView(views: [listBox, chooseButton])
+            filesCol.orientation = .vertical
+            filesCol.alignment = .leading
+            s.field("Files and folders", filesCol)
             s.field("Into folder on \(h.alias)", remote, help: "A path on the server, like /tmp or ~/deploy. Empty means your home folder.")
         } else {
             s.field("File or folder on \(h.alias)", remote)
@@ -202,7 +233,7 @@ enum KeyInstallSheet {
         let keys = store.keys.keys.filter { !$0.path.isEmpty }
         let hosts = store.list.hosts
         let s = FormSheet(title: "Install Public Key", subtitle: "Adds the key to the server’s ~/.ssh/authorized_keys, so you can log in with it")
-        let keyLabels = keys.map { "\(WindowModel.prettyPath($0.path)) — \($0.type)\($0.comment.isEmpty ? "" : " · \($0.comment)")" }
+        let keyLabels = keys.map { "\($0.name) — \($0.type)\($0.comment.isEmpty ? "" : " · \($0.comment)")" }
         let defaultKey = key.flatMap { k in keys.firstIndex { $0.path == k.path } } ?? keys.firstIndex(where: \.inAgent) ?? 0
         let keyPop = s.popup(keyLabels, selected: defaultKey)
         let hostPop = s.popup(["Choose a host"] + hosts.map { "\($0.alias)\($0.known && !$0.port.isEmpty ? ":" + $0.port : "")" },
@@ -263,7 +294,7 @@ enum KeyGenSheet {
         let s = FormSheet(title: "New SSH Key", subtitle: "Creates a key pair in ~/.ssh")
         let type = s.popup(Ssh.keyTypes.map(\.label))
         let name = s.text(Ssh.freeKeyName("id_ed25519", taken: taken))
-        let comment = s.text()
+        let comment = s.text(placeholder: "you@this-computer")
         let agent = NSButton(checkboxWithTitle: "Load it into ssh-agent afterwards, remembering the passphrase in the Keychain", target: nil, action: nil)
         agent.state = .on
         let preview = s.note("", mono: true)
@@ -288,7 +319,14 @@ enum KeyGenSheet {
         agent.target = popWatch
         agent.action = #selector(PopupWatcher.changed)
         s.field("Type", type)
+        let savedAs = s.note("")
+        func saved() { savedAs.stringValue = "Saved as ~/.ssh/\(name.stringValue.trimmingCharacters(in: .whitespaces).isEmpty ? "…" : name.stringValue.trimmingCharacters(in: .whitespaces)) and .pub" }
+        saved()
+        let savedWatch = FieldWatcher { saved(); watch.controlTextDidChange(Notification(name: NSControl.textDidChangeNotification)) }
+        name.delegate = savedWatch
+        objc_setAssociatedObject(name, "savedWatch", savedWatch, .OBJC_ASSOCIATION_RETAIN)
         s.field("File name", name)
+        s.add(savedAs)
         s.field("Comment", comment, help: "A label stored with the key, shown in authorized_keys on servers.")
         s.add(agent)
         s.add(s.note("ssh-keygen runs in your shell (a new tab if it’s busy) and asks for a passphrase there. Leave it empty for none."))
@@ -492,7 +530,10 @@ enum HostKeysSheet {
                 scanNote.stringValue = "Ask \(info.hostName) on port \(info.port.isEmpty ? "22" : info.port) which keys it presents (ssh-keyscan). Nothing is saved until you choose."
             } else {
                 let fps = Set(stored().filter { $0.marker.isEmpty }.map(\.fingerprint))
-                scanList.stringValue = scanned.map { line($0, fps.contains($0.fingerprint) ? "stored" : "not stored") }.joined(separator: "\n")
+                let revoked = Set(stored().filter { $0.marker == "revoked" }.map(\.fingerprint))
+                scanList.stringValue = scanned.map {
+                    line($0, revoked.contains($0.fingerprint) ? "revoked" : fps.contains($0.fingerprint) ? "stored" : "not stored")
+                }.joined(separator: "\n")
                 scanNote.stringValue = HostKeyVerdict.of(scanned: scanned, stored: stored())
                     + " Compare fingerprints with ones from the server’s admin (ssh-keygen -lf /etc/ssh/ssh_host_*_key.pub) before trusting new keys."
             }
@@ -504,6 +545,8 @@ enum HostKeysSheet {
             s.button("Trust Server’s Keys")?.isHidden = scanned.isEmpty || allStored
             s.button("Trust Server’s Keys")?.title = hasStored ? "Replace with Server’s Keys" : "Trust Server’s Keys"
             s.button("Forget Stored Keys")?.isHidden = !hasStored
+            s.button("Forget Stored Keys")?.toolTip = "Removes the entries with ssh-keygen -R; the old file is kept as known_hosts.old"
+            s.button("Trust Server’s Keys")?.toolTip = "Replaces the stored keys with these"
         }
         func load() {
             Task {
@@ -518,9 +561,16 @@ enum HostKeysSheet {
         s.field("Stored", storedList)
         s.field("On the server now", NSStackView(views: [scanNote]))
         s.add(scanList)
+        var busy = false {
+            didSet {
+                for b in ["Scan", "Scan Again", "Trust Server’s Keys", "Forget Stored Keys", "Really Forget?"] { s.button(b)?.isEnabled = !busy }
+            }
+        }
         s.buttons([
             ("Scan", false, {
+                busy = true
                 Task {
+                    defer { busy = false }
                     do {
                         scanned = try await Services.sshhosts.ScanHostKeys(h.alias, port)
                         s.error = nil
@@ -532,7 +582,9 @@ enum HostKeysSheet {
             }),
             ("Trust Server’s Keys", true, {
                 guard let info else { return }
+                busy = true
                 Task {
+                    defer { busy = false }
                     do {
                         try await Services.sshhosts.TrustHostKeys(h.alias, port, scanned.map(\.fingerprint))
                         Toast.show("Saved \(info.target)’s keys", in: w.rootView)
@@ -551,7 +603,9 @@ enum HostKeysSheet {
                 return
             }
             reallyForget = false
+            busy = true
             Task {
+                defer { busy = false }
                 do {
                     try await Services.sshhosts.ForgetHostKeys(h.alias, port)
                     Toast.show("Forgot \(info.target)’s keys", in: w.rootView)
@@ -582,7 +636,10 @@ enum GitIdentityEditor {
         let name = s.text(i?.name ?? "", placeholder: "work")
         var keys = store.keys.keys.filter { !$0.path.isEmpty }.map(\.path)
         let current = i?.keyPath ?? keyPath ?? ""
-        var labels = keys.map { WindowModel.prettyPath($0) }
+        let comments = Dictionary(store.keys.keys.map { ($0.path, $0) }, uniquingKeysWith: { a, _ in a })
+        var labels = keys.map { p in
+            WindowModel.prettyPath(p) + (comments[p].map { !$0.comment.isEmpty && $0.comment != $0.name ? " — \($0.comment)" : "" } ?? "")
+        }
         if !current.isEmpty, !keys.contains(current) {
             keys.insert(current, at: 0)
             labels.insert("\(WindowModel.prettyPath(current)) (not found in ~/.ssh)", at: 0)
@@ -614,6 +671,13 @@ enum GitIdentityEditor {
         key.action = #selector(PopupWatcher.changed)
         s.field("Name", name, help: "Shown in the address bar of tabs using it.")
         s.field("SSH key", key, help: "git offers GitHub only this key, so GitHub knows which account you are.")
+        let newKey = ClosureButton(title: "New key…") {
+            s.close()
+            w.showGenerator("key")
+        }
+        newKey.isBordered = false
+        newKey.contentTintColor = .controlAccentColor
+        s.add(newKey)
         s.field("Commit as", author)
         s.field("Email", email, help: "For GitHub to link commits to the account, use an email on it (or its noreply address).")
         s.add(useNow)

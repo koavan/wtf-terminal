@@ -16,6 +16,8 @@ final class Palette: NSView, NSTextFieldDelegate {
         var hint = ""
         var dot: NSColor?
         var symbol: String?
+        /// The symbol's color (a tab's group color).
+        var tint: NSColor?
         var theme: Theme?
         let run: () -> Void
     }
@@ -117,7 +119,7 @@ final class Palette: NSView, NSTextFieldDelegate {
     // MARK: Entries
 
     private var headerCount: Int {
-        guard field.stringValue.trimmingCharacters(in: .whitespaces).isEmpty, mode == .commands else { return 0 }
+        guard field.stringValue.trimmingCharacters(in: .whitespaces).isEmpty else { return 0 }
         return Set(rows.map(\.entry.section)).count
     }
 
@@ -195,7 +197,8 @@ final class Palette: NSView, NSTextFieldDelegate {
             let pane = owner.model.focusedPane(t)
             let detail = [g.map { $0.name } ?? "", WindowModel.prettyPath(pane?.cwd ?? "")].filter { !$0.isEmpty }.joined(separator: " · ")
             return Entry(section: .tabs, label: Redaction.shared.text(owner.model.title(t)), detail: detail,
-                         dot: nil, symbol: TabStripView.icon(pane)) { [owner] in owner.model.activate(t.id) }
+                         dot: nil, symbol: TabStripView.icon(pane),
+                         tint: g.map { NSColor(hex: $0.color.hex(dark: Settings.shared.theme?.dark ?? true)) }) { [owner] in owner.model.activate(t.id) }
         }
     }
 
@@ -431,7 +434,7 @@ private final class PaletteList: NSView {
                 NSBezierPath(ovalIn: NSRect(x: g.midX - 4.5, y: g.midY - 4.5, width: 9, height: 9)).fill()
             } else if let sym = r.entry.symbol, let img = NSImage(systemSymbolName: sym, accessibilityDescription: nil)?
                 .withSymbolConfiguration(.init(pointSize: 12, weight: .regular)) {
-                let tinted = img.tinted(sel ? .white : .secondaryLabelColor)
+                let tinted = img.tinted(sel ? .white : r.entry.tint ?? .secondaryLabelColor)
                 tinted.draw(in: NSRect(x: g.midX - img.size.width / 2, y: g.midY - img.size.height / 2, width: img.size.width, height: img.size.height),
                             from: .zero, operation: .sourceOver, fraction: 1, respectFlipped: true, hints: nil)
             }

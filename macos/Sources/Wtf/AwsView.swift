@@ -180,10 +180,11 @@ final class AwsView: NSView, SidePaneTab, NSSearchFieldDelegate {
         } else if let e = c.keysError {
             lines.append((Self.withHint(e), .systemRed))
         }
+        // Each result on its own line, as in the Wails build.
         if let first = lines.first {
-            r.alert = first.0 + (lines.count > 1 ? "  (+\(lines.count - 1) more — see tooltip)" : "")
+            r.alert = first.0
             r.alertColor = first.1
-            if lines.count > 1 { r.tip = (r.tip ?? "") + "\n\n" + lines.map(\.0).joined(separator: "\n") }
+            r.more = lines.dropFirst().map { (text: $0.0, color: $0.1) }
         }
         return r
     }
@@ -364,7 +365,7 @@ final class AwsProfileEditor: NSObject {
         if let plan {
             content.addArrangedSubview(label("Review Changes", bold: true, size: 15))
             content.addArrangedSubview(label("Nothing is written until you confirm.", muted: true))
-            let lines = label(plan.joined(separator: "\n"))
+            let lines = label(plan.map { "• " + $0 }.joined(separator: "\n"))
             lines.font = .monospacedSystemFont(ofSize: 11.5, weight: .regular)
             lines.isSelectable = true
             content.addArrangedSubview(lines)
@@ -389,7 +390,10 @@ final class AwsProfileEditor: NSObject {
         }
         content.addArrangedSubview(label(editing.map { "Edit \($0.name)" } ?? "New AWS Profile", bold: true, size: 15))
         content.addArrangedSubview(label("In \(WindowModel.prettyPath(list.credentialsFile)) and \(WindowModel.prettyPath(list.configFile))", muted: true))
-        let name = text(d.name, "prod") { [weak self] in self?.d.name = $0 }
+        let name = text(d.name, "prod") { [weak self] in
+            self?.d.name = $0
+            self?.updateReview()
+        }
         labelled("Name", name, note: (editing?.sourceFor.isEmpty ?? true) ? nil : "Source profile for \(editing!.sourceFor.joined(separator: ", ")): they follow a rename.")
         let kind = NSSegmentedControl(labels: Self.kinds.map(\.1), trackingMode: .selectOne, target: nil, action: nil)
         kind.selectedSegment = Self.kinds.firstIndex { $0.0 == d.kind } ?? -1
@@ -441,6 +445,7 @@ final class AwsProfileEditor: NSObject {
         let pair = NSStackView(views: [label("Region", bold: true), region, label("Output", bold: true), output])
         content.addArrangedSubview(pair)
         let more = BoundTextView(d.more) { [weak self] in self?.d.more = $0 }
+        more.placeholder = "duration_seconds = 3600"
         let scroll = NSScrollView()
         scroll.documentView = more
         scroll.hasVerticalScroller = true
@@ -459,10 +464,14 @@ final class AwsProfileEditor: NSObject {
         cancel.keyEquivalent = "\u{1b}"
         let review = ClosureButton(title: "Review…") { [weak self] in self?.review() }
         review.keyEquivalent = "\r"
-        review.isEnabled = !busy
+        reviewButton = review
+        updateReview()
         buttons([NSView(), cancel, review])
         panel.initialFirstResponder = name
     }
+
+    private weak var reviewButton: NSButton?
+    private func updateReview() { reviewButton?.isEnabled = !busy && !d.name.trimmingCharacters(in: .whitespaces).isEmpty }
 
     private func addError() {
         guard let error else { return }
@@ -737,5 +746,18 @@ final class BoundTextView: NSTextView, NSTextViewDelegate {
 
     required init?(coder: NSCoder) { fatalError() }
 
-    func textDidChange(_ notification: Notification) { set(string) }
+    func textDidChange(_ notification: Notification) {
+        set(string)
+        needsDisplay = true
+    }
+
+    /// Shown, muted, while it's empty.
+    var placeholder = ""
+
+    override func draw(_ dirty: NSRect) {
+        super.draw(dirty)
+        guard string.isEmpty, !placeholder.isEmpty else { return }
+        NSAttributedString(string: placeholder, attributes: [.font: font ?? .systemFont(ofSize: 12), .foregroundColor: NSColor.placeholderTextColor])
+            .draw(at: NSPoint(x: textContainerInset.width + 5, y: textContainerInset.height))
+    }
 }

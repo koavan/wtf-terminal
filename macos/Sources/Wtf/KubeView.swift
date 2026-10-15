@@ -368,6 +368,7 @@ final class KubeResources: NSView, SidePaneTab, NSComboBoxDelegate, NSSearchFiel
             ns.removeAllItems()
             ns.addItems(withObjectValues: l)
         }
+        ns.toolTip = shell.namespace.isEmpty ? "The namespace to show" : "The namespace to show. The shell’s is " + shell.namespace
         note?.removeFromSuperview()
         note = nil
         noteLink?.removeFromSuperview()
@@ -414,10 +415,13 @@ final class KubeResources: NSView, SidePaneTab, NSComboBoxDelegate, NSSearchFiel
                 switch id {
                 case "deployments":
                     for d in deployments where matches(d.name) {
-                        rows.append(.init(id: "deployments:\(d.name)", symbol: "", title: d.name, mono: true, detail: Kube.deploymentDetail(d),
-                                          alert: d.problems.joined(separator: " · "),
-                                          tip: (d.images + d.problems).joined(separator: "\n"), dot: dot(Kube.tone(d)),
-                                          highlighted: state.deployment?.name == d.name))
+                        // One red line per problem, as in the Wails build.
+                        var row = SideList.Row(id: "deployments:\(d.name)", symbol: "", title: d.name, mono: true, detail: Kube.deploymentDetail(d),
+                                               alert: d.problems.first ?? "",
+                                               tip: (d.images + d.problems).joined(separator: "\n"), dot: dot(Kube.tone(d)),
+                                               highlighted: state.deployment?.name == d.name)
+                        row.more = d.problems.dropFirst().map { (text: $0, color: NSColor.systemRed) }
+                        rows.append(row)
                     }
                 case "pods":
                     for p in s.items as? [Go.kube.Pod] ?? [] where matches("\(p.name) \(p.status) \(p.node)") {
@@ -444,12 +448,17 @@ final class KubeResources: NSView, SidePaneTab, NSComboBoxDelegate, NSSearchFiel
                                           tip: tip.joined(separator: "\n"), dot: dot(Kube.rowTone(id, cells))))
                     }
                 }
-                let count = rows.filter { !$0.id.hasSuffix(":!error") }.count
+                let count = rows.filter { !$0.id.hasSuffix(":!error") && !$0.id.hasSuffix(":!filter") }.count
                 let loaded = s.items != nil
                 var badge = ""
                 if open { badge = loaded ? "\(count)" : (s.loading ? "…" : "") }
-                var title = label
-                if id == "pods", let d = state.deployment { title += "  [\(d.name) ×]" }
+                let title = label
+                // Pods of one deployment: a row says so, with a way back to all.
+                if id == "pods", open, let d = state.deployment {
+                    rows.insert(.init(id: "pods:!filter", symbol: "line.3.horizontal.decrease.circle", tint: .controlAccentColor,
+                                      title: "Pods of deployment \(d.name)", tip: "Click × to show all pods",
+                                      button: ("xmark.circle.fill", "Show all pods", { [weak self] in self?.select(nil) })), at: 0)
+                }
                 let emptyText: String? = loaded && count == 0
                     ? (id == "events" ? "No recent events" : "No \(label.lowercased())\(query.isEmpty && !(id == "pods" && state.deployment != nil) ? "" : " match")")
                     : nil
@@ -707,7 +716,12 @@ final class KubeContextsSection: NSView, SidePaneTab, NSSearchFieldDelegate {
     private var note: NoteView?
     private var configs = Go.kube.ConfigList()
     private var loaded = false
-    private var checks: [String: (busy: Bool, result: String, error: String)] = [:]
+    /// Test Connection results, kept per window while it lives (switching views keeps them).
+    private static var checksByWindow: [ObjectIdentifier: [String: (busy: Bool, result: String, error: String)]] = [:]
+    private var checks: [String: (busy: Bool, result: String, error: String)] {
+        get { Self.checksByWindow[ObjectIdentifier(owner)] ?? [:] }
+        set { Self.checksByWindow[ObjectIdentifier(owner)] = newValue }
+    }
     private var lastEnv: [String: String]?
 
     init(window: WindowController, parent: KubeView) {
@@ -777,15 +791,18 @@ final class KubeContextsSection: NSView, SidePaneTab, NSSearchFieldDelegate {
             if c.current { pills.append(.init(text: "default", tip: "The kubeconfig's current-context: what new shells use")) }
             var issues = c.problems
             if c.auth == "exec", !c.pluginFound { issues.append("\(c.execCommand) isn’t on this shell’s PATH") }
-            var detail = Kube.contextDetail(c)
+            let detail = Kube.contextDetail(c)
+            // A test's answer is a line of its own, under the context's details.
+            var answer = "", answerColor = NSColor.secondaryLabelColor
             if let ch = checks[key(c)] {
-                if ch.busy { detail = "Asking the cluster…" } else if !ch.result.isEmpty { detail = ch.result } else if !ch.error.isEmpty { issues.append(ch.error) }
+                if ch.busy { answer = "Asking the cluster…" } else if !ch.result.isEmpty { answer = ch.result; answerColor = .systemGreen } else if !ch.error.isEmpty { issues.append(ch.error) }
             }
             var tip = (c.active ? "" : "From \(WindowModel.prettyPath(c.file))\n") + "Cluster: \(c.cluster)\(c.server.isEmpty ? "" : " (\(c.server))")\nUser: \(c.user)"
             if !c.execCommand.isEmpty { tip += "\nLogs in with: \(c.execCommand) \(c.execArgs.joined(separator: " "))" }
             if !c.execEnv.isEmpty { tip += "\nWith: \(c.execEnv.joined(separator: ", "))" }
             return .init(id: key(c), symbol: "helm", tint: c.active && c.name == inUse ? .controlAccentColor : .secondaryLabelColor,
-                         title: c.name, mono: true, detail: detail, alert: issues.joined(separator: " · "), pills: pills, tip: tip,
+                         title: c.name, mono: true, detail: detail, alert: issues.isEmpty ? answer : issues.joined(separator: " · "),
+                         alertColor: issues.isEmpty ? answerColor : .systemRed, pills: pills, tip: tip,
                          button: ("play.fill", "Use in this shell", { [weak self] in self?.use(c) }))
         }
         var sections: [SideList.Section] = []
@@ -841,7 +858,7 @@ final class KubeContextsSection: NSView, SidePaneTab, NSSearchFieldDelegate {
             do {
                 let steps = try await Services.kube.PlanEdit(env, op)
                 Confirm.show(in: window, title: title, message: "wtf will make these changes\(note). A copy of the kubeconfig is kept first (kube-backups).",
-                             items: steps, button: button) { [weak self] in self?.apply(op) }
+                             items: steps, button: button, limit: .max) { [weak self] in self?.apply(op) }
             } catch {
                 Toast.show(error.localizedDescription, in: self)
             }
@@ -1013,12 +1030,23 @@ final class KubeContextsSection: NSView, SidePaneTab, NSSearchFieldDelegate {
         }
         profile.target = pw
         profile.action = #selector(PopupWatcher.changed)
+        weak var listButtonRef: NSButton?
         let listButton = ClosureButton(title: "List Clusters") { [weak self] in
             guard let self else { return }
             let r = region.stringValue.trimmingCharacters(in: .whitespaces)
             let p = profile.indexOfSelectedItem > 0 ? profile.titleOfSelectedItem ?? "" : ""
+            guard !r.isEmpty else {
+                found.stringValue = "Choose a region first"
+                return
+            }
             found.stringValue = "Asking…"
+            listButtonRef?.title = "Asking…"
+            listButtonRef?.isEnabled = false
             Task {
+                defer {
+                    listButtonRef?.title = "List Clusters"
+                    listButtonRef?.isEnabled = true
+                }
                 do {
                     let names = try await Services.kube.EKSClusters(env, p, r)
                     cluster.removeAllItems()
@@ -1036,6 +1064,7 @@ final class KubeContextsSection: NSView, SidePaneTab, NSSearchFieldDelegate {
                 refresh()
             }
         }
+        listButtonRef = listButton
         listButton.toolTip = "Asks AWS (eks list-clusters)"
         s.field("AWS profile", profile)
         s.field("Region", region)

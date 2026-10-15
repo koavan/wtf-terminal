@@ -360,9 +360,22 @@ Kubernetes), and the port follows them.
   - Workspaces: the editor's placeholders update live.
   - Pins: the output box resizes.
   - Plus many smaller strings and fixes.
-- Left: smaller audit items (tab tear-off look, overview card ×, AWS check lines, a few
-  tooltips); ⌥-click cursor moves (needs shell-integration `cl=`); switching to the
-  real `wtf` bundle id and folders before shipping v0.8.0.
+- Shipped as **v1.0.0** (the native app took over the real `wtf` bundle id and folders).
+- Polish after 1.0.0: Tab Overview card ×, group-tinted icons and ↑/↓ moves;
+  a tear-off ghost window; palette section headers and tinted tab rows; SSH
+  editor labels, ⌘↩ to save, Host Keys states and busy buttons; Files git
+  tooltips; Kubernetes "Pods of deployment" filter, saved test results and
+  one-line problems; AWS and Findings results one per line with severity dots;
+  Network forward counts; many smaller strings.
+- **Signal fix (after 1.0.0):** shells started by the native app inherited a
+  signal mask from Go's c-archive threads, with SIGINT, SIGHUP, SIGTERM,
+  SIGWINCH, SIGTSTP and more blocked. So programs survived quitting, and Ctrl-C
+  and resizes could be lost. A tiny `wtf-exec` helper (`macos/exec/wtf-exec.c`,
+  in Contents/MacOS) clears the mask, resets signal handlers and then execs the
+  shell; Go uses it through `terminal.Launcher`. Closing a terminal also hangs up
+  its foreground process group, because on macOS the hang-up only reaches the
+  session leader.
+- Left: ⌥-click cursor moves (needs shell-integration `cl=`).
 
 
 - Go through a parity checklist covering every manual page and every right-click

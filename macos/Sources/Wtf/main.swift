@@ -286,6 +286,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             }
             NSApp.terminate(nil)
         }
+        if env["WTF_NATIVE_DEBUG"] == "idle" {
+            // Waits (WTF_NATIVE_WAIT seconds, default 5) with whatever
+            // WTF_NATIVE_RUN started, then quits the normal way.
+            if let cmd = env["WTF_NATIVE_IDLE_RUN"] {
+                try? await Task.sleep(for: .seconds(1.5))
+                w.activeTerminal?.type(cmd + "\r")
+            }
+            try? await Task.sleep(for: .seconds(Double(env["WTF_NATIVE_WAIT"] ?? "") ?? 5))
+            NSLog("idle: quitting with \(w.model.panes.count) panes, running: \(w.model.panes.values.filter(\.running).count)")
+            NSApp.terminate(nil)
+        }
         if env["WTF_NATIVE_DEBUG"] == "kubeclicks" {
             // Clicks Kubernetes section headings through the real mouse path
             // (without reading the cluster), then quits.

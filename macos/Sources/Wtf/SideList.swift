@@ -36,6 +36,10 @@ final class SideList: NSScrollView, NSTableViewDataSource, NSTableViewDelegate {
         var depth = 0
         /// A dimmed title (shells in the process tree).
         var muted = false
+        /// The detail line in monospace (a command).
+        var monoDetail = false
+        /// More lines under the alert, each its own color (check results, problems).
+        var more: [(text: String, color: NSColor)] = []
     }
 
     struct Column {
@@ -55,6 +59,8 @@ final class SideList: NSScrollView, NSTableViewDataSource, NSTableViewDelegate {
         var badge = ""
         /// A small group label above the heading (Workloads, Network…).
         var group: String? = nil
+        /// A colored dot before a collapsible heading (severity).
+        var dot: NSColor? = nil
         /// A note shown in place of rows (empty states).
         var empty: String? = nil
         /// A plain heading that runs this when clicked (Go to tab).
@@ -66,7 +72,7 @@ final class SideList: NSScrollView, NSTableViewDataSource, NSTableViewDelegate {
     private enum Item {
         case header(String, String?, (() -> Void)?)
         case group(String)
-        case heading(title: String, tip: String?, open: Bool, badge: String, toggle: () -> Void)
+        case heading(title: String, tip: String?, open: Bool, badge: String, dot: NSColor?, toggle: () -> Void)
         case note(String, red: Bool)
         case row(Row)
     }
@@ -116,7 +122,7 @@ final class SideList: NSScrollView, NSTableViewDataSource, NSTableViewDelegate {
         for s in sections {
             if let g = s.group { items.append(.group(g)) }
             if let toggle = s.toggle {
-                items.append(.heading(title: s.title ?? "", tip: s.tip, open: s.open, badge: s.badge, toggle: toggle))
+                items.append(.heading(title: s.title ?? "", tip: s.tip, open: s.open, badge: s.badge, dot: s.dot, toggle: toggle))
                 guard s.open else { continue }
             } else if let t = s.title, !s.rows.isEmpty || s.always {
                 items.append(.header(t, s.tip, s.action))
@@ -168,7 +174,7 @@ final class SideList: NSScrollView, NSTableViewDataSource, NSTableViewDelegate {
         case .header, .group: return 24
         case .heading: return 26
         case .note(let t, _): return Self.noteHeight(t, width: noteWidth)
-        case .row(let r): return r.detail.isEmpty && r.alert.isEmpty ? 26 : (r.alert.isEmpty ? 38 : 52)
+        case .row(let r): return (r.detail.isEmpty && r.alert.isEmpty ? 26 : (r.alert.isEmpty ? 38 : 52)) + CGFloat(r.more.count) * 16
         }
     }
 
@@ -198,8 +204,8 @@ final class SideList: NSScrollView, NSTableViewDataSource, NSTableViewDelegate {
             l.frame = NSRect(x: 8, y: 4, width: 280, height: 16)
             v.addSubview(l)
             return v
-        case .heading(let title, let tip, let open, let badge, let toggle):
-            let b = HeadingButton(title: title, open: open, badge: badge, toggle: toggle)
+        case .heading(let title, let tip, let open, let badge, let dot, let toggle):
+            let b = HeadingButton(title: title, open: open, badge: badge, dot: dot, toggle: toggle)
             b.toolTip = tip
             return b
         case .note(let t, let red):
@@ -230,7 +236,7 @@ final class SideList: NSScrollView, NSTableViewDataSource, NSTableViewDelegate {
         let i = table.clickedRow
         guard i >= 0, i < items.count else { return }
         switch items[i] {
-        case .heading(_, _, _, _, let toggle): toggle()
+        case .heading(_, _, _, _, _, let toggle): toggle()
         case .header(_, _, let action?): action()
         case .row(let r): onClick?(r.id)
         default: break
@@ -239,7 +245,7 @@ final class SideList: NSScrollView, NSTableViewDataSource, NSTableViewDelegate {
 
     /// Clicks a heading by title, as the mouse would (debug self-checks).
     func clickHeading(_ title: String) -> Bool {
-        guard let i = items.firstIndex(where: { if case .heading(let t, _, _, _, _) = $0 { t == title } else { false } }),
+        guard let i = items.firstIndex(where: { if case .heading(let t, _, _, _, _, _) = $0 { t == title } else { false } }),
               let cell = table.view(atColumn: 0, row: i, makeIfNecessary: true) else { return false }
         let p = cell.convert(NSPoint(x: 20, y: cell.bounds.midY), to: nil)
         guard let w = window else { return false }
@@ -326,6 +332,7 @@ private final class SideRowView: NSTableCellView {
     private var columnWidths: [CGFloat] = []
     private var depth = 0
     private let elbow = NSTextField(labelWithString: "└")
+    private var extra: [NSTextField] = []
 
     init() {
         super.init(frame: .zero)
@@ -369,10 +376,20 @@ private final class SideRowView: NSTableCellView {
         }
         columnWidths = r.columns.map(\.width)
         detail.stringValue = r.detail
+        detail.font = r.monoDetail ? .monospacedSystemFont(ofSize: 10.5, weight: .regular) : .systemFont(ofSize: 11)
         detail.isHidden = r.detail.isEmpty
         alert.stringValue = r.alert
         alert.textColor = r.alertColor
         alert.isHidden = r.alert.isEmpty
+        extra.forEach { $0.removeFromSuperview() }
+        extra = r.more.map { line in
+            let l = NSTextField(labelWithString: line.text)
+            l.font = .systemFont(ofSize: 11)
+            l.textColor = line.color
+            l.lineBreakMode = .byTruncatingTail
+            addSubview(l)
+            return l
+        }
         pills.arrangedSubviews.forEach { $0.removeFromSuperview() }
         for p in r.pills {
             let pill = Pill(bg: p.color.withAlphaComponent(0.14), radius: 5, inset: 5)
@@ -400,7 +417,7 @@ private final class SideRowView: NSTableCellView {
     override func layout() {
         super.layout()
         let h = bounds.height
-        let lines = [title, detail, alert].filter { !$0.isHidden }
+        let lines = [title, detail, alert].filter { !$0.isHidden } + extra
         let lineH: CGFloat = 16
         var y = (h - CGFloat(lines.count) * lineH) / 2
         let indent = CGFloat(depth) * 14
@@ -432,7 +449,7 @@ private final class SideRowView: NSTableCellView {
 private final class HeadingButton: NSView {
     private let toggle: () -> Void
 
-    init(title: String, open: Bool, badge: String, toggle: @escaping () -> Void) {
+    init(title: String, open: Bool, badge: String, dot: NSColor? = nil, toggle: @escaping () -> Void) {
         self.toggle = toggle
         super.init(frame: .zero)
         let chevron = NSImageView(image: NSImage(systemSymbolName: open ? "chevron.down" : "chevron.right", accessibilityDescription: nil)!)
@@ -443,7 +460,9 @@ private final class HeadingButton: NSView {
         let b = NSTextField(labelWithString: badge)
         b.font = .monospacedDigitSystemFont(ofSize: 11, weight: .medium)
         b.textColor = .secondaryLabelColor
-        let row = NSStackView(views: [chevron, l, b])
+        var views: [NSView] = [chevron]
+        if let dot { views.append(Dot(color: dot, size: 7)) }
+        let row = NSStackView(views: views + [l, b])
         row.spacing = 6
         row.frame = NSRect(x: 8, y: 3, width: 280, height: 20)
         row.autoresizingMask = [.width]

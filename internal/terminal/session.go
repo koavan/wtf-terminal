@@ -45,6 +45,13 @@ type Session struct {
 	rec atomic.Pointer[recorder]
 }
 
+// Launcher, when set, starts shells through a helper: `Launcher(argv)` gives
+// the command that runs argv. The native macOS app sets it so shells start
+// with a clean signal mask (see cmd/libwtf): Go threads in a library block
+// the signals Go doesn't handle, and a shell forked from one would pass
+// that on to every program (no Ctrl-C, no hang-up, no resize signal).
+var Launcher func(path string, argv []string) (string, []string)
+
 type spawnOptions struct {
 	Shell string
 	// Args is the full argv, including argv[0]; defaults to a login shell.
@@ -65,6 +72,9 @@ func startSession(id string, opts spawnOptions) (*Session, error) {
 	}
 	cmd.Dir = opts.Cwd
 	cmd.Env = opts.Env
+	if Launcher != nil {
+		cmd.Path, cmd.Args = Launcher(cmd.Path, cmd.Args)
+	}
 
 	f, err := pty.StartWithSize(cmd, &pty.Winsize{Cols: opts.Cols, Rows: opts.Rows})
 	if err != nil {
@@ -178,6 +188,15 @@ func (s *Session) Close() {
 	s.closed.Store(true)
 	s.closeOnce.Do(func() {
 		if s.cmd.Process != nil {
+			// The program in the foreground (a dev server, tail -f) is in a
+			// group of its own, and on macOS the hang-up reaches only the
+			// shell, which may not pass it on while it waits: signal that
+			// group directly, as Linux does. SIGCONT wakes a stopped job so
+			// it can act on it.
+			if fg, err := s.foreground(); err == nil && fg > 1 && fg != s.cmd.Process.Pid {
+				_ = syscall.Kill(-fg, syscall.SIGHUP)
+				_ = syscall.Kill(-fg, syscall.SIGCONT)
+			}
 			// Negative pid signals the whole process group the shell leads.
 			_ = syscall.Kill(-s.cmd.Process.Pid, syscall.SIGHUP)
 		}

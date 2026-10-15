@@ -101,11 +101,10 @@ final class WorkspacesView: NSView, SidePaneTab, NSSearchFieldDelegate {
             q.isEmpty || ([w.name, w.description] + w.tabs.flatMap { [$0.title, $0.group, $0.command] + $0.panes.map(\.command) })
                 .joined(separator: " ").lowercased().contains(q)
         }
-        var files: [String] = []
-        for w in shown where !files.contains(w.source) { files.append(w.source) }
+        let files = store.list.files.filter { f in shown.contains { $0.source == f } }
         let sections = files.map { f -> SideList.Section in
             let kind = store.list.targets.first { $0.path == f }?.kind ?? ""
-            let title = kind == "project" ? "This project · \(WindowModel.prettyPath(f))" : (f == store.list.userFile ? "Yours" : WindowModel.prettyPath(f))
+            let title = kind == "project" ? "This project · \(WindowModel.prettyPath(f))" : (kind == "user" ? "Yours" : WindowModel.prettyPath(f))
             return .init(title: title, tip: f, rows: shown.filter { $0.source == f }.map(row))
         }
         list.set(sections + (store.list.problems.isEmpty ? [] : [.init(title: "Problems", rows: store.list.problems.map {
@@ -297,7 +296,10 @@ final class WorkspaceEditor: NSObject {
         sub.textColor = .secondaryLabelColor
         content.addArrangedSubview(sub)
         content.addArrangedSubview(NSStackView(views: [
-            label("Name"), field(name, "payments on call", width: 220) { [weak self] in self?.name = $0 },
+            label("Name"), field(name, "payments on call", width: 220) { [weak self] in
+                self?.name = $0
+                self?.updateReview()
+            },
             label("Description"), field(summary, "optional", width: 250) { [weak self] in self?.summary = $0 },
         ]))
 
@@ -361,7 +363,8 @@ final class WorkspaceEditor: NSObject {
         cancel.keyEquivalent = "\u{1b}"
         let next = ClosureButton(title: "Review…") { [weak self] in self?.startReview() }
         next.keyEquivalent = "\r"
-        next.isEnabled = !busy
+        reviewButton = next
+        updateReview()
         let row = NSStackView(views: [NSView(), cancel, next])
         row.widthAnchor.constraint(equalToConstant: 618).isActive = true
         content.addArrangedSubview(row)
@@ -458,6 +461,9 @@ final class WorkspaceEditor: NSObject {
         tabs.swapAt(i, j)
         render()
     }
+
+    private weak var reviewButton: NSButton?
+    private func updateReview() { reviewButton?.isEnabled = !busy && !name.trimmingCharacters(in: .whitespaces).isEmpty && !file.isEmpty }
 
     private let paramsBox = NSStackView()
     private var shownParams: [String] = []

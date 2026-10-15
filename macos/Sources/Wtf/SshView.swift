@@ -39,19 +39,29 @@ final class SshStore {
         if hosts, !hostsLoaded { loadHosts() }
     }
 
+    var hostsLoading = false, keysLoading = false
+    /// Identities whose GitHub login is being tested.
+    var testing = Set<String>()
+
     func loadHosts() {
+        hostsLoading = true
+        changed()
         Task {
             do { list = try await Services.sshhosts.List() } catch { list.problems = [error.localizedDescription] }
             hostsLoaded = true
+            hostsLoading = false
             changed()
             keyFiles = (try? await Services.sshhosts.Keys()) ?? []
         }
     }
 
     func loadKeys() {
+        keysLoading = true
+        changed()
         Task {
             do { keys = try await Services.sshhosts.KeyList() } catch { keys.problems = [error.localizedDescription] }
             keysLoaded = true
+            keysLoading = false
             changed()
         }
     }
@@ -190,6 +200,7 @@ final class SshHostsSection: NSView, NSSearchFieldDelegate {
             HostEditor.show(nil, in: owner)
         }
         let reload = ToolButton(symbol: "arrow.clockwise", tip: "Reload ~/.ssh/config") { SshStore.shared.loadHosts() }
+        SshStore.shared.observe(reload) { $0.isEnabled = !SshStore.shared.hostsLoading }
         add.identifier = .init("add")
         reload.identifier = .init("reload")
         addSubview(add)
@@ -229,8 +240,10 @@ final class SshHostsSection: NSView, NSSearchFieldDelegate {
         subviews.first { $0.identifier?.rawValue == "add" }?.frame = NSRect(x: bounds.width - 58, y: 4, width: 24, height: 24)
         subviews.first { $0.identifier?.rawValue == "reload" }?.frame = NSRect(x: bounds.width - 32, y: 4, width: 24, height: 24)
         let footH: CGFloat = footer.isHidden ? 0 : 32
-        list.frame = NSRect(x: 0, y: 34, width: bounds.width, height: max(0, bounds.height - 34 - footH))
-        note?.frame = NSRect(x: 0, y: 34, width: bounds.width, height: note?.height(for: bounds.width) ?? 0)
+        // An empty-state note sits above the list (which may still list problems).
+        let noteH = note?.height(for: bounds.width) ?? 0
+        note?.frame = NSRect(x: 0, y: 34, width: bounds.width, height: noteH)
+        list.frame = NSRect(x: 0, y: 34 + noteH, width: bounds.width, height: max(0, bounds.height - 34 - noteH - footH))
         footer.frame = NSRect(x: 0, y: bounds.height - footH, width: bounds.width, height: footH)
     }
 
@@ -401,7 +414,8 @@ final class SshKeysSection: NSView {
             guard let self else { return }
             owner.showGenerator("key")
         }
-        header.tool("arrow.clockwise", "Reload") { SshStore.shared.loadKeys() }
+        let reloadKeys = header.tool("arrow.clockwise", "Reload") { SshStore.shared.loadKeys() }
+        SshStore.shared.observe(reloadKeys) { $0.isEnabled = !SshStore.shared.keysLoading }
         addSubview(header)
         list.onDoubleClick = { [weak self] id in
             guard let self, let k = key(id) else { return }
@@ -423,8 +437,9 @@ final class SshKeysSection: NSView {
     override func layout() {
         super.layout()
         header.frame = NSRect(x: 0, y: 0, width: bounds.width, height: 30)
-        list.frame = NSRect(x: 0, y: 30, width: bounds.width, height: max(0, bounds.height - 30 - 30))
-        note?.frame = NSRect(x: 0, y: 30, width: bounds.width, height: note?.height(for: bounds.width) ?? 0)
+        let noteH = note?.height(for: bounds.width) ?? 0
+        note?.frame = NSRect(x: 0, y: 30, width: bounds.width, height: noteH)
+        list.frame = NSRect(x: 0, y: 30 + noteH, width: bounds.width, height: max(0, bounds.height - 30 - noteH - 30))
         footer.frame = NSRect(x: 10, y: bounds.height - 24, width: bounds.width - 100, height: 18)
         unloadAll?.frame = NSRect(x: bounds.width - 90, y: bounds.height - 28, width: 84, height: 24)
     }
@@ -468,7 +483,7 @@ final class SshKeysSection: NSView {
         note?.removeFromSuperview()
         note = nil
         if store.keysLoaded, files.isEmpty, agentOnly.isEmpty {
-            note = paneNote("No keys in ~/.ssh", "A key lets you log in without a password. Press + to make one, then install it on your servers.")
+            note = paneNote("No keys in ~/.ssh", "A key lets you log in without a password. Press + to make one in the Generate tab, then install it on your servers.")
             addSubview(note!)
         }
         // The agent, in the footer.
@@ -516,7 +531,7 @@ final class SshKeysSection: NSView {
         Task {
             do {
                 Clipboard.copy(try await Services.sshhosts.PublicKey(k.path))
-                Toast.show("Copied \(WindowModel.prettyPath(k.path)).pub", in: self)
+                Toast.show("Copied \(k.name).pub", in: self)
             } catch {
                 Toast.show(error.localizedDescription, in: self)
             }
@@ -782,6 +797,7 @@ final class GitIdentitiesSection: NSView, SidePaneTab {
             var pills: [SideList.Pill] = []
             if !i.githubUser.isEmpty { pills.append(.init(text: "@\(i.githubUser)", tip: "The GitHub account this key logged in as at the last test")) }
             if i.name == cur { pills.append(.init(text: "this tab", color: .controlAccentColor)) }
+            if SshStore.shared.testing.contains(i.id) { pills.append(.init(text: "testing…")) }
             let tested = i.githubUser.isEmpty ? "GitHub account: not tested yet (right-click → Test GitHub Login)"
                 : "GitHub account: \(i.githubUser), as of the last test (\(Badges.relativeTime(Double(i.testedAt), now: Date().timeIntervalSince1970 * 1000)))"
             return .init(id: i.id, symbol: "key", title: i.name, detail: "\(author(i)) · \(keyName(i))", pills: pills,
@@ -825,7 +841,13 @@ final class GitIdentitiesSection: NSView, SidePaneTab {
         if isCurrent { add("Stop Using in This Tab") { [weak self] in self?.stopUsing() } }
         m.addItem(.separator())
         add("Test GitHub Login") { [weak self] in
+            SshStore.shared.testing.insert(i.id)
+            SshStore.shared.changed()
             Task {
+                defer {
+                    SshStore.shared.testing.remove(i.id)
+                    SshStore.shared.changed()
+                }
                 guard let self else { return }
                 do {
                     let r = try await Services.sshhosts.TestGitIdentity(i.id)

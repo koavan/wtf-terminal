@@ -33,6 +33,8 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"os"
+	"path/filepath"
 	"reflect"
 	"slices"
 	"sync"
@@ -75,6 +77,16 @@ func wtf_init(version, commit, buildDate, stateDir, cacheDir *C.cstr_t, onEvent 
 	}
 	if dir := goString(cacheDir); dir != "" {
 		paths.SetCacheRoot(dir)
+	}
+	// Shells start through wtf-exec, next to the app's binary, which hands
+	// them a clean signal mask (see macos/exec/wtf-exec.c).
+	if exe, err := os.Executable(); err == nil {
+		helper := filepath.Join(filepath.Dir(exe), "wtf-exec")
+		if fi, err := os.Stat(helper); err == nil && fi.Mode()&0o111 != 0 {
+			terminal.Launcher = func(path string, argv []string) (string, []string) {
+				return helper, append([]string{helper, path}, argv...)
+			}
+		}
 	}
 	b, err := backend.New(goString(version), goString(commit), goString(buildDate), goString(stateDir))
 	if err != nil {

@@ -112,7 +112,7 @@ final class FindingsView: NSView, SidePaneTab, NSSearchFieldDelegate {
     private func rebuild() {
         let root = report?.root ?? ""
         header.text = root.isEmpty ? "Findings" : (WindowModel.prettyPath(root) as NSString).lastPathComponent
-        header.tooltip = root.isEmpty ? nil : "Findings for \(root)"
+        header.tooltip = root.isEmpty ? nil : "Findings for \(WindowModel.prettyPath(root))"
         items = [:]
         note?.removeFromSuperview()
         noteButton?.removeFromSuperview()
@@ -123,7 +123,7 @@ final class FindingsView: NSView, SidePaneTab, NSSearchFieldDelegate {
             note = paneNote(nil, error)
         } else if let report {
             if !report.sources.isEmpty {
-                sections.append(.init(title: "Results", rows: report.sources.enumerated().map { i, s in
+                sections.append(.init(title: nil, rows: report.sources.enumerated().map { i, s in
                     .init(id: "s:\(i)", symbol: s.fromScan ? "shield.lefthalf.filled" : "doc.text", tint: .secondaryLabelColor,
                           title: s.tool + (s.version.isEmpty ? "" : " \(s.version)"),
                           detail: s.error.isEmpty ? "\(s.count) \(s.count == 1 ? "finding" : "findings") · \(Findings.relative(s.modified))" : "",
@@ -158,12 +158,17 @@ final class FindingsView: NSView, SidePaneTab, NSSearchFieldDelegate {
                     }
                 }
                 let sev = g.severity
+                let tone: NSColor = switch Findings.tone(sev) {
+                case .bad: .systemRed
+                case .warn: .systemOrange
+                case .dim: .tertiaryLabelColor
+                }
                 sections.append(.init(title: Findings.labels[sev] ?? sev.capitalized, rows: rows,
                                       toggle: { [weak self] in
                                           guard let self else { return }
                                           if folded.contains(sev) { folded.remove(sev) } else { folded.insert(sev) }
                                           rebuild()
-                                      }, open: !folded.contains(sev), badge: "\(g.count)"))
+                                      }, open: !folded.contains(sev), badge: "\(g.count)", dot: tone))
             }
             if groups.isEmpty {
                 if !filter.stringValue.trimmingCharacters(in: .whitespaces).isEmpty {

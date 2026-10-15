@@ -7,7 +7,6 @@ import WtfCore
 @MainActor
 final class GenerateView: NSView, SidePaneTab {
     private unowned let owner: WindowController
-    private let header = PaneHeader("Generate")
     private let section = NSSegmentedControl(labels: ["SSH Key", "Password"], trackingMode: .selectOne, target: nil, action: nil)
     private let scroll = NSScrollView()
     private var body: NSView?
@@ -15,7 +14,6 @@ final class GenerateView: NSView, SidePaneTab {
     init(window: WindowController) {
         owner = window
         super.init(frame: .zero)
-        addSubview(header)
         section.target = self
         section.action = #selector(switched)
         section.refusesFirstResponder = true
@@ -35,9 +33,9 @@ final class GenerateView: NSView, SidePaneTab {
 
     override func layout() {
         super.layout()
-        header.frame = NSRect(x: 0, y: 0, width: bounds.width, height: 30)
-        section.frame = NSRect(x: 8, y: 32, width: bounds.width - 16, height: 22)
-        scroll.frame = NSRect(x: 0, y: 60, width: bounds.width, height: max(0, bounds.height - 60))
+        // Just the segmented control on top, as in the Wails build.
+        section.frame = NSRect(x: 8, y: 6, width: bounds.width - 16, height: 22)
+        scroll.frame = NSRect(x: 0, y: 34, width: bounds.width, height: max(0, bounds.height - 34))
         fitBody()
     }
 

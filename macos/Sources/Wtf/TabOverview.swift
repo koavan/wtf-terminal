@@ -150,11 +150,25 @@ final class TabOverview: NSView, NSSearchFieldDelegate {
         let c = CardView(frame: NSRect(x: 0, y: 0, width: width, height: 180))
         c.onClick = { [weak self] in self?.open(t.id) }
         c.onHover = { [weak self] in self?.selected = t.id; self?.highlight() }
+        c.onClose = { [weak self] in self?.close(t.id) }
         let n = t.root.leaves.count
+        // The process icon, in the tab's group color.
+        let icon = NSImageView(image: NSImage(systemSymbolName: TabStripView.icon(owner.model.focusedPane(t)), accessibilityDescription: nil)
+            ?? NSImage(systemSymbolName: "terminal", accessibilityDescription: nil)!)
+        icon.symbolConfiguration = .init(pointSize: 11, weight: .medium)
+        icon.contentTintColor = t.groupId.flatMap(owner.model.group).map { NSColor(hex: $0.color.hex(dark: Settings.shared.theme?.dark ?? true)) } ?? .secondaryLabelColor
+        icon.frame = NSRect(x: 12, y: 9, width: 16, height: 16)
         let title = NSTextField(labelWithString: Redaction.shared.text(owner.model.title(t)) + (n > 1 ? "   \(n) panes" : ""))
         title.font = .systemFont(ofSize: 12.5, weight: .medium)
         title.lineBreakMode = .byTruncatingTail
-        title.frame = NSRect(x: 12, y: 8, width: width - 24, height: 18)
+        title.frame = NSRect(x: 32, y: 8, width: width - 64, height: 18)
+        let x = NSImageView(image: NSImage(systemSymbolName: "xmark", accessibilityDescription: "Close tab")!)
+        x.symbolConfiguration = .init(pointSize: 10, weight: .semibold)
+        x.contentTintColor = .secondaryLabelColor
+        x.frame = CardView.closeRect(width: width)
+        x.toolTip = "Close tab"
+        c.addSubview(icon)
+        c.addSubview(x)
         let preview = NSTextField(wrappingLabelWithString: previews[t.id] ?? "")
         preview.font = .monospacedSystemFont(ofSize: 8.5, weight: .regular)
         preview.textColor = .secondaryLabelColor
@@ -182,14 +196,13 @@ final class TabOverview: NSView, NSSearchFieldDelegate {
     func control(_ control: NSControl, textView: NSTextView, doCommandBy selector: Selector) -> Bool {
         let ids = cards.map(\.tab)
         let i = selected.flatMap { ids.firstIndex(of: $0) }
-        let cols = max(1, cards.filter { $0.view.frame.minY == cards.first?.view.frame.minY }.count)
         switch selector {
         case #selector(NSResponder.cancelOperation(_:)): dismiss()
         case #selector(NSResponder.insertNewline(_:)): if let s = selected { open(s) }
         case #selector(NSResponder.moveLeft(_:)): if let i, i > 0 { selected = ids[i - 1] }
         case #selector(NSResponder.moveRight(_:)): if let i, i + 1 < ids.count { selected = ids[i + 1] }
-        case #selector(NSResponder.moveUp(_:)): if let i, i - cols >= 0 { selected = ids[i - cols] }
-        case #selector(NSResponder.moveDown(_:)): if let i, i + cols < ids.count { selected = ids[i + cols] }
+        case #selector(NSResponder.moveUp(_:)): if let i { selected = vertical(from: i, up: true) ?? selected }
+        case #selector(NSResponder.moveDown(_:)): if let i { selected = vertical(from: i, up: false) ?? selected }
         case #selector(NSResponder.deleteBackward(_:)):
             guard search.stringValue.isEmpty, let s = selected else { return false }
             owner.closeTabs([s])
@@ -199,6 +212,22 @@ final class TabOverview: NSView, NSSearchFieldDelegate {
         highlight()
         if let s = selected, let v = cards.first(where: { $0.tab == s })?.view { v.scrollToVisible(v.bounds) }
         return true
+    }
+
+    /// The card above or below that lines up best (rows differ across groups).
+    private func vertical(from i: Int, up: Bool) -> Int? {
+        let f = cards[i].view.frame
+        let rows = Set(cards.map(\.view.frame.minY)).sorted()
+        guard let r = rows.firstIndex(of: f.minY) else { return nil }
+        let target = up ? r - 1 : r + 1
+        guard target >= 0, target < rows.count else { return nil }
+        return cards.filter { $0.view.frame.minY == rows[target] }
+            .min { abs($0.view.frame.midX - f.midX) < abs($1.view.frame.midX - f.midX) }?.tab
+    }
+
+    private func close(_ id: Int) {
+        owner.closeTabs([id])
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) { [weak self] in self?.build() }
     }
 
     private func open(_ id: Int) {
@@ -220,6 +249,9 @@ final class FlippedView: NSView {
 private final class CardView: NSView {
     var onClick: (() -> Void)?
     var onHover: (() -> Void)?
+    var onClose: (() -> Void)?
+
+    static func closeRect(width: CGFloat) -> NSRect { NSRect(x: width - 26, y: 8, width: 16, height: 16) }
 
     override init(frame: NSRect) {
         super.init(frame: frame)
@@ -233,5 +265,8 @@ private final class CardView: NSView {
     override var isFlipped: Bool { true }
     override func hitTest(_ point: NSPoint) -> NSView? { frame.contains(point) ? self : nil }
     override func mouseEntered(with event: NSEvent) { onHover?() }
-    override func mouseUp(with event: NSEvent) { onClick?() }
+    override func mouseUp(with event: NSEvent) {
+        let p = convert(event.locationInWindow, from: nil)
+        if Self.closeRect(width: bounds.width).insetBy(dx: -4, dy: -4).contains(p) { onClose?() } else { onClick?() }
+    }
 }

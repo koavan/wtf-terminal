@@ -295,7 +295,14 @@ final class FilesView: NSView, SidePaneTab, NSTableViewDataSource, NSTableViewDe
             cell.set(depth: depth, expandable: e.dir, expanded: expanded, icon: e.dir ? (expanded ? "folder.fill" : "folder") : "doc",
                      folder: e.dir, name: e.name, detail: "", italic: e.symlink, dim: e.hidden || e.ignored, strike: false,
                      letter: letter, dot: dot.map { Self.color($0, dark: dark) }, color: color)
-            cell.toolTip = e.path
+            // What git says about it: "Modified · staged", or changes in a folder.
+            var tip = e.path
+            if let g = git {
+                if e.dir, dot != nil { tip += "\nChanges inside" } else if !e.dir, let c = g.file(e.path) {
+                    tip += "\n" + GitIndex.summary(c) + (c.from.isEmpty ? "" : " (was \(Paths.base(c.from)))")
+                }
+            }
+            cell.toolTip = tip
         }
         return cell
     }

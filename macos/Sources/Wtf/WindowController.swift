@@ -637,6 +637,7 @@ final class WindowController: NSWindowController, NSWindowDelegate, NSMenuItemVa
         }
         m.addItem(.separator())
         add("Rename Tab…") { [weak self] in self?.strip.startRename(id) }
+        m.items.last?.toolTip = "Or double-click the tab"
         if t.customTitle != nil {
             add("Use Automatic Name") { [weak self] in self?.model.rename(id, "") }
         }

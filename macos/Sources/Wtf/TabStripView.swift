@@ -405,6 +405,13 @@ final class TabStripView: NSView, NSTextFieldDelegate {
         d.tearing = model.tabs.count > 1 && (!inWindow || p.y > bounds.maxY + 56)
         d.x = min(max(leftInset, p.x - press.offset), bounds.width - 60)
         drag = d
+        // Past the threshold the tab lifts off and follows the pointer: a new window opens where it's let go.
+        if d.tearing, let t = model.tab(d.tab) {
+            let screen = window?.convertPoint(toScreen: event.locationInWindow) ?? NSEvent.mouseLocation
+            TearOffGhost.show(title: Redaction.shared.text(model.title(t)), at: NSPoint(x: screen.x - press.offset, y: screen.y))
+        } else {
+            TearOffGhost.hide()
+        }
         if !d.tearing, let r = rect(of: d.tab) {
             // Reorder live: before the first tab whose centre is right of ours.
             let centre = d.x + r.width / 2
@@ -427,6 +434,7 @@ final class TabStripView: NSView, NSTextFieldDelegate {
         defer {
             press = nil
             drag = nil
+            TearOffGhost.hide()
             NSCursor.arrow.set()
             refresh()
         }
@@ -517,5 +525,48 @@ extension NSColor {
 
     convenience init(_ c: RGB) {
         self.init(srgbRed: c.r / 255, green: c.g / 255, blue: c.b / 255, alpha: c.a)
+    }
+}
+
+/// The tab being torn off, following the pointer outside the strip.
+@MainActor
+enum TearOffGhost {
+    private static var panel: NSPanel?
+    private static let label = NSTextField(labelWithString: "")
+
+    static func show(title: String, at p: NSPoint) {
+        let size = NSSize(width: 200, height: 34)
+        if panel == nil {
+            let w = NSPanel(contentRect: NSRect(origin: .zero, size: size), styleMask: [.borderless, .nonactivatingPanel], backing: .buffered, defer: false)
+            w.isOpaque = false
+            w.backgroundColor = .clear
+            w.hasShadow = true
+            w.level = .floating
+            w.ignoresMouseEvents = true
+            w.alphaValue = 0.92
+            let box = NSVisualEffectView(frame: NSRect(origin: .zero, size: size))
+            box.material = .popover
+            box.state = .active
+            box.wantsLayer = true
+            box.layer?.cornerRadius = 9
+            box.layer?.masksToBounds = true
+            let icon = NSImageView(image: NSImage(systemSymbolName: "rectangle.portrait.and.arrow.right", accessibilityDescription: nil)!)
+            icon.frame = NSRect(x: 10, y: 9, width: 16, height: 16)
+            icon.contentTintColor = .secondaryLabelColor
+            label.font = .systemFont(ofSize: 12.5, weight: .medium)
+            label.lineBreakMode = .byTruncatingTail
+            label.frame = NSRect(x: 32, y: 9, width: size.width - 42, height: 16)
+            box.addSubview(icon)
+            box.addSubview(label)
+            w.contentView = box
+            panel = w
+        }
+        label.stringValue = title
+        panel?.setFrameOrigin(NSPoint(x: p.x, y: p.y - size.height / 2))
+        panel?.orderFront(nil)
+    }
+
+    static func hide() {
+        panel?.orderOut(nil)
     }
 }
