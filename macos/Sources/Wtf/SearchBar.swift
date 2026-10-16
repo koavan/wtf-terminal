@@ -72,8 +72,6 @@ final class SearchBar: NSView, NSSearchFieldDelegate {
         SearchOptions(caseSensitive: caseButton.state == .on, regex: false, wholeWord: false)
     }
 
-    private var query: String { field.stringValue }
-
     /// Every match in the scrollback, and the one selected.
     private(set) var found: [Find.Match] = []
     private(set) var current: Int?
@@ -82,7 +80,19 @@ final class SearchBar: NSView, NSSearchFieldDelegate {
 
     /// Search as you type: the match at or after the current one, so typing
     /// more refines it rather than jumping back to the top.
-    @objc private func changed() {
+    @objc private func changed() { search(scroll: true) }
+
+    /// Searches again for output that arrived since, keeping the selected
+    /// match and the scroll position.
+    func refresh() {
+        guard !query.isEmpty else { return }
+        search(scroll: false)
+    }
+
+    var query: String { field.stringValue }
+    var caseSensitive: Bool { caseButton.state == .on }
+
+    private func search(scroll: Bool) {
         let from = current.map { found[$0] }
         guard !query.isEmpty else {
             found = []
@@ -92,18 +102,18 @@ final class SearchBar: NSView, NSSearchFieldDelegate {
             onFound?()
             return
         }
-        found = Find.matches(in: terminal.getTerminal(), query, caseSensitive: caseButton.state == .on)
+        let t = terminal.getTerminal()
+        found = Find.matches(in: t, query, caseSensitive: caseSensitive)
         if found.isEmpty {
             current = nil
         } else if let from {
             current = found.firstIndex { ($0.row, $0.col) >= (from.row, from.col) } ?? 0
         } else {
             // The first match from the bottom of the screen up, as a terminal search reads.
-            let t = terminal.getTerminal()
-            let bottom = t.buffer.yDisp + t.rows
+            let bottom = t.buffer.totalLinesTrimmed + t.buffer.yDisp + t.rows
             current = found.lastIndex { $0.row < bottom } ?? 0
         }
-        show()
+        show(scroll: scroll)
     }
 
     @objc func next() { step(1) }
@@ -118,17 +128,26 @@ final class SearchBar: NSView, NSSearchFieldDelegate {
     }
 
     /// Selects the current match, scrolls to it, and says where it is.
-    private func show() {
+    /// Rows in `found` count from the first line ever written; the buffer's
+    /// rows start after the lines trimmed off the top.
+    private func show(scroll: Bool = true) {
         status.stringValue = Find.status(found, current: current)
         status.textColor = found.isEmpty ? .systemOrange : .secondaryLabelColor
         if let i = current {
             let m = found[i]
-            terminal.selection.setSelection(start: Position(col: m.col, row: m.row), end: Position(col: m.col + m.width, row: m.row))
             let t = terminal.getTerminal()
-            if m.row < t.buffer.yDisp || m.row >= t.buffer.yDisp + t.rows {
-                terminal.scrollTo(row: max(0, m.row - t.rows / 2))
+            let row = m.row - t.buffer.totalLinesTrimmed
+            // A refresh leaves the selection alone (it may be the user's);
+            // the overlay outlines the current match.
+            if !scroll {
+                onFound?()
+                return
             }
-        } else {
+            terminal.selection.setSelection(start: Position(col: m.col, row: row), end: Position(col: m.col + m.width, row: row))
+            if row < t.buffer.yDisp || row >= t.buffer.yDisp + t.rows {
+                terminal.scrollTo(row: max(0, row - t.rows / 2))
+            }
+        } else if scroll {
             terminal.selection.selectNone()
         }
         onFound?()

@@ -128,6 +128,7 @@ final class TerminalController: NSObject, @MainActor TerminalViewDelegate, Outpu
         if Redaction.shared.on { refreshCovers() }
         scheduleMarks()
         scheduleTints()
+        scheduleFind()
         onOutput?()
     }
 
@@ -258,7 +259,9 @@ final class TerminalController: NSObject, @MainActor TerminalViewDelegate, Outpu
 
     /// Marks for what's on screen, once per pass of the main loop however
     /// many output frames arrived.
-    /// Find's matches that are on screen, for the overlay.
+    /// Find's matches that are on screen, for the overlay: read from the
+    /// screen as it is now, so they follow output that moved or replaced
+    /// lines since the search.
     private func refreshFound() {
         guard let bar = searchBar else {
             overlay.found = []
@@ -266,10 +269,39 @@ final class TerminalController: NSObject, @MainActor TerminalViewDelegate, Outpu
             return
         }
         let t = view.getTerminal()
-        let top = t.buffer.yDisp
-        func cover(_ m: Find.Match) -> TerminalOverlay.Cover { .init(row: m.row - top, col: m.col, width: m.width) }
-        overlay.found = bar.found.filter { $0.row >= top && $0.row < top + t.rows }.map(cover)
-        overlay.foundCurrent = bar.current.map { cover(bar.found[$0]) }
+        let top = t.buffer.totalLinesTrimmed + t.buffer.yDisp
+        overlay.found = Find.visibleMatches(in: t, bar.query, caseSensitive: bar.caseSensitive)
+            .map { .init(row: $0.row, col: $0.col, width: $0.width) }
+        overlay.foundCurrent = bar.current.map { bar.found[$0] }
+            .flatMap { $0.row >= top && $0.row < top + t.rows ? .init(row: $0.row - top, col: $0.col, width: $0.width) : nil }
+    }
+
+    private var foundScheduled = false
+    private var findScheduled = false
+
+    /// The highlights follow output and scrolling once per pass of the main
+    /// loop, however many lines went by.
+    private func scheduleFound() {
+        guard searchBar != nil, !foundScheduled else { return }
+        foundScheduled = true
+        DispatchQueue.main.async { [weak self] in
+            guard let self else { return }
+            foundScheduled = false
+            refreshFound()
+        }
+    }
+
+    /// Output arrived while Find is open: the count and the selected match
+    /// catch up a moment later, one search however much arrives meanwhile.
+    private func scheduleFind() {
+        scheduleFound()
+        guard searchBar != nil, !findScheduled else { return }
+        findScheduled = true
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) { [weak self] in
+            guard let self else { return }
+            findScheduled = false
+            searchBar?.refresh()
+        }
     }
 
     // MARK: Log colors
@@ -747,7 +779,7 @@ final class TerminalController: NSObject, @MainActor TerminalViewDelegate, Outpu
         if Redaction.shared.on { refreshCovers() }
         scheduleMarks()
         scheduleTints()
-        if searchBar != nil { refreshFound() }
+        scheduleFound()
     }
 
     // A program's own title (OSC 0/2: vim, htop, a remote shell) names the

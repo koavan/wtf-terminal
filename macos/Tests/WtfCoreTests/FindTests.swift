@@ -10,3 +10,10 @@ import Testing
     #expect(Find.status([], current: nil) == "No results")
     #expect(Find.status([.init(row: 0, col: 0, width: 1), .init(row: 1, col: 0, width: 1)], current: 1) == "2 of 2")
 }
+
+@Test func findsMatchesInCells() {
+    // "日本 error": the wide characters take two cells each.
+    let line = Find.Line(row: 7, text: "日本 error", cells: [0, 2, 4, 5, 6, 7, 8, 9, 10])
+    #expect(Find.matches([line], "error", caseSensitive: true) == [.init(row: 7, col: 5, width: 5)])
+    #expect(Find.matches([line], "日本", caseSensitive: true) == [.init(row: 7, col: 0, width: 4)])
+}
