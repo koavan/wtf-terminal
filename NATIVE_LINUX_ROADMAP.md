@@ -125,7 +125,7 @@ planned days took far fewer, so treat these as an upper bound.
 | M7 | Parity, perf, packaging, release | 3 |
 | — | Buffer | 5 |
 
-### M0 — Spike & go/no-go ☐
+### M0 — Spike & go/no-go ◐
 
 - `cmd/wtf-gtk`: one window, gotk4 + the VTE shim, one shell from
   `internal/terminal`, fed by Go.
@@ -140,6 +140,82 @@ planned days took far fewer, so treat these as an upper bound.
   IME (ibus), on GNOME Wayland and on X11.
 - **Gate:** clearly lower idle CPU and memory than the Wails build, and heavy
   output no worse. Otherwise try the Rust/vte4 fallback, or stop.
+
+**Status (2026-10-16): the headless part is done and the gate passes; the
+hands-on check on a real Linux desktop is still to do.**
+
+What's built (uncommitted): `linux/Dockerfile` (`wtf-gtk-dev:ubuntu24`,
+arm64), `linux/build.sh`, `linux/run-xvfb.sh`, `linux/bench/` (the
+`workload.sh` port plus an Xvfb driver), `internal/gtkui/vte` (the cgo shim:
+a `WtfTerm` subclass of `VteTerminal` that signals `before-allocate` and
+`grid-changed`), and `cmd/wtf-gtk` (one window, one shell from
+`internal/terminal`, fed by Go; `WTF_GTK_PTY=vte` lets VTE read the PTY).
+Self-checks: `WTF_NATIVE_DEBUG=marks` and `=signals` under `linux/run-xvfb.sh`.
+
+Benchmark: Xvfb in Docker on this Mac (arm64 VM, software GL through
+llvmpipe for both apps). CPU is in seconds, memory is PSS in MiB (app plus
+WebKit helpers).
+
+| Phase | Wails 1.0.2 | Wails, no DMA-BUF | wtf-gtk (Go feeds) | wtf-gtk (VTE reads PTY) | wtf-gtk, cairo renderer |
+|---|---|---|---|---|---|
+| idle 30 s: CPU | 27.6 | 8.8 | 0.03 | 0.01 | 0.03 |
+| seq 2M: s / CPU | 1.72 / 6.7 | 1.90 / 2.5 | 0.48 / 0.56 | 0.47 / 0.35 | 0.53 / 0.48 |
+| coloured 40 MB: s / CPU | 1.11 / 3.0 | 3.93 / 4.8 | 0.91 / 0.69 | 1.02 / 0.48 | 0.86 / 0.49 |
+| yes 2M: s / CPU | 2.40 / 9.9 | 6.14 / 8.2 | 1.03 / 1.13 | 1.68 / 0.78 | 1.00 / 1.09 |
+| memory | 782–895 | 573–688 | 247–286 | 245–246 | 113–168 |
+
+The Wails idle number is inflated by software rendering under Xvfb (on
+macOS it was 3 s per 30 s), but the order of magnitude matches the macOS M0.
+A soak test (six rounds of 3M `yes` lines, typing, Ctrl+L) kept memory at
+204–260 MiB with 42 threads, and idle CPU at 0 afterwards. No gotk4 leaks or
+crashes showed up.
+
+Checks passed:
+
+- The shell's signal mask is empty (`SigBlk 0`), and so is a child's.
+  Ctrl-C stops `sleep`, SIGWINCH reaches the foreground program, and
+  quitting (or SIGTERM/SIGHUP to the app) kills a running `sleep`.
+- OSC 133: 160 marks over 40 prompts land on their exact rows. They stay
+  there after rewrapping narrower and wider (15–25 ms, relayout included)
+  and after the scrollback trims; trimmed marks are dropped.
+- vim, htop and tmux splits render correctly (screenshots via
+  `xwd | convert`).
+
+Findings that change the plan:
+
+- **gotk4 v0.4.x is generated against GTK 4.20.** It calls 4.18 and 4.20
+  functions, so it won't build on Ubuntu 24.04 (GTK 4.14). Pinned to
+  **v0.3.1**, which matches 4.14. Upgrade once the oldest supported distro
+  has a newer GTK. gotk4's generic `Connect` leaves out the instance
+  argument in handlers.
+- **`vte_terminal_feed` only queues.** VTE parses its whole queue in the
+  frame clock's *update* phase. So Go feeds in *before-paint* (same frame,
+  no added latency) with an adaptive per-frame budget, which is also the
+  backpressure. Each feed is cut just after an OSC 133 mark, so in the next
+  frame the cursor is exactly at the mark (at most one mark per frame).
+  This replaces "read `get_cursor_position` right after each part".
+- **VTE has no API for where the scrollback starts.** Its adjustment is
+  relative (lower bound always 0). So each mark keeps its row's text, and a
+  mark whose row no longer matches is dropped. That handles trimming, and
+  `clear` too (the macOS 1.0.2 bug).
+- **Rewrap:** before a width change (in `size_allocate`, before VTE's own),
+  each mark notes how many line ends lie between it and the cursor.
+  Afterwards it walks up to that line again. `get_text_range` gives a `\n`
+  only between rows of a range, so "row ends a line" reads `(r,0)–(r+1,0)`.
+- **Hidden tabs (M2):** VTE parses at 10 Hz when unmapped (its fallback
+  scheduler), so frame-paced feeding and mark cuts must work differently
+  for tabs that aren't shown.
+- Go feeding costs about 40–60% more UI CPU than VTE reading the PTY on
+  heavy output, but it's faster in wall time (yes: 1.03 vs 1.68 s) and keeps
+  recording and secret scanning on the byte stream. Removing a copy didn't
+  change it; profile in M2.
+- GL memory dominates under llvmpipe; check PSS on a real GPU in the
+  hands-on.
+
+Still to do for M0 (needs a Linux desktop, for example a UTM Ubuntu 24.04
+VM): GNOME Wayland and X11 hands-on with vim, htop, tmux and ssh, resizing,
+CLIPBOARD and PRIMARY copy/paste, IME (ibus), and the benchmark with a real
+GPU. The spike has no copy/paste shortcuts yet (VTE's defaults only).
 
 ### M1 — Skeleton, shared core, tooling ☐
 
