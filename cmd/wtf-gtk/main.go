@@ -7,6 +7,8 @@
 //
 //	WTF_GTK_PTY=vte      VTE reads the PTY itself (comparison mode)
 //	WTF_NATIVE_DEBUG=…   self-checks, see selfcheck.go
+//
+// Copy and paste: Ctrl+Shift+C/V, and select / middle-click (PRIMARY).
 package main
 
 import (
@@ -19,6 +21,7 @@ import (
 
 	"github.com/creack/pty"
 	coreglib "github.com/diamondburned/gotk4/pkg/core/glib"
+	"github.com/diamondburned/gotk4/pkg/gdk/v4"
 	"github.com/diamondburned/gotk4/pkg/gio/v2"
 	"github.com/diamondburned/gotk4/pkg/gtk/v4"
 
@@ -76,6 +79,26 @@ func (a *app) activate() {
 		a.win.SetTitle(title)
 	})
 	a.win.SetChild(a.term)
+
+	// Ctrl+Shift+C/V, before VTE sees the keys.
+	keys := gtk.NewEventControllerKey()
+	keys.SetPropagationPhase(gtk.PhaseCapture)
+	keys.ConnectKeyPressed(func(keyval, _ uint, state gdk.ModifierType) bool {
+		mods := state & (gdk.ControlMask | gdk.ShiftMask | gdk.AltMask | gdk.SuperMask)
+		if mods != gdk.ControlMask|gdk.ShiftMask {
+			return false
+		}
+		switch keyval {
+		case gdk.KEY_C, gdk.KEY_c:
+			a.term.Copy()
+		case gdk.KEY_V, gdk.KEY_v:
+			a.term.Paste()
+		default:
+			return false
+		}
+		return true
+	})
+	a.term.AddController(keys)
 
 	debug := os.Getenv("WTF_NATIVE_DEBUG")
 	switch {

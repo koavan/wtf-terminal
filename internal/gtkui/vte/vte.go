@@ -136,3 +136,8 @@ func (t *Terminal) OnTitle(f func(title string)) {
 
 // OnEOF is called when VTE reads the PTY itself and it hits EOF.
 func (t *Terminal) OnEOF(f func()) { t.Object.Connect("eof", f) }
+
+// Copy puts the selection on the clipboard; Paste sends the clipboard to the
+// child (through "commit", bracketed when the program asked for it).
+func (t *Terminal) Copy()  { C.vte_terminal_copy_clipboard_format(t.t, C.VTE_FORMAT_TEXT) }
+func (t *Terminal) Paste() { C.vte_terminal_paste_clipboard(t.t) }
