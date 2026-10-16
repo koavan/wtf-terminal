@@ -145,3 +145,21 @@ private final class Setup {
     #expect(rows.map { Rows.text(s.term, $0) } == ["$ one", "$ two", "$ "])
     #expect(s.tracker.output(2) == "z")
 }
+
+@Test func clearDropsTheMarksItErased() {
+    let s = Setup(rows: 10)
+    s.write(run("ls", "a\r\n") + run("pwd", "/x\r\n"))
+    // What clear prints: home, erase the screen, erase the scrollback.
+    s.write(run("clear", "\u{1b}[H\u{1b}[2J\u{1b}[3J") + A + "$ ")
+    let blocks = s.tracker.blocks(from: 0, to: 1000)
+    #expect(blocks.count == 1 && blocks[0].row == 0)
+    #expect(s.tracker.blockAt(3) == nil)
+    #expect(s.tracker.lastFinished() == nil)
+}
+
+@Test func clearWithScrollbackDropsOldMarks() {
+    let s = Setup(rows: 5)
+    let lines = (1...8).map { "line \($0)" }.joined(separator: "\r\n") + "\r\n"
+    s.write(run("one", lines) + run("clear", "\u{1b}[H\u{1b}[2J\u{1b}[3J") + A + "$ ")
+    #expect(s.tracker.blocks(from: 0, to: 1000).map(\.row) == [0])
+}

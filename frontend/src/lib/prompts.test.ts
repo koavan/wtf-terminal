@@ -127,6 +127,15 @@ describe('command blocks', () => {
     expect(tracker.blockAt(5)).toBeNull(); // the prompt waiting for a command
   });
 
+  it('drops the marks a clear erased', async () => {
+    const { tracker, write } = setup(10);
+    await write(run('ls', 'a\r\n') + run('pwd', '/x\r\n'));
+    // What clear prints: home, erase the screen, erase the scrollback.
+    await write(run('clear', '\x1b[H\x1b[2J\x1b[3J') + A + '$ ');
+    expect(tracker.blockAt(3)).toBeNull();
+    expect(tracker.lastFinished()).toBeNull();
+  });
+
   it('knows each command’s text, status and output', async () => {
     const { tracker, write } = setup(10);
     await write(run('ls', 'a\r\nb\r\n') + run('false', 'oops\r\n', 1) + A + '$ ');

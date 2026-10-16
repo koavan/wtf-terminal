@@ -159,6 +159,10 @@ public final class PromptTracker {
         case "A":
             let rec = Record(id: nextID, prompt: Rows.marker(term))
             nextID += 1
+            // Prompts only move down: one at or above an earlier prompt means
+            // the screen was cleared (clear, Ctrl+L), which erases lines in
+            // place, so the old marks would linger on blank rows.
+            records.removeAll { $0.prompt.row >= rec.prompt.row }
             current = rec
             records.append(rec)
             if records.count > Self.maxRecords { records.removeFirst(records.count - Self.maxRecords) }
