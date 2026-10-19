@@ -1,0 +1,247 @@
+//go:build linux
+
+package gtkui
+
+import (
+	"context"
+	"fmt"
+	"strings"
+
+	"github.com/diamondburned/gotk4/pkg/gdk/v4"
+	"github.com/diamondburned/gotk4/pkg/gio/v2"
+	"github.com/diamondburned/gotk4/pkg/glib/v2"
+	"github.com/diamondburned/gotk4/pkg/gtk/v4"
+
+	"github.com/dayanraj/wtf/internal/uicore"
+)
+
+// menuItem is one entry of a popup menu; a nil run makes a heading (shown
+// dimmed), and a nil item starts a new section.
+type menuItem struct {
+	label string
+	run   func()
+}
+
+var menuSection *menuItem
+
+func item(label string, run func()) *menuItem { return &menuItem{label, run} }
+
+// menuPopover is a widget's popup menu: one popover, kept, whose items
+// change each time it opens (a popover unparented after closing crashed).
+type menuPopover struct {
+	at      *gtk.Widget
+	pop     *gtk.PopoverMenu
+	onClose func()
+}
+
+func newMenuPopover(at gtk.Widgetter) *menuPopover {
+	m := &menuPopover{at: gtk.BaseWidget(at)}
+	m.pop = gtk.NewPopoverMenuFromModel(nil)
+	m.pop.SetParent(m.at)
+	m.pop.SetHasArrow(false)
+	m.pop.ConnectClosed(func() {
+		if f := m.onClose; f != nil {
+			m.onClose = nil
+			f()
+		}
+	})
+	return m
+}
+
+// show shows items at a point in the widget. onClose runs when it's gone.
+func (m *menuPopover) show(x, y float64, items []*menuItem, onClose func()) {
+	group := gio.NewSimpleActionGroup()
+	root := gio.NewMenu()
+	section := gio.NewMenu()
+	flush := func() {
+		if section.NItems() > 0 {
+			root.AppendSection("", section)
+		}
+		section = gio.NewMenu()
+	}
+	for i, it := range items {
+		if it == nil {
+			flush()
+			continue
+		}
+		name := fmt.Sprintf("a%d", i)
+		act := gio.NewSimpleAction(name, nil)
+		if it.run == nil {
+			act.SetEnabled(false)
+		} else {
+			run := it.run
+			act.ConnectActivate(func(*glib.Variant) { run() })
+		}
+		group.AddAction(act)
+		section.Append(it.label, "menu."+name)
+	}
+	flush()
+	// Replaces the group the last menu used.
+	m.at.InsertActionGroup("menu", group)
+	m.pop.SetMenuModel(root)
+	rect := gdk.NewRectangle(int(x), int(y), 1, 1)
+	m.pop.SetPointingTo(&rect)
+	m.onClose = onClose
+	m.pop.Popup()
+}
+
+// installMouse adds the pane's clicks: the gutter marks and the right-click
+// menu, Ctrl-click on links, middle-click paste through the paste checks.
+// They run before VTE sees the click.
+func (p *Pane) installMouse() {
+	click := gtk.NewGestureClick()
+	click.SetButton(0)
+	click.SetPropagationPhase(gtk.PhaseCapture)
+	click.ConnectPressed(func(n int, x, y float64) {
+		button := click.CurrentButton()
+		mods := click.CurrentEventState()
+		claim := func() { click.SetState(gtk.EventSequenceClaimed) }
+		// A program that reads the mouse gets its clicks; Shift gets them to
+		// wtf anyway.
+		ours := !p.feed.mouse || mods&gdk.ShiftMask != 0
+		switch {
+		case button == gdk.BUTTON_PRIMARY && n == 1:
+			if id, ok := p.over.markAt(x, y); ok {
+				claim()
+				p.blockMenu(id, x, y)
+			} else if mods&gdk.ControlMask != 0 {
+				if link := p.term.LinkAt(x, y); link != "" {
+					claim()
+					p.openLink(link)
+				}
+			}
+		case button == gdk.BUTTON_MIDDLE && ours:
+			claim()
+			p.pasteFrom(p.term.PrimaryClipboard())
+		case button == gdk.BUTTON_SECONDARY && ours:
+			claim()
+			p.contextMenu(x, y)
+		}
+	})
+	p.term.AddController(click)
+
+	p.term.SetHasTooltip(true)
+	p.term.ConnectQueryTooltip(func(x, y int, keyboard bool, tip *gtk.Tooltip) bool {
+		if keyboard {
+			return false
+		}
+		if id, ok := p.over.markAt(float64(x), float64(y)); ok {
+			tip.SetText(p.over.markTooltip(id))
+			return true
+		}
+		return false
+	})
+}
+
+// openLink opens web and file links with the desktop's handler.
+func (p *Pane) openLink(link string) {
+	scheme, _, _ := strings.Cut(link, ":")
+	switch strings.ToLower(scheme) {
+	case "http", "https", "mailto", "file", "ftp":
+	default:
+		return
+	}
+	gtk.NewURILauncher(link).Launch(context.Background(), &p.win.win.Window, nil)
+}
+
+// summary is "kubectl get pods · ✗ exit 1 · 3.2s": what the command was and
+// how it went.
+func summary(b uicore.Block) string {
+	text := b.Text
+	switch {
+	case text == "":
+		text = "command"
+	case len([]rune(text)) > 48:
+		text = string([]rune(text)[:47]) + "…"
+	}
+	if b.ExitCode == nil {
+		return text + " · running"
+	}
+	parts := []string{text, "✓"}
+	if *b.ExitCode != 0 {
+		parts[1] = fmt.Sprintf("✗ exit %d", *b.ExitCode)
+	}
+	return strings.Join(append(parts, uicore.Duration(b.Duration)), " · ")
+}
+
+// blockItems are a command block's actions.
+func (p *Pane) blockItems(id int) []*menuItem {
+	b, ok := p.tracker.Info(id)
+	if !ok {
+		return nil
+	}
+	items := []*menuItem{item(p.win.app.settings.text(summary(b)), nil)}
+	if b.Text != "" {
+		items = append(items, item("Copy Command", func() { p.copyText(b.Text, "command") }))
+	}
+	if b.HasOutput {
+		items = append(items, item("Copy Output", func() {
+			out, _ := p.tracker.Output(id)
+			p.copyText(out, "output")
+		}))
+		if b.Text != "" {
+			items = append(items, item("Copy Command and Output", func() {
+				out, _ := p.tracker.Output(id)
+				text := "$ " + b.Text
+				if out != "" {
+					text += "\n" + out
+				}
+				p.copyText(text, "command and output")
+			}))
+		}
+	}
+	if b.Text != "" && !b.Running() {
+		items = append(items, menuSection, item("Run Again", func() { p.runAgain(b.Text) }))
+	}
+	return items
+}
+
+func (p *Pane) blockMenu(id int, x, y float64) {
+	items := p.blockItems(id)
+	if len(items) == 0 {
+		return
+	}
+	p.over.setHighlight(id)
+	p.menu.show(x, y, items, p.over.clearHighlight)
+}
+
+// contextMenu is the right-click menu: the command block under the mouse,
+// then copy, paste and the rest.
+func (p *Pane) contextMenu(x, y float64) {
+	var items []*menuItem
+	if link := p.term.LinkAt(x, y); link != "" {
+		items = append(items, item("Open Link", func() { p.openLink(link) }),
+			item("Copy Link", func() { p.copyText(link, "link") }), menuSection)
+	}
+	highlighted := false
+	if top, ok := p.top(); ok && !p.feed.alternate {
+		_, ch := p.term.CharSize()
+		row := top + max(0, int(y)-padTop)/max(1, ch)
+		if id, ok := p.tracker.BlockAt(row); ok {
+			items = append(append(items, p.blockItems(id)...), menuSection)
+			p.over.setHighlight(id)
+			highlighted = true
+		}
+	}
+	if p.term.HasSelection() {
+		items = append(items, item("Copy", p.copySelection))
+	}
+	hide := "Hide Secrets"
+	if p.win.app.settings.hide {
+		hide = "Show Secrets"
+	}
+	items = append(items,
+		item("Paste", p.paste),
+		item("Select All", p.term.SelectAll),
+		menuSection,
+		item("Find…", p.showFind),
+		item("Clear", p.clearBuffer),
+		menuSection,
+		item(hide, p.toggleSecrets),
+	)
+	onClose := func() {}
+	if highlighted {
+		onClose = p.over.clearHighlight
+	}
+	p.menu.show(x, y, items, onClose)
+}

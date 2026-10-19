@@ -219,7 +219,7 @@ GPU. The spike has no copy/paste shortcuts yet (VTE's defaults only).
 
 The `WTF_GTK_PTY=vte` comparison mode was removed in M1: Go feeds VTE.
 
-### M1 — Skeleton, shared core, tooling ◐
+### M1 — Skeleton, shared core, tooling ☑
 
 - `internal/gtkui` app shell: `AdwApplication`, single instance (a second
   `wtf` opens a window in the running one), the `native` lifecycle hooks, and
@@ -281,13 +281,72 @@ shadow) in software makes frames longer, so less output fits a frame. With
 `GSK_RENDERER=cairo` it's 0.48 s, as in M0. Check on a real GPU in the
 hands-on; if it holds, consider a square window without a shadow.
 
-### M2 — Terminal core ☐
+### M2 — Terminal core ☑
 
 Ports the macOS M2 list onto VTE: look from `config.toml` and `config:changed`,
 zoom, find bar, links, paste confirmation, bracketed paste, Hide Secrets
 covers, clipboard clearing, OSC 133 blocks (marks, durations, block menu,
 previous/next prompt, copy last output, clear), right-click menu. `uicore`
 gains `PromptTracker` and `SecretCovers`. Benchmark again after this milestone.
+
+**Status (2026-10-19): done and checked headless** (`WTF_NATIVE_DEBUG=terminal`
+and `=view` join `task gtk:check`; screenshots in `bin/gtk/snapshots`).
+
+What's built:
+
+- `uicore`: `Lines` (the M0 marks, now on a `Grid` interface: text
+  fingerprints, rewrap re-anchoring), `PromptTracker` (blocks, durations,
+  output, jumps, "prompts only move down"), `SecretCells` (soft-wrapped
+  lines, private keys from above, cell widths), `FindIn`, theme colors
+  (cover, accent) and durations. All tested with a fake grid.
+- `gtkui`: `settings` (config, `config:changed`, `AdwStyleManager` dark,
+  text size for every window as on macOS, Hide Secrets), the pane's look
+  (font, line height, cursor, scrollback, palette and selection colors),
+  `overlay` (gutter marks with tooltips, duration labels, block highlight,
+  find highlights, covers; hidden when empty, updated once per main-loop
+  pass), find bar, right-click and block menus (one kept popover per pane),
+  paste confirmation (`AdwMessageDialog`, "Don't Ask Again" saves
+  `confirm-paste`), CLIPBOARD and PRIMARY paste through the checks,
+  Ctrl-click links (URL match and OSC 8), copy-on-select, copy with secrets
+  replaced while hidden, `copySecret` with clipboard clearing, toasts
+  (`AdwToastOverlay`), slow-command notifications.
+- Input to the shell goes through a per-pane writer goroutine, so a shell
+  that isn't reading can't block the window.
+
+Findings:
+
+- **Where the screen is.** VTE's adjustment counts from the oldest row
+  still kept, while its cursor and text calls use absolute rows, and
+  nothing says how many rows were trimmed (trimmed and blank rows read the
+  same, and text ranges aren't clamped). So the feeder sends a cursor
+  position report (`CSI 6n`) after each frame's output; VTE answers through
+  `commit` with the cursor's row on screen, which gives the screen's first
+  absolute row, and from that the oldest row: `screenTop + rows - upper`.
+  The answer is kept from the shell; reports the program asked for in the
+  same frame are counted and passed on first. `=view` checks it after
+  trimming.
+- The feeder tracks modes from the byte stream: alternate screen (no marks
+  there), mouse reporting (right/middle click go to the program unless
+  Shift is held) and bracketed paste (the confirmation says which).
+- Bash reports the first simple command of a line (`echo one` for
+  `echo one; echo two`), as in the other builds.
+- A `GtkPopoverMenu` unparented after closing crashed GTK; a kept popover
+  whose model changes doesn't.
+- gotk4's `ContentProvider.Value` passes an untyped `GValue`, so clipboard
+  text can't be read back synchronously; clearing uses the macOS rule (only
+  if nothing changed the clipboard since).
+- Under Xvfb with no window manager, the keyboard doesn't return to the
+  window after a dialog; the self-check answers the paste dialog last.
+
+Not done here: **Select Output** (VTE has no API to select a range; Copy
+Output is there), hidden-tab feeding (needs tabs, M3), split dimming (M3),
+log tints and the token menus from `Logs.swift` (with the viewers, M6), Pin
+and Save as Snippet in the block menu (M5).
+
+Benchmark (Xvfb, llvmpipe), M1 → M2: idle 0.05 → 0.02 s CPU per 30 s, `seq`
+0.95 → 0.97 s (0.62 → 0.58 s CPU), coloured 40 MB 0.92 → 0.98 s (0.82 →
+0.96 s CPU), `yes` 0.99 s both (1.14 → 1.23 s CPU), PSS 264–312 MiB. The
+extra CPU on heavy output is the report and the overlay scan per frame.
 
 ### M3 — Window shell (dogfood point) ☐
 

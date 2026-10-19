@@ -38,12 +38,13 @@ type Build struct{ Version, Commit, Date string }
 // App is the running application: one per process. A second `wtf-gtk`
 // asks this one for a new window and exits.
 type App struct {
-	gtk    *adw.Application
-	build  Build
-	be     *backend.Backend
-	cancel context.CancelFunc
-	events *eventPump
-	debug  string
+	gtk      *adw.Application
+	build    Build
+	be       *backend.Backend
+	cancel   context.CancelFunc
+	events   *eventPump
+	settings *settings
+	debug    string
 
 	windows []*Window
 	nextWin int
@@ -91,6 +92,7 @@ func (a *App) startup() {
 		return
 	}
 	log.Printf("wtf %s (%s), state %s, cache %s", a.build.Version, a.build.Commit, state, cache)
+	a.settings = newSettings(a)
 	a.installActions()
 }
 
@@ -185,4 +187,24 @@ func onMain(f func()) {
 		close(done)
 	})
 	<-done
+}
+
+// toast shows a message in the window in front.
+func (a *App) toast(msg string) {
+	for _, w := range a.windows {
+		if w.win.IsActive() {
+			w.toast(msg)
+			return
+		}
+	}
+	if len(a.windows) > 0 {
+		a.windows[0].toast(msg)
+	}
+}
+
+// debugLog logs during self-checks.
+func (a *App) debugLog(format string, args ...any) {
+	if a.debug != "" {
+		log.Printf(format, args...)
+	}
 }

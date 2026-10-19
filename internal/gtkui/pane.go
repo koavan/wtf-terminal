@@ -3,54 +3,114 @@
 package gtkui
 
 import (
+	"fmt"
+	"strings"
+	"time"
+
+	"github.com/diamondburned/gotk4-adwaita/pkg/adw"
 	coreglib "github.com/diamondburned/gotk4/pkg/core/glib"
+	"github.com/diamondburned/gotk4/pkg/gtk/v4"
 
 	"github.com/dayanraj/wtf/internal/gtkui/vte"
 	"github.com/dayanraj/wtf/internal/terminal"
+	"github.com/dayanraj/wtf/internal/uicore"
 )
 
-// Pane is one terminal: a VTE widget showing a backend shell session. Go
-// reads the PTY and feeds VTE (feeder.go); keys come back through VTE's
-// commit signal.
+// Pane is one terminal: a VTE widget showing a backend shell session, with
+// its command blocks (OSC 133), secret covers, find bar and menus drawn
+// over it. Go reads the PTY and feeds VTE (feeder.go); keys come back
+// through VTE's commit signal. Like the macOS app's TerminalController.
 type Pane struct {
-	win   *Window
-	term  *vte.Terminal
-	marks *marks
-	feed  *feeder
-	id    string // the backend session, once started
-	sess  *terminal.Session
+	win     *Window
+	root    *gtk.Overlay // the terminal, the drawing over it, the find bar
+	term    *vte.Terminal
+	lines   *uicore.Lines
+	tracker *uicore.PromptTracker
+	feed    *feeder
+	over    *overlay
+	menu    *menuPopover
+	find    *findBar
+	id      string // the backend session, once started
+	sess    *terminal.Session
+	// Input for the shell, written in order off the main loop: a shell
+	// that isn't reading would block the window.
+	input chan []byte
 	// Self-checks watch the output; set before start.
 	tap func([]byte)
+
+	unobserve func()
+	// The scrollback was cleared: drop marks once VTE has parsed it.
+	clearing bool
+	// The paste confirmation showing, if any.
+	pasteDialog *adw.MessageDialog
 }
+
+// Links that Ctrl-click opens: URLs, as VTE matches them (PCRE2).
+const urlPattern = `\b(?:https?|ftp|file)://[^\s<>"'` + "`" + `]*[^\s<>"'` + "`" + `.,;:!?)\]}]`
 
 func newPane(w *Window) *Pane {
 	p := &Pane{win: w, term: vte.New()}
-	p.term.SetFont("JetBrains Mono 11")
-	p.term.SetColors("#d8dee9", "#1e2127")
-	p.term.SetScrollback(10000)
 	p.term.SetHExpand(true)
 	p.term.SetVExpand(true)
+	p.term.Quiet()
+	p.term.AddURLMatch(urlPattern)
 	p.term.OnTitle(func(title string) {
 		if title == "" {
 			title = "wtf"
 		}
 		w.win.SetTitle(title)
 	})
-	p.marks = newMarks(p.term)
-	p.feed = newFeeder(p.term, p.marks)
+
+	p.lines = uicore.NewLines(p.term)
+	p.term.OnBeforeAllocate(p.lines.BeforeAllocate)
+	p.tracker = uicore.NewPromptTracker(p.term, p.lines)
+	p.tracker.OnChange = p.refresh
+	p.tracker.OnCommandEnd = p.commandEnded
+
+	p.feed = newFeeder(p.term)
+	p.feed.onMark = p.tracker.OSC133
+	p.feed.on633 = p.tracker.OSC633
+	p.feed.onView = func() {
+		if p.clearing {
+			p.clearing = false
+			p.tracker.Cleared()
+		}
+		if p.find != nil {
+			p.find.outputArrived()
+		}
+		p.refresh()
+	}
 	p.term.OnGridChanged(func(cols, rows int) {
-		p.marks.gridChanged(cols, rows)
+		p.lines.GridChanged(cols)
+		p.feed.requestView()
 		if p.id != "" {
 			_ = p.win.app.be.Terminal.Resize(p.id, cols, rows)
 		}
 	})
+	p.term.OnCommit(func(text string) {
+		if !p.feed.takeReport(text) {
+			p.write(text)
+		}
+	})
+	p.term.OnScrolled(p.refresh)
+	p.term.OnSelectionChanged(p.selectionChanged)
+
+	p.root = gtk.NewOverlay()
+	p.root.SetChild(p.term)
+	p.over = newOverlay(p)
+	p.root.AddOverlay(p.over.area)
+	p.menu = newMenuPopover(p.term)
+	p.installMouse()
+
+	p.unobserve = w.app.settings.observe(p.applySettings)
+	p.applySettings()
 	return p
 }
 
 // start runs a shell from internal/terminal in this pane.
 func (p *Pane) start() error {
 	svc := p.win.app.be.Terminal
-	id, err := svc.Create(p.win.name, 80, 24, "")
+	id, err := svc.Create(p.win.name, max(2, p.term.Columns()), max(2, p.term.Rows()), "")
 	if err != nil {
 		return err
 	}
@@ -60,7 +120,12 @@ func (p *Pane) start() error {
 		return err
 	}
 	p.id, p.sess = id, sess
-	p.term.OnCommit(func(text string) { _, _ = sess.Write([]byte(text)) })
+	p.input = make(chan []byte, 256)
+	go func() {
+		for b := range p.input {
+			_, _ = sess.Write(b)
+		}
+	}()
 	// The grid may have changed size before the shell started.
 	_ = svc.Resize(id, p.term.Columns(), p.term.Rows())
 	go func() {
@@ -71,18 +136,205 @@ func (p *Pane) start() error {
 			p.feed.push(chunk)
 		}
 		<-sess.Done
+		coreglib.IdleAdd(func() { close(p.input); p.input = nil })
 		// The shell is gone: so is its window, for now (tabs come in M3).
 		coreglib.IdleAdd(p.win.win.Close)
 	}()
 	return nil
 }
 
-// zoom makes the text bigger (+1), smaller (-1) or its default size (0).
-func (p *Pane) zoom(step int) {
-	switch step {
-	case 0:
-		p.term.SetFontScale(1)
+// write sends input to the shell.
+func (p *Pane) write(text string) {
+	if p.input != nil && text != "" {
+		p.input <- []byte(text)
+	}
+}
+
+func (p *Pane) closed() {
+	if p.unobserve != nil {
+		p.unobserve()
+	}
+}
+
+// applySettings sets the look from config.toml and the theme.
+func (p *Pane) applySettings() {
+	s := p.win.app.settings
+	cfg, th := s.config(), s.theme()
+	family := cfg.FontFamily
+	if family == "" {
+		family = "JetBrains Mono"
+	}
+	p.term.SetFont(fmt.Sprintf("%s, JetBrains Mono, monospace %g", family, s.fontSize))
+	p.term.SetLineHeight(max(1, cfg.LineHeight))
+	p.term.SetCursor(cfg.CursorStyle, cfg.CursorBlink)
+	p.term.SetScrollback(max(100, cfg.Scrollback))
+	p.term.SetColors(vte.Colors{
+		Foreground: th.Foreground, Background: th.Background, Palette: th.Palette[:],
+		Cursor: th.Cursor, CursorText: th.CursorText,
+		SelectionBackground: th.SelectionBackground, SelectionForeground: th.SelectionForeground,
+	})
+	p.over.setTheme(th)
+	p.refresh()
+}
+
+// commandEnded notifies about a slow command while its window isn't in
+// front.
+func (p *Pane) commandEnded(id, code int, took time.Duration) {
+	after := p.win.app.settings.config().NotifyAfter
+	if after <= 0 || took < time.Duration(after*float64(time.Second)) || p.win.win.IsActive() {
+		return
+	}
+	dur := uicore.Duration(took)
+	title := "✓ Finished in " + dur
+	if code != 0 {
+		title = fmt.Sprintf("✗ Failed (exit %d) after %s", code, dur)
+	}
+	b, _ := p.tracker.Info(id)
+	body := p.win.app.settings.text(b.Text)
+	sid, svc, notify := p.id, p.win.app.be.Terminal, p.win.app.be.Notify
+	go func() {
+		cwd := ""
+		if info, err := svc.Info(sid); err == nil {
+			cwd = info.Cwd
+		}
+		_ = notify.Notify(title, cwd, body)
+	}()
+}
+
+// Where the screen is
+
+// top is the absolute row at the top of the view; ok is false until the
+// feeder has found the screen.
+func (p *Pane) top() (int, bool) {
+	if !p.feed.viewKnown {
+		return 0, false
+	}
+	_, upper, value, _ := p.term.View()
+	return p.firstRow(upper) + int(value), true
+}
+
+// firstRow is the oldest row still in the scrollback: the adjustment counts
+// from it, and its upper bound is where the screen ends.
+func (p *Pane) firstRow(upper float64) int {
+	return p.feed.screenTop + p.term.Rows() - int(upper)
+}
+
+// scrollToRow shows an absolute row at the top of the view.
+func (p *Pane) scrollToRow(row int) {
+	_, upper, _, _ := p.term.View()
+	p.term.ScrollTo(float64(row - p.firstRow(upper)))
+}
+
+func (p *Pane) scrollToBottom() {
+	_, upper, _, page := p.term.View()
+	p.term.ScrollTo(upper - page)
+}
+
+// refresh redraws the overlay for what's on screen, once per pass of the
+// main loop however many frames or scrolls asked.
+func (p *Pane) refresh() { p.over.schedule() }
+
+// Actions
+
+// copySelection copies the selection, with secrets replaced while hidden.
+func (p *Pane) copySelection() {
+	if !p.term.HasSelection() {
+		return
+	}
+	if p.win.app.settings.hide {
+		p.term.Clipboard().SetText(p.win.app.settings.text(p.term.Selection()))
+		return
+	}
+	p.term.Copy()
+}
+
+func (p *Pane) selectionChanged() {
+	if p.win.app.settings.config().CopyOnSelect && p.term.HasSelection() {
+		if sel := p.term.Selection(); sel != "" {
+			p.term.Clipboard().SetText(p.win.app.settings.text(sel))
+		}
+	}
+}
+
+// copyText copies text wtf put together (a command, its output), with
+// secrets replaced while hidden, and says what was copied.
+func (p *Pane) copyText(text, what string) {
+	text = p.win.app.settings.text(text)
+	p.term.Clipboard().SetText(text)
+	if lines := strings.Count(text, "\n") + 1; text != "" && lines > 1 {
+		p.win.toast(fmt.Sprintf("Copied %s (%d lines)", what, lines))
+	} else {
+		p.win.toast("Copied " + what)
+	}
+}
+
+func (p *Pane) copyLastOutput() {
+	id, ok := p.tracker.LastFinished()
+	if !ok {
+		p.win.toast("No finished command yet")
+		return
+	}
+	out, _ := p.tracker.Output(id)
+	p.term.Clipboard().SetText(p.win.app.settings.text(out))
+	switch lines := strings.Count(out, "\n") + 1; {
+	case out == "":
+		p.win.toast("Command had no output")
+	case lines == 1:
+		p.win.toast("Copied 1 line of output")
 	default:
-		p.term.SetFontScale(max(0.5, min(3, p.term.FontScale()+0.1*float64(step))))
+		p.win.toast(fmt.Sprintf("Copied %d lines of output", lines))
+	}
+}
+
+// runAgain types a command at the prompt: Ctrl-U clears anything
+// half-typed first.
+func (p *Pane) runAgain(text string) {
+	if p.id != "" {
+		if info, err := p.win.app.be.Terminal.Info(p.id); err == nil && !info.IsShell {
+			p.win.toast("The shell is busy — finish the running program first")
+			return
+		}
+	}
+	p.write("\x15" + text + "\r")
+	p.term.GrabFocus()
+}
+
+// jumpPrompt scrolls the previous (-1) or next (1) prompt to the top.
+func (p *Pane) jumpPrompt(direction int) {
+	top, ok := p.top()
+	if !ok || p.feed.alternate {
+		return
+	}
+	if row, ok := p.tracker.Jump(direction, top); ok {
+		p.scrollToRow(row)
+	} else if direction > 0 {
+		p.scrollToBottom()
+	}
+}
+
+// clearBuffer clears the scrollback and screen, keeping the line the
+// cursor is on (the prompt) as the new first line, like xterm.js's clear().
+func (p *Pane) clearBuffer() {
+	if p.feed.alternate || !p.feed.viewKnown {
+		return
+	}
+	_, cursor := p.term.Cursor()
+	seq := "\x1b[3J"
+	if y := cursor - p.feed.screenTop; y > 0 {
+		seq = fmt.Sprintf("\x1b[%dS\x1b[%dA\x1b[3J", y, y)
+	}
+	p.term.Feed([]byte(seq))
+	p.clearing = true
+	p.feed.requestView()
+}
+
+// toggleSecrets turns Hide Secrets on or off, for every terminal.
+func (p *Pane) toggleSecrets() {
+	s := p.win.app.settings
+	s.setHide(!s.hide)
+	if s.hide {
+		p.win.toast("Secrets hidden — on screen and when copied")
+	} else {
+		p.win.toast("Secrets shown")
 	}
 }

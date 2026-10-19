@@ -14,10 +14,11 @@ import (
 // Window is one top-level window. For now it holds a single pane; tabs and
 // splits come with the window shell (M3).
 type Window struct {
-	app  *App
-	name string // the backend's name for it, as in the saved session
-	win  *adw.ApplicationWindow
-	pane *Pane
+	app    *App
+	name   string // the backend's name for it, as in the saved session
+	win    *adw.ApplicationWindow
+	toasts *adw.ToastOverlay
+	pane   *Pane
 }
 
 func newWindow(a *App, name string) *Window {
@@ -30,28 +31,40 @@ func newWindow(a *App, name string) *Window {
 	header := adw.NewHeaderBar()
 	view := adw.NewToolbarView()
 	view.AddTopBar(header)
-	view.SetContent(w.pane.term)
+	w.toasts = adw.NewToastOverlay()
+	w.toasts.SetChild(w.pane.root)
+	view.SetContent(w.toasts)
 	w.win.SetContent(view)
 
+	p, s := w.pane, a.settings
 	w.installCommands(map[string]func(){
-		"term.copy":      w.pane.term.Copy,
-		"term.paste":     w.pane.term.Paste,
-		"term.selectAll": w.pane.term.SelectAll,
-		"pane.close":     w.win.Close,
-		"window.close":   w.win.Close,
-		"font.bigger":    func() { w.pane.zoom(+1) },
-		"font.smaller":   func() { w.pane.zoom(-1) },
-		"font.reset":     func() { w.pane.zoom(0) },
+		"term.copy":       p.copySelection,
+		"term.paste":      p.paste,
+		"term.selectAll":  p.term.SelectAll,
+		"term.copyOutput": p.copyLastOutput,
+		"term.clear":      p.clearBuffer,
+		"find":            p.showFind,
+		"find.next":       p.findNext,
+		"find.prev":       p.findPrevious,
+		"prompt.prev":     func() { p.jumpPrompt(-1) },
+		"prompt.next":     func() { p.jumpPrompt(1) },
+		"secrets.toggle":  p.toggleSecrets,
+		"pane.close":      w.win.Close,
+		"window.close":    w.win.Close,
+		"font.bigger":     func() { s.setFontSize(s.fontSize + 1) },
+		"font.smaller":    func() { s.setFontSize(s.fontSize - 1) },
+		"font.reset":      func() { s.setFontSize(s.config().FontSize) },
 	}, "window.new", "app.quit")
 
 	// Polling pauses while no wtf window is in front.
 	w.win.NotifyProperty("is-active", func() { a.be.Active.SetFocused(w.name, w.win.IsActive()) })
 	w.win.ConnectCloseRequest(func() bool {
+		w.pane.closed()
 		a.windowClosed(w)
 		return false
 	})
 	// The marks self-check feeds synthetic output instead of a shell.
-	if a.debug != "marks" {
+	if a.debug != "marks" && a.debug != "view" {
 		if err := w.pane.start(); err != nil {
 			w.pane.term.Feed([]byte("\r\nCouldn't start a shell: " + err.Error() + "\r\n"))
 		}
@@ -84,4 +97,12 @@ func (w *Window) installCommands(run map[string]func(), appCommands ...string) {
 		shortcut(id, "app."+id)
 	}
 	w.win.AddController(keys)
+}
+
+// toast shows a short message at the bottom of the window.
+func (w *Window) toast(msg string) {
+	t := adw.NewToast(msg)
+	t.SetTimeout(3)
+	w.toasts.AddToast(t)
+	w.app.debugLog("toast: %s", msg)
 }
