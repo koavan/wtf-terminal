@@ -67,7 +67,7 @@ func newPane(w *Window, id int) *Pane {
 	p.tracker = uicore.NewPromptTracker(p.term, p.lines)
 	p.tracker.OnChange = p.refresh
 	p.tracker.OnPrompt = func() { p.win.panePrompt(p) }
-	p.tracker.OnCommandStart = func(text string, _ int) { p.win.commandStarted(p, text) }
+	p.tracker.OnCommandStart = func(text string, id int) { p.win.commandStarted(p, text, id) }
 	p.tracker.OnCommandEnd = func(id, code int, took time.Duration) {
 		p.commandEnded(id, code, took)
 		p.win.commandEnded(p, code, took)
@@ -380,4 +380,16 @@ func (p *Pane) setDimmed(on bool, amount float64) {
 	if on {
 		p.dim.SetOpacity(min(0.9, amount))
 	}
+}
+
+// plainText is the whole scrollback as text: soft-wrapped rows joined,
+// trailing blank lines dropped.
+func (p *Pane) plainText() string {
+	if !p.feed.viewKnown {
+		return ""
+	}
+	_, upper, _, _ := p.term.View()
+	first := p.firstRow(upper)
+	last := p.feed.screenTop + p.term.Rows() - 1
+	return strings.TrimRight(uicore.TextOf(p.term, first, last), "\n \t")
 }

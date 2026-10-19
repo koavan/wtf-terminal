@@ -349,3 +349,24 @@ func TextOf(g Grid, first, last int) string {
 	}
 	return b.String()
 }
+
+// Transcript is every command that got as far as running, with its output
+// (nil once it has left the scrollback), for a Markdown transcript.
+func (p *PromptTracker) Transcript() []ExportBlock {
+	var out []ExportBlock
+	for _, r := range p.records {
+		if r.output == nil {
+			continue
+		}
+		b := ExportBlock{Text: r.text, StartedAt: r.startedAt, ExitCode: r.exitCode}
+		if r.exitCode != nil {
+			d := r.duration
+			b.Duration = &d
+		}
+		if o, ok := p.Output(r.id); ok {
+			b.Output = &o
+		}
+		out = append(out, b)
+	}
+	return out
+}

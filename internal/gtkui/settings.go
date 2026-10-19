@@ -127,6 +127,13 @@ flowboxchild { padding: 0; background: none; }
 .wtf-git-button { font-size: 0.85em; font-weight: bold; padding: 0 6px; min-height: 20px; }
 .wtf-side-filter { margin: 0 8px; }
 .wtf-tool.active { color: @accent_color; }
+.wtf-pin { border: 1px solid alpha(currentColor, 0.12); border-radius: 8px; padding: 6px 8px; margin: 0 8px; }
+.wtf-pin-title { font-size: 0.92em; }
+.wtf-pin-text { font-size: 0.85em; background: transparent; }
+.wtf-share { padding: 4px 12px 12px; }
+.wtf-share-heading { font-size: 0.78em; font-weight: bold; opacity: 0.7; margin-top: 10px; }
+.wtf-share-state { font-weight: bold; }
+.wtf-share-note { font-size: 0.82em; opacity: 0.65; }
 .wtf-card-preview { font-family: monospace; font-size: 0.75em; opacity: 0.8; }
 `, padTop, padRight, padBottom, padLeft) + strings.Join(extraCSS, "\n"))
 	gtk.StyleContextAddProviderForDisplay(gdk.DisplayGetDefault(), css, gtk.STYLE_PROVIDER_PRIORITY_APPLICATION)
@@ -242,7 +249,7 @@ func (s *settings) loadThemeCSS() {
 		ok, fail = "#5bb98c", "#e5484d"
 	}
 	accent := uicore.Accent(th.Cursor, th.Background, th.Palette[:], dark)
-	fmt.Fprintf(&b, ".wtf-tab-status.ok { color: %s; } .wtf-tab-status.fail { color: %s; } .wtf-tab-status.activity { color: %s; }\n",
+	fmt.Fprintf(&b, ".wtf-tab-status.ok { color: %s; } .wtf-tab-status.fail, .wtf-tab-status.recording { color: %s; } .wtf-tab-status.activity { color: %s; }\n",
 		ok, fail, accent.Hex())
 	fmt.Fprintf(&b, ".wtf-dim { background-color: %s; }\n", th.Background)
 	// Git status, as the macOS app colors it.
@@ -255,6 +262,7 @@ func (s *settings) loadThemeCSS() {
 	for _, c := range uicore.GroupColors {
 		fmt.Fprintf(&b, ".group-dot-%s { background: %s; }\n", c, c.Hex(dark))
 	}
+	fmt.Fprintf(&b, ".tone-running { background: %s; }\n", accent.Hex())
 	fmt.Fprintf(&b, ".wtf-pill-busy, .wtf-pill-running { background: alpha(%[1]s, 0.16); color: %[1]s; font-weight: 600; }\n"+
 		".wtf-running-dot { background: %[1]s; min-width: 6px; min-height: 6px; }\n"+
 		".wtf-pill-ok { background: alpha(%[2]s, 0.16); color: %[2]s; }\n"+

@@ -4,6 +4,7 @@ package gtkui
 
 import (
 	"fmt"
+	"slices"
 	"strconv"
 	"strings"
 
@@ -93,8 +94,8 @@ func (s *tabStrip) refresh() {
 		}
 		t := t
 		entries = append(entries, entry{tab: &t})
-		fmt.Fprintf(&shape, "t%d:%s:%v:%v:%v:%d:%v|", t.ID, s.w.app.settings.text(m.Title(t)), t.ID == m.ActiveID(),
-			t.Activity, t.Finished, t.GroupID, s.w.isBroadcasting(t.ID))
+		fmt.Fprintf(&shape, "t%d:%s:%v:%v:%v:%d:%v:%v|", t.ID, s.w.app.settings.text(m.Title(t)), t.ID == m.ActiveID(),
+			t.Activity, t.Finished, t.GroupID, s.w.isBroadcasting(t.ID), slices.ContainsFunc(t.Root.Leaves(), s.w.isRecording))
 	}
 	fmt.Fprintf(&shape, "%v", dark)
 	if shape.String() == s.shape {
@@ -143,6 +144,11 @@ func (s *tabStrip) item(t uicore.Tab) *gtk.Box {
 		box.Append(statusLabel("✗", "fail"))
 	case t.Activity:
 		box.Append(statusLabel("●", "activity"))
+	}
+	if slices.ContainsFunc(t.Root.Leaves(), s.w.isRecording) {
+		rec := statusLabel("●", "recording")
+		rec.SetTooltipText("Recording")
+		box.Append(rec)
 	}
 	if s.w.isBroadcasting(t.ID) {
 		icon := gtk.NewImageFromIconName("send-to-symbolic")
@@ -362,6 +368,19 @@ func (w *Window) tabMenu(id int) []*menuItem {
 			label = "Stop Broadcasting to Panes"
 		}
 		items = append(items, item(label, func() { w.toggleBroadcastTab(id) }))
+	}
+	if ps := m.FocusedPane(t); ps != nil {
+		pane := w.panes[ps.ID]
+		label := "Start Recording…"
+		if w.isRecording(ps.ID) {
+			label = "Stop Recording"
+		}
+		items = append(items, menuSection,
+			item(label, func() { w.toggleRecording(pane) }),
+			item("Save Output as Text…", func() { w.saveOutputAsText(pane) }))
+		if ps.Integrated {
+			items = append(items, item("Save Commands as Markdown…", func() { w.saveTranscript(pane) }))
+		}
 	}
 	items = append(items, menuSection)
 	if len(m.Tabs()) > 1 {

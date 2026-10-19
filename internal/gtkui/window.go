@@ -40,6 +40,9 @@ type Window struct {
 	overviewShown *overview
 	// The workspace dialog last shown (for checks).
 	workspaceDialog *adw.MessageDialog
+	// Commands run, pins, recordings, files saved: in memory for this window.
+	records  *windowRecords
+	recClock *poller
 	// The side pane, while open, its state (saved in the session) and the
 	// split that holds it.
 	sidebar       *sidebar
@@ -69,7 +72,7 @@ type Window struct {
 func newWindow(a *App, name string) *Window {
 	w := &Window{app: a, name: name, model: uicore.NewWindowModel(a.home), sidebarState: uicore.NewSidebarState(),
 		panes: map[int]*Pane{}, pages: map[int]*tabPage{}, detached: map[int]bool{},
-		infra: map[int]*infra.Context{}, infraLatest: map[int]int{}}
+		infra: map[int]*infra.Context{}, infraLatest: map[int]int{}, records: newWindowRecords()}
 	w.win = adw.NewApplicationWindow(&a.gtk.Application)
 	w.win.SetTitle("wtf")
 	w.win.SetDefaultSize(1000, 640)
@@ -187,11 +190,13 @@ func (w *Window) sync() {
 	for id, p := range w.panes {
 		if _, ok := m.Panes[id]; !ok {
 			delete(w.panes, id)
-			if w.detached[id] {
+			moved := w.detached[id]
+			if moved {
 				delete(w.detached, id)
 			} else {
 				p.close()
 			}
+			w.recordsPaneGone(id, moved)
 			detachWidget(&p.root.Widget)
 		}
 	}
@@ -358,8 +363,11 @@ func (w *Window) panePrompt(p *Pane) {
 	}
 }
 
-func (w *Window) commandStarted(p *Pane, text string) {
+func (w *Window) commandStarted(p *Pane, text string, block int) {
 	if ps := w.model.Panes[p.id]; ps != nil {
+		w.records.history.Started(p.id, block, text, ps.Cwd, time.Now())
+		w.records.runningBlock[p.id] = block
+		w.records.changed()
 		ps.Running, ps.Command = true, text
 		w.strip.refresh()
 		w.address.refresh()
@@ -372,6 +380,17 @@ func (w *Window) commandEnded(p *Pane, code int, took time.Duration) {
 		return
 	}
 	ps.LastCommand = &uicore.LastCommand{Text: ps.Command, ExitCode: code, Duration: took}
+	w.records.history.Finished(p.id, code, took, time.Now())
+	// A pin following this command gets its final output.
+	if b, ok := w.records.runningBlock[p.id]; ok {
+		delete(w.records.runningBlock, p.id)
+		out, _ := p.tracker.Output(b)
+		w.records.pins.Update(p.id, b, out, &uicore.PinDone{ExitCode: code, Duration: took})
+	}
+	w.records.changed()
+	if uicore.IsScanCommand(ps.Command) {
+		w.scanFinished()
+	}
 	ps.Running, ps.Command = false, ""
 	w.model.MarkFinished(p.id, code == 0)
 	w.strip.refresh()
@@ -452,6 +471,14 @@ func (w *Window) windowCommands() map[string]func() {
 		"palette":          func() { w.togglePalette(paletteCommands) },
 		"broadcast.toggle": w.toggleBroadcast,
 		"help.shortcuts":   w.showShortcuts,
+		"term.pinOutput":   w.pinLastOutput,
+		"findings.scan":    w.runSecurityScan,
+		"usage.show":       w.showUsage,
+		"snippets.run":     func() { w.togglePalette(paletteSnippets) },
+		"workspace.save":   w.saveWindowAsWorkspace,
+		"record.toggle":    func() { w.toggleRecording(nil) },
+		"export.text":      func() { w.saveOutputAsText(nil) },
+		"export.markdown":  func() { w.saveTranscript(nil) },
 		"tab.overview":     w.toggleOverview,
 		"workspace.open":   func() { w.togglePalette(paletteWorkspaces) },
 		"sidebar.toggle":   w.toggleSidebar,
@@ -516,9 +543,11 @@ func (w *Window) mainMenuButton() *gtk.MenuButton {
 	sections := [][]string{
 		{"tab.new", "window.new", "pane.splitRight", "pane.splitDown", "tab.duplicate", "tab.toNewWindow"},
 		{"tab.reopen", "pane.close", "tab.close", "window.close"},
-		{"palette", "theme.pick", "workspace.open"},
-		{"sidebar.toggle", "sidebar.files", "sidebar.ssh", "sidebar.kube"},
-		{"find", "term.copyOutput", "term.clear", "secrets.toggle"},
+		{"palette", "theme.pick", "snippets.run", "workspace.open", "workspace.save", "findings.scan", "usage.show"},
+		{"sidebar.toggle", "sidebar.files", "sidebar.ssh", "sidebar.aws", "sidebar.kube", "sidebar.snippets", "sidebar.workspaces",
+			"sidebar.network", "sidebar.processes", "sidebar.history", "sidebar.pins", "sidebar.findings", "sidebar.share", "sidebar.generate"},
+		{"find", "term.copyOutput", "term.pinOutput", "term.clear", "secrets.toggle"},
+		{"record.toggle", "export.text", "export.markdown"},
 		{"font.bigger", "font.smaller", "font.reset"},
 		{"tab.overview", "tab.group", "broadcast.toggle", "pane.zoom", "pane.next", "pane.prev"},
 		{"help.shortcuts", "app.quit"},
@@ -688,6 +717,10 @@ func (w *Window) closeForGood() {
 	if w.sidebar != nil {
 		w.sidebar.drop()
 	}
+	if w.recClock != nil {
+		w.recClock.stop()
+	}
+	w.address.usage.stop()
 	w.unobserve()
 	name, store := w.name, w.app.be.Store
 	go func() { _ = store.Forget(name) }()
@@ -704,4 +737,12 @@ func (w *Window) quitting() {
 	}
 	w.saveNow(true)
 	w.closing = true
+}
+
+// scanFinished tells the Findings tab, if it shows, that a scanner finished
+// in some terminal.
+func (w *Window) scanFinished() {
+	if s, ok := w.sidePane().(interface{ scanFinished() }); ok {
+		s.scanFinished()
+	}
 }

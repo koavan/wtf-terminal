@@ -460,11 +460,44 @@ not the SSH tab's tunnel editor; row icons aren't tinted. Not checked
 headless: the Kubernetes Resources view against a real cluster, real SSH
 connections, the agent.
 
-### M5 — Side pane II ☐
+### M5 — Side pane II ☑
 
 AWS, Network, Processes (one shared poller: only the visible tab, only while a
 window is in front), Findings, History, Snippets, Pins, Share & Record,
 usage readout, Generate, Workspaces and the editor.
+
+**Status (2026-10-19): done and checked headless** (`WTF_NATIVE_DEBUG=panes`
+joins `task gtk:check`, with a test `~/.aws/config` and snippets file).
+
+What's built:
+
+- `uicore`: AWS, network and process, findings, history and pins, export
+  (names, Markdown transcripts), snippets and password rules, with the
+  macOS tests; `PromptTracker.Transcript`.
+- `gtkui`: the window's records (history, pins that follow a running
+  command, recordings, saved files) with Pin Output / Pin Selection, Start
+  and Stop Recording (GTK save dialog, REC pill in the address bar, a red dot
+  on the tab), Save Output as Text and Save Commands as Markdown; a shared
+  `poller` (only the visible tab, only while its window is in front, again
+  when it comes back); the History, Pinned, Share & Record, Network,
+  Processes, AWS Profiles, Generate Keys & Passwords, Findings (and Run
+  Security Scan), Snippets (run dialog, runbooks, editor) and Workspaces
+  (editor, Save Window as Workspace) tabs; the resource-usage readout and
+  dialog; Save as Snippet in block, history and pin menus; snippets in the
+  palette and its own Run Snippet mode. Network, Processes, AWS, snippets
+  and usage keep one store per app, so windows share one poll.
+- Side-pane form dialogs re-show after a failed save on the next main-loop
+  turn: a message dialog hides itself after its response handler returns.
+
+Not done here: the "Install…" links (tools dialog, M6); per-line colors in a
+row's alert and tinted row icons (`sideRow` has one alert line and no icon
+class); clickable process-group headings; a window-level tunnel editor (the
+Network and Generate tabs borrow the SSH tab's dialogs through a detached
+tab). Not checked headless: recording (needs the save dialog), the
+editors' Review/Confirm flows, AWS SSO and key rotation, killing processes.
+
+Benchmark (Xvfb, llvmpipe): idle 0.03 s CPU per 30 s, `seq` 0.51 s,
+coloured 0.96 s, `yes` 1.07 s, PSS 278–325 MiB (side pane closed: as M3).
 
 ### M6 — Viewers, tools, About, manual ☐
 

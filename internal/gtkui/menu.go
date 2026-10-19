@@ -205,8 +205,18 @@ func (p *Pane) blockItems(id int) []*menuItem {
 			}))
 		}
 	}
+	if b.HasOutput {
+		label := "Pin Output"
+		if b.Running() {
+			label = "Pin Output (follows it)"
+		}
+		items = append(items, item(label, func() { p.win.pinBlock(p, id) }))
+	}
 	if b.Text != "" && !b.Running() {
 		items = append(items, menuSection, item("Run Again", func() { p.runAgain(b.Text) }))
+	}
+	if b.Text != "" {
+		items = append(items, item("Save as Snippet…", func() { p.win.saveAsSnippet(b.Text) }))
 	}
 	return items
 }
@@ -239,7 +249,8 @@ func (p *Pane) contextMenu(x, y float64) {
 		}
 	}
 	if p.term.HasSelection() {
-		items = append(items, item("Copy", p.copySelection))
+		sel := p.term.Selection()
+		items = append(items, item("Copy", p.copySelection), item("Pin Selection", func() { p.win.pinSelection(p, sel) }))
 	}
 	hide := "Hide Secrets"
 	if p.win.app.settings.hide {
@@ -253,6 +264,8 @@ func (p *Pane) contextMenu(x, y float64) {
 		item("Clear", p.clearBuffer),
 		menuSection,
 		item(hide, p.toggleSecrets),
+		item(map[bool]string{true: "Stop Recording", false: "Start Recording…"}[p.win.isRecording(p.id)],
+			func() { p.win.toggleRecording(p) }),
 	)
 	onClose := func() {}
 	if highlighted {

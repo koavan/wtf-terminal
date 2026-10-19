@@ -24,6 +24,7 @@ func (w *Window) detach(id int) *movingTab {
 			moving.panes[p.session] = p
 			// It's the other window's now: this one doesn't hang it up.
 			delete(w.panes, leaf)
+			w.recordsPaneGone(leaf, true)
 			detachWidget(&p.root.Widget)
 		}
 	}
@@ -51,6 +52,7 @@ func (w *Window) adopt(tab *movingTab) int {
 		if p := tab.panes[ps.SessionID]; p != nil {
 			p.win, p.id = w, id
 			w.panes[id] = p
+			w.syncRecording(id)
 			_ = w.app.be.Terminal.Adopt(ps.SessionID, w.name)
 		}
 	}

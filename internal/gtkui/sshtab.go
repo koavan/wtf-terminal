@@ -731,7 +731,7 @@ type sshKeysSection struct {
 func newSSHKeysSection(t *sshTab) *sshKeysSection {
 	s := &sshKeysSection{t: t}
 	header := newPaneHeader("~/.ssh")
-	header.tool("list-add-symbolic", "New key", t.showKeyGen)
+	header.tool("list-add-symbolic", "New key", t.w.showGenerateKey)
 	s.reload = header.tool("view-refresh-symbolic", "Reload", t.loadKeys)
 	s.note = gtk.NewBox(gtk.OrientationVertical, 0)
 	s.list = newSideList(false)

@@ -24,6 +24,7 @@ const (
 	paletteCommands paletteMode = iota
 	paletteThemes
 	paletteWorkspaces
+	paletteSnippets
 )
 
 type paletteEntry struct {
@@ -74,6 +75,8 @@ func (p *palette) build() {
 		p.entry.SetPlaceholderText("Search themes…")
 	case paletteWorkspaces:
 		p.entry.SetPlaceholderText("Search workspaces…")
+	case paletteSnippets:
+		p.entry.SetPlaceholderText("Search snippets…")
 	default:
 		p.entry.SetPlaceholderText("Search commands, tabs and workspaces…")
 	}
@@ -144,7 +147,11 @@ func (p *palette) load() {
 		p.loadThemes()
 		return
 	case paletteWorkspaces:
-		p.entries = w.workspaceEntries()
+		p.entries = append(w.workspaceEntries(), paletteEntry{section: "Workspaces", label: "Save Window as Workspace…",
+			detail: "Its tabs, groups, splits, folders and running commands", run: w.saveWindowAsWorkspace})
+		return
+	case paletteSnippets:
+		p.entries = w.snippetEntries(true)
 		return
 	}
 	cmds := w.windowCommands()
@@ -190,6 +197,7 @@ func (p *palette) load() {
 			detail: fmt.Sprintf("%d tabs", len(m.TabsIn(g.ID))), run: func() { m.ToggleCollapsed(id) }})
 	}
 	p.entries = append(p.entries, w.workspaceEntries()...)
+	p.entries = append(p.entries, w.snippetEntries(false)...)
 }
 
 func (p *palette) loadThemes() {
@@ -241,7 +249,7 @@ func (p *palette) refilter() {
 		p.shown = append([]paletteEntry{}, p.entries...)
 		if p.mode != paletteThemes {
 			// Tabs and groups first: switching is what the palette is for most.
-			order = map[string]int{"Tabs": 0, "Groups": 1, "Commands": 2, "Workspaces": 3}
+			order = map[string]int{"Tabs": 0, "Groups": 1, "Commands": 2, "Workspaces": 3, "Snippets": 4}
 		}
 		sortStable(p.shown, func(a, b paletteEntry) bool { return order[a.section] < order[b.section] })
 	} else {

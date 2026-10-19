@@ -13,7 +13,9 @@ package gtkui
 //	tabs      tabs, splits, focus, zoom, groups, a busy background tab,
 //	          moving a tab to a new window; quits saving the session
 //	restore   run after tabs: the saved windows come back
-//	sidebar   the side pane: Files (tree, git, insert, cd)
+//	sidebar   the side pane: Files (tree, git, insert, cd), SSH, Kubernetes
+//	panes     the other side-pane tabs: History, Pins, Share, Network,
+//	          Processes, AWS, Generate, Findings, Snippets, Workspaces
 //	view      the overlay's rows match VTE's view once old rows are trimmed
 //	marks     OSC 133 marks stay on their prompts across feeds, rewraps
 //	          and scrollback trimming (no shell; synthetic output)
@@ -69,6 +71,8 @@ func (a *App) selfCheck(w *Window) {
 		w.checkRestore()
 	case "sidebar":
 		w.checkSidebar()
+	case "panes":
+		w.checkPanes()
 	default:
 		fmt.Printf("unknown WTF_NATIVE_DEBUG=%q\n", a.debug)
 		failed = true
@@ -1191,5 +1195,140 @@ contexts:
 
 	_ = xkey("ctrl+alt+k")
 	check(waitUntil(2*time.Second, func() bool { return w.sidebar == nil }), "Ctrl+Alt+K again closes the pane")
+	w.finish()
+}
+
+func (w *Window) checkPanes() {
+	p := w.active()
+	var mu sync.Mutex
+	var out bytes.Buffer
+	p.tap = func(b []byte) {
+		mu.Lock()
+		out.Write(b)
+		mu.Unlock()
+	}
+	seen := func(s string) bool {
+		mu.Lock()
+		defer mu.Unlock()
+		return bytes.Contains(out.Bytes(), []byte(s))
+	}
+	check(waitUntil(5*time.Second, func() bool { return paneReady(p) }), "shell ready")
+	home, _ := os.UserHomeDir()
+	_ = os.MkdirAll(filepath.Join(home, ".aws"), 0o700)
+	_ = os.WriteFile(filepath.Join(home, ".aws", "config"), []byte("[profile dev]\nregion = eu-west-1\n[profile ops]\nregion = us-east-1\nsso_start_url = https://example.awsapps.com/start\n"), 0o600)
+	p.write("echo first-cmd; sleep 0.3; echo history-ok\r")
+	check(waitUntil(5*time.Second, func() bool { return seen("history-ok\r\n") }), "ran a command")
+	time.Sleep(500 * time.Millisecond)
+
+	open := func(key string, want func(sidePaneTab) bool, name string) sidePaneTab {
+		_ = xkey(key)
+		var tab sidePaneTab
+		check(waitUntil(3*time.Second, func() bool {
+			tab = w.sidePane()
+			return tab != nil && want(tab)
+		}), "%s opens with %s", name, key)
+		return tab
+	}
+
+	// History: the command, with how it went.
+	open("ctrl+alt+h", func(t sidePaneTab) bool { _, ok := t.(*historyTab); return ok }, "History")
+	var cmds []string
+	check(waitUntil(3*time.Second, func() bool {
+		cmds = cmds[:0]
+		for _, e := range w.records.history.Of(p.id) {
+			cmds = append(cmds, e.Command)
+		}
+		return len(cmds) > 0 && strings.Contains(cmds[len(cmds)-1], "echo first-cmd")
+	}), "it lists the command: %q", cmds)
+	w.shot("panes-history")
+
+	// Pin the last output: the Pinned tab opens with it.
+	_ = xkey("ctrl+alt+i")
+	time.Sleep(300 * time.Millisecond)
+	onMain(w.pinLastOutput)
+	var pins []uicore.Pin
+	check(waitUntil(3*time.Second, func() bool {
+		pins = w.records.pins.List()
+		_, shown := w.sidePane().(*pinsTab)
+		return len(pins) == 1 && shown
+	}), "Pin Last Command Output pins it and shows the Pinned tab")
+	if len(pins) == 1 {
+		check(strings.Contains(pins[0].Text, "history-ok"), "with its output (%q)", pins[0].Text)
+	}
+	w.shot("panes-pins")
+
+	open("ctrl+alt+j", func(t sidePaneTab) bool { _, ok := t.(*shareTab); return ok }, "Share & Record")
+	w.shot("panes-share")
+
+	open("ctrl+alt+o", func(t sidePaneTab) bool { _, ok := t.(*networkTab); return ok }, "Network")
+	check(waitUntil(5*time.Second, func() bool { s := netStoreOf(w); return s.loaded || s.err != "" }), "it reads the connections (%s)", netStoreOf(w).err)
+	w.shot("panes-network")
+
+	open("ctrl+alt+a", func(t sidePaneTab) bool { _, ok := t.(*processTab); return ok }, "Processes")
+	check(waitUntil(5*time.Second, func() bool { s := procStoreOf(w); return s.loaded && len(s.list) > 0 }), "it lists processes (%d)", len(procStoreOf(w).list))
+	w.shot("panes-processes")
+
+	open("ctrl+alt+u", func(t sidePaneTab) bool { _, ok := t.(*awsTab); return ok }, "AWS Profiles")
+	var profiles []string
+	check(waitUntil(5*time.Second, func() bool {
+		profiles = profiles[:0]
+		for _, x := range awsStore.list.Profiles {
+			profiles = append(profiles, x.Name)
+		}
+		return awsStore.loaded && slices.Contains(profiles, "dev") && slices.Contains(profiles, "ops")
+	}), "it lists the profiles: %v", profiles)
+	w.shot("panes-aws")
+
+	g := open("ctrl+alt+g", func(t sidePaneTab) bool { _, ok := t.(*generateTab); return ok }, "Generate")
+	if gt, ok := g.(*generateTab); ok {
+		onMain(func() { w.sidebarState.GenerateSection = "password"; gt.show() })
+		check(waitUntil(2*time.Second, func() bool { return gt.pass != nil && len(gt.pass.password) >= 16 }), "it makes a password")
+	}
+	w.shot("panes-generate")
+
+	open("ctrl+alt+f", func(t sidePaneTab) bool { _, ok := t.(*findingsTab); return ok }, "Findings")
+	check(waitUntil(5*time.Second, func() bool {
+		f, ok := w.sidePane().(*findingsTab)
+		return ok && !f.loading && f.folder != ""
+	}), "it reads the findings for the folder")
+	w.shot("panes-findings")
+
+	// Snippets and Workspaces, from the user's snippets file.
+	cfg, _ := os.UserConfigDir()
+	_ = os.MkdirAll(filepath.Join(cfg, "wtf"), 0o755)
+	_ = os.WriteFile(filepath.Join(cfg, "wtf", "snippets.toml"), []byte(`
+[[snippet]]
+name = "Disk usage"
+command = "du -sh {{dir}}"
+[[workspace]]
+name = "Logs"
+[[workspace.tab]]
+command = "echo logs"
+`), 0o644)
+	open("ctrl+alt+y", func(t sidePaneTab) bool { _, ok := t.(*snippetsTab); return ok }, "Snippets")
+	var names []string
+	check(waitUntil(5*time.Second, func() bool {
+		names = names[:0]
+		for _, x := range snippetsShared.list.Snippets {
+			names = append(names, x.Name)
+		}
+		return snippetsShared.loaded && slices.Contains(names, "Disk usage")
+	}), "it lists the snippet: %v", names)
+	w.shot("panes-snippets")
+	open("ctrl+alt+w", func(t sidePaneTab) bool { _, ok := t.(*workspacesTab); return ok }, "Workspaces")
+	var listed int
+	check(waitUntil(5*time.Second, func() bool {
+		t, ok := w.sidePane().(*workspacesTab)
+		listed = 0
+		if ok {
+			for _, id := range t.list.ids {
+				if id != "" {
+					listed++
+				}
+			}
+		}
+		return listed >= 1
+	}), "it lists the workspace (%d)", listed)
+	w.shot("panes-workspaces")
 	w.finish()
 }

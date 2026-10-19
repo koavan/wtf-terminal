@@ -204,7 +204,9 @@ func (f *sshForm) setError(msg string) {
 // fail shows the error and the dialog again.
 func (f *sshForm) fail(msg string) {
 	f.setError(msg)
-	f.d.Present()
+	// A message dialog hides itself after its response handler returns:
+	// show it again after that.
+	onMainAsync(f.d.Present)
 }
 
 func (f *sshForm) close() { f.d.Destroy() }
@@ -1223,7 +1225,7 @@ func (t *sshTab) buildIdentityEditor(i *sshhosts.GitIdentity, keyPath string) {
 	newKey.SetHAlign(gtk.AlignStart)
 	newKey.ConnectClicked(func() {
 		f.close()
-		t.showKeyGen()
+		t.w.showGenerateKey()
 	})
 	f.add(newKey)
 	f.field("Commit as", author, "")

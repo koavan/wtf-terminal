@@ -27,6 +27,8 @@ type addressBar struct {
 	shape string
 	// The expiry clocks move on their own: redrawn every 15s while shown.
 	clock coreglib.SourceHandle
+	// CPU and memory, when show-usage is on (it shows and hides itself).
+	usage *usageReadout
 }
 
 func newAddressBar(w *Window) *addressBar {
@@ -37,6 +39,9 @@ func newAddressBar(w *Window) *addressBar {
 	a.root.AddCSSClass("wtf-address")
 	a.root.Append(a.box)
 	a.box.SetHExpand(true)
+	// Outside the box: refresh empties the box.
+	a.usage = newUsageReadout(w)
+	a.root.Append(a.usage.widget())
 	a.root.SetFocusable(false)
 	a.root.SetCanFocus(false)
 	return a
@@ -63,6 +68,11 @@ func (a *addressBar) refresh() {
 		}
 	}
 	shape := fmt.Sprintf("%v|%v|%v|%v|%v", ps != nil, group, badges, s.hide, s.theme().Dark)
+	if ps != nil {
+		if rec, ok := w.records.recording[ps.ID]; ok {
+			shape += fmt.Sprintf("|rec %d", int(time.Since(rec.since).Seconds()))
+		}
+	}
 	if ps != nil {
 		shape += fmt.Sprintf("|%s|%s|%v|%s|%v|%s", ps.Process, ps.Cwd, ps.IsShell, ps.Command, ps.Running, s.text(ps.Command))
 		if l := ps.LastCommand; l != nil {
@@ -121,6 +131,17 @@ func (a *addressBar) refresh() {
 	}
 	if st := a.status(ps); st != nil {
 		a.box.Append(st)
+	}
+	if rec, ok := w.records.recording[ps.ID]; ok {
+		b := gtk.NewButton()
+		b.SetChild(pill("● REC "+uicore.ExportElapsed(int(time.Since(rec.since).Seconds())), "wtf-pill-fail"))
+		b.AddCSSClass("flat")
+		b.AddCSSClass("wtf-pill-button")
+		b.SetFocusOnClick(false)
+		b.SetTooltipText("Recording to " + uicore.PrettyPath(rec.path, w.app.home) + ". Click to stop (Ctrl+Alt+Shift+S)")
+		id := ps.ID
+		b.ConnectClicked(func() { w.stopRecording(id) })
+		a.box.Append(b)
 	}
 	if s.hide {
 		b := gtk.NewButton()
