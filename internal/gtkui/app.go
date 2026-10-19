@@ -14,18 +14,25 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"maps"
 	"os"
 	"os/signal"
 	"path/filepath"
+	"strings"
 	"syscall"
 
 	"github.com/diamondburned/gotk4-adwaita/pkg/adw"
 	coreglib "github.com/diamondburned/gotk4/pkg/core/glib"
 	"github.com/diamondburned/gotk4/pkg/gio/v2"
 	"github.com/diamondburned/gotk4/pkg/glib/v2"
+	"github.com/diamondburned/gotk4/pkg/gtk/v4"
 
 	"github.com/dayanraj/wtf/internal/backend"
+	"github.com/dayanraj/wtf/internal/infra"
 	"github.com/dayanraj/wtf/internal/paths"
+	"github.com/dayanraj/wtf/internal/state"
+	"github.com/dayanraj/wtf/internal/terminal"
+	"github.com/dayanraj/wtf/internal/uicore"
 )
 
 // The application ID. Until the native app replaces the Wails one (M7) it
@@ -47,13 +54,20 @@ type App struct {
 	debug    string
 
 	windows []*Window
-	nextWin int
+	// Window names in the session file, not to be reused for new windows.
+	savedNames map[string]bool
+	started    bool
+	// Quitting was confirmed: windows close without asking and keep their
+	// sessions.
+	quitting bool
+	home     string
 }
 
 // Main runs the app and returns the exit status.
 func Main(build Build) int {
 	log.SetFlags(log.Ltime | log.Lmicroseconds)
-	a := &App{build: build, debug: os.Getenv("WTF_NATIVE_DEBUG")}
+	a := &App{build: build, debug: os.Getenv("WTF_NATIVE_DEBUG"), savedNames: map[string]bool{}}
+	a.home, _ = os.UserHomeDir()
 	flags := gio.ApplicationFlagsNone
 	if a.debug != "" {
 		// Self-checks run beside a real instance without joining it.
@@ -62,7 +76,7 @@ func Main(build Build) int {
 	a.gtk = adw.NewApplication(appID, flags)
 	// Startup runs only in the first instance; later ones just activate it.
 	a.gtk.ConnectStartup(a.startup)
-	a.gtk.ConnectActivate(func() { a.newWindow() })
+	a.gtk.ConnectActivate(a.activate)
 	a.gtk.ConnectShutdown(a.shutdown)
 
 	// A logout or `kill` quits like the Quit command does.
@@ -70,7 +84,7 @@ func Main(build Build) int {
 	signal.Notify(sig, syscall.SIGTERM, syscall.SIGHUP)
 	go func() {
 		<-sig
-		coreglib.IdleAdd(a.gtk.Quit)
+		coreglib.IdleAdd(a.quitNow)
 	}()
 	return a.gtk.Run(os.Args[:1])
 }
@@ -94,6 +108,26 @@ func (a *App) startup() {
 	log.Printf("wtf %s (%s), state %s, cache %s", a.build.Version, a.build.Commit, state, cache)
 	a.settings = newSettings(a)
 	a.installActions()
+	// Backend events for a shell go to the window it's in.
+	a.events.on(terminal.EventInfo, func(data any) {
+		if info, ok := data.(terminal.Info); ok {
+			if w := a.windowOf(info.ID); w != nil {
+				w.model.ApplyInfo(info.ID, info.Process, info.Cwd, info.IsShell)
+			}
+		}
+	})
+	a.events.on(infra.EventChanged, func(any) {
+		for _, w := range a.windows {
+			w.refreshContexts()
+		}
+	})
+	a.events.on(terminal.EventExit, func(data any) {
+		if e, ok := data.(terminal.ExitEvent); ok {
+			if w := a.windowOf(e.ID); w != nil {
+				w.model.SessionExited(e.ID)
+			}
+		}
+	})
 }
 
 func (a *App) shutdown() {
@@ -138,14 +172,58 @@ func profileDirs() (state, cache string, err error) {
 	return state, cache, nil
 }
 
-// newWindow opens a window with one shell.
-func (a *App) newWindow() *Window {
+// activate opens the saved windows at the first launch, and a fresh window
+// when wtf-gtk is started again.
+func (a *App) activate() {
 	if a.be == nil {
-		return nil
+		return
 	}
-	a.nextWin++
-	w := newWindow(a, fmt.Sprintf("w%d", a.nextWin))
+	if a.started {
+		a.openWindowWith(windowStart{})
+		return
+	}
+	a.started = true
+	var saved []state.Window
+	if a.debug == "" || a.debug == "restore" {
+		saved = a.be.Store.Windows()
+	}
+	var sessions []*uicore.SavedSession
+	for _, sw := range saved {
+		a.savedNames[sw.Name] = true
+		s, err := uicore.ParseSavedSession(sw.Session)
+		if err != nil {
+			sessions = append(sessions, nil)
+			continue
+		}
+		sessions = append(sessions, &s)
+	}
+	if len(sessions) > 0 && sessions[0] != nil && sessions[0].FontSize != nil {
+		a.settings.setFontSize(*sessions[0].FontSize)
+	}
+	if len(saved) == 0 {
+		a.openWindow("main", windowStart{})
+	}
+	for i, sw := range saved {
+		a.openWindow(sw.Name, windowStart{session: sessions[i]})
+	}
+}
+
+// windowStart is what a window opens with: a saved session, a tab from
+// another window, a workspace, or (when empty) one fresh tab.
+type windowStart struct {
+	session *uicore.SavedSession
+	tab     *movingTab
+	plan    *uicore.Plan
+}
+
+// openWindowWith opens a new window, named the next free w<i>.
+func (a *App) openWindowWith(start windowStart) *Window { return a.openWindow(a.newName(), start) }
+
+// openWindow opens a window by name.
+func (a *App) openWindow(name string, start windowStart) *Window {
+	w := newWindow(a, name)
 	a.windows = append(a.windows, w)
+	w.bootstrap(start)
 	w.win.Present()
 	if len(a.windows) == 1 && a.debug != "" {
 		// Checks may close every window; the app quits when they're done.
@@ -155,6 +233,39 @@ func (a *App) newWindow() *Window {
 	return w
 }
 
+// newName is the lowest w<i> (i ≥ 2) not open and not in the session file.
+func (a *App) newName() string {
+	taken := maps.Clone(a.savedNames)
+	for _, w := range a.windows {
+		taken[w.name] = true
+	}
+	i := 2
+	for taken[fmt.Sprintf("w%d", i)] {
+		i++
+	}
+	return fmt.Sprintf("w%d", i)
+}
+
+// window finds an open window by name.
+func (a *App) window(name string) *Window {
+	for _, w := range a.windows {
+		if w.name == name {
+			return w
+		}
+	}
+	return nil
+}
+
+// windowOf finds the window a backend session is in.
+func (a *App) windowOf(session string) *Window {
+	for _, w := range a.windows {
+		if w.owns(session) {
+			return w
+		}
+	}
+	return nil
+}
+
 func (a *App) windowClosed(w *Window) {
 	for i, x := range a.windows {
 		if x == w {
@@ -162,8 +273,101 @@ func (a *App) windowClosed(w *Window) {
 			break
 		}
 	}
+	delete(a.savedNames, w.name)
 	a.be.Active.Forget(w.name)
 	a.be.Terminal.CloseWindow(w.name)
+}
+
+// quit asks first when programs are running in any window.
+func (a *App) quit() {
+	go func() {
+		running := a.be.Terminal.RunningProcesses()
+		coreglib.IdleAdd(func() {
+			if len(running) == 0 {
+				a.quitNow()
+				return
+			}
+			body := "A program is still running. Quitting will end it."
+			if n := len(running); n > 1 {
+				body = fmt.Sprintf("%d programs are still running. Quitting will end them.", n)
+			}
+			var lines []string
+			for i, r := range running {
+				if i == 6 {
+					lines = append(lines, fmt.Sprintf("and %d more", len(running)-6))
+					break
+				}
+				lines = append(lines, r.Process+" — "+uicore.PrettyPath(r.Cwd, a.home))
+			}
+			var parent *gtk.Window
+			if w := a.front(); w != nil {
+				parent = &w.win.Window
+			}
+			a.confirm(parent, "Quit wtf?", body+"\n\n"+strings.Join(lines, "\n"), "Quit", a.quitNow)
+		})
+	}()
+}
+
+// quitNow saves every window's session, which stays for the next launch,
+// and quits.
+func (a *App) quitNow() {
+	a.quitting = true
+	for _, w := range a.windows {
+		w.quitting()
+	}
+	a.gtk.Quit()
+}
+
+// front is the window in front, or the first one.
+func (a *App) front() *Window {
+	for _, w := range a.windows {
+		if w.win.IsActive() {
+			return w
+		}
+	}
+	if len(a.windows) > 0 {
+		return a.windows[0]
+	}
+	return nil
+}
+
+// confirm asks before something that can't be undone; the button is
+// shown as destructive.
+func (a *App) confirm(parent *gtk.Window, title, body, button string, action func()) {
+	d := adw.NewMessageDialog(parent, title, body)
+	d.AddResponse("cancel", "Cancel")
+	d.AddResponse("ok", button)
+	d.SetResponseAppearance("ok", adw.ResponseDestructive)
+	d.SetDefaultResponse("cancel")
+	d.SetCloseResponse("cancel")
+	d.ConnectResponse(func(r string) {
+		if r == "ok" {
+			action()
+		}
+	})
+	a.debugLog("confirm: %s", title)
+	d.Present()
+}
+
+// ask asks for a line of text.
+func (a *App) ask(parent *gtk.Window, title, body, initial, button string, done func(string)) {
+	d := adw.NewMessageDialog(parent, title, body)
+	entry := gtk.NewEntry()
+	entry.SetText(initial)
+	entry.SetActivatesDefault(true)
+	d.SetExtraChild(entry)
+	d.AddResponse("cancel", "Cancel")
+	d.AddResponse("ok", button)
+	d.SetResponseAppearance("ok", adw.ResponseSuggested)
+	d.SetDefaultResponse("ok")
+	d.SetCloseResponse("cancel")
+	d.ConnectResponse(func(r string) {
+		if r == "ok" {
+			done(entry.Text())
+		}
+	})
+	d.Present()
+	entry.GrabFocus()
 }
 
 // installActions adds the app-wide commands as "app." actions. Windows add
@@ -174,13 +378,17 @@ func (a *App) installActions() {
 		act.ConnectActivate(func(*glib.Variant) { run() })
 		a.gtk.AddAction(act)
 	}
-	add("window.new", func() { a.newWindow() })
-	add("app.quit", a.gtk.Quit)
+	add("window.new", func() { a.openWindowWith(windowStart{}) })
+	add("app.quit", a.quit)
 }
 
-// onMain runs f on the GTK main loop and waits for it. Not for use on the
-// main loop itself.
+// onMain runs f on the GTK main loop and waits for it (at once when
+// already there).
 func onMain(f func()) {
+	if glib.MainContextDefault().IsOwner() {
+		f()
+		return
+	}
 	done := make(chan struct{})
 	coreglib.IdleAdd(func() {
 		f()
@@ -189,16 +397,13 @@ func onMain(f func()) {
 	<-done
 }
 
+// onMainAsync runs f on the GTK main loop, later.
+func onMainAsync(f func()) { coreglib.IdleAdd(f) }
+
 // toast shows a message in the window in front.
 func (a *App) toast(msg string) {
-	for _, w := range a.windows {
-		if w.win.IsActive() {
-			w.toast(msg)
-			return
-		}
-	}
-	if len(a.windows) > 0 {
-		a.windows[0].toast(msg)
+	if w := a.front(); w != nil {
+		w.toast(msg)
 	}
 }
 

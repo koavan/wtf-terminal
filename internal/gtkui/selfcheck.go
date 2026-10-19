@@ -10,6 +10,9 @@ package gtkui
 //	          bin/gtk/snapshots), to check layouts without a desktop
 //	terminal  command blocks, copy last output, Hide Secrets covers, find,
 //	          paste confirmation, clear, prompt jumps; snapshots of each
+//	tabs      tabs, splits, focus, zoom, groups, a busy background tab,
+//	          moving a tab to a new window; quits saving the session
+//	restore   run after tabs: the saved windows come back
 //	view      the overlay's rows match VTE's view once old rows are trimmed
 //	marks     OSC 133 marks stay on their prompts across feeds, rewraps
 //	          and scrollback trimming (no shell; synthetic output)
@@ -35,6 +38,7 @@ import (
 
 	"github.com/diamondburned/gotk4/pkg/gio/v2"
 	"github.com/diamondburned/gotk4/pkg/graphene"
+	"github.com/diamondburned/gotk4/pkg/gtk/v4"
 
 	"github.com/dayanraj/wtf/internal/events"
 	"github.com/dayanraj/wtf/internal/uicore"
@@ -55,6 +59,10 @@ func (a *App) selfCheck(w *Window) {
 		w.checkView()
 	case "terminal":
 		w.checkTerminal()
+	case "tabs":
+		w.checkTabs()
+	case "restore":
+		w.checkRestore()
 	default:
 		fmt.Printf("unknown WTF_NATIVE_DEBUG=%q\n", a.debug)
 		failed = true
@@ -114,7 +122,7 @@ func (w *Window) checkApp() {
 	check(ok && inOrder && onLoop, "100 events delivered in order on the main loop (%d)", len(got))
 
 	// The shell is up; shortcuts beat VTE to the keys.
-	check(waitUntil(5*time.Second, func() bool { return w.pane.sess != nil && len(a.be.Terminal.ShellPIDs()) == 1 }), "shell started")
+	check(waitUntil(5*time.Second, func() bool { return w.active().sess != nil && len(a.be.Terminal.ShellPIDs()) == 1 }), "shell started")
 	time.Sleep(time.Second)
 	var size float64
 	base := a.settings.config().FontSize
@@ -133,7 +141,7 @@ func (w *Window) checkApp() {
 	// Typing still reaches the shell: Ctrl+letter is the shell's.
 	var mu sync.Mutex
 	var out bytes.Buffer
-	w.pane.tap = func(b []byte) {
+	w.active().tap = func(b []byte) {
 		mu.Lock()
 		out.Write(b)
 		mu.Unlock()
@@ -185,7 +193,7 @@ func (w *Window) finish() {
 func (w *Window) settle() {
 	for {
 		var busy bool
-		onMain(func() { busy = w.pane.feed.busy() })
+		onMain(func() { busy = w.active().feed.busy() })
 		if !busy {
 			time.Sleep(100 * time.Millisecond) // VTE parses the last feed this frame
 			return
@@ -211,9 +219,9 @@ func (w *Window) verify(stage string) {
 	var n int
 	onMain(func() {
 		k := -1
-		for _, mk := range w.pane.tracker.Blocks(0, 1<<30) {
+		for _, mk := range w.active().tracker.Blocks(0, 1<<30) {
 			n++
-			line := w.pane.term.Row(mk.Row)
+			line := w.active().term.Row(mk.Row)
 			// The prompt number: marks are in order, but trimming drops
 			// the oldest, so read it from the first mark.
 			var got int
@@ -232,12 +240,12 @@ func (w *Window) verify(stage string) {
 
 func (w *Window) resizeTo(width int) (cols int, took time.Duration) {
 	var before int
-	onMain(func() { before = w.pane.term.Columns() })
+	onMain(func() { before = w.active().term.Columns() })
 	start := time.Now()
 	onMain(func() { w.win.SetDefaultSize(width, 600) })
 	deadline := time.Now().Add(3 * time.Second)
 	for time.Now().Before(deadline) {
-		onMain(func() { cols = w.pane.term.Columns() })
+		onMain(func() { cols = w.active().term.Columns() })
 		if cols != before {
 			break
 		}
@@ -249,7 +257,7 @@ func (w *Window) resizeTo(width int) (cols int, took time.Duration) {
 func (w *Window) checkMarks() {
 	time.Sleep(500 * time.Millisecond) // mapped and allocated
 	var cols int
-	onMain(func() { cols = w.pane.term.Columns() })
+	onMain(func() { cols = w.active().term.Columns() })
 	fmt.Printf("grid %d columns\n", cols)
 
 	const prompts = 40
@@ -258,10 +266,10 @@ func (w *Window) checkMarks() {
 		all.WriteString(promptBlock(k))
 	}
 	// One push, so the feeder has to cut it at every mark.
-	w.pane.feed.push(all.Bytes())
+	w.active().feed.push(all.Bytes())
 	w.settle()
 	var n int
-	onMain(func() { n = len(w.pane.lines.Markers()) })
+	onMain(func() { n = len(w.active().lines.Markers()) })
 	check(n == prompts*3, "recorded %d marks for %d prompts", n, prompts)
 	w.verify("after feeding")
 
@@ -276,24 +284,24 @@ func (w *Window) checkMarks() {
 	w.verify("after rewrap to wider")
 
 	// Scrollback trimming: a small scrollback, then lots of output.
-	onMain(func() { w.pane.term.SetScrollback(300) })
+	onMain(func() { w.active().term.SetScrollback(300) })
 	var more bytes.Buffer
 	for k := prompts; k < prompts+60; k++ {
 		more.WriteString(promptBlock(k))
 	}
-	w.pane.feed.push(more.Bytes())
+	w.active().feed.push(more.Bytes())
 	w.settle()
 	var row0 string
 	var total int
 	onMain(func() {
-		row0 = w.pane.term.Row(0)
-		total = len(w.pane.lines.Markers())
-		w.pane.lines.Prune()
+		row0 = w.active().term.Row(0)
+		total = len(w.active().lines.Markers())
+		w.active().lines.Prune()
 	})
 	check(row0 == "", "scrollback trimmed: row 0 is gone (%q)", row0)
 	w.verify("after trimming")
 	var kept int
-	onMain(func() { kept = len(w.pane.lines.Markers()) })
+	onMain(func() { kept = len(w.active().lines.Markers()) })
 	fmt.Printf("marks kept %d of %d\n", kept, total)
 
 	c3, took := w.resizeTo(600)
@@ -334,7 +342,7 @@ func childNamed(ppid int, name string) int {
 func (w *Window) checkSignals() {
 	var mu sync.Mutex
 	var out bytes.Buffer
-	w.pane.tap = func(b []byte) {
+	w.active().tap = func(b []byte) {
 		mu.Lock()
 		out.Write(b)
 		mu.Unlock()
@@ -360,25 +368,25 @@ func (w *Window) checkSignals() {
 	fmt.Printf("shell SigIgn %s\n", ign)
 
 	// Ctrl-C stops a foreground program.
-	_, _ = w.pane.sess.Write([]byte("sleep 300\r"))
+	_, _ = w.active().sess.Write([]byte("sleep 300\r"))
 	time.Sleep(500 * time.Millisecond)
 	sleeper := childNamed(shell, "sleep")
 	check(sleeper > 0, "sleep 300 running (pid %d)", sleeper)
 	check(strings.Trim(procStatus(sleeper, "SigBlk"), "0") == "", "its signal mask is empty")
-	_, _ = w.pane.sess.Write([]byte{0x03})
+	_, _ = w.active().sess.Write([]byte{0x03})
 	time.Sleep(300 * time.Millisecond)
 	check(procStatus(sleeper, "Name") == "", "Ctrl-C stopped it")
 
 	// A resize reaches the program in the foreground.
-	_, _ = w.pane.sess.Write([]byte(`sh -c 'trap "echo GOT-WINCH-\$(tput cols)" WINCH; while :; do sleep 0.1; done'` + "\r"))
+	_, _ = w.active().sess.Write([]byte(`sh -c 'trap "echo GOT-WINCH-\$(tput cols)" WINCH; while :; do sleep 0.1; done'` + "\r"))
 	time.Sleep(500 * time.Millisecond)
 	onMain(func() { w.win.SetDefaultSize(600, 500) })
 	check(waitFor("GOT-WINCH-", 3*time.Second), "SIGWINCH reached the program")
-	_, _ = w.pane.sess.Write([]byte{0x03})
+	_, _ = w.active().sess.Write([]byte{0x03})
 	time.Sleep(300 * time.Millisecond)
 
 	// Left running: quitting must kill it (the caller checks).
-	_, _ = w.pane.sess.Write([]byte("sleep 777\r"))
+	_, _ = w.active().sess.Write([]byte("sleep 777\r"))
 	time.Sleep(500 * time.Millisecond)
 	fmt.Printf("left running: sleep pid %d\n", childNamed(shell, "sleep"))
 	w.finish()
@@ -387,7 +395,7 @@ func (w *Window) checkSignals() {
 // checkView: the overlay's rows match VTE's view once the scrollback is
 // full and trimming (no shell; synthetic output).
 func (w *Window) checkView() {
-	p := w.pane
+	p := w.active()
 	time.Sleep(500 * time.Millisecond)
 	onMain(func() { p.term.SetScrollback(100) })
 	var b strings.Builder
@@ -427,14 +435,21 @@ func (w *Window) shot(name string) {
 		dir = "bin/gtk/snapshots"
 	}
 	_ = os.MkdirAll(dir, 0o755)
-	onMain(func() {
-		path, err := w.snapshot(filepath.Join(dir, name+".png"))
-		fmt.Printf("snapshot %s %v\n", path, err)
-	})
+	// A frame being drawn can make the renderer refuse: try again.
+	for try := 0; try < 5; try++ {
+		var err error
+		var path string
+		onMain(func() { path, err = w.snapshot(filepath.Join(dir, name+".png")) })
+		if err == nil || try == 4 {
+			fmt.Printf("snapshot %s %v\n", path, err)
+			return
+		}
+		time.Sleep(200 * time.Millisecond)
+	}
 }
 
 func (w *Window) checkTerminal() {
-	a, p := w.app, w.pane
+	a, p := w.app, w.active()
 	var mu sync.Mutex
 	var out bytes.Buffer
 	p.tap = func(b []byte) {
@@ -503,6 +518,30 @@ func (w *Window) checkTerminal() {
 		check(false, "clipboard read timed out")
 	}
 
+	// The address bar: a git repository's badge, the last command's result.
+	check(run("mkdir -p /tmp/repo && cd /tmp/repo && git init -q -b trunk && echo in-repo", "in-repo\r\n"), "made a git repository")
+	var badges []uicore.Badge
+	check(waitUntil(5*time.Second, func() bool {
+		if ctx := w.infra[p.id]; ctx != nil {
+			badges = uicore.BadgesOf(*ctx, time.Now())
+		}
+		for _, b := range badges {
+			if b.Kind == "git" && strings.Contains(b.Label, "trunk") {
+				return true
+			}
+		}
+		return false
+	}), "the address bar shows the git branch: %+v", badges)
+	var cwd string
+	var last *uicore.LastCommand
+	onMain(func() {
+		if ps := w.model.Panes[p.id]; ps != nil {
+			cwd, last = ps.Cwd, ps.LastCommand
+		}
+	})
+	check(cwd == "/tmp/repo" && last != nil && last.ExitCode == 0, "and the folder (%s) and a successful last command", cwd)
+	w.shot("terminal-address")
+
 	// Hide Secrets: the token is covered, on the right cells.
 	check(run("echo export GITHUB_TOKEN=abc123def456", "abc123def456\r\n"), "printed a secret")
 	_ = xkey("ctrl+alt+shift+r")
@@ -541,7 +580,7 @@ func (w *Window) checkTerminal() {
 				// The block's prompt row, in the window, for the click below.
 				pt, _ := p.term.ComputePoint(w.win, graphene.NewPointAlloc().Init(float32(x), float32(y-float64(ch))))
 				// The X window also holds the surface's shadow margin.
-				tx, ty := w.pane.term.Native().SurfaceTransform()
+				tx, ty := w.active().term.Native().SurfaceTransform()
 				winX, winY = int(float64(pt.X())+tx), int(float64(pt.Y())+ty)
 			}
 		}
@@ -560,7 +599,9 @@ func (w *Window) checkTerminal() {
 	var status string
 	check(waitUntil(3*time.Second, func() bool {
 		status = p.find.status.Text()
-		return strings.HasSuffix(status, " of 5")
+		var cur, total int
+		_, err := fmt.Sscanf(status, "%d of %d", &cur, &total)
+		return err == nil && total >= 5
 	}), "Find counts the matches: %q", status)
 	var found int
 	onMain(func() { found = len(p.over.found) })
@@ -624,4 +665,342 @@ func (w *Window) checkTerminal() {
 	check(waitUntil(5*time.Second, func() bool { _, r := p.tracker.Running(); return !r && !p.feed.busy() }), "to the end")
 
 	w.finish()
+}
+
+// paneReady says a pane's shell has shown a prompt. Main loop only.
+func paneReady(p *Pane) bool {
+	return p != nil && p.session != "" && len(p.tracker.Blocks(0, 1<<30)) > 0
+}
+
+func (w *Window) checkTabs() {
+	a, m := w.app, w.model
+	count := func() (tabs, panes int) {
+		onMain(func() { tabs, panes = len(m.Tabs()), len(m.Panes) })
+		return
+	}
+	check(waitUntil(5*time.Second, func() bool { return paneReady(w.active()) }), "first shell ready")
+
+	_ = xkey("ctrl+shift+t")
+	_ = xkey("ctrl+shift+t")
+	check(waitUntil(3*time.Second, func() bool { t, _ := count(); return t == 3 }), "Ctrl+Shift+T twice: 3 tabs")
+	_ = xkey("ctrl+shift+d")
+	_ = xkey("ctrl+alt+shift+d")
+	check(waitUntil(3*time.Second, func() bool { _, p := count(); return p == 5 }), "split right and down: 5 panes")
+	var leaves []int
+	onMain(func() { t, _ := m.Active(); leaves = t.Root.Leaves() })
+	check(len(leaves) == 3, "the active tab has 3 panes: %v", leaves)
+	check(waitUntil(5*time.Second, func() bool {
+		ok := true
+		onMain(func() {
+			for _, id := range leaves {
+				ok = ok && w.panes[id] != nil && w.panes[id].session != ""
+			}
+		})
+		return ok
+	}), "each pane has a shell")
+	time.Sleep(500 * time.Millisecond)
+	w.shot("tabs-splits")
+
+	// Focus moves between panes; the focused one has the keyboard.
+	var focused int
+	onMain(func() { focused = m.ActivePane().ID })
+	check(focused == leaves[2], "the newest pane has the focus")
+	_ = xkey("alt+Left")
+	check(waitUntil(2*time.Second, func() bool {
+		onMain(func() { focused = m.ActivePane().ID })
+		return focused == leaves[0]
+	}), "Alt+Left focuses the left pane (%d)", focused)
+	var hasKeys bool
+	onMain(func() { hasKeys = w.panes[focused].term.HasFocus() })
+	check(hasKeys, "and gives it the keyboard")
+	_ = xkey("ctrl+shift+Return")
+	check(waitUntil(2*time.Second, func() bool {
+		var z int
+		onMain(func() { t, _ := m.Active(); z = t.ZoomedPaneID })
+		return z == leaves[0]
+	}), "Ctrl+Shift+Enter zooms it")
+	_ = xkey("ctrl+shift+Return")
+
+	// Groups: a group with two tabs, folded and unfolded.
+	var g int
+	onMain(func() {
+		tabs := m.Tabs()
+		g = m.CreateGroup(tabs[0].ID)
+		m.AddToGroup(tabs[1].ID, g)
+		name := "api"
+		m.SetGroup(g, &name, nil)
+	})
+	time.Sleep(300 * time.Millisecond)
+	w.shot("tabs-group")
+	var chips int
+	onMain(func() {
+		for c := w.strip.tabs.FirstChild(); c != nil; c = gtk.BaseWidget(c).NextSibling() {
+			if gtk.BaseWidget(c).HasCSSClass("wtf-chip") {
+				chips++
+			}
+		}
+	})
+	check(chips == 1, "the strip shows the group's chip")
+
+	// The palette: type a command's name, Enter runs it.
+	var panesBefore int
+	onMain(func() { panesBefore = len(m.Panes) })
+	_ = xkey("ctrl+shift+p")
+	check(waitUntil(2*time.Second, func() bool { return w.palette != nil }), "Ctrl+Shift+P opens the palette")
+	_ = exec.Command("xdotool", "type", "--delay", "20", "split right").Run()
+	time.Sleep(300 * time.Millisecond)
+	var top string
+	onMain(func() {
+		if w.palette != nil && len(w.palette.shown) > 0 {
+			top = w.palette.shown[0].label
+		}
+	})
+	check(top == "Split Right", "the best match is %q", top)
+	w.shot("tabs-palette")
+	_ = xkey("Return")
+	check(waitUntil(3*time.Second, func() bool { return w.palette == nil && len(m.Panes) == panesBefore+1 }), "Enter runs it")
+	// Themes preview as you move, and Escape puts the theme back.
+	onMain(func() { w.togglePalette(paletteThemes) })
+	time.Sleep(200 * time.Millisecond)
+	_ = xkey("Down")
+	_ = xkey("Down")
+	var previewing string
+	check(waitUntil(2*time.Second, func() bool {
+		if pv := a.settings.previewing; pv != nil {
+			previewing = pv.Name
+		}
+		return a.settings.previewing != nil
+	}), "moving through themes previews them (%s)", previewing)
+	w.shot("tabs-theme-preview")
+	_ = xkey("Escape")
+	check(waitUntil(2*time.Second, func() bool { return w.palette == nil && a.settings.previewing == nil }), "Escape puts the theme back")
+
+	// Broadcast: typing in one split pane reaches the others.
+	onMain(func() { m.Activate(m.Tabs()[2].ID) })
+	time.Sleep(300 * time.Millisecond)
+	var targets []int
+	_ = xkey("ctrl+alt+shift+b")
+	check(waitUntil(2*time.Second, func() bool {
+		targets = w.broadcastTargets(w.active().id)
+		return len(targets) > 0
+	}), "Ctrl+Alt+Shift+B broadcasts to the tab's other panes (%v)", targets)
+	_ = exec.Command("xdotool", "type", "--delay", "20", "echo broadcast-ok").Run()
+	_ = xkey("Return")
+	reached := 0
+	check(waitUntil(5*time.Second, func() bool {
+		reached = 0
+		t, _ := m.Active()
+		for _, id := range t.Root.Leaves() {
+			if p := w.panes[id]; p != nil {
+				top, _ := p.top()
+				for r := top; r < top+p.term.Rows(); r++ {
+					if strings.TrimSpace(p.term.Row(r)) == "broadcast-ok" {
+						reached++
+						break
+					}
+				}
+			}
+		}
+		return reached == len(t.Root.Leaves())
+	}), "the command ran in every pane of the tab (%d)", reached)
+	w.shot("tabs-broadcast")
+	_ = xkey("ctrl+alt+shift+b")
+	check(waitUntil(2*time.Second, func() bool { return !w.broadcast.on() }), "and stops")
+
+	// A background tab keeps its shell busy: output and prompt marks arrive
+	// while it's hidden.
+	onMain(func() { m.Activate(m.Tabs()[0].ID) })
+	time.Sleep(300 * time.Millisecond)
+	bg := w.active()
+	var before int
+	onMain(func() { before = len(bg.tracker.Blocks(0, 1<<30)) })
+	bg.write("sleep 1; for i in $(seq 1 2000); do echo background-$i; done\r")
+	onMain(func() { m.Activate(m.Tabs()[2].ID) })
+	var mapped bool
+	onMain(func() { mapped = bg.term.Mapped() })
+	check(!mapped, "the first tab is hidden")
+	check(waitUntil(15*time.Second, func() bool {
+		var n int
+		onMain(func() { n = len(bg.tracker.Blocks(0, 1<<30)) })
+		return n >= before+1 && !bg.feed.busy()
+	}), "its command finished while hidden, with its marks")
+	var activity bool
+	onMain(func() { t := m.Tabs()[0]; activity = t.Activity || t.Finished != nil })
+	check(activity, "its tab shows there was output")
+	var out string
+	onMain(func() {
+		for _, b := range bg.tracker.Blocks(0, 1<<30) {
+			if strings.HasPrefix(b.Block.Text, "sleep") {
+				out, _ = bg.tracker.Output(b.Block.ID)
+			}
+		}
+	})
+	check(strings.HasSuffix(out, "background-2000"), "all of its output arrived (%d bytes)", len(out))
+	w.shot("tabs-activity")
+
+	// Show All Tabs: a card per tab; Enter opens the one searched for.
+	_ = xkey("ctrl+bar")
+	var cards int
+	check(waitUntil(2*time.Second, func() bool {
+		if w.overviewShown != nil {
+			cards = len(w.overviewShown.shown)
+		}
+		return cards == len(m.Tabs())
+	}), "Ctrl+Shift+\\ shows %d cards", cards)
+	w.shot("tabs-overview")
+	_ = xkey("Escape")
+	check(waitUntil(2*time.Second, func() bool { return w.overviewShown == nil }), "Escape closes it")
+	check(waitUntil(2*time.Second, func() bool { p := w.active(); return p != nil && p.term.HasFocus() }),
+		"and the terminal has the keyboard again")
+
+	// The shortcuts window lists the keymap.
+	_ = xkey("ctrl+question")
+	check(waitUntil(3*time.Second, func() bool { return w.shortcuts != nil && w.shortcuts.IsVisible() }),
+		"Ctrl+? shows the keyboard shortcuts")
+	w.shot("tabs-shortcuts")
+	onMain(func() {
+		if w.shortcuts != nil {
+			w.shortcuts.Close()
+		}
+	})
+
+	// A tab moves to a new window with its shell.
+	var shell string
+	onMain(func() { shell = w.active().session })
+	_ = xkey("ctrl+shift+n")
+	check(waitUntil(3*time.Second, func() bool { return len(a.windows) == 2 }), "a second window")
+	onMain(func() { w.win.Present() })
+	time.Sleep(300 * time.Millisecond)
+	onMain(func() { w.moveToNewWindow(m.ActiveID()) })
+	check(waitUntil(3*time.Second, func() bool { return len(a.windows) == 3 }), "Move to New Window opens a window")
+	var moved *Window
+	onMain(func() { moved = a.windows[2] })
+	var same bool
+	onMain(func() {
+		p := moved.active()
+		same = p != nil && p.session == shell && moved.owns(shell) && !w.owns(shell)
+	})
+	check(same, "with the same shell (%s)", shell)
+	t, _ := count()
+	check(t == 2, "the first window has %d tabs left", t)
+
+	// A workspace from the snippets file opens here, its placeholder filled.
+	// Late: Xvfb has no window manager to give the keyboard back after its
+	// dialog.
+	cfg, _ := os.UserConfigDir()
+	_ = os.MkdirAll(filepath.Join(cfg, "wtf"), 0o755)
+	_ = os.WriteFile(filepath.Join(cfg, "wtf", "snippets.toml"), []byte(`
+[[workspace]]
+name = "Checks"
+[[workspace.tab]]
+title = "logs"
+group = "ws"
+color = "green"
+command = "echo ws-{{word}}"
+[[workspace.tab]]
+layout = "column"
+[[workspace.tab.pane]]
+command = "echo pane-one"
+[[workspace.tab.pane]]
+command = "echo pane-two"
+[workspace.params.word]
+default = "hello"
+`), 0o644)
+	tabsBefore := len(m.Tabs())
+	_ = xkey("Escape")
+	onMain(func() { w.togglePalette(paletteWorkspaces) })
+	var found string
+	check(waitUntil(2*time.Second, func() bool {
+		if w.palette != nil && len(w.palette.shown) > 0 {
+			found = w.palette.shown[0].label
+		}
+		return found == "Checks"
+	}), "the workspaces palette lists it (%q)", found)
+	// Another window has the keyboard by now: pick it as Enter would.
+	onMain(func() {
+		if w.palette != nil {
+			w.palette.run(0)
+		}
+	})
+	check(waitUntil(2*time.Second, func() bool { return w.workspaceDialog != nil }), "choosing it asks for its values")
+	w.shot("tabs-workspace")
+	onMain(func() {
+		if w.workspaceDialog != nil {
+			w.workspaceDialog.Response("here")
+		}
+	})
+	check(waitUntil(5*time.Second, func() bool { return len(m.Tabs()) == tabsBefore+2 }), "Open Here adds its 2 tabs")
+	var wsGroup string
+	var wsPanes int
+	onMain(func() {
+		tabs := m.Tabs()
+		if len(tabs) >= 2 {
+			if g, ok := m.Group(tabs[len(tabs)-2].GroupID); ok {
+				wsGroup = g.Name + " " + string(g.Color)
+			}
+			wsPanes = len(tabs[len(tabs)-1].Root.Leaves())
+		}
+	})
+	check(wsGroup == "ws green" && wsPanes == 2, "in its group (%q), the second split in 2 (%d)", wsGroup, wsPanes)
+	check(waitUntil(8*time.Second, func() bool {
+		tabs := m.Tabs()
+		p := w.panes[tabs[len(tabs)-2].FocusedPaneID]
+		if p == nil {
+			return false
+		}
+		top, _ := p.top()
+		for r := top; r < top+p.term.Rows(); r++ {
+			if strings.TrimSpace(p.term.Row(r)) == "ws-hello" {
+				return true
+			}
+		}
+		return false
+	}), "its startup command ran with the default value")
+	onMain(func() {
+		tabs := m.Tabs()
+		m.CloseMany([]int{tabs[len(tabs)-2].ID, tabs[len(tabs)-1].ID})
+	})
+
+	// Quit saves every window's session.
+	w.quitAndFinish()
+}
+
+func (w *Window) checkRestore() {
+	a := w.app
+	check(waitUntil(5*time.Second, func() bool { return len(a.windows) == 3 }), "3 windows restored (%d)", len(a.windows))
+	var tabs, panes int
+	var group string
+	onMain(func() {
+		main := a.window("main")
+		if main == nil {
+			return
+		}
+		tabs, panes = len(main.model.Tabs()), len(main.model.Panes)
+		if gs := main.model.Groups(); len(gs) == 1 {
+			group = gs[0].Name
+		}
+	})
+	check(tabs == 2 && panes == 2, "the main window has its tabs back (%d tabs, %d panes)", tabs, panes)
+	var split int
+	onMain(func() {
+		for _, x := range a.windows {
+			if t, ok := x.model.Active(); ok && len(t.Root.Leaves()) == 4 {
+				split = len(x.model.Tabs())
+			}
+		}
+	})
+	check(split == 1, "the moved tab is back in its own window, split in 4")
+	check(group == "api", "and its group (%q)", group)
+	time.Sleep(time.Second)
+	w.shot("restored")
+	w.quitAndFinish()
+}
+
+// quitAndFinish quits as the Quit command does (saving the windows), with
+// the checks' status.
+func (w *Window) quitAndFinish() {
+	onMain(w.app.quitNow)
+	if failed {
+		os.Exit(1)
+	}
 }

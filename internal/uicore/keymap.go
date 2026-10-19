@@ -84,7 +84,7 @@ var Commands = func() []Command {
 		cmd("font.smaller", "Smaller Text", "Ctrl+Minus"),
 		cmd("font.reset", "Actual Size", "Ctrl+0"),
 
-		cmd("tab.overview", "Show All Tabs", "Ctrl+Shift+Backslash"),
+		cmd("tab.overview", "Show All Tabs", "Ctrl+Bar"),
 		cmd("tab.next", "Show Next Tab", "Ctrl+PageDown"),
 		cmd("tab.prev", "Show Previous Tab", "Ctrl+PageUp"),
 		cmd("tab.moveRight", "Move Tab Right", "Ctrl+Shift+PageDown"),
@@ -97,8 +97,8 @@ var Commands = func() []Command {
 	return append(c,
 		cmd("tab.select.last", "Select Last Tab", "Alt+9"),
 		cmd("pane.zoom", "Toggle Zoom", "Ctrl+Shift+Return"),
-		cmd("pane.next", "Select Next Pane", "Ctrl+Shift+BracketRight"),
-		cmd("pane.prev", "Select Previous Pane", "Ctrl+Shift+BracketLeft"),
+		cmd("pane.next", "Select Next Pane", "Ctrl+BraceRight"),
+		cmd("pane.prev", "Select Previous Pane", "Ctrl+BraceLeft"),
 		cmd("pane.left", "Select Pane Left", "Alt+Left"),
 		cmd("pane.right", "Select Pane Right", "Alt+Right"),
 		cmd("pane.up", "Select Pane Above", "Alt+Up"),
@@ -120,10 +120,13 @@ func CommandByID(id string) (Command, bool) {
 }
 
 // Key names in Keys, with their GDK keysym names and how menus show them.
+// Shifted symbols are named by what Shift makes (Bar, not Shift+Backslash):
+// that's the key GTK sees, and the label says Shift.
 var keyNames = map[string][2]string{
 	"Comma": {"comma", ","}, "Plus": {"plus", "+"}, "Minus": {"minus", "−"},
 	"Backslash": {"backslash", "\\"}, "BracketLeft": {"bracketleft", "["}, "BracketRight": {"bracketright", "]"},
 	"Question": {"question", "?"}, "Return": {"Return", "Enter"},
+	"Bar": {"bar", "Shift+\\"}, "BraceLeft": {"braceleft", "Shift+["}, "BraceRight": {"braceright", "Shift+]"},
 	"PageUp": {"Page_Up", "Page Up"}, "PageDown": {"Page_Down", "Page Down"},
 	"Up": {"Up", "↑"}, "Down": {"Down", "↓"}, "Left": {"Left", "←"}, "Right": {"Right", "→"},
 }

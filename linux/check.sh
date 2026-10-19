@@ -17,11 +17,12 @@ run() { # name, then the command
 }
 
 run "uicore tests" go test ./internal/uicore/
-for c in app snapshot view terminal marks signals; do
+for c in app snapshot view terminal tabs restore marks signals; do
 	run "self-check $c" env WTF_NATIVE_DEBUG=$c timeout 60 $bin
 done
 
 echo "== single instance"
+rm -rf "$HOME/.config/wtf-native" # windows saved by the checks above
 $bin >/tmp/first.log 2>&1 &
 first=$!
 for _ in $(seq 50); do xdotool search --onlyvisible --pid $first >/dev/null 2>&1 && break; sleep 0.1; done

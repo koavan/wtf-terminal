@@ -69,6 +69,7 @@ func TestAccelAndLabel(t *testing.T) {
 		"Ctrl+Shift+PageDown": {"<Control><Shift>Page_Down", "Ctrl+Shift+Page Down"},
 		"Alt+9":               {"<Alt>9", "Alt+9"},
 		"F1":                  {"F1", "F1"},
+		"Ctrl+Bar":            {"<Control>bar", "Ctrl+Shift+\\"},
 		"Ctrl+Nope":           {"", ""},
 		"":                    {"", ""},
 	} {

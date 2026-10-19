@@ -21,7 +21,10 @@ import (
 // over it. Go reads the PTY and feeds VTE (feeder.go); keys come back
 // through VTE's commit signal. Like the macOS app's TerminalController.
 type Pane struct {
+	// The window it's in (changes when its tab moves) and its id in that
+	// window's model.
 	win     *Window
+	id      int
 	root    *gtk.Overlay // the terminal, the drawing over it, the find bar
 	term    *vte.Terminal
 	lines   *uicore.Lines
@@ -30,7 +33,7 @@ type Pane struct {
 	over    *overlay
 	menu    *menuPopover
 	find    *findBar
-	id      string // the backend session, once started
+	session string // the backend session, once started
 	sess    *terminal.Session
 	// Input for the shell, written in order off the main loop: a shell
 	// that isn't reading would block the window.
@@ -43,29 +46,33 @@ type Pane struct {
 	clearing bool
 	// The paste confirmation showing, if any.
 	pasteDialog *adw.MessageDialog
+	// The veil over an unfocused split pane, and the outline of one that
+	// receives broadcast input.
+	dim, outline *gtk.Box
 }
 
 // Links that Ctrl-click opens: URLs, as VTE matches them (PCRE2).
 const urlPattern = `\b(?:https?|ftp|file)://[^\s<>"'` + "`" + `]*[^\s<>"'` + "`" + `.,;:!?)\]}]`
 
-func newPane(w *Window) *Pane {
-	p := &Pane{win: w, term: vte.New()}
+func newPane(w *Window, id int) *Pane {
+	p := &Pane{win: w, id: id, term: vte.New()}
 	p.term.SetHExpand(true)
 	p.term.SetVExpand(true)
 	p.term.Quiet()
 	p.term.AddURLMatch(urlPattern)
-	p.term.OnTitle(func(title string) {
-		if title == "" {
-			title = "wtf"
-		}
-		w.win.SetTitle(title)
-	})
+	p.term.OnTitle(func(title string) { p.win.paneTitle(p, title) })
 
 	p.lines = uicore.NewLines(p.term)
 	p.term.OnBeforeAllocate(p.lines.BeforeAllocate)
 	p.tracker = uicore.NewPromptTracker(p.term, p.lines)
 	p.tracker.OnChange = p.refresh
-	p.tracker.OnCommandEnd = p.commandEnded
+	p.tracker.OnPrompt = func() { p.win.panePrompt(p) }
+	p.tracker.OnCommandStart = func(text string, _ int) { p.win.commandStarted(p, text) }
+	p.tracker.OnCommandEnd = func(id, code int, took time.Duration) {
+		p.commandEnded(id, code, took)
+		p.win.commandEnded(p, code, took)
+	}
+	p.tracker.OnEnv = func(text string) { p.win.paneEnv(p, text) }
 
 	p.feed = newFeeder(p.term)
 	p.feed.onMark = p.tracker.OSC133
@@ -79,17 +86,19 @@ func newPane(w *Window) *Pane {
 			p.find.outputArrived()
 		}
 		p.refresh()
+		p.win.paneOutput(p)
 	}
 	p.term.OnGridChanged(func(cols, rows int) {
 		p.lines.GridChanged(cols)
 		p.feed.requestView()
-		if p.id != "" {
-			_ = p.win.app.be.Terminal.Resize(p.id, cols, rows)
+		if p.session != "" {
+			_ = p.win.app.be.Terminal.Resize(p.session, cols, rows)
 		}
 	})
 	p.term.OnCommit(func(text string) {
 		if !p.feed.takeReport(text) {
 			p.write(text)
+			p.win.fanOut(p, text)
 		}
 	})
 	p.term.OnScrolled(p.refresh)
@@ -99,18 +108,32 @@ func newPane(w *Window) *Pane {
 	p.root.SetChild(p.term)
 	p.over = newOverlay(p)
 	p.root.AddOverlay(p.over.area)
+	p.dim = gtk.NewBox(gtk.OrientationVertical, 0)
+	p.dim.AddCSSClass("wtf-dim")
+	p.dim.SetCanTarget(false)
+	p.dim.SetVisible(false)
+	p.root.AddOverlay(p.dim)
+	p.outline = gtk.NewBox(gtk.OrientationVertical, 0)
+	p.outline.AddCSSClass("wtf-broadcasting")
+	p.outline.SetCanTarget(false)
+	p.outline.SetVisible(false)
+	p.root.AddOverlay(p.outline)
 	p.menu = newMenuPopover(p.term)
 	p.installMouse()
+	focus := gtk.NewEventControllerFocus()
+	focus.ConnectEnter(func() { p.win.paneFocused(p) })
+	p.term.AddController(focus)
 
 	p.unobserve = w.app.settings.observe(p.applySettings)
 	p.applySettings()
 	return p
 }
 
-// start runs a shell from internal/terminal in this pane.
-func (p *Pane) start() error {
+// start runs a shell from internal/terminal in this pane, in a folder (""
+// for home), then types the commands given, if any.
+func (p *Pane) start(cwd string, commands ...string) error {
 	svc := p.win.app.be.Terminal
-	id, err := svc.Create(p.win.name, max(2, p.term.Columns()), max(2, p.term.Rows()), "")
+	id, err := svc.Create(p.win.name, max(2, p.term.Columns()), max(2, p.term.Rows()), cwd)
 	if err != nil {
 		return err
 	}
@@ -119,7 +142,7 @@ func (p *Pane) start() error {
 		svc.Close(id)
 		return err
 	}
-	p.id, p.sess = id, sess
+	p.session, p.sess = id, sess
 	p.input = make(chan []byte, 256)
 	go func() {
 		for b := range p.input {
@@ -128,6 +151,12 @@ func (p *Pane) start() error {
 	}()
 	// The grid may have changed size before the shell started.
 	_ = svc.Resize(id, p.term.Columns(), p.term.Rows())
+	// The tty holds them until the shell reads them.
+	for _, c := range commands {
+		if c != "" {
+			p.write(c + "\r")
+		}
+	}
 	go func() {
 		for chunk := range sess.Output {
 			if p.tap != nil {
@@ -136,9 +165,8 @@ func (p *Pane) start() error {
 			p.feed.push(chunk)
 		}
 		<-sess.Done
+		// terminal:exit closes the pane.
 		coreglib.IdleAdd(func() { close(p.input); p.input = nil })
-		// The shell is gone: so is its window, for now (tabs come in M3).
-		coreglib.IdleAdd(p.win.win.Close)
 	}()
 	return nil
 }
@@ -150,9 +178,14 @@ func (p *Pane) write(text string) {
 	}
 }
 
-func (p *Pane) closed() {
+// close hangs up the shell and stops following the settings.
+func (p *Pane) close() {
+	if p.session != "" {
+		p.win.app.be.Terminal.Close(p.session)
+	}
 	if p.unobserve != nil {
 		p.unobserve()
+		p.unobserve = nil
 	}
 }
 
@@ -181,7 +214,7 @@ func (p *Pane) applySettings() {
 // front.
 func (p *Pane) commandEnded(id, code int, took time.Duration) {
 	after := p.win.app.settings.config().NotifyAfter
-	if after <= 0 || took < time.Duration(after*float64(time.Second)) || p.win.win.IsActive() {
+	if after <= 0 || took < time.Duration(after*float64(time.Second)) || p.win.win.IsActive() && p.win.paneShowing(p) {
 		return
 	}
 	dur := uicore.Duration(took)
@@ -191,7 +224,7 @@ func (p *Pane) commandEnded(id, code int, took time.Duration) {
 	}
 	b, _ := p.tracker.Info(id)
 	body := p.win.app.settings.text(b.Text)
-	sid, svc, notify := p.id, p.win.app.be.Terminal, p.win.app.be.Notify
+	sid, svc, notify := p.session, p.win.app.be.Terminal, p.win.app.be.Notify
 	go func() {
 		cwd := ""
 		if info, err := svc.Info(sid); err == nil {
@@ -289,8 +322,8 @@ func (p *Pane) copyLastOutput() {
 // runAgain types a command at the prompt: Ctrl-U clears anything
 // half-typed first.
 func (p *Pane) runAgain(text string) {
-	if p.id != "" {
-		if info, err := p.win.app.be.Terminal.Info(p.id); err == nil && !info.IsShell {
+	if p.session != "" {
+		if info, err := p.win.app.be.Terminal.Info(p.session); err == nil && !info.IsShell {
 			p.win.toast("The shell is busy — finish the running program first")
 			return
 		}
@@ -336,5 +369,15 @@ func (p *Pane) toggleSecrets() {
 		p.win.toast("Secrets hidden — on screen and when copied")
 	} else {
 		p.win.toast("Secrets shown")
+	}
+}
+
+// setDimmed veils the pane while another pane of its split tab has the
+// focus (unfocused-split-dim).
+func (p *Pane) setDimmed(on bool, amount float64) {
+	on = on && amount > 0
+	p.dim.SetVisible(on)
+	if on {
+		p.dim.SetOpacity(min(0.9, amount))
 	}
 }

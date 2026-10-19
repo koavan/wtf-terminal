@@ -348,13 +348,68 @@ Benchmark (Xvfb, llvmpipe), M1 → M2: idle 0.05 → 0.02 s CPU per 30 s, `seq`
 0.96 s CPU), `yes` 0.99 s both (1.14 → 1.23 s CPU), PSS 264–312 MiB. The
 extra CPU on heavy output is the report and the overlay scan per frame.
 
-### M3 — Window shell (dogfood point) ☐
+### M3 — Window shell (dogfood point) ☑
 
 `uicore` gains `WindowModel`, `Layout`, `SavedSession` (same `session.json`), the
 infra badges and workspaces, with their tests. GTK: tab strip in the header bar
 (drag, groups, dots, rename, tear-off), split panes with `GtkPaned`-style
 dividers, address bar, broadcast, palette, workspace open, several windows,
 restore, menus as a header-bar menu plus a shortcuts window, quit confirmations.
+
+**Status (2026-10-19): done and checked headless** (`WTF_NATIVE_DEBUG=tabs`
+then `=restore` join `task gtk:check`).
+
+What's built:
+
+- `uicore`: `WindowModel`, `Layout`, `SavedSession` (same `session.json`,
+  lenient like the Swift), `TabPayload`, the address bar `Badges`,
+  `Workspaces` (placeholders, plans, `OpenPlan`, `CaptureWorkspace`),
+  `ShellQuote` and `UseIdentity`, `ParseEnv`, `IsTerminalReport`. All the
+  Swift tests are ported, the random-operations invariant test included.
+- `gtkui`: wtf's own title bar (`GtkWindowHandle`: tabs from the left, +,
+  the menu, the window buttons); the tab strip (activity dot, ✓/✗, group
+  chips and colors, click / double-click to rename / middle-click / right-click
+  menus, drag to reorder, drag between windows, drag out to tear off); a
+  `GtkStack` page per tab with its split tree in `GtkPaned`s (rebuilt only
+  when the shape changes; dragged dividers write the ratio back);
+  unfocused split panes veiled (`unfocused-split-dim`); zoom; the address
+  bar (group, process, folder crumbs, context badges with expiry clocks,
+  running command or last result, Secrets hidden); broadcast input (bar,
+  outlines, tab and group menus, terminal reports kept in their pane); the
+  command palette (commands with shortcuts, tabs, groups, workspaces; theme
+  mode with preview); Show All Tabs; the workspace dialog (placeholders,
+  plan preview, here or in a new window); the Keyboard Shortcuts window
+  (generated from the keymap, only what works); several windows named
+  `main`, `w2`… as on macOS; session save 400ms after a change and on
+  quit, restore at launch; moving tabs between windows with their shells;
+  close/quit confirmations listing running programs; git identity switch
+  when a pane starts.
+- The feeder now waits for each report's answer before feeding more: the
+  answer places marks exactly, and a pane that isn't showing (VTE parses
+  it about ten times a second) is fed from a 100ms timer instead of the
+  frame clock. The `tabs` check runs 2,000 lines in a hidden tab and gets
+  all of them and its marks.
+
+Findings:
+
+- `AdwHeaderBar` centers its title widget, so tabs can't start at the
+  left; a `GtkWindowHandle` with `GtkWindowControls` does it.
+- Shifted symbols are matched by the key GTK sees: Ctrl+Shift+\ is
+  `<Control>bar`; the keymap names them that way (Bar, BraceLeft,
+  BraceRight) and shows them as Ctrl+Shift+\.
+- A window that never changed after opening was never saved; only
+  restored windows skip the first save now (the macOS app has the same gap).
+- The folder in the address bar follows `PWD` from each prompt's report:
+  the process poll pauses while no wtf window is in front.
+
+Not checked headless (needs the desktop): dragging tabs (reorder, between
+windows, tear-off), keyboard focus moving between windows and dialogs with a
+real window manager.
+
+Benchmark (Xvfb, llvmpipe), M2 → M3: idle 0.02 → 0.03 s CPU per 30 s,
+`seq` 0.97 → 0.50 s, coloured 0.98 → 0.92 s, `yes` 0.99 → 0.98 s, PSS
+270–324 MiB. (`seq` is back to M0's time: the Adwaita header bar was what
+made llvmpipe frames slow.)
 
 ### M4 — Side pane I ☐
 
