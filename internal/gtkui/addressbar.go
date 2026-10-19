@@ -253,6 +253,9 @@ func (w *Window) resolveContext(paneID int) {
 			}
 			w.infra[paneID] = &ctx
 			w.address.refresh()
+			if sp := w.sidePane(); sp != nil {
+				sp.paneChanged()
+			}
 		})
 	}()
 }

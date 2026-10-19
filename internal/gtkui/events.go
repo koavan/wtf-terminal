@@ -3,6 +3,7 @@
 package gtkui
 
 import (
+	"slices"
 	"sync"
 
 	coreglib "github.com/diamondburned/gotk4/pkg/core/glib"
@@ -20,7 +21,7 @@ type eventPump struct {
 	scheduled bool
 
 	// Main loop only.
-	handlers map[string][]func(data any)
+	handlers map[string][]*func(data any)
 }
 
 type event struct {
@@ -29,14 +30,18 @@ type event struct {
 }
 
 func newEventPump() *eventPump {
-	p := &eventPump{handlers: map[string][]func(any){}}
+	p := &eventPump{handlers: map[string][]*func(any){}}
 	events.SetEmitter(p.emit)
 	return p
 }
 
-// on calls f with every event of that name.
-func (p *eventPump) on(name string, f func(data any)) {
-	p.handlers[name] = append(p.handlers[name], f)
+// on calls f with every event of that name, until off is called.
+func (p *eventPump) on(name string, f func(data any)) (off func()) {
+	h := &f
+	p.handlers[name] = append(p.handlers[name], h)
+	return func() {
+		p.handlers[name] = slices.DeleteFunc(p.handlers[name], func(x *func(any)) bool { return x == h })
+	}
 }
 
 // emit runs on any goroutine.
@@ -57,8 +62,8 @@ func (p *eventPump) flush() {
 	p.queue, p.scheduled = nil, false
 	p.mu.Unlock()
 	for _, e := range batch {
-		for _, f := range p.handlers[e.name] {
-			f(e.data)
+		for _, f := range slices.Clone(p.handlers[e.name]) {
+			(*f)(e.data)
 		}
 	}
 }

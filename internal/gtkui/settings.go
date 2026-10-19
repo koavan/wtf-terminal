@@ -39,6 +39,9 @@ const (
 	maxFontSize = 72.0
 )
 
+// extraCSS are styles side-pane tabs add from their files (in init).
+var extraCSS []string
+
 // The left padding is the gutter for command marks, as in the other builds.
 const padTop, padRight, padBottom, padLeft = 10, 6, 6, 14
 
@@ -100,8 +103,32 @@ vte-terminal { padding: %dpx %dpx %dpx %dpx; }
 flowboxchild:selected .wtf-card { border: 2px solid @accent_color; }
 flowboxchild { padding: 0; background: none; }
 .wtf-card-title { font-weight: bold; }
+.wtf-rail { padding: 6px 4px; }
+.wtf-rail-button { min-width: 32px; min-height: 32px; padding: 0; border-radius: 7px; }
+.wtf-rail-button.active { background: alpha(@accent_color, 0.16); color: @accent_color; }
+.wtf-side-content { min-width: 160px; }
+.wtf-pane-header { padding: 4px 4px 2px 10px; min-height: 28px; }
+.wtf-pane-title { font-size: 0.82em; font-weight: bold; }
+.wtf-tool { min-width: 24px; min-height: 24px; padding: 0; }
+.wtf-side-list { background: transparent; }
+.wtf-side-list row { padding: 0; border-radius: 6px; margin: 0 4px; }
+.wtf-side-row { padding: 3px 6px; min-height: 22px; }
+.wtf-side-row.highlighted { background: alpha(@accent_color, 0.12); border-radius: 6px; }
+.wtf-side-title { font-size: 0.95em; }
+.wtf-side-detail { font-size: 0.82em; }
+.wtf-side-heading { font-size: 0.78em; font-weight: bold; opacity: 0.7; padding: 8px 10px 2px; }
+.wtf-side-group { font-size: 0.72em; opacity: 0.5; padding: 10px 10px 0; }
+.wtf-side-note { opacity: 0.6; padding: 12px; font-size: 0.9em; }
+.wtf-side-pill { font-size: 0.75em; background: alpha(currentColor, 0.08); }
+.wtf-side-letter { font-family: monospace; font-weight: bold; font-size: 0.85em; min-width: 12px; }
+.wtf-side-icon { opacity: 0.75; }
+.wtf-side-button { min-width: 22px; min-height: 22px; padding: 0; }
+.wtf-git-bar { padding: 0 10px; font-size: 0.85em; }
+.wtf-git-button { font-size: 0.85em; font-weight: bold; padding: 0 6px; min-height: 20px; }
+.wtf-side-filter { margin: 0 8px; }
+.wtf-tool.active { color: @accent_color; }
 .wtf-card-preview { font-family: monospace; font-size: 0.75em; opacity: 0.8; }
-`, padTop, padRight, padBottom, padLeft))
+`, padTop, padRight, padBottom, padLeft) + strings.Join(extraCSS, "\n"))
 	gtk.StyleContextAddProviderForDisplay(gdk.DisplayGetDefault(), css, gtk.STYLE_PROVIDER_PRIORITY_APPLICATION)
 	return s
 }
@@ -218,6 +245,13 @@ func (s *settings) loadThemeCSS() {
 	fmt.Fprintf(&b, ".wtf-tab-status.ok { color: %s; } .wtf-tab-status.fail { color: %s; } .wtf-tab-status.activity { color: %s; }\n",
 		ok, fail, accent.Hex())
 	fmt.Fprintf(&b, ".wtf-dim { background-color: %s; }\n", th.Background)
+	// Git status, as the macOS app colors it.
+	gm, ga, gd := "#c98a00", "#188038", "#d93036"
+	if dark {
+		gm, ga, gd = "#fdd663", "#81c995", "#e5484d"
+	}
+	fmt.Fprintf(&b, ".git-modified { color: %[1]s; } .git-added { color: %[2]s; } .git-deleted { color: %[3]s; }\n"+
+		".dot-git-modified { background: %[1]s; } .dot-git-added { background: %[2]s; } .dot-git-deleted { background: %[3]s; }\n", gm, ga, gd)
 	for _, c := range uicore.GroupColors {
 		fmt.Fprintf(&b, ".group-dot-%s { background: %s; }\n", c, c.Hex(dark))
 	}

@@ -40,7 +40,13 @@ type Window struct {
 	overviewShown *overview
 	// The workspace dialog last shown (for checks).
 	workspaceDialog *adw.MessageDialog
-	address         *addressBar
+	// The side pane, while open, its state (saved in the session) and the
+	// split that holds it.
+	sidebar       *sidebar
+	sidebarState  uicore.SidebarState
+	split         *gtk.Paned
+	applyingSplit bool
+	address       *addressBar
 	// Each pane's resolved context, and the newest request for it.
 	infra       map[int]*infra.Context
 	infraSeq    int
@@ -61,7 +67,7 @@ type Window struct {
 }
 
 func newWindow(a *App, name string) *Window {
-	w := &Window{app: a, name: name, model: uicore.NewWindowModel(a.home),
+	w := &Window{app: a, name: name, model: uicore.NewWindowModel(a.home), sidebarState: uicore.NewSidebarState(),
 		panes: map[int]*Pane{}, pages: map[int]*tabPage{}, detached: map[int]bool{},
 		infra: map[int]*infra.Context{}, infraLatest: map[int]int{}}
 	w.win = adw.NewApplicationWindow(&a.gtk.Application)
@@ -83,8 +89,9 @@ func newWindow(a *App, name string) *Window {
 	w.stack.SetVExpand(true)
 	w.overlay = gtk.NewOverlay()
 	w.overlay.SetChild(w.stack)
+	w.split = w.newSidebarSplit(w.overlay)
 	w.toasts = adw.NewToastOverlay()
-	w.toasts.SetChild(w.overlay)
+	w.toasts.SetChild(w.split)
 	w.broadcast = newBroadcast(w)
 	w.address = newAddressBar(w)
 	view := adw.NewToolbarView()
@@ -141,11 +148,13 @@ func (w *Window) bootstrap(start windowStart) {
 		// A workspace opened in this new window.
 	case start.session != nil && w.model.Restore(*start.session):
 		w.extra = start.session.Extra
+		w.sidebarState = uicore.ParseSidebarState(w.extra["sidebar"])
 		restored = true
 	default:
 		w.model.Open(uicore.OpenOptions{Cwd: new(string)})
 	}
 	w.sync()
+	w.layoutSidebar()
 	// A restored window is in the file already; a new one is saved soon.
 	if restored {
 		w.lastSaved = w.sessionJSON()
@@ -220,6 +229,9 @@ func (w *Window) sync() {
 	w.address.refresh()
 	w.strip.refresh()
 	w.updateTitle()
+	if sp := w.sidePane(); sp != nil {
+		sp.paneChanged()
+	}
 	w.scheduleSave()
 }
 
@@ -257,6 +269,24 @@ func (w *Window) startTerminal(ps *uicore.PaneState) {
 		return
 	}
 	ps.SessionID = p.session
+}
+
+// runInPane runs a command in the focused shell when it's idle at a
+// prompt (Ctrl-U clears anything half-typed), else in a new tab in its
+// folder. For the side pane's exec, describe and SSH actions.
+func (w *Window) runInPane(command string) {
+	ps := w.model.ActivePane()
+	p := w.active()
+	if ps != nil && p != nil && ps.IsShell && !ps.Running {
+		p.write(uicore.ClearLine + command + "\r")
+		p.term.GrabFocus()
+		return
+	}
+	var cwd *string
+	if ps != nil {
+		cwd = &ps.Cwd
+	}
+	w.model.Open(uicore.OpenOptions{Cwd: cwd, Command: command})
 }
 
 // identityCommand switches a new shell to a saved git identity; empty
@@ -346,6 +376,9 @@ func (w *Window) commandEnded(p *Pane, code int, took time.Duration) {
 	w.model.MarkFinished(p.id, code == 0)
 	w.strip.refresh()
 	w.address.refresh()
+	if sp := w.sidePane(); sp != nil && w.active() == p {
+		sp.commandFinished()
+	}
 }
 
 func (w *Window) paneEnv(p *Pane, text string) {
@@ -421,10 +454,15 @@ func (w *Window) windowCommands() map[string]func() {
 		"help.shortcuts":   w.showShortcuts,
 		"tab.overview":     w.toggleOverview,
 		"workspace.open":   func() { w.togglePalette(paletteWorkspaces) },
+		"sidebar.toggle":   w.toggleSidebar,
 		"theme.pick":       func() { w.togglePalette(paletteThemes) },
 	}
 	for i := 1; i <= 8; i++ {
 		cmds[fmt.Sprintf("tab.select.%d", i)] = func() { m.SelectNumber(i) }
+	}
+	for _, t := range sidebarTabs {
+		tab := t.tab
+		cmds[t.cmd] = func() { w.showSidebar(tab) }
 	}
 	return cmds
 }
@@ -479,6 +517,7 @@ func (w *Window) mainMenuButton() *gtk.MenuButton {
 		{"tab.new", "window.new", "pane.splitRight", "pane.splitDown", "tab.duplicate", "tab.toNewWindow"},
 		{"tab.reopen", "pane.close", "tab.close", "window.close"},
 		{"palette", "theme.pick", "workspace.open"},
+		{"sidebar.toggle", "sidebar.files", "sidebar.ssh", "sidebar.kube"},
 		{"find", "term.copyOutput", "term.clear", "secrets.toggle"},
 		{"font.bigger", "font.smaller", "font.reset"},
 		{"tab.overview", "tab.group", "broadcast.toggle", "pane.zoom", "pane.next", "pane.prev"},
@@ -517,7 +556,12 @@ func (w *Window) toast(msg string) {
 // Saving
 
 func (w *Window) sessionJSON() string {
-	b, err := json.Marshal(w.model.Snapshot(w.app.settings.fontSize, w.extra))
+	extra := map[string]json.RawMessage{}
+	for k, v := range w.extra {
+		extra[k] = v
+	}
+	extra["sidebar"] = w.sidebarState.JSON()
+	b, err := json.Marshal(w.model.Snapshot(w.app.settings.fontSize, extra))
 	if err != nil {
 		return ""
 	}
@@ -640,6 +684,9 @@ func (w *Window) closeForGood() {
 		if !w.detached[id] {
 			p.close()
 		}
+	}
+	if w.sidebar != nil {
+		w.sidebar.drop()
 	}
 	w.unobserve()
 	name, store := w.name, w.app.be.Store

@@ -13,6 +13,7 @@ package gtkui
 //	tabs      tabs, splits, focus, zoom, groups, a busy background tab,
 //	          moving a tab to a new window; quits saving the session
 //	restore   run after tabs: the saved windows come back
+//	sidebar   the side pane: Files (tree, git, insert, cd)
 //	view      the overlay's rows match VTE's view once old rows are trimmed
 //	marks     OSC 133 marks stay on their prompts across feeds, rewraps
 //	          and scrollback trimming (no shell; synthetic output)
@@ -29,6 +30,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"slices"
 	"strconv"
 	"strings"
 	"sync"
@@ -41,6 +43,8 @@ import (
 	"github.com/diamondburned/gotk4/pkg/gtk/v4"
 
 	"github.com/dayanraj/wtf/internal/events"
+	"github.com/dayanraj/wtf/internal/files"
+	"github.com/dayanraj/wtf/internal/sshhosts"
 	"github.com/dayanraj/wtf/internal/uicore"
 )
 
@@ -63,6 +67,8 @@ func (a *App) selfCheck(w *Window) {
 		w.checkTabs()
 	case "restore":
 		w.checkRestore()
+	case "sidebar":
+		w.checkSidebar()
 	default:
 		fmt.Printf("unknown WTF_NATIVE_DEBUG=%q\n", a.debug)
 		failed = true
@@ -1003,4 +1009,187 @@ func (w *Window) quitAndFinish() {
 	if failed {
 		os.Exit(1)
 	}
+}
+
+func (w *Window) checkSidebar() {
+	p := w.active()
+	var mu sync.Mutex
+	var out bytes.Buffer
+	p.tap = func(b []byte) {
+		mu.Lock()
+		out.Write(b)
+		mu.Unlock()
+	}
+	seen := func(s string) bool {
+		mu.Lock()
+		defer mu.Unlock()
+		return bytes.Contains(out.Bytes(), []byte(s))
+	}
+	check(waitUntil(5*time.Second, func() bool { return paneReady(p) }), "shell ready")
+	p.write("mkdir -p /tmp/proj/src && cd /tmp/proj && git init -q -b main && echo a > tracked.txt && git add . && " +
+		"git -c user.email=x@y -c user.name=x commit -qm one && echo b >> tracked.txt && echo new > src/new.go && echo ready-proj\r")
+	check(waitUntil(8*time.Second, func() bool { return seen("ready-proj\r\n") }), "made a repository with changes")
+	check(waitUntil(5*time.Second, func() bool { ps := w.model.ActivePane(); return ps != nil && ps.Cwd == "/tmp/proj" }), "the pane is in it")
+
+	_ = xkey("ctrl+alt+e")
+	var f *filesTab
+	check(waitUntil(3*time.Second, func() bool {
+		if sp, ok := w.sidePane().(*filesTab); ok {
+			f = sp
+		}
+		return f != nil
+	}), "Ctrl+Alt+E opens the Files tab")
+	rows := func() []string {
+		var ids []string
+		for _, id := range f.list.ids {
+			if id != "" {
+				ids = append(ids, id)
+			}
+		}
+		return ids
+	}
+	check(waitUntil(5*time.Second, func() bool {
+		ids := rows()
+		return slices.Contains(ids, "d:/tmp/proj/src") && slices.Contains(ids, "f:/tmp/proj/tracked.txt") && f.git != nil
+	}), "it lists the folder: %v", rows())
+	var letter string
+	var dotted bool
+	onMain(func() {
+		r := f.entryRow(uicore.FileRow{Entry: files.Entry{Name: "tracked.txt", Path: "/tmp/proj/tracked.txt"}})
+		letter = r.letter
+		d := f.entryRow(uicore.FileRow{Entry: files.Entry{Name: "src", Path: "/tmp/proj/src", Dir: true}})
+		dotted = d.trailDot != ""
+	})
+	check(letter == "M" && dotted, "git marks: tracked.txt %q, src has changes %v", letter, dotted)
+	var branch string
+	onMain(func() { branch = f.gitText.Text() })
+	check(strings.Contains(branch, "main"), "the branch shows (%q)", branch)
+	w.shot("sidebar-files")
+
+	// A click on a folder opens it; on a file types its path.
+	onMain(func() { f.clicked("d:/tmp/proj/src") })
+	check(waitUntil(3*time.Second, func() bool { return slices.Contains(rows(), "f:/tmp/proj/src/new.go") }), "a click opens a folder")
+	onMain(func() { f.clicked("f:/tmp/proj/src/new.go") })
+	check(waitUntil(3*time.Second, func() bool { return seen("src/new.go ") }), "a click on a file types its path at the prompt")
+	p.write(uicore.ClearLine)
+
+	// The changes, on their own.
+	onMain(func() { f.gitBtn.Activate() })
+	check(waitUntil(2*time.Second, func() bool {
+		ids := rows()
+		return len(ids) == 2 && strings.HasPrefix(ids[0], "c:")
+	}), "the changes view lists the 2 changes: %v", rows())
+	w.shot("sidebar-changes")
+
+	// The side pane is saved with the window.
+	var saved string
+	onMain(func() { saved = string(w.sidebarState.JSON()) })
+	check(strings.Contains(saved, `"open":true`) && strings.Contains(saved, `"tab":"files"`), "its state is saved: %s", saved)
+	// SSH: hosts from ~/.ssh/config (the check's own home, never the real
+	// one) and a key made with ssh-keygen.
+	home, _ := os.UserHomeDir()
+	_ = os.MkdirAll(filepath.Join(home, ".ssh"), 0o700)
+	_ = os.WriteFile(filepath.Join(home, ".ssh", "config"), []byte(`Host web1
+  HostName 192.0.2.10
+  User deploy
+Host db
+  HostName 192.0.2.20
+  Port 2222
+`), 0o600)
+	p.write("ssh-keygen -q -t ed25519 -N '' -C check -f ~/.ssh/id_check && echo key-made\r")
+	check(waitUntil(8*time.Second, func() bool { return seen("key-made\r\n") }), "made a key")
+	_ = xkey("ctrl+alt+s")
+	var t *sshTab
+	check(waitUntil(3*time.Second, func() bool {
+		if sp, ok := w.sidePane().(*sshTab); ok {
+			t = sp
+		}
+		return t != nil
+	}), "Ctrl+Alt+S opens the SSH tab")
+	var hosts []string
+	check(waitUntil(5*time.Second, func() bool {
+		hosts = hosts[:0]
+		for _, h := range t.list.Hosts {
+			hosts = append(hosts, h.Alias)
+		}
+		return t.hostsLoaded && slices.Contains(hosts, "web1") && slices.Contains(hosts, "db")
+	}), "it lists the config's hosts: %v", hosts)
+	w.shot("sidebar-ssh")
+	// Connecting types ssh into the idle shell (it fails: no such machine).
+	onMain(func() {
+		for _, h := range t.list.Hosts {
+			if h.Alias == "db" {
+				t.openHosts([]sshhosts.Host{h}, sshOpenHere)
+			}
+		}
+	})
+	check(waitUntil(3*time.Second, func() bool { return seen("ssh db") || seen("ssh -p 2222") }), "connecting types the ssh command into the shell")
+	p.write("\x03")
+	time.Sleep(500 * time.Millisecond)
+	onMain(func() { t.show("keys") })
+	var keys []string
+	check(waitUntil(5*time.Second, func() bool {
+		keys = keys[:0]
+		for _, k := range t.keys.Keys {
+			keys = append(keys, filepath.Base(k.Path))
+		}
+		return t.keysLoaded && slices.Contains(keys, "id_check")
+	}), "the Keys section lists the new key: %v", keys)
+	w.shot("sidebar-ssh-keys")
+	onMain(func() { t.show("tunnels") })
+	check(waitUntil(3*time.Second, func() bool { return t.tunnelsLoaded }), "the Tunnels section loads")
+	onMain(func() { t.show("hosts") })
+
+	// Kubernetes: a kubeconfig with two contexts (no cluster to reach).
+	_ = os.MkdirAll(filepath.Join(home, ".kube"), 0o755)
+	_ = os.WriteFile(filepath.Join(home, ".kube", "config"), []byte(`apiVersion: v1
+kind: Config
+current-context: dev
+clusters:
+- name: dev-cluster
+  cluster: {server: "https://127.0.0.1:6443"}
+- name: prod-cluster
+  cluster: {server: "https://10.0.0.1:6443"}
+users:
+- name: me
+  user: {token: not-a-real-token}
+contexts:
+- name: dev
+  context: {cluster: dev-cluster, user: me, namespace: web}
+- name: prod
+  context: {cluster: prod-cluster, user: me}
+`), 0o600)
+	_ = xkey("ctrl+alt+k")
+	var k *kubeTab
+	check(waitUntil(3*time.Second, func() bool {
+		if sp, ok := w.sidePane().(*kubeTab); ok {
+			k = sp
+		}
+		return k != nil
+	}), "Ctrl+Alt+K opens the Kubernetes tab")
+	time.Sleep(time.Second)
+	w.shot("sidebar-kube")
+	onMain(func() { k.choose("contexts") })
+	var contexts []string
+	var dflt bool
+	check(waitUntil(5*time.Second, func() bool {
+		c, ok := k.body.(*kubeContexts)
+		if !ok || !c.loaded {
+			return false
+		}
+		contexts = contexts[:0]
+		for _, x := range c.configs.Contexts {
+			contexts = append(contexts, x.Name)
+			if x.Name == "dev" {
+				dflt = x.Current
+			}
+		}
+		return len(contexts) == 2
+	}), "the Contexts view lists the kubeconfig's contexts: %v", contexts)
+	check(dflt, "dev is the default")
+	w.shot("sidebar-kube-contexts")
+
+	_ = xkey("ctrl+alt+k")
+	check(waitUntil(2*time.Second, func() bool { return w.sidebar == nil }), "Ctrl+Alt+K again closes the pane")
+	w.finish()
 }

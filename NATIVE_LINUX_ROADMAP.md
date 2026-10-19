@@ -411,12 +411,54 @@ Benchmark (Xvfb, llvmpipe), M2 → M3: idle 0.02 → 0.03 s CPU per 30 s,
 270–324 MiB. (`seq` is back to M0's time: the Adwaita header bar was what
 made llvmpipe frames slow.)
 
-### M4 — Side pane I ☐
+### M4 — Side pane I ☑
 
 Rail and container, Files (git letters, drag a path into a terminal), SSH
 (hosts, keys, identities, tunnels and their dialogs), Kubernetes (resources,
 contexts, port-forward, secret viewer). Lists are `GtkListView` with
 recycled rows, so long lists cost nothing. `uicore` gains the SSH and Kube rules.
+
+**Status (2026-10-19): done and checked headless** (`WTF_NATIVE_DEBUG=sidebar`
+joins `task gtk:check`, with a test `~/.ssh/config`, key and kubeconfig in
+the check's own home).
+
+What's built:
+
+- `uicore`: `SidebarState` (the session's `sidebar` object, unknown fields
+  kept), Files (`FileTree`, `GitIndex`, paths), SSH (commands, host and
+  tunnel drafts, key rules) and Kube (`KubeTarget` commands, tones,
+  details, table kinds, contexts) rules, with the macOS tests.
+- `gtkui`: the side pane (icon rail, the shown tab only, made when chosen
+  and dropped when not; a divider for its width, saved per window; a
+  command and shortcut per tab, which closes the pane when it's already
+  showing that tab); a shared `sideList` (sections, collapsible headings,
+  rows with icons, dots, pills, letters and buttons, menus, drag and drop);
+  the Files tab (tree, git letters and folder dots, changes view, filter,
+  back/up/pin, click to type a path, double-click to cd, menus with git
+  commands, drag a path into a terminal); the SSH tab (Hosts, Keys, Git
+  identities, Tunnels, every dialog: host editor, upload/download, install
+  key, new key, tunnel editor, host keys, identity editor); the Kubernetes
+  tab (Resources by section with polling of open sections only while the
+  window is in front, Contexts with edit plans, the secret viewer with
+  values hidden on blur, scale, EKS, port forward). Side-pane actions that
+  type into a shell use `runInPane`.
+- Event subscriptions can be dropped (`events.on` returns `off`).
+- Dev image: `librsvg2-common`, `adwaita-icon-theme` (theme icons are
+  SVG) and `openssh-client`. The packages must depend on them too (M7).
+
+Findings:
+
+- A `GtkPopover` parented to a `GtkListBox` is one of its children:
+  clearing the list (even with `RemoveAll`) loops on it forever. The
+  list's menu is parented to its scrolled window.
+- Labels that wrap must not ellipsize too (`wrapLabel`).
+
+Not done here: the "Install…" links for missing tools (the tools dialog is
+M6); Keychain options (macOS only); "New key" opens the key dialog directly
+until the Generate tab (M5); the Kubernetes port-forward dialog is its own,
+not the SSH tab's tunnel editor; row icons aren't tinted. Not checked
+headless: the Kubernetes Resources view against a real cluster, real SSH
+connections, the agent.
 
 ### M5 — Side pane II ☐
 

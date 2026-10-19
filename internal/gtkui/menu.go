@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"strings"
 
+	coreglib "github.com/diamondburned/gotk4/pkg/core/glib"
 	"github.com/diamondburned/gotk4/pkg/gdk/v4"
 	"github.com/diamondburned/gotk4/pkg/gio/v2"
 	"github.com/diamondburned/gotk4/pkg/glib/v2"
@@ -119,6 +120,20 @@ func (p *Pane) installMouse() {
 		}
 	})
 	p.term.AddController(click)
+
+	// A path dragged from the Files tab is typed at the prompt, quoted.
+	drop := gtk.NewDropTarget(coreglib.TypeString, gdk.ActionCopy)
+	drop.ConnectDrop(func(v *coreglib.Value, _, _ float64) bool {
+		text, _ := v.GoValue().(string)
+		path, ok := strings.CutPrefix(text, pathDragPrefix)
+		if !ok {
+			return false
+		}
+		p.term.GrabFocus()
+		p.term.PasteText(uicore.ShellQuote(path) + " ")
+		return true
+	})
+	p.term.AddController(drop)
 
 	p.term.SetHasTooltip(true)
 	p.term.ConnectQueryTooltip(func(x, y int, keyboard bool, tip *gtk.Tooltip) bool {
