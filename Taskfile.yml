@@ -37,6 +37,16 @@ tasks:
     cmds:
       - ./macos/build.sh
 
+  gtk:
+    summary: Builds the native Linux app (bin/gtk/wtf-gtk) in the dev image (docker build -t wtf-gtk-dev:ubuntu24 linux)
+    cmds:
+      - ./linux/build.sh
+
+  gtk:check:
+    summary: Runs the native Linux app's headless checks under Xvfb (after task gtk)
+    cmds:
+      - ./linux/check.sh
+
   native:test:
     summary: Tests the native app's Go side (dispatcher, headless C smoke test)
     cmds:

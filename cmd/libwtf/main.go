@@ -36,7 +36,6 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
-	"slices"
 	"sync"
 	"unsafe"
 
@@ -55,13 +54,8 @@ var (
 	mu       sync.Mutex
 	be       *backend.Backend
 	services map[string]any
-	started  []any // in startup order, for shutdown
 	cancel   context.CancelFunc
 )
-
-// Lifecycle hooks, from each package's native.go.
-type starter interface{ ServiceStartup(context.Context) error }
-type stopper interface{ ServiceShutdown() error }
 
 // wtf_init builds and starts the services. Events go to onEvent from then
 // on. stateDir and cacheDir replace the default directories when not empty,
@@ -104,17 +98,13 @@ func wtf_init(version, commit, buildDate, stateDir, cacheDir *C.cstr_t, onEvent 
 		C.wtf_call_event(onEvent, ctx, cname, cjson)
 	})
 	runCtx, stop := context.WithCancel(context.Background())
+	if err := b.Start(runCtx); err != nil {
+		stop()
+		return C.CString(err.Error())
+	}
 	services = map[string]any{}
 	for _, n := range b.Services() {
 		services[n.Name] = n.Service
-		if s, ok := n.Service.(starter); ok {
-			if err := s.ServiceStartup(runCtx); err != nil {
-				stop()
-				shutdownStarted()
-				return C.CString(fmt.Sprintf("starting %s: %v", n.Name, err))
-			}
-		}
-		started = append(started, n.Service)
 	}
 	// What the Wails window manager reads from the store itself.
 	services["session"] = &session{b.Store}
@@ -141,19 +131,10 @@ func wtf_shutdown() {
 	if cancel != nil {
 		cancel()
 	}
-	shutdownStarted()
-	be = nil
-}
-
-func shutdownStarted() {
-	for _, svc := range slices.Backward(started) {
-		if s, ok := svc.(stopper); ok {
-			if err := s.ServiceShutdown(); err != nil {
-				log.Printf("shutdown: %v", err)
-			}
-		}
+	if be != nil {
+		be.Shutdown()
 	}
-	started = nil
+	be = nil
 }
 
 // wtf_call calls service.method with a JSON array of arguments and returns

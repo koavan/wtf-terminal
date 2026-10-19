@@ -1,9 +1,15 @@
-// Package backend builds wtf's services once, for either UI: the Wails app
-// (main.go binds each one) and the native macOS app (cmd/libwtf dispatches
-// calls to them by name).
+// Package backend builds wtf's services once, for every UI: the Wails app
+// (main.go binds each one), the native macOS app (cmd/libwtf dispatches
+// calls to them by name) and the native Linux app (cmd/wtf-gtk calls them
+// directly).
 package backend
 
 import (
+	"context"
+	"fmt"
+	"log"
+	"slices"
+
 	"github.com/dayanraj/wtf/internal/about"
 	"github.com/dayanraj/wtf/internal/activity"
 	"github.com/dayanraj/wtf/internal/awsprofiles"
@@ -48,6 +54,8 @@ type Backend struct {
 	Usage       *usage.Service
 	NetConn     *netconn.Service
 	Procs       *procs.Service
+
+	started []any // by Start, for Shutdown
 }
 
 // New builds the services. Nothing runs until the UI starts them. An empty
@@ -117,4 +125,37 @@ func (b *Backend) Services() []Named {
 		{"netconn", b.NetConn},
 		{"procs", b.Procs},
 	}
+}
+
+// Lifecycle hooks, from each package's native.go.
+type starter interface{ ServiceStartup(context.Context) error }
+type stopper interface{ ServiceShutdown() error }
+
+// Start runs each service's startup hook in order, for the native UIs (Wails
+// runs them itself). If one fails, the ones already started are stopped.
+func (b *Backend) Start(ctx context.Context) error {
+	for _, n := range b.Services() {
+		if s, ok := n.Service.(starter); ok {
+			if err := s.ServiceStartup(ctx); err != nil {
+				b.stop()
+				return fmt.Errorf("starting %s: %w", n.Name, err)
+			}
+		}
+		b.started = append(b.started, n.Service)
+	}
+	return nil
+}
+
+// Shutdown stops the services Start started, last started first.
+func (b *Backend) Shutdown() { b.stop() }
+
+func (b *Backend) stop() {
+	for _, svc := range slices.Backward(b.started) {
+		if s, ok := svc.(stopper); ok {
+			if err := s.ServiceShutdown(); err != nil {
+				log.Printf("shutdown: %v", err)
+			}
+		}
+	}
+	b.started = nil
 }

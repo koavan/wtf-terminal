@@ -6,7 +6,9 @@ require (
 	github.com/BurntSushi/toml v1.6.0
 	github.com/coder/websocket v1.8.14
 	github.com/creack/pty v1.1.24
+	github.com/diamondburned/gotk4-adwaita/pkg v0.0.0-20240712143708-824c3ce8a5f4
 	github.com/diamondburned/gotk4/pkg v0.3.1
+	github.com/dlclark/regexp2 v1.11.5
 	github.com/wailsapp/wails/v3 v3.0.0-beta.28
 	golang.org/x/crypto v0.53.0
 	golang.org/x/sys v0.46.0

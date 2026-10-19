@@ -217,7 +217,9 @@ VM): GNOME Wayland and X11 hands-on with vim, htop, tmux and ssh, resizing,
 CLIPBOARD and PRIMARY copy/paste, IME (ibus), and the benchmark with a real
 GPU. The spike has no copy/paste shortcuts yet (VTE's defaults only).
 
-### M1 — Skeleton, shared core, tooling ☐
+The `WTF_GTK_PTY=vte` comparison mode was removed in M1: Go feeds VTE.
+
+### M1 — Skeleton, shared core, tooling ◐
 
 - `internal/gtkui` app shell: `AdwApplication`, single instance (a second
   `wtf` opens a window in the running one), the `native` lifecycle hooks, and
@@ -231,8 +233,53 @@ GPU. The spike has no copy/paste shortcuts yet (VTE's defaults only).
   `WTF_NATIVE_DEBUG=snapshot` renders windows to PNG through
   `gtk_widget_snapshot` → `gsk_renderer_render_texture`, so I can check layouts
   without your time.
-- Separate profile until M7 (`~/.local/state/wtf-native`, `~/.cache/wtf-native`),
+- Separate profile until M7 (`~/.config/wtf-native`, `~/.cache/wtf-native`),
   as on macOS, so a running Wails wtf keeps its kube overlays and tunnels.
+
+**Status (2026-10-19): built and checked headless; the hands-on part waits
+for a Linux desktop, with M0's.**
+
+What's built:
+
+- `internal/gtkui`: `App` (AdwApplication `com.dayanraj.wtf.Native`, its own
+  ID until M7; single instance, so a second `wtf-gtk` opens a window in the
+  first and exits; backend started in *startup*, so only the first instance
+  runs one; SIGTERM/SIGHUP quit), `Window` (AdwApplicationWindow, header
+  bar, one pane for now), `Pane` (VTE + the M0 feeder and marks on a
+  backend session), `eventPump` (`internal/events` queued from any
+  goroutine and handed out in one idle callback per batch, as Go values, no
+  JSON). Window focus feeds `activity.Gate`. The spike moved here;
+  `cmd/wtf-gtk` is now just `main`.
+- `internal/backend`: `Start`/`Shutdown` run the services' lifecycle hooks,
+  shared by `cmd/libwtf` and the GTK app.
+- `internal/uicore`: secrets (on regexp2, since the rules need lookarounds
+  and backreferences; passes every shared `cases.json` case), paste facts,
+  fuzzy, and the keymap: every macOS menu command with a Linux shortcut,
+  GNOME Terminal style (Ctrl+Shift for the terminal, Ctrl+Alt+letter for
+  side-pane tabs, Alt for panes and tab numbers). Tests check there are no
+  duplicates, no plain Ctrl+letter, none of the desktop's Ctrl+Alt keys, and
+  that every command in `macos/Sources/Wtf/main.swift` has an entry.
+  Shortcuts run in a capture-phase `GtkShortcutController`, before VTE
+  turns keys into input.
+- Separate profile: `~/.config/wtf-native` (state) and `~/.cache/wtf-native`.
+  `config.toml` and snippets are shared.
+- Build and checks: `task gtk` (`linux/build.sh`, version stamped from
+  git) and `task gtk:check` (`linux/check.sh`: uicore tests, the `app`,
+  `snapshot`, `marks` and `signals` self-checks, single instance, SIGTERM,
+  no shells left behind). Docker image `wtf-gtk-dev:ubuntu24` instead of an
+  OrbStack machine; the gotk4 caches live in volumes.
+- `WTF_NATIVE_DEBUG=snapshot` writes `bin/gtk/snapshots/<window>.png`. It's
+  in C (`snapshot.go`): gotk4 v0.3.1 treats `GskRenderNode` as a GObject
+  and crashes in `gsk_renderer_render_texture`.
+- libadwaita bindings: `gotk4-adwaita` pinned to 824c3ce (libadwaita 1.5,
+  the last before 1.6).
+
+Benchmark (Xvfb, llvmpipe), M0 → M1: idle 0.03 → 0.05 s CPU per 30 s, PSS
+247 → 264 MiB (libadwaita). With the GL renderer, `seq` takes 0.95–1.02 s
+(M0 0.48) at the same CPU: painting the Adwaita window (rounded corners,
+shadow) in software makes frames longer, so less output fits a frame. With
+`GSK_RENDERER=cairo` it's 0.48 s, as in M0. Check on a real GPU in the
+hands-on; if it holds, consider a square window without a shadow.
 
 ### M2 — Terminal core ☐
 

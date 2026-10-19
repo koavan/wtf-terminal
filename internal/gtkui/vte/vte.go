@@ -103,9 +103,6 @@ func (t *Terminal) SetSize(cols, rows int) {
 	C.vte_terminal_set_size(t.t, C.glong(cols), C.glong(rows))
 }
 
-// UsePTY makes VTE read and resize the PTY itself (fd is the master).
-func (t *Terminal) UsePTY(fd int) bool { return C.wtf_term_use_pty_fd(t.t, C.int(fd)) != 0 }
-
 // OnCommit is called with the bytes for the child: keys typed, or a paste.
 func (t *Terminal) OnCommit(f func(text string)) {
 	t.Object.Connect("commit", func(text string, _ uint) { f(text) })
@@ -134,10 +131,13 @@ func (t *Terminal) OnTitle(f func(title string)) {
 	})
 }
 
-// OnEOF is called when VTE reads the PTY itself and it hits EOF.
-func (t *Terminal) OnEOF(f func()) { t.Object.Connect("eof", f) }
-
 // Copy puts the selection on the clipboard; Paste sends the clipboard to the
 // child (through "commit", bracketed when the program asked for it).
 func (t *Terminal) Copy()  { C.vte_terminal_copy_clipboard_format(t.t, C.VTE_FORMAT_TEXT) }
 func (t *Terminal) Paste() { C.vte_terminal_paste_clipboard(t.t) }
+
+func (t *Terminal) SelectAll() { C.vte_terminal_select_all(t.t) }
+
+// FontScale is the zoom: 1 is the font's own size.
+func (t *Terminal) FontScale() float64         { return float64(C.vte_terminal_get_font_scale(t.t)) }
+func (t *Terminal) SetFontScale(scale float64) { C.vte_terminal_set_font_scale(t.t, C.double(scale)) }

@@ -1,6 +1,6 @@
 //go:build linux
 
-package main
+package gtkui
 
 import (
 	"sort"

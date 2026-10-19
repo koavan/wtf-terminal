@@ -44,20 +44,6 @@ char *wtf_term_text(VteTerminal *t, glong start_row, glong start_col, glong end_
 	return vte_terminal_get_text_range_format(t, VTE_FORMAT_TEXT, start_row, start_col,
 		end_row, end_col, &len);
 }
-gboolean wtf_term_use_pty_fd(VteTerminal *t, int fd)
-{
-	GError *err = NULL;
-	VtePty *pty = vte_pty_new_foreign_sync(fd, NULL, &err);
-	if (pty == NULL) {
-		g_warning("vte_pty_new_foreign_sync: %s", err->message);
-		g_error_free(err);
-		return FALSE;
-	}
-	vte_terminal_set_pty(t, pty);
-	g_object_unref(pty);
-	return TRUE;
-}
-
 void wtf_term_set_colors(VteTerminal *t, const char *fg, const char *bg)
 {
 	GdkRGBA f, b;
