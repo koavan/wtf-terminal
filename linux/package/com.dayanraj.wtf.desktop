@@ -1,0 +1,18 @@
+[Desktop Entry]
+Version=1.0
+Type=Application
+Name=wtf
+GenericName=Terminal
+Comment=A terminal for all the What-The-Fuck moments
+Exec=wtf
+Icon=com.dayanraj.wtf
+Terminal=false
+Categories=System;TerminalEmulator;
+Keywords=terminal;shell;ssh;kubernetes;aws;
+StartupNotify=true
+StartupWMClass=com.dayanraj.wtf
+Actions=new-window;
+
+[Desktop Action new-window]
+Name=New Window
+Exec=wtf

@@ -30,18 +30,20 @@ var remoteProcesses = map[string]bool{"ssh": true, "mosh": true, "mosh-client": 
 // is on), never on a timer. Like FileTree.svelte and the macOS app's
 // FilesView.
 type filesTab struct {
-	w       *Window
-	root    *gtk.Box
-	header  *paneHeader
-	back    *gtk.Button
-	up      *gtk.Button
-	pin     *gtk.Button
-	paused  *gtk.Label
-	gitBar  *gtk.Box
-	gitText *gtk.Label
-	gitBtn  *gtk.Button
-	filter  *gtk.SearchEntry
-	list    *sideList
+	w      *Window
+	root   *gtk.Box
+	header *paneHeader
+	back   *gtk.Button
+	up     *gtk.Button
+	pin    *gtk.Button
+	paused *gtk.Label
+	// Shows the auto-refresh button as on or paused.
+	pauseLook func()
+	gitBar    *gtk.Box
+	gitText   *gtk.Label
+	gitBtn    *gtk.Button
+	filter    *gtk.SearchEntry
+	list      *sideList
 
 	tree        *uicore.FileTree
 	git         *uicore.GitIndex
@@ -59,7 +61,7 @@ func newFilesTab(w *Window) *filesTab {
 	f.back = f.header.tool("go-previous-symbolic", "Back", f.goBack)
 	f.up = f.header.tool("go-up-symbolic", "Up", f.goUp)
 	f.pin = f.header.tool("view-pin-symbolic", "Pin this folder", f.togglePin)
-	f.header.tool("view-refresh-symbolic", "Read the folders again", f.reload)
+	f.pauseLook = netRefreshTools(w, f.header, f.reload)
 	f.header.tool("view-restore-symbolic", "Collapse all", func() {
 		f.tree.Expanded = map[string]bool{}
 		f.rebuild()
@@ -337,6 +339,7 @@ func (f *filesTab) rebuild() {
 		f.pin.RemoveCSSClass("active")
 	}
 	f.paused.SetVisible(!f.w.app.settings.config().SidebarAutoRefresh)
+	f.pauseLook()
 
 	g := f.git
 	f.gitBar.SetVisible(g != nil && !f.remote())

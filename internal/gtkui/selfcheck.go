@@ -20,6 +20,9 @@ package gtkui
 //	view      the overlay's rows match VTE's view once old rows are trimmed
 //	marks     OSC 133 marks stay on their prompts across feeds, rewraps
 //	          and scrollback trimming (no shell; synthetic output)
+//	perf      CPU and memory with each side-pane tab shown for
+//	          $WTF_PERF_SECONDS (default 30), appended to
+//	          linux/bench/results.csv; not part of linux/check.sh
 //	signals   the shell's signal mask is empty; Ctrl-C and resizes reach
 //	          programs. Prints the pid of a `sleep` left running, so the
 //	          caller can check that quitting killed it.
@@ -76,6 +79,8 @@ func (a *App) selfCheck(w *Window) {
 		w.checkPanes()
 	case "viewers":
 		w.checkViewers()
+	case "perf":
+		w.checkPerf()
 	default:
 		fmt.Printf("unknown WTF_NATIVE_DEBUG=%q\n", a.debug)
 		failed = true
@@ -718,6 +723,35 @@ func (w *Window) checkTabs() {
 	_ = xkey("ctrl+shift+t")
 	_ = xkey("ctrl+shift+t")
 	check(waitUntil(3*time.Second, func() bool { t, _ := count(); return t == 3 }), "Ctrl+Shift+T twice: 3 tabs")
+	activeID := func() (id int) {
+		onMain(func() {
+			if t, ok := m.Active(); ok {
+				id = t.ID
+			}
+		})
+		return
+	}
+	last := activeID()
+	_ = xkey("ctrl+Tab")
+	check(waitUntil(3*time.Second, func() bool { return activeID() != last }), "Ctrl+Tab shows the next tab")
+	_ = xkey("ctrl+shift+Tab")
+	check(waitUntil(3*time.Second, func() bool { return activeID() == last }), "Ctrl+Shift+Tab goes back")
+
+	// The tab menu has the macOS app's items.
+	var labels []string
+	onMain(func() {
+		for _, it := range w.tabMenu(m.Tabs()[0].ID) {
+			if it != nil {
+				labels = append(labels, it.label)
+			}
+		}
+	})
+	for _, want := range []string{"Close Tabs to the Right", "Close Other Tabs", "Git Identities…", "Rename Tab…", "Duplicate"} {
+		check(slices.Contains(labels, want), "the tab menu has %q", want)
+	}
+	for _, id := range []string{"inspect.tls", "paste.confirm", "generate.key", "generate.password", "usage.toggle", "sidebar.autoRefresh", "config.open"} {
+		check(w.action(id) != "", "the command %s runs here", id)
+	}
 	_ = xkey("ctrl+shift+d")
 	_ = xkey("ctrl+alt+shift+d")
 	check(waitUntil(3*time.Second, func() bool { _, p := count(); return p == 5 }), "split right and down: 5 panes")

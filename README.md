@@ -1,8 +1,31 @@
 # wtf
 
-A browser-like terminal for macOS and Linux. Go + Wails v3 + Svelte 5 + xterm.js.
+A browser-like terminal for macOS and Linux. A Go backend with a native UI on
+each: AppKit + SwiftTerm on macOS (`macos/`, see NATIVE_MACOS_ROADMAP.md), GTK 4 +
+libadwaita + VTE on Linux (`internal/gtkui`, see NATIVE_LINUX_ROADMAP.md). The
+earlier Wails v3 + Svelte 5 + xterm.js UI is still in the tree.
 
 What's next: see [ROADMAP.md](ROADMAP.md).
+
+## Install on Linux
+
+The `.deb` (Ubuntu 24.04+, Debian 13+) or `.rpm` (Fedora 40+) for your
+processor from the release, e.g. `sudo apt install ./wtf_1.1.0_amd64.deb` or
+`sudo dnf install ./wtf-1.1.0-1.x86_64.rpm`. It replaces the Wails build of wtf
+and keeps its windows and settings (`~/.config/wtf`).
+
+## Build the native Linux app
+
+In Docker, on any machine (`linux/Dockerfile` is Ubuntu 24.04 with the GTK,
+libadwaita and VTE headers):
+
+```sh
+docker build -t wtf-gtk-dev:ubuntu24 linux
+linux/build.sh                   # bin/gtk/wtf-gtk
+linux/check.sh                   # tests and headless self-checks under Xvfb
+linux/package.sh arm64 amd64     # .deb and .rpm in bin/gtk/packages
+linux/package/test-install.sh amd64   # installs them on clean Ubuntu, Debian, Fedora
+```
 
 ## Run
 

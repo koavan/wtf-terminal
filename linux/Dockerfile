@@ -17,3 +17,5 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 COPY --from=go /usr/local/go /usr/local/go
 ENV PATH=/usr/local/go/bin:/root/go/bin:$PATH
+# Packages .deb and .rpm (linux/package.sh).
+RUN GOBIN=/usr/local/bin go install github.com/goreleaser/nfpm/v2/cmd/nfpm@v2.46.3 && rm -rf /root/go /root/.cache

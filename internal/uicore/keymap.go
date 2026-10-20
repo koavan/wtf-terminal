@@ -31,6 +31,12 @@ var Commands = func() []Command {
 		cmd("theme.pick", "Change Theme…", ""),
 		cmd("themes.folder", "Open Themes Folder", ""),
 		cmd("tools.show", "Command-Line Tools…", ""),
+		cmd("inspect.tls", "Inspect TLS Certificate…", ""),
+		cmd("paste.confirm", "Toggle Paste Confirmation", ""),
+		cmd("generate.key", "Generate SSH Key…", ""),
+		cmd("generate.password", "Generate Password…", ""),
+		cmd("usage.toggle", "Toggle Resource Usage in Address Bar", ""),
+		cmd("sidebar.autoRefresh", "Toggle Side Pane Auto-Refresh", ""),
 		cmd("app.quit", "Quit", "Ctrl+Shift+Q"),
 
 		cmd("tab.new", "New Tab", "Ctrl+Shift+T"),

@@ -544,9 +544,13 @@ func (w *Window) showAbout() {
 	var render func()
 	render = func() {
 		s.clear()
-		icon := gtk.NewImageFromIconName("utilities-terminal-symbolic")
+		// wtf's own icon once installed; a generic one when run from a build.
+		icon := gtk.NewImageFromIconName(appID)
+		if !gtk.IconThemeGetForDisplay(gdk.DisplayGetDefault()).HasIcon(appID) {
+			icon = gtk.NewImageFromIconName("utilities-terminal-symbolic")
+			icon.AddCSSClass("accent")
+		}
 		icon.SetPixelSize(64)
-		icon.AddCSSClass("accent")
 		hero := gtk.NewBox(gtk.OrientationVertical, 2)
 		hero.SetVAlign(gtk.AlignCenter)
 		name := s.label("wtf", "wtf-about-name")
@@ -670,4 +674,21 @@ func (w *Window) showAbout() {
 			render()
 		})
 	}()
+}
+
+// installTitle is the menu item that opens Command-Line Tools at a missing
+// tool.
+func installTitle(tool string) string {
+	if tool == "aws" {
+		return "Install the AWS CLI…"
+	}
+	return "Install " + tool + "…"
+}
+
+// withInstallHint points a missing tool's error at its row menu's Install….
+func withInstallHint(err string) string {
+	if uicore.MissingTool(err) == "" {
+		return err
+	}
+	return err + " — right-click to install it"
 }

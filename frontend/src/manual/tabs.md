@@ -3,11 +3,11 @@
 ## Tabs
 
 - New tab: {{cmd:tab.new}}. It starts in the folder of the tab you were in.
-- Close: {{cmd:pane.close}} closes the focused pane (the tab, if it's the last one); {{cmd:tab.close}} closes the whole tab. If a program is still running, wtf asks first.
+- Close: {{cmd:pane.close}} closes the focused pane (the tab, if it's the last one); {{cmd:tab.close}} closes the whole tab; right-click a tab for **Close Other Tabs** and **Close Tabs to the Right**. If a program is still running, wtf asks first.
 - Reopen a closed tab: {{cmd:tab.reopen}} (in its old folder).
 - Switch: {{cmd:tab.next}} and {{cmd:tab.prev}}, `Ctrl+Tab`, or {{mac:⌘1–⌘8 (⌘9 for the last)|other:Alt+1–8 (Alt+9 for the last)}}.
 - Move: drag a tab, or {{cmd:tab.moveRight}} / {{cmd:tab.moveLeft}}.
-- Rename: double-click the tab, or {{cmd:tab.rename}}. An empty name goes back to the automatic one (the folder, or the running program).
+- Rename: double-click the tab, or {{cmd:tab.rename}}. An empty name, or right-click → **Use Automatic Name**, goes back to the automatic one (the folder, or the running program).
 - See every tab at once: {{cmd:tab.overview}} shows live previews of each tab; click one to go there.
 
 A tab's icon shows what's running in it. A dot appears when a background tab has new output, and a ✓ or ✗ when a command finished there while you were elsewhere. A red dot means the tab is being recorded (see [Recording and saving a terminal](#recording)).

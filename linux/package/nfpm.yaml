@@ -1,0 +1,73 @@
+# Packages the native Linux app (GTK 4 + libadwaita + VTE) as .deb and .rpm.
+# linux/package.sh fills in the version and architecture and stages the
+# files in bin/gtk/pkg-<arch>; see that script.
+name: wtf
+arch: ${ARCH}
+platform: linux
+version: ${VERSION}
+release: "1"
+section: x11
+priority: optional
+maintainer: dayanraj-rently <dayanraj-rently@users.noreply.github.com>
+description: |-
+  A terminal for all the What-The-Fuck moments.
+  Tabs, splits and a side pane for files, SSH, Kubernetes, AWS and more.
+vendor: dayanraj
+homepage: https://github.com/dayanraj-rently/wtf-terminal
+license: MIT
+
+# The Wails build was packaged as wtf too: this one replaces it.
+contents:
+  - src: ${STAGE}/wtf
+    dst: /usr/bin/wtf
+    file_info: {mode: 0755}
+  - src: ${STAGE}/fonts/
+    dst: /usr/share/wtf/fonts/
+    type: tree
+  - src: ${STAGE}/icons/
+    dst: /usr/share/icons/hicolor/
+    type: tree
+  - src: ./linux/package/com.dayanraj.wtf.desktop
+    dst: /usr/share/applications/com.dayanraj.wtf.desktop
+  - src: ./linux/package/com.dayanraj.wtf.metainfo.xml
+    dst: /usr/share/metainfo/com.dayanraj.wtf.metainfo.xml
+
+# GTK ≥ 4.14, libadwaita ≥ 1.5, VTE ≥ 0.76: Ubuntu 24.04+, Debian 13+,
+# Fedora 40+. The SVG loader and Adwaita icons draw the symbolic icons;
+# ssh-keygen and ssh-add are used by the SSH tab.
+depends:
+  - libgtk-4-1 (>= 4.14)
+  - libadwaita-1-0 (>= 1.5)
+  - libvte-2.91-gtk4-0 (>= 0.76)
+  - librsvg2-common
+  - adwaita-icon-theme
+  - openssh-client
+
+# Programs side-pane features run (see internal/tools). wtf starts without
+# them; kubectl and the AWS CLI aren't packaged by most distributions, so
+# wtf offers to install those itself.
+recommends:
+  - git
+  - lsof
+  - iproute2
+
+overrides:
+  rpm:
+    depends:
+      - gtk4 >= 4.14
+      - libadwaita >= 1.5
+      - vte291-gtk4 >= 0.76
+      - librsvg2
+      - adwaita-icon-theme
+      - openssh-clients
+      # GTK draws with GL through libepoxy, which opens libGLESv2 at run
+      # time; minimal installs can lack it.
+      - libglvnd-gles
+    recommends:
+      - git
+      - lsof
+      - iproute
+
+scripts:
+  postinstall: ./linux/package/postinstall.sh
+  postremove: ./linux/package/postinstall.sh

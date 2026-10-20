@@ -552,7 +552,7 @@ Benchmark (Xvfb, llvmpipe), two runs: idle 0.02–0.03 s CPU per 30 s, `seq`
 profile skips the first-run tools check (`tools-checked`), as a returning
 user's does: its dialog would take the keyboard.
 
-### M7 — Parity, perf, packaging, release ☐
+### M7 — Parity, perf, packaging, release ◐
 
 - Parity checklist against the macOS app (all palette commands, every
   right-click menu, every manual page). The manual gets Linux shortcut text.
@@ -565,6 +565,49 @@ user's does: its dialog would take the keyboard.
   native and macOS native.
 - Afterwards: decide whether to delete the Wails/Svelte UI. Nothing would ship it
   any more; the manual pages move to `manual/`.
+
+**Status (2026-10-20): parity, perf and packaging done and checked headless;
+the release is waiting.**
+
+- Real folders and ID: the app is `com.dayanraj.wtf` and uses `~/.config/wtf`
+  and `~/.cache/wtf`, shared with the Wails build. Self-checks (and
+  `WTF_NATIVE_PROFILE=separate`) keep `wtf-native` and the `.Native` ID.
+  `linux/check.sh` confirms the real folders.
+- Parity, from an audit against the macOS app: the tab menu (git identity
+  items, Use Automatic Name, Close Tabs to the Right, macOS order, no panes
+  broadcast while the group broadcasts), the group menu's broadcast item,
+  naming a new group, the six missing palette commands (Inspect TLS, paste
+  confirmation, Generate key/password, usage toggle, auto-refresh toggle),
+  Settings… (Ctrl+,), Ctrl+Tab, Install… links (Kubernetes and Network notes,
+  Kubernetes section errors, context and AWS menus, Findings at its scanner),
+  and the Files tab's pause button. Manual: Backspace for Back, the tab menu's
+  close items.
+- Packaging: `linux/package.sh` builds in the dev image per architecture
+  (`wtf-gtk-dev:ubuntu24-amd64` for amd64) and runs nfpm
+  (`linux/package/nfpm.yaml`): /usr/bin/wtf, `com.dayanraj.wtf.desktop`,
+  hicolor icons, AppStream metadata, JetBrains Mono in /usr/share/wtf/fonts
+  (added for this process with `FcConfigAppFontAddDir`). The program name is
+  the app ID, so X11's WM_CLASS matches the desktop file.
+  `linux/package/test-install.sh <arch>` installs on clean Ubuntu 24.04,
+  Debian 13 and Fedora 41 and starts it under Xvfb: all pass, amd64 and
+  arm64. Upgrading from the 1.0.3 Wails .deb removes /usr/local/bin/wtf and
+  the old desktop file.
+- AppImage: not made. Bundling GTK 4, libadwaita and VTE with linuxdeploy
+  isn't clean, and every supported distribution takes the .deb or .rpm.
+- Perf (`WTF_NATIVE_DEBUG=perf`, 30 s per tab, Xvfb/llvmpipe): idle 0.02 s;
+  each tab 0.01–0.08 s, Network 0.22 s (it polls `ss` while shown); the
+  manual 0.26 s for its first render, then 0. Heavy output as M0: `seq`
+  0.52 s, coloured 0.94 s, `yes` 1.11 s, PSS 280–325 MiB.
+
+Findings:
+
+- nfpm expands variables in fields but not in file paths, so `package.sh`
+  writes a concrete config per architecture.
+- Fedora's minimal image has no libGLESv2, and GTK aborts when it opens
+  GL; the rpm depends on `libglvnd-gles`.
+
+Not done: "Select Output" (VTE can't select a range from Go); menu hints;
+the hands-on list under M0.
 
 ## Risks
 

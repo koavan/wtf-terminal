@@ -22,7 +22,7 @@ for c in app snapshot view terminal tabs restore sidebar panes viewers marks sig
 done
 
 echo "== single instance"
-rm -rf "$HOME/.config/wtf-native" # windows saved by the checks above
+rm -rf "$HOME/.config/wtf" "$HOME/.cache/wtf" # a fresh real profile
 $bin >/tmp/first.log 2>&1 &
 first=$!
 for _ in $(seq 50); do xdotool search --onlyvisible --pid $first >/dev/null 2>&1 && break; sleep 0.1; done
@@ -35,6 +35,11 @@ if [ $status -eq 0 ] && [ "$windows" -eq 2 ]; then
 	echo "PASS a second wtf-gtk exits ($status) and the first opens a window ($windows)"
 else
 	echo "FAIL second exit $status, first has $windows windows"; fail=1
+fi
+if grep -q "state $HOME/.config/wtf, cache $HOME/.cache/wtf" /tmp/first.log; then
+	echo "PASS it uses the real folders"
+else
+	echo "FAIL folders: $(grep -o 'state .*' /tmp/first.log)"; fail=1
 fi
 shells=$(pgrep -P $first | wc -l)
 kill -TERM $first

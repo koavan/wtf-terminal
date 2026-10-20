@@ -234,6 +234,14 @@ func netScopeSwitch(tip string, labels []string, changed func(i int)) (box *gtk.
 }
 
 // netNoteButton adds a link-like button under a note.
+// installLink adds an Install… link to a note whose error says a tool is
+// missing; it opens Command-Line Tools at that tool.
+func installLink(w *Window, note *gtk.Box, err string) {
+	if tool := uicore.MissingTool(err); tool != "" {
+		netNoteButton(note, "Install…", func() { w.showTools(tool) })
+	}
+}
+
 func netNoteButton(note *gtk.Box, label string, run func()) {
 	b := gtk.NewButtonWithLabel(label)
 	b.AddCSSClass("flat")
@@ -440,6 +448,7 @@ func (n *networkTab) rebuild() {
 	switch {
 	case st.err != "":
 		setNote(n.note, "Can't list connections", st.err)
+		installLink(n.w, n.note, st.err)
 	case st.loaded && len(shown) == 0 && q != "":
 		setNote(n.note, "", "No connections match “"+st.filter+"”.")
 	case st.loaded && len(shown) == 0 && st.terminalsOnly:

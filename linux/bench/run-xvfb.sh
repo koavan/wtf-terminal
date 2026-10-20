@@ -16,7 +16,7 @@ exec docker run --rm -v "$PWD":/src -w /src wtf-gtk-dev:ubuntu24 sh -c '
 		WEBKIT_DISABLE_SANDBOX_THIS_IS_DANGEROUS=1 "$@"
 	mkdir -p $HOME
 	# As a returning user: no first-run tools check taking the keyboard.
-	mkdir -p $HOME/.config/wtf-native && touch $HOME/.config/wtf-native/tools-checked
+	mkdir -p $HOME/.config/wtf && touch $HOME/.config/wtf/tools-checked
 	Xvfb :99 -screen 0 1600x1000x24 -nolisten tcp >/dev/null 2>&1 &
 	sleep 0.5
 	export DISPLAY=:99

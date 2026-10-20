@@ -446,40 +446,62 @@ func (w *Window) windowCommands() map[string]func() {
 		"font.smaller":    func() { s.setFontSize(s.fontSize - 1) },
 		"font.reset":      func() { s.setFontSize(s.config().FontSize) },
 
-		"tab.new":          func() { m.Open(uicore.OpenOptions{}) },
-		"tab.duplicate":    func() { m.Duplicate() },
-		"tab.close":        func() { w.closeTabs([]int{m.ActiveID()}) },
-		"tab.reopen":       m.Reopen,
-		"tab.next":         func() { m.Cycle(1) },
-		"tab.prev":         func() { m.Cycle(-1) },
-		"tab.moveRight":    func() { m.MoveActive(1) },
-		"tab.moveLeft":     func() { m.MoveActive(-1) },
-		"tab.group":        func() { m.CreateGroup(m.ActiveID()) },
-		"tab.select.last":  m.SelectLast,
-		"tab.toNewWindow":  func() { w.moveToNewWindow(m.ActiveID()) },
-		"pane.splitRight":  func() { m.Split(uicore.SplitRow, nil, "") },
-		"pane.splitDown":   func() { m.Split(uicore.SplitColumn, nil, "") },
-		"pane.close":       w.closeActivePane,
-		"pane.zoom":        m.ToggleZoom,
-		"pane.next":        func() { m.CyclePane(1) },
-		"pane.prev":        func() { m.CyclePane(-1) },
-		"pane.left":        func() { m.FocusDirection(uicore.FocusLeft) },
-		"pane.right":       func() { m.FocusDirection(uicore.FocusRight) },
-		"pane.up":          func() { m.FocusDirection(uicore.FocusUp) },
-		"pane.down":        func() { m.FocusDirection(uicore.FocusDown) },
-		"window.close":     func() { w.win.Close() },
-		"palette":          func() { w.togglePalette(paletteCommands) },
-		"broadcast.toggle": w.toggleBroadcast,
-		"help.shortcuts":   w.showShortcuts,
-		"term.pinOutput":   w.pinLastOutput,
-		"findings.scan":    w.runSecurityScan,
-		"usage.show":       w.showUsage,
-		"snippets.run":     func() { w.togglePalette(paletteSnippets) },
-		"snippets.open":    w.openSnippetsFile,
-		"app.about":        w.showAbout,
-		"tools.show":       func() { w.showTools("") },
-		"help.manual":      w.showHelp,
-		"tab.rename":       func() { w.strip.rename(m.ActiveID()) },
+		"tab.new":             func() { m.Open(uicore.OpenOptions{}) },
+		"tab.duplicate":       func() { m.Duplicate() },
+		"tab.close":           func() { w.closeTabs([]int{m.ActiveID()}) },
+		"tab.reopen":          m.Reopen,
+		"tab.next":            func() { m.Cycle(1) },
+		"tab.prev":            func() { m.Cycle(-1) },
+		"tab.moveRight":       func() { m.MoveActive(1) },
+		"tab.moveLeft":        func() { m.MoveActive(-1) },
+		"tab.group":           func() { w.newGroup(m.ActiveID()) },
+		"tab.select.last":     m.SelectLast,
+		"tab.toNewWindow":     func() { w.moveToNewWindow(m.ActiveID()) },
+		"pane.splitRight":     func() { m.Split(uicore.SplitRow, nil, "") },
+		"pane.splitDown":      func() { m.Split(uicore.SplitColumn, nil, "") },
+		"pane.close":          w.closeActivePane,
+		"pane.zoom":           m.ToggleZoom,
+		"pane.next":           func() { m.CyclePane(1) },
+		"pane.prev":           func() { m.CyclePane(-1) },
+		"pane.left":           func() { m.FocusDirection(uicore.FocusLeft) },
+		"pane.right":          func() { m.FocusDirection(uicore.FocusRight) },
+		"pane.up":             func() { m.FocusDirection(uicore.FocusUp) },
+		"pane.down":           func() { m.FocusDirection(uicore.FocusDown) },
+		"window.close":        func() { w.win.Close() },
+		"palette":             func() { w.togglePalette(paletteCommands) },
+		"broadcast.toggle":    w.toggleBroadcast,
+		"help.shortcuts":      w.showShortcuts,
+		"term.pinOutput":      w.pinLastOutput,
+		"findings.scan":       w.runSecurityScan,
+		"usage.show":          w.showUsage,
+		"snippets.run":        func() { w.togglePalette(paletteSnippets) },
+		"snippets.open":       w.openSnippetsFile,
+		"app.about":           w.showAbout,
+		"tools.show":          func() { w.showTools("") },
+		"help.manual":         w.showHelp,
+		"tab.rename":          func() { w.strip.rename(m.ActiveID()) },
+		"inspect.tls":         func() { w.showCertHost("") },
+		"generate.key":        func() { w.showGenerator("key") },
+		"generate.password":   func() { w.showGenerator("password") },
+		"sidebar.autoRefresh": func() { toggleAutoRefresh(w) },
+		"paste.confirm": func() {
+			on := !w.app.settings.config().ConfirmPaste
+			w.setting(func() error { return w.app.be.Config.SetConfirmPaste(on) },
+				map[bool]string{true: "Multi-line pastes are shown first", false: "Pastes go straight in"}[on])
+		},
+		"usage.toggle": func() {
+			on := !w.app.settings.config().ShowUsage
+			w.setting(func() error { return w.app.be.Config.SetShowUsage(on) },
+				map[bool]string{true: "wtf’s CPU and memory show in the address bar", false: "Resource usage hidden"}[on])
+		},
+		"config.open": func() {
+			cfg := w.app.be.Config
+			go func() {
+				if err := cfg.OpenConfigFile(); err != nil {
+					onMainAsync(func() { w.toast("Couldn't open settings: " + err.Error()) })
+				}
+			}()
+		},
 		"themes.folder": func() {
 			cfg := w.app.be.Config
 			go func() {
@@ -505,6 +527,20 @@ func (w *Window) windowCommands() map[string]func() {
 		cmds[t.cmd] = func() { w.showSidebar(tab) }
 	}
 	return cmds
+}
+
+// setting changes a setting off the main loop, then says so.
+func (w *Window) setting(change func() error, done string) {
+	go func() {
+		err := change()
+		onMainAsync(func() {
+			if err != nil {
+				w.toast("Couldn't change the setting: " + err.Error())
+			} else {
+				w.toast(done)
+			}
+		})
+	}()
 }
 
 // appCommandIDs are the commands the app runs ("app." actions).
@@ -533,6 +569,9 @@ func (w *Window) installCommands() {
 	for _, id := range appCommandIDs {
 		shortcut(id, "app."+id)
 	}
+	// Ctrl+Tab too, as in a browser (and the macOS app).
+	keys.AddShortcut(gtk.NewShortcut(gtk.NewShortcutTriggerParseString("<Control>Tab"), gtk.NewNamedAction("win.tab.next")))
+	keys.AddShortcut(gtk.NewShortcut(gtk.NewShortcutTriggerParseString("<Control><Shift>ISO_Left_Tab"), gtk.NewNamedAction("win.tab.prev")))
 	w.win.AddController(keys)
 }
 
@@ -556,7 +595,7 @@ func (w *Window) mainMenuButton() *gtk.MenuButton {
 	sections := [][]string{
 		{"tab.new", "window.new", "pane.splitRight", "pane.splitDown", "tab.duplicate", "tab.toNewWindow"},
 		{"tab.reopen", "pane.close", "tab.close", "window.close"},
-		{"palette", "theme.pick", "snippets.run", "workspace.open", "workspace.save", "findings.scan", "usage.show"},
+		{"palette", "config.open", "theme.pick", "themes.folder", "snippets.run", "workspace.open", "workspace.save", "findings.scan", "usage.show"},
 		{"sidebar.toggle", "sidebar.files", "sidebar.ssh", "sidebar.aws", "sidebar.kube", "sidebar.snippets", "sidebar.workspaces",
 			"sidebar.network", "sidebar.processes", "sidebar.history", "sidebar.pins", "sidebar.findings", "sidebar.share", "sidebar.generate"},
 		{"find", "term.copyOutput", "term.pinOutput", "term.clear", "secrets.toggle"},

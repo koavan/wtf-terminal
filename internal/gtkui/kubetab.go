@@ -627,6 +627,7 @@ func (r *kubeResources) rebuild() {
 	switch {
 	case st.targetError != "":
 		setNote(r.note, "Can’t find a Kubernetes context", st.targetError)
+		installLink(w, r.note, st.targetError)
 	case t != nil && !anyOpen:
 		setNote(r.note, "", "Open a section to load it. Only open sections are read from the cluster, and refreshed.")
 	default:
@@ -648,7 +649,12 @@ func (r *kubeResources) rebuild() {
 			kind, _ := kubeTableKind(id)
 			var rows []sideRow
 			if s.err != "" {
-				rows = append(rows, sideRow{id: id + ":!error", icon: "dialog-warning-symbolic", title: s.err, titleClass: "error", tip: s.err})
+				row := sideRow{id: id + ":!error", icon: "dialog-warning-symbolic", title: s.err, titleClass: "error", tip: s.err}
+				if tool := uicore.MissingTool(s.err); tool != "" {
+					row.button, row.buttonTip = "system-software-install-symbolic", "Show how to install it"
+					row.buttonRun = func() { w.showTools(tool) }
+				}
+				rows = append(rows, row)
 			}
 			count := 0
 			switch id {
@@ -1346,7 +1352,13 @@ func (c *kubeContexts) testConnection(k kube.KubeContext) {
 
 func (c *kubeContexts) menu(k kube.KubeContext) []*menuItem {
 	w := c.w
-	items := []*menuItem{
+	var items []*menuItem
+	if ch, ok := c.st.checks[kubeKey(k)]; ok {
+		if tool := uicore.MissingTool(ch.err); tool != "" {
+			items = append(items, item(installTitle(tool), func() { w.showTools(tool) }), menuSection)
+		}
+	}
+	items = append(items,
 		item("Use in This Shell", func() { c.use(k, false) }),
 		item("Open New Tab with Context", func() { c.use(k, true) }),
 		item("Show Its Resources", func() {
@@ -1355,7 +1367,7 @@ func (c *kubeContexts) menu(k kube.KubeContext) []*menuItem {
 		}),
 		menuSection,
 		item("Test Connection", func() { c.testConnection(k) }),
-	}
+	)
 	if strings.HasSuffix(k.ExecCommand, "aws-iam-authenticator") {
 		items = append(items, item("Log In with aws eks get-token…", func() {
 			c.confirmEdit(kube.Op{Kind: "fixAuth", Name: k.Name, File: k.File}, "Switch "+k.Name+" to aws eks get-token?", "Switch",

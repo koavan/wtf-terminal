@@ -5,7 +5,7 @@ The Files tab ({{key:sidebar.files}}) shows the focused shell's folder as a tree
 ## Getting around
 
 - Click a folder to expand it; double-click it to `cd` the shell there (when the shell is at its prompt). The tree follows.
-- **←** (Back) returns to the folder shown before; **↑** (Up) goes to the parent. Each pane keeps its own Back history. Keys in the tree: `⌫` for Back, {{mac:⌥↑|other:Alt+↑}} for Up; your mouse's back button works too.
+- **←** (Back) returns to the folder shown before; **↑** (Up) goes to the parent. Each pane keeps its own Back history. Keys in the tree: {{mac:⌫|other:Backspace}} for Back, {{mac:⌥↑|other:Alt+↑}} for Up; your mouse's back button works too.
 - **📌 Pin** keeps the tree on the current folder while the shell moves elsewhere. While pinned, Back and Up move the tree only and leave the shell alone; unpin to follow the shell again.
 - Type in **Filter** to narrow the loaded folders, keeping the path to each match.
 - Arrow keys move the selection, → expands a folder, ← collapses it, `Enter` acts like a click, `Esc` goes back to the terminal.

@@ -259,7 +259,7 @@ func (t *awsTab) row(p awsprofiles.Profile, inUse string) sideRow {
 		lines = append(lines, line{uicore.AWSShortArn(c.identity.Arn), "success"})
 		r.tip += "\n\n" + c.identity.Arn
 	} else if c.identityErr != "" {
-		lines = append(lines, line{c.identityErr, "error"})
+		lines = append(lines, line{withInstallHint(c.identityErr), "error"})
 	}
 	if c.keysChecked {
 		now := time.Now()
@@ -276,7 +276,7 @@ func (t *awsTab) row(p awsprofiles.Profile, inUse string) sideRow {
 			r.tip += "\n\n" + strings.Join(tips, "\n")
 		}
 	} else if c.keysErr != "" {
-		lines = append(lines, line{c.keysErr, "error"})
+		lines = append(lines, line{withInstallHint(c.keysErr), "error"})
 	}
 	if len(lines) > 0 {
 		texts := make([]string, len(lines))
@@ -310,10 +310,19 @@ func (t *awsTab) copy(text, toast string) {
 
 func (t *awsTab) menu(p awsprofiles.Profile) []*menuItem {
 	w, svc := t.w, t.svc()
-	items := []*menuItem{
-		item("Use in This Shell", func() { t.use(p) }),
-		item("Open New Tab with Profile", func() { w.model.Open(uicore.OpenOptions{Command: uicore.AWSUseCommand(p.Name)}) }),
+	var items []*menuItem
+	if c := awsStore.checks[p.Name]; c != nil {
+		tool := uicore.MissingTool(c.identityErr)
+		if tool == "" {
+			tool = uicore.MissingTool(c.keysErr)
+		}
+		if tool != "" {
+			items = append(items, item(installTitle(tool), func() { w.showTools(tool) }), menuSection)
+		}
 	}
+	items = append(items,
+		item("Use in This Shell", func() { t.use(p) }),
+		item("Open New Tab with Profile", func() { w.model.Open(uicore.OpenOptions{Command: uicore.AWSUseCommand(p.Name)}) }))
 	if p.Kind == "sso" {
 		items = append(items, item("Log In with SSO", func() {
 			w.model.Open(uicore.OpenOptions{Command: "aws sso login --profile " + uicore.ShellQuote(p.Name)})

@@ -28,6 +28,9 @@ const ClearLine = "\x15"
 // IdentityVar is the variable a shell switched to a git identity reports.
 const IdentityVar = "WTF_GIT_IDENTITY"
 
+// StopIdentity is the command that puts a shell's git back as it was.
+const StopIdentity = "unset GIT_SSH_COMMAND GIT_AUTHOR_NAME GIT_AUTHOR_EMAIL GIT_COMMITTER_NAME GIT_COMMITTER_EMAIL " + IdentityVar
+
 // UseIdentity is the command that makes git in this shell use the
 // identity's key, and commit as its author.
 func UseIdentity(i sshhosts.GitIdentity) string {

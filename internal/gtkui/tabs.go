@@ -335,12 +335,11 @@ func (w *Window) tabMenu(id int) []*menuItem {
 	if !ok {
 		return nil
 	}
+	// In the macOS app's order.
 	items := []*menuItem{
 		item("New Tab to the Right", func() { m.OpenNextTo(id, false) }),
-		item("Duplicate", func() { m.OpenNextTo(id, true) }),
-		item("Rename Tab…", func() { coreglib.IdleAdd(func() { w.strip.rename(id) }) }),
 		menuSection,
-		item("Add Tab to New Group", func() { m.CreateGroup(id) }),
+		item("Add Tab to New Group", func() { w.newGroup(id) }),
 	}
 	for _, g := range m.Groups() {
 		if g.ID == t.GroupID {
@@ -353,16 +352,19 @@ func (w *Window) tabMenu(id int) []*menuItem {
 		gid := g.ID
 		items = append(items, item("Add to "+name, func() { m.AddToGroup(id, gid) }))
 	}
+	groupBroadcast := false
 	if t.GroupID != 0 {
 		items = append(items, item("Remove from Group", func() { m.RemoveFromGroup(id) }))
 		gid := t.GroupID
+		groupBroadcast = w.broadcast.groups[gid]
 		label := "Broadcast Input to Group"
-		if w.broadcast.groups[gid] {
+		if groupBroadcast {
 			label = "Stop Broadcasting Input"
 		}
 		items = append(items, item(label, func() { w.toggleBroadcastGroup(gid) }))
 	}
-	if t.Root.IsSplit() {
+	// The group's broadcast already covers the panes.
+	if t.Root.IsSplit() && !groupBroadcast {
 		label := "Broadcast Input to Panes"
 		if w.broadcast.tabs[id] {
 			label = "Stop Broadcasting to Panes"
@@ -383,26 +385,99 @@ func (w *Window) tabMenu(id int) []*menuItem {
 		}
 	}
 	items = append(items, menuSection)
+	items = append(items, w.identityItems(id)...)
+	items = append(items, menuSection, item("Duplicate", func() { m.OpenNextTo(id, true) }))
+	moves := []*menuItem{}
 	if len(m.Tabs()) > 1 {
-		items = append(items, item("Move to New Window", func() { w.moveToNewWindow(id) }))
+		moves = append(moves, item("Move to New Window", func() { w.moveToNewWindow(id) }))
 	}
 	for _, other := range w.app.windows {
 		if other != w {
 			o := other
-			items = append(items, item("Move to “"+o.win.Title()+"”", func() { w.moveTab(id, o, 0) }))
+			moves = append(moves, item("Move to “"+o.win.Title()+"”", func() { w.moveTab(id, o, 0) }))
 		}
 	}
-	others := []int{}
-	for _, x := range m.Tabs() {
+	if len(moves) > 0 {
+		items = append(append(items, menuSection), moves...)
+	}
+	items = append(items, menuSection, item("Rename Tab…", func() { coreglib.IdleAdd(func() { w.strip.rename(id) }) }))
+	if t.CustomTitle != "" {
+		items = append(items, item("Use Automatic Name", func() { m.Rename(id, "") }))
+	}
+	items = append(items, menuSection, item("Close Tab", func() { w.closeTabs([]int{id}) }))
+	tabs := m.Tabs()
+	var others, right []int
+	for i, x := range tabs {
 		if x.ID != id {
 			others = append(others, x.ID)
 		}
+		if i > m.Index(id) {
+			right = append(right, x.ID)
+		}
 	}
-	items = append(items, menuSection)
 	if len(others) > 0 {
 		items = append(items, item("Close Other Tabs", func() { w.closeTabs(others) }))
 	}
-	return append(items, item("Close Tab", func() { w.closeTabs([]int{id}) }))
+	if len(right) > 0 {
+		items = append(items, item("Close Tabs to the Right", func() { w.closeTabs(right) }))
+	}
+	return items
+}
+
+// identityItems switch the tab's shell to a git identity, or back: what the
+// SSH tab's Git section does, from the tab.
+func (w *Window) identityItems(id int) []*menuItem {
+	m := w.model
+	t, _ := m.Tab(id)
+	current := ""
+	if ps := m.FocusedPane(t); ps != nil {
+		current = ps.Env[uicore.IdentityVar]
+	}
+	identities := w.app.be.SSHHosts.GitIdentities()
+	more := item("Git Identities…", func() { w.showSSHSection("git") })
+	if len(identities) == 0 {
+		return []*menuItem{more}
+	}
+	heading := "Git identity"
+	if current != "" {
+		heading += ": " + current
+	}
+	items := []*menuItem{item(heading, nil)}
+	run := func(command string) {
+		m.Activate(id)
+		w.runInPane(command)
+	}
+	for _, i := range identities {
+		if i.Name == current {
+			continue
+		}
+		i := i
+		items = append(items, item("    Use "+i.Name, func() { run(uicore.UseIdentity(i)) }))
+	}
+	if current != "" {
+		items = append(items, item("Stop Using Identity", func() { run(uicore.StopIdentity) }))
+	}
+	return append(items, more)
+}
+
+// newGroup puts a tab in a new group and asks for the group's name, as the
+// macOS app opens its group editor.
+func (w *Window) newGroup(id int) {
+	if g := w.model.CreateGroup(id); g != 0 {
+		coreglib.IdleAdd(func() { w.nameGroup(g) })
+	}
+}
+
+// showSSHSection opens the side pane on one of the SSH tab's sections.
+func (w *Window) showSSHSection(section string) {
+	st := &w.sidebarState
+	st.Tab, st.Open, st.SSHSection = uicore.SidebarSSH, true, section
+	w.layoutSidebar()
+	if t, ok := w.sidePane().(*sshTab); ok {
+		if b := t.switches[section]; b != nil {
+			b.SetActive(true)
+		}
+	}
 }
 
 func (w *Window) groupMenu(id int) []*menuItem {
@@ -411,9 +486,14 @@ func (w *Window) groupMenu(id int) []*menuItem {
 	if !ok {
 		return nil
 	}
+	broadcast := "Broadcast Input to Group"
+	if w.broadcast.groups[id] {
+		broadcast = "Stop Broadcasting Input"
+	}
 	items := []*menuItem{
 		item("Name Group…", func() { coreglib.IdleAdd(func() { w.nameGroup(id) }) }),
 		item("New Tab in Group", func() { m.NewTabInGroup(id) }),
+		item(broadcast, func() { w.toggleBroadcastGroup(id) }),
 		menuSection,
 	}
 	for _, c := range uicore.GroupColors {

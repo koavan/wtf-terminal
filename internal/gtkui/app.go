@@ -35,9 +35,16 @@ import (
 	"github.com/dayanraj/wtf/internal/uicore"
 )
 
-// The application ID. Until the native app replaces the Wails one (M7) it
-// has an ID of its own, so the two can run side by side.
-const appID = "com.dayanraj.wtf.Native"
+// The application ID, the same as the macOS app's bundle ID. Self-checks
+// (and WTF_NATIVE_PROFILE=separate) use their own, so they never join a
+// running wtf.
+const appID = "com.dayanraj.wtf"
+
+// separateProfile says whether this run keeps its own state, caches and app
+// ID: debug self-checks do, so a test run never touches the real session.
+func separateProfile() bool {
+	return os.Getenv("WTF_NATIVE_DEBUG") != "" || os.Getenv("WTF_NATIVE_PROFILE") == "separate"
+}
 
 // Build says which build is running.
 type Build struct{ Version, Commit, Date string }
@@ -73,7 +80,13 @@ func Main(build Build) int {
 		// Self-checks run beside a real instance without joining it.
 		flags = gio.ApplicationNonUnique
 	}
-	a.gtk = adw.NewApplication(appID, flags)
+	id := appID
+	if separateProfile() {
+		id += ".Native"
+	}
+	setProgramName(id)
+	addBundledFonts()
+	a.gtk = adw.NewApplication(id, flags)
 	// Startup runs only in the first instance; later ones just activate it.
 	a.gtk.ConnectStartup(a.startup)
 	a.gtk.ConnectActivate(a.activate)
@@ -92,7 +105,9 @@ func Main(build Build) int {
 func (a *App) startup() {
 	state, cache, err := profileDirs()
 	if err == nil {
-		paths.SetCacheRoot(cache)
+		if cache != "" {
+			paths.SetCacheRoot(cache)
+		}
 		a.be, err = backend.New(a.build.Version, a.build.Commit, a.build.Date, state)
 	}
 	if err == nil {
@@ -105,7 +120,9 @@ func (a *App) startup() {
 		a.fail("Couldn't start wtf", err)
 		return
 	}
-	log.Printf("wtf %s (%s), state %s, cache %s", a.build.Version, a.build.Commit, state, cache)
+	gtk.WindowSetDefaultIconName(appID)
+	info := a.be.About.Info()
+	log.Printf("wtf %s (%s), state %s, cache %s", a.build.Version, a.build.Commit, info.StateDir, info.CacheDir)
 	a.settings = newSettings(a)
 	a.installActions()
 	// Backend events for a shell go to the window it's in.
@@ -150,11 +167,14 @@ func (a *App) fail(what string, err error) {
 	d.Present()
 }
 
-// profileDirs says where state and caches live. Until the native app
-// replaces the Wails one (M7) it keeps its own (~/.config/wtf-native,
-// ~/.cache/wtf-native), so a running Wails wtf keeps its kube overlays,
-// tunnels and windows. Settings (config.toml) and snippets are shared.
+// profileDirs says where state and caches live: empty for wtf's own
+// folders (~/.config/wtf, ~/.cache/wtf), shared with earlier versions, so
+// windows, settings and port forwards carry over. A separate profile keeps
+// them in ~/.config/wtf-native and ~/.cache/wtf-native.
 func profileDirs() (state, cache string, err error) {
+	if !separateProfile() {
+		return "", "", nil
+	}
 	config, err := os.UserConfigDir()
 	if err != nil {
 		return "", "", err

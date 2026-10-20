@@ -489,15 +489,14 @@ func (w *Window) runSecurityScan() {
 				uicore.PrettyPath(scan.Output, w.app.home)+", not into the repository.", false))
 		}
 		if c != nil && !c.Found {
-			if act := w.action("tools.show"); act != "" {
-				b := gtk.NewButtonWithLabel("Install " + c.Name + "…")
-				b.SetHAlign(gtk.AlignStart)
-				b.ConnectClicked(func() {
-					f.close()
-					w.win.ActivateAction(act, nil)
-				})
-				details.Append(b)
-			}
+			b := gtk.NewButtonWithLabel("Install " + c.Name + "…")
+			b.SetHAlign(gtk.AlignStart)
+			tool := c.Tool
+			b.ConnectClicked(func() {
+				f.close()
+				w.showTools(tool)
+			})
+			details.Append(b)
 		}
 		f.enable("run", scan != nil && c != nil && c.Found)
 	}

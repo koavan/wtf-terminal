@@ -1247,7 +1247,7 @@ func (s *sshGitSection) use(i sshhosts.GitIdentity) {
 }
 
 func (s *sshGitSection) stopUsing() {
-	s.t.w.runInPane("unset GIT_SSH_COMMAND GIT_AUTHOR_NAME GIT_AUTHOR_EMAIL GIT_COMMITTER_NAME GIT_COMMITTER_EMAIL WTF_GIT_IDENTITY")
+	s.t.w.runInPane(uicore.StopIdentity)
 }
 
 func (s *sshGitSection) menu(i sshhosts.GitIdentity) []*menuItem {

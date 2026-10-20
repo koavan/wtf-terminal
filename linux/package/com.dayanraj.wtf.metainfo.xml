@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component type="desktop-application">
+  <id>com.dayanraj.wtf</id>
+  <metadata_license>MIT</metadata_license>
+  <project_license>MIT</project_license>
+  <name>wtf</name>
+  <summary>A terminal for all the What-The-Fuck moments</summary>
+  <description>
+    <p>
+      A terminal with tabs, tab groups and split panes, and a side pane for
+      files, SSH hosts, keys and tunnels, Kubernetes, AWS profiles, network,
+      processes, history and snippets.
+    </p>
+  </description>
+  <launchable type="desktop-id">com.dayanraj.wtf.desktop</launchable>
+  <url type="homepage">https://github.com/dayanraj-rently/wtf-terminal</url>
+  <provides>
+    <binary>wtf</binary>
+  </provides>
+  <categories>
+    <category>System</category>
+    <category>TerminalEmulator</category>
+  </categories>
+  <content_rating type="oars-1.1"/>
+</component>

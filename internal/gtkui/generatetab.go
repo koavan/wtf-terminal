@@ -117,8 +117,11 @@ func (g *generateTab) show() {
 
 // showGenerateKey opens the Generate tab on the SSH key form (never closes
 // the pane).
-func (w *Window) showGenerateKey() {
-	w.sidebarState.GenerateSection = "key"
+func (w *Window) showGenerateKey() { w.showGenerator("key") }
+
+// showGenerator opens the Generate tab on a section: "key" or "password".
+func (w *Window) showGenerator(section string) {
+	w.sidebarState.GenerateSection = section
 	w.sidebarState.Tab, w.sidebarState.Open = uicore.SidebarGenerate, true
 	w.layoutSidebar()
 	if g, ok := w.sidePane().(*generateTab); ok {
