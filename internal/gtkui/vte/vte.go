@@ -11,6 +11,8 @@ import "C"
 
 import (
 	"runtime"
+	"strings"
+	"unicode/utf8"
 	"unsafe"
 
 	coreglib "github.com/diamondburned/gotk4/pkg/core/glib"
@@ -256,3 +258,66 @@ func (t *Terminal) OnScrolled(f func()) {
 
 // OnSelectionChanged is called when the selection changes.
 func (t *Terminal) OnSelectionChanged(f func()) { t.Object.Connect("selection-changed", f) }
+
+// Plain says which runes of Row(row) are in the default colors: no
+// program colored them. It reads VTE's HTML export, where a program's
+// colors are <font color> and <span style="background-color"> runs.
+func (t *Terminal) Plain(row int) []bool {
+	html := t.rowHTML(row)
+	html = strings.TrimSuffix(strings.TrimPrefix(html, "<pre>"), "</pre>")
+	var out []bool
+	colored := 0
+	for i := 0; i < len(html); {
+		switch {
+		case strings.HasPrefix(html[i:], "<font") || strings.HasPrefix(html[i:], "<span"):
+			colored++
+			i += strings.IndexByte(html[i:], '>') + 1
+		case strings.HasPrefix(html[i:], "</font>") || strings.HasPrefix(html[i:], "</span>"):
+			colored--
+			i += len("</font>")
+		case html[i] == '<':
+			// Bold, italic and the like don't change colors.
+			i += strings.IndexByte(html[i:], '>') + 1
+		case html[i] == '&':
+			end := strings.IndexByte(html[i:], ';')
+			if end < 0 {
+				end = 0
+			}
+			out = append(out, colored == 0)
+			i += end + 1
+		default:
+			_, n := utf8.DecodeRuneInString(html[i:])
+			out = append(out, colored == 0)
+			i += n
+		}
+	}
+	return out
+}
+
+func (t *Terminal) rowHTML(row int) string {
+	p := C.wtf_term_html(t.t, C.glong(row), C.glong(t.Columns()))
+	if p == nil {
+		return ""
+	}
+	defer C.g_free(C.gpointer(p))
+	return C.GoString(p)
+}
+
+// Tint is a run of cells to color: its rectangle in the widget, in pixels,
+// and its color (0–1).
+type Tint struct{ X, Y, W, H, R, G, B float32 }
+
+// SetTints blends colored runs over the text: darken on a dark theme,
+// lighten on a light one. None draws the terminal as is.
+func (t *Terminal) SetTints(tints []Tint, lighten bool) {
+	var p *C.float
+	if len(tints) > 0 {
+		p = (*C.float)(unsafe.Pointer(&tints[0]))
+	}
+	l := C.gboolean(0)
+	if lighten {
+		l = 1
+	}
+	C.wtf_term_set_tints(t.t, p, C.int(len(tints)), l)
+	runtime.KeepAlive(tints)
+}

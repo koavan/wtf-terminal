@@ -17,7 +17,7 @@ run() { # name, then the command
 }
 
 run "uicore tests" go test ./internal/uicore/
-for c in app snapshot view terminal tabs restore sidebar panes marks signals; do
+for c in app snapshot view terminal tabs restore sidebar panes viewers marks signals; do
 	run "self-check $c" env WTF_NATIVE_DEBUG=$c timeout 60 $bin
 done
 
@@ -29,7 +29,8 @@ for _ in $(seq 50); do xdotool search --onlyvisible --pid $first >/dev/null 2>&1
 timeout 10 $bin >/tmp/second.log 2>&1
 status=$?
 sleep 1
-windows=$(xdotool search --onlyvisible --pid $first 2>/dev/null | wc -l)
+# Terminal windows only: a fresh profile also gets the first-run tools check.
+windows=$(( $(xdotool search --onlyvisible --pid $first 2>/dev/null | wc -l) - $(xdotool search --onlyvisible --name 'Command-Line Tools' 2>/dev/null | wc -l) ))
 if [ $status -eq 0 ] && [ "$windows" -eq 2 ]; then
 	echo "PASS a second wtf-gtk exits ($status) and the first opens a window ($windows)"
 else

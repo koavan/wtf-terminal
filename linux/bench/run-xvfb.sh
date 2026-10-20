@@ -15,6 +15,8 @@ exec docker run --rm -v "$PWD":/src -w /src wtf-gtk-dev:ubuntu24 sh -c '
 	export HOME=/tmp/home SHELL=/bin/bash GTK_A11Y=none LIBGL_ALWAYS_SOFTWARE=1 \
 		WEBKIT_DISABLE_SANDBOX_THIS_IS_DANGEROUS=1 "$@"
 	mkdir -p $HOME
+	# As a returning user: no first-run tools check taking the keyboard.
+	mkdir -p $HOME/.config/wtf-native && touch $HOME/.config/wtf-native/tools-checked
 	Xvfb :99 -screen 0 1600x1000x24 -nolisten tcp >/dev/null 2>&1 &
 	sleep 0.5
 	export DISPLAY=:99

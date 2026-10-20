@@ -600,6 +600,9 @@ func (f *filesTab) menu(id string) []*menuItem {
 				item("Insert Path", func() { f.insertPath(path) }),
 				item("Open in Editor", func() { w.openInEditor(path, 0) }),
 				item("Open with Default App", func() { f.run("Couldn't open it", func() error { return w.app.be.Files.Open(path) }) }))
+			if uicore.InspectIsCertFile(path) {
+				items = append(items, item("Inspect Certificate…", func() { w.showCertFile(path) }))
+			}
 		}
 		cwd := ""
 		if ps := f.pane(); ps != nil {

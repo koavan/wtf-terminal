@@ -206,6 +206,10 @@ func (a *App) activate() {
 	for i, sw := range saved {
 		a.openWindow(sw.Name, windowStart{session: sessions[i]})
 	}
+	// Once ever: which tools the side pane needs aren't installed.
+	if w := a.front(); w != nil {
+		w.toolsFirstRun()
+	}
 }
 
 // windowStart is what a window opens with: a saved session, a tab from

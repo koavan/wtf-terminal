@@ -109,6 +109,8 @@ func (p *Pane) installMouse() {
 				if link := p.term.LinkAt(x, y); link != "" {
 					claim()
 					p.openLink(link)
+				} else if p.tokenClick(x, y) {
+					claim()
 				}
 			}
 		case button == gdk.BUTTON_MIDDLE && ours:
@@ -234,6 +236,9 @@ func (p *Pane) blockMenu(id int, x, y float64) {
 // then copy, paste and the rest.
 func (p *Pane) contextMenu(x, y float64) {
 	var items []*menuItem
+	if inspect := p.inspectItems(x, y); len(inspect) > 0 {
+		items = append(inspect, menuSection)
+	}
 	if link := p.term.LinkAt(x, y); link != "" {
 		items = append(items, item("Open Link", func() { p.openLink(link) }),
 			item("Copy Link", func() { p.copyText(link, "link") }), menuSection)

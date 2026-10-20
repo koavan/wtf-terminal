@@ -49,6 +49,10 @@ func (w *Window) showSecret(name string, t uicore.KubeTarget) {
 	if shownSecret != nil {
 		shownSecret.win.Close()
 	}
+	// One viewer at a time.
+	if shownViewer != nil {
+		shownViewer.win.Close()
+	}
 	v := &secretViewer{w: w, name: name, target: t, revealed: map[string]bool{}, loading: true}
 	shownSecret = v
 	v.win = adw.NewWindow()

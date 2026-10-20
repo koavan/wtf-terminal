@@ -29,6 +29,7 @@ var Commands = func() []Command {
 		cmd("app.about", "About wtf", ""),
 		cmd("config.open", "Settings…", "Ctrl+Comma"),
 		cmd("theme.pick", "Change Theme…", ""),
+		cmd("themes.folder", "Open Themes Folder", ""),
 		cmd("tools.show", "Command-Line Tools…", ""),
 		cmd("app.quit", "Quit", "Ctrl+Shift+Q"),
 
@@ -37,7 +38,9 @@ var Commands = func() []Command {
 		cmd("pane.splitRight", "Split Right", "Ctrl+Shift+D"),
 		cmd("pane.splitDown", "Split Down", "Ctrl+Alt+Shift+D"),
 		cmd("tab.duplicate", "Duplicate Tab", ""),
+		cmd("tab.rename", "Rename Tab…", ""),
 		cmd("snippets.run", "Run Snippet…", "Ctrl+Shift+R"),
+		cmd("snippets.open", "Open Snippets File…", ""),
 		cmd("record.toggle", "Start or Stop Recording…", "Ctrl+Alt+Shift+S"),
 		cmd("export.text", "Save Output as Text…", ""),
 		cmd("export.markdown", "Save Commands as Markdown…", ""),

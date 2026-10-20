@@ -14,6 +14,7 @@ package gtkui
 //	          moving a tab to a new window; quits saving the session
 //	restore   run after tabs: the saved windows come back
 //	sidebar   the side pane: Files (tree, git, insert, cd), SSH, Kubernetes
+//	viewers   the manual, About, tools, and inspecting a JWT and JSON
 //	panes     the other side-pane tabs: History, Pins, Share, Network,
 //	          Processes, AWS, Generate, Findings, Snippets, Workspaces
 //	view      the overlay's rows match VTE's view once old rows are trimmed
@@ -73,6 +74,8 @@ func (a *App) selfCheck(w *Window) {
 		w.checkSidebar()
 	case "panes":
 		w.checkPanes()
+	case "viewers":
+		w.checkViewers()
 	default:
 		fmt.Printf("unknown WTF_NATIVE_DEBUG=%q\n", a.debug)
 		failed = true
@@ -527,6 +530,28 @@ func (w *Window) checkTerminal() {
 	case <-time.After(3 * time.Second):
 		check(false, "clipboard read timed out")
 	}
+
+	// Log colors: levels and URLs take the theme's colors; text a program
+	// colored itself keeps its own.
+	check(run(`printf '2026-10-19T10:00:00Z ERROR failed https://example.com/x\n\033[35mWARN mine\033[0m\n'`, "WARN mine"), "printed log lines")
+	var tints []uicore.LogTint
+	check(waitUntil(3*time.Second, func() bool {
+		top, _ := p.top()
+		th := a.settings.theme()
+		tints = uicore.LogTints(p.term, top, p.term.Rows(), uicore.NewLogColors(th.Palette[:], th.Foreground, th.Background))
+		return p.tinted && len(tints) >= 3
+	}), "the ERROR line is colored (%d runs)", len(tints))
+	var warnTinted bool
+	onMain(func() {
+		top, _ := p.top()
+		for _, t := range tints {
+			if r := []rune(p.term.Row(top + t.Row)); t.Col < len(r) && strings.HasPrefix(string(r[t.Col:]), "WARN mine") {
+				warnTinted = true
+			}
+		}
+	})
+	check(!warnTinted, "the line the program colored keeps its own color")
+	w.shot("terminal-logs")
 
 	// The address bar: a git repository's badge, the last command's result.
 	check(run("mkdir -p /tmp/repo && cd /tmp/repo && git init -q -b trunk && echo in-repo", "in-repo\r\n"), "made a git repository")
@@ -1330,5 +1355,102 @@ command = "echo logs"
 		return listed >= 1
 	}), "it lists the workspace (%d)", listed)
 	w.shot("panes-workspaces")
+	w.finish()
+}
+
+// shotOf saves any widget (a dialog, the manual) for looking at.
+func shotOf(widget *gtk.Widget, name string) {
+	dir := os.Getenv("WTF_SNAPSHOT_DIR")
+	if dir == "" {
+		dir = "bin/gtk/snapshots"
+	}
+	_ = os.MkdirAll(dir, 0o755)
+	for try := 0; try < 5; try++ {
+		var err error
+		var path string
+		onMain(func() { path, err = snapshotWidget(widget, filepath.Join(dir, name+".png")) })
+		if err == nil {
+			fmt.Printf("snapshot %s\n", path)
+			return
+		}
+		time.Sleep(200 * time.Millisecond)
+	}
+}
+
+func (w *Window) checkViewers() {
+	a, p := w.app, w.active()
+	var mu sync.Mutex
+	var out bytes.Buffer
+	p.tap = func(b []byte) {
+		mu.Lock()
+		out.Write(b)
+		mu.Unlock()
+	}
+	seen := func(s string) bool {
+		mu.Lock()
+		defer mu.Unlock()
+		return bytes.Contains(out.Bytes(), []byte(s))
+	}
+	check(waitUntil(5*time.Second, func() bool { return paneReady(p) }), "shell ready")
+
+	// The manual: F1 opens help for what's in front; links move between pages.
+	_ = xkey("F1")
+	check(waitUntil(3*time.Second, func() bool { return a.manualTopic() != "" }), "F1 opens the manual (%s)", a.manualTopic())
+	onMain(func() { a.showManual("find") })
+	check(waitUntil(2*time.Second, func() bool { return a.manualTopic() == "find" }), "it opens a page by id")
+	time.Sleep(500 * time.Millisecond)
+	if m := manualWindows[a]; m != nil {
+		shotOf(&m.win.Widget, "viewers-manual")
+		onMain(func() { m.win.Close() })
+	}
+	check(waitUntil(2*time.Second, func() bool { return a.manualTopic() == "" }), "and closes")
+
+	// About and the tools check.
+	onMain(w.showAbout)
+	check(waitUntil(3*time.Second, func() bool { return toolsShownSheet != nil }), "About opens")
+	time.Sleep(500 * time.Millisecond)
+	if s := toolsShownSheet; s != nil {
+		shotOf(&s.win.Widget, "viewers-about")
+	}
+	onMain(func() { w.showTools("") })
+	time.Sleep(2 * time.Second)
+	if s := toolsShownSheet; s != nil {
+		shotOf(&s.win.Widget, "viewers-tools")
+		onMain(func() { s.win.Close() })
+	}
+
+	// A JWT and JSON in the output: right-click offers to inspect them.
+	jwt := "eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwiZXhwIjo0MTAyNDQ0ODAwfQ.c2lnbmF0dXJlLWlzLWZha2Utb2s"
+	p.write("echo " + jwt + "; echo '{\"name\": \"wtf\", \"ok\": true}'\r")
+	check(waitUntil(5*time.Second, func() bool { return seen("\"ok\": true}\r\n") }), "printed a token and JSON")
+	time.Sleep(500 * time.Millisecond)
+	labels := func(row string) []string {
+		var out []string
+		onMain(func() {
+			top, _ := p.top()
+			cw, ch := p.term.CharSize()
+			for r := 0; r < p.term.Rows(); r++ {
+				if strings.HasPrefix(p.term.Row(top+r), row) {
+					for _, it := range p.inspectItems(float64(padLeft+2*cw), float64(padTop+r*ch+ch/2)) {
+						if it != nil {
+							out = append(out, it.label)
+						}
+					}
+				}
+			}
+		})
+		return out
+	}
+	jwtItems := labels("eyJ")
+	check(slices.ContainsFunc(jwtItems, func(s string) bool { return strings.Contains(s, "JWT") }), "a JWT offers to inspect it: %q", jwtItems)
+	jsonItems := labels("{\"name\"")
+	check(slices.Contains(jsonItems, "Pretty-print JSON"), "JSON offers to pretty-print it: %q", jsonItems)
+	onMain(func() { w.openInspect(uicore.InspectAction{Kind: uicore.InspectActionJWT, Text: jwt}) })
+	check(waitUntil(2*time.Second, func() bool { return shownViewer != nil }), "the JWT viewer opens")
+	time.Sleep(500 * time.Millisecond)
+	if v := shownViewer; v != nil {
+		shotOf(&v.win.Widget, "viewers-jwt")
+		onMain(func() { v.win.Close() })
+	}
 	w.finish()
 }

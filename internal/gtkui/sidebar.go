@@ -86,6 +86,25 @@ func newSidebar(w *Window) *sidebar {
 		s.buttons[t.tab] = b
 		s.rail.Append(b)
 	}
+	// At the bottom: the tools check, and help for the tab shown.
+	spacer := gtk.NewBox(gtk.OrientationVertical, 0)
+	spacer.SetVExpand(true)
+	s.rail.Append(spacer)
+	for _, b := range []struct {
+		icon, tip string
+		run       func()
+	}{
+		{"applications-utilities-symbolic", "Command-Line Tools: kubectl, AWS CLI, git, OpenSSH", func() { w.showTools("") }},
+		{"help-about-symbolic", "Help for this tab (F1)", w.showHelp},
+	} {
+		btn := gtk.NewButtonFromIconName(b.icon)
+		btn.AddCSSClass("flat")
+		btn.AddCSSClass("wtf-rail-button")
+		btn.SetTooltipText(b.tip)
+		btn.SetFocusOnClick(false)
+		btn.ConnectClicked(b.run)
+		s.rail.Append(btn)
+	}
 	s.holder = gtk.NewBox(gtk.OrientationVertical, 0)
 	s.holder.SetHExpand(true)
 	s.holder.AddCSSClass("wtf-side-content")

@@ -3,6 +3,11 @@
 struct _WtfTerm {
 	VteTerminal parent;
 	glong cols, rows;
+	// Log colors: rectangles (x, y, w, h in pixels) with an RGB each,
+	// blended over the text: darken on a dark theme, lighten on a light one.
+	float *tints;
+	int ntints;
+	gboolean lighten;
 };
 
 G_DEFINE_FINAL_TYPE(WtfTerm, wtf_term, VTE_TYPE_TERMINAL)
@@ -25,9 +30,50 @@ static void wtf_term_size_allocate(GtkWidget *w, int width, int height, int base
 	}
 }
 
+// With tints, the terminal is drawn as the bottom of a blend node and the
+// tints as its top, so they color only the text (the background is darker,
+// or lighter, than any tint and stays as it is). The buffer isn't touched:
+// copying and recordings keep the program's own output.
+static void wtf_term_snapshot(GtkWidget *w, GtkSnapshot *s)
+{
+	WtfTerm *self = WTF_TERM(w);
+	if (self->ntints == 0) {
+		GTK_WIDGET_CLASS(wtf_term_parent_class)->snapshot(w, s);
+		return;
+	}
+	gtk_snapshot_push_blend(s, self->lighten ? GSK_BLEND_MODE_LIGHTEN : GSK_BLEND_MODE_DARKEN);
+	GTK_WIDGET_CLASS(wtf_term_parent_class)->snapshot(w, s);
+	gtk_snapshot_pop(s);
+	for (int i = 0; i < self->ntints; i++) {
+		float *t = self->tints + i * 7;
+		GdkRGBA c = { t[4], t[5], t[6], 1 };
+		graphene_rect_t r = GRAPHENE_RECT_INIT(t[0], t[1], t[2], t[3]);
+		gtk_snapshot_append_color(s, &c, &r);
+	}
+	gtk_snapshot_pop(s);
+}
+
+void wtf_term_set_tints(VteTerminal *t, const float *tints, int n, gboolean lighten)
+{
+	WtfTerm *self = WTF_TERM(t);
+	g_free(self->tints);
+	self->tints = n > 0 ? g_memdup2(tints, sizeof(float) * 7 * n) : NULL;
+	self->ntints = n;
+	self->lighten = lighten;
+	gtk_widget_queue_draw(GTK_WIDGET(t));
+}
+
+static void wtf_term_finalize(GObject *o)
+{
+	g_free(WTF_TERM(o)->tints);
+	G_OBJECT_CLASS(wtf_term_parent_class)->finalize(o);
+}
+
 static void wtf_term_class_init(WtfTermClass *klass)
 {
 	GTK_WIDGET_CLASS(klass)->size_allocate = wtf_term_size_allocate;
+	GTK_WIDGET_CLASS(klass)->snapshot = wtf_term_snapshot;
+	G_OBJECT_CLASS(klass)->finalize = wtf_term_finalize;
 	signals[SIG_BEFORE_ALLOCATE] = g_signal_new("before-allocate", G_TYPE_FROM_CLASS(klass),
 		G_SIGNAL_RUN_LAST, 0, NULL, NULL, NULL, G_TYPE_NONE, 1, G_TYPE_INT);
 	signals[SIG_GRID_CHANGED] = g_signal_new("grid-changed", G_TYPE_FROM_CLASS(klass),
@@ -105,3 +151,9 @@ void wtf_term_scroll_to(VteTerminal *t, double row)
 }
 
 GtkAdjustment *wtf_term_vadjustment(VteTerminal *t) { return gtk_scrollable_get_vadjustment(GTK_SCROLLABLE(t)); }
+
+char *wtf_term_html(VteTerminal *t, glong row, glong cols)
+{
+	gsize len = 0;
+	return vte_terminal_get_text_range_format(t, VTE_FORMAT_HTML, row, 0, row, cols, &len);
+}

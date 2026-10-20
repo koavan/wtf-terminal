@@ -499,12 +499,58 @@ editors' Review/Confirm flows, AWS SSO and key rotation, killing processes.
 Benchmark (Xvfb, llvmpipe): idle 0.03 s CPU per 30 s, `seq` 0.51 s,
 coloured 0.96 s, `yes` 1.07 s, PSS 278–325 MiB (side pane closed: as M3).
 
-### M6 — Viewers, tools, About, manual ☐
+### M6 — Viewers, tools, About, manual ☑
 
 JSON, JWT, Base64, certificate/TLS and secret viewers (masked, hidden on blur),
 the Command-Line Tools dialog (install commands for apt, dnf and pacman come from
 `internal/tools`), About, and the manual rendered natively from
 `frontend/src/manual`, with a check that every link resolves.
+
+**Status (2026-10-19): done and checked headless** (`WTF_NATIVE_DEBUG=viewers`
+joins `task gtk:check`; the `terminal` check covers log colors).
+
+What's built:
+
+- `uicore`: inspection (JWT, Base64, certificates, TLS targets, selection
+  entries), log tokens and their menus, log tints (with `PlainGrid`, so a
+  program's own colors win), the manual parser (blocks of styled runs for
+  a native renderer; every page and link checked against
+  `frontend/src/manual`), ordered JSON; `MissingTool`.
+- `gtkui`: the JSON, JWT, Base64 and certificate/TLS viewers (decoded
+  values hidden while wtf loses focus, copied with clipboard clearing); the
+  right-click menu's inspect entries and the token menus (paths open in the
+  editor, Kubernetes names describe, URLs and TLS); Ctrl-click on tokens;
+  log colors, blended over the text by the terminal widget's own snapshot
+  (a GSK blend node: darken on dark themes, lighten on light), read 120ms
+  after output from VTE's HTML export so program-colored text is left
+  alone; the Command-Line Tools dialog (install commands for apt, dnf and
+  pacman from `internal/tools`, run in a tab after confirming; the once-ever
+  first-run check); About (with diagnostics); the manual rendered with GTK
+  widgets (no WebKit), with search, back/forward, links, and the keymap's
+  shortcuts filled in; the rail's tools and help buttons; F1. The manual's
+  pages are embedded from `frontend/src/manual` (`embed.go` there).
+- Keymap: Rename Tab, Open Snippets File, Open Themes Folder (the manual
+  names them).
+
+Findings:
+
+- VTE's HTML export marks a program's colors (`<font color>`,
+  `<span style="background-color">`): enough to keep log tints off them.
+- A `WtfTerm` snapshot override draws in VTE's content coordinates (inside
+  its CSS padding), unlike the overlay drawing area.
+
+Manual wording still Mac-only on Linux (for M7): files.md "⌫ for Back",
+settings.md `option-as-meta`, tools.md (wtf menu, Homebrew/Apple methods),
+tabs.md `Ctrl+Tab`.
+
+Not done: "Install…" links from each side-pane error (`showTools(tool)` is
+there to call); hints in menus (`menuItem` has no tooltip).
+
+Benchmark (Xvfb, llvmpipe), two runs: idle 0.02–0.03 s CPU per 30 s, `seq`
+0.40–0.92 s (it varies run to run under llvmpipe), coloured 0.97–0.99 s,
+`yes` 0.99–1.06 s, PSS 281–324 MiB: as M5, log colors on. The benchmark's
+profile skips the first-run tools check (`tools-checked`), as a returning
+user's does: its dialog would take the keyboard.
 
 ### M7 — Parity, perf, packaging, release ☐
 

@@ -46,6 +46,9 @@ type Pane struct {
 	clearing bool
 	// The paste confirmation showing, if any.
 	pasteDialog *adw.MessageDialog
+	// Log colors: shown, and the pending scan.
+	tinted    bool
+	tintTimer coreglib.SourceHandle
 	// The veil over an unfocused split pane, and the outline of one that
 	// receives broadcast input.
 	dim, outline *gtk.Box
@@ -86,6 +89,7 @@ func newPane(w *Window, id int) *Pane {
 			p.find.outputArrived()
 		}
 		p.refresh()
+		p.scheduleTints()
 		p.win.paneOutput(p)
 	}
 	p.term.OnGridChanged(func(cols, rows int) {
@@ -101,7 +105,12 @@ func newPane(w *Window, id int) *Pane {
 			p.win.fanOut(p, text)
 		}
 	})
-	p.term.OnScrolled(p.refresh)
+	p.term.OnScrolled(func() {
+		p.refresh()
+		p.scheduleTints()
+	})
+	// Shown again (its tab, or the window): color what's there.
+	p.term.ConnectMap(p.scheduleTints)
 	p.term.OnSelectionChanged(p.selectionChanged)
 
 	p.root = gtk.NewOverlay()
@@ -187,6 +196,10 @@ func (p *Pane) close() {
 		p.unobserve()
 		p.unobserve = nil
 	}
+	if p.tintTimer != 0 {
+		coreglib.SourceRemove(p.tintTimer)
+		p.tintTimer = 0
+	}
 }
 
 // applySettings sets the look from config.toml and the theme.
@@ -208,6 +221,7 @@ func (p *Pane) applySettings() {
 	})
 	p.over.setTheme(th)
 	p.refresh()
+	p.scheduleTints()
 }
 
 // commandEnded notifies about a slow command while its window isn't in

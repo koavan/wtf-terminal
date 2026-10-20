@@ -33,16 +33,20 @@ import (
 	"unsafe"
 
 	coreglib "github.com/diamondburned/gotk4/pkg/core/glib"
+	"github.com/diamondburned/gotk4/pkg/gtk/v4"
 )
 
 // snapshot saves the window as a PNG.
-func (w *Window) snapshot(path string) (string, error) {
+func (w *Window) snapshot(path string) (string, error) { return snapshotWidget(&w.win.Widget, path) }
+
+// snapshotWidget saves any shown widget (a dialog, the manual) as a PNG.
+func snapshotWidget(widget *gtk.Widget, path string) (string, error) {
 	cpath := C.CString(path)
 	defer C.free(unsafe.Pointer(cpath))
-	ok := C.wtf_snapshot_png(C.uintptr_t(coreglib.InternObject(w.win).Native()), cpath) != 0
-	runtime.KeepAlive(w.win)
+	ok := C.wtf_snapshot_png(C.uintptr_t(coreglib.InternObject(widget).Native()), cpath) != 0
+	runtime.KeepAlive(widget)
 	if !ok {
 		return "", fmt.Errorf("couldn't render or write %s", path)
 	}
-	return fmt.Sprintf("%s (%d×%d)", path, w.win.Width(), w.win.Height()), nil
+	return fmt.Sprintf("%s (%d×%d)", path, widget.Width(), widget.Height()), nil
 }

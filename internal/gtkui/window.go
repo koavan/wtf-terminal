@@ -475,14 +475,27 @@ func (w *Window) windowCommands() map[string]func() {
 		"findings.scan":    w.runSecurityScan,
 		"usage.show":       w.showUsage,
 		"snippets.run":     func() { w.togglePalette(paletteSnippets) },
-		"workspace.save":   w.saveWindowAsWorkspace,
-		"record.toggle":    func() { w.toggleRecording(nil) },
-		"export.text":      func() { w.saveOutputAsText(nil) },
-		"export.markdown":  func() { w.saveTranscript(nil) },
-		"tab.overview":     w.toggleOverview,
-		"workspace.open":   func() { w.togglePalette(paletteWorkspaces) },
-		"sidebar.toggle":   w.toggleSidebar,
-		"theme.pick":       func() { w.togglePalette(paletteThemes) },
+		"snippets.open":    w.openSnippetsFile,
+		"app.about":        w.showAbout,
+		"tools.show":       func() { w.showTools("") },
+		"help.manual":      w.showHelp,
+		"tab.rename":       func() { w.strip.rename(m.ActiveID()) },
+		"themes.folder": func() {
+			cfg := w.app.be.Config
+			go func() {
+				if err := cfg.OpenThemesFolder(); err != nil {
+					onMainAsync(func() { w.toast("Couldn't open the themes folder: " + err.Error()) })
+				}
+			}()
+		},
+		"workspace.save":  w.saveWindowAsWorkspace,
+		"record.toggle":   func() { w.toggleRecording(nil) },
+		"export.text":     func() { w.saveOutputAsText(nil) },
+		"export.markdown": func() { w.saveTranscript(nil) },
+		"tab.overview":    w.toggleOverview,
+		"workspace.open":  func() { w.togglePalette(paletteWorkspaces) },
+		"sidebar.toggle":  w.toggleSidebar,
+		"theme.pick":      func() { w.togglePalette(paletteThemes) },
 	}
 	for i := 1; i <= 8; i++ {
 		cmds[fmt.Sprintf("tab.select.%d", i)] = func() { m.SelectNumber(i) }
@@ -550,7 +563,8 @@ func (w *Window) mainMenuButton() *gtk.MenuButton {
 		{"record.toggle", "export.text", "export.markdown"},
 		{"font.bigger", "font.smaller", "font.reset"},
 		{"tab.overview", "tab.group", "broadcast.toggle", "pane.zoom", "pane.next", "pane.prev"},
-		{"help.shortcuts", "app.quit"},
+		{"help.manual", "help.shortcuts", "tools.show", "app.about"},
+		{"app.quit"},
 	}
 	cmds := w.windowCommands()
 	root := gio.NewMenu()

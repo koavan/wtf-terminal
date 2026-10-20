@@ -18,3 +18,6 @@ char *wtf_term_link_at(VteTerminal *t, double x, double y);
 void wtf_term_view(VteTerminal *t, double *lower, double *upper, double *value, double *page);
 void wtf_term_scroll_to(VteTerminal *t, double row);
 GtkAdjustment *wtf_term_vadjustment(VteTerminal *t);
+char *wtf_term_html(VteTerminal *t, glong row, glong cols);
+// Log colors: n rectangles of 7 floats (x, y, w, h, r, g, b; 0–1 colors).
+void wtf_term_set_tints(VteTerminal *t, const float *tints, int n, gboolean lighten);
