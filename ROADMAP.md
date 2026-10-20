@@ -234,6 +234,29 @@ broadcast pane count stated; Paste Without Final Newline; `confirm-paste`
   programs run in it, counted apart). internal/usage samples via libproc and
   /proc only while shown.
 
+## Maintenance
+
+### 21. Retire the Wails/Svelte UI ☐
+
+Since 1.1.0 both platforms ship native apps (macOS: AppKit + SwiftTerm;
+Linux: GTK 4 + VTE), so nothing ships the Wails build any more. Agreed
+2026-10-20 to remove it later, not now. What it takes:
+
+- Delete the Wails app: `main.go`, the `wails.go` glue in `internal/*`
+  (`//go:build !native`), `frontend/` (Svelte), the Wails parts of `build/`
+  and `Taskfile.yml`. Drop the `native` build tag once nothing builds without it.
+- Move the manual pages out of `frontend/src/manual` (to `manual/`) and update
+  `macos/build.sh`, `macos/Sources/WtfCore/Manual.swift` and its tests,
+  `internal/uicore/manual*.go` and `internal/gtkui/manual.go`.
+- Move the version out of `main.go` (`macos/build.sh` reads it there) and
+  update the release recipe; `build/linux/nfpm`, `build/darwin`,
+  `build/windows` go if nothing else uses them.
+- Keep shared test data (`testdata/secrets/cases.json` was also read by
+  vitest) and port any vitest-only cases to Go or Swift tests.
+- README: drop the Wails build steps.
+- Check after: `go vet ./...`, `go test ./internal/...`, `linux/check.sh`,
+  `swift test` and both app builds.
+
 ## Previously deferred (not DevOps-specific)
 
 - Packaging: .app / DMG and .deb done (v0.1.0, v0.2.0); AppImage not.

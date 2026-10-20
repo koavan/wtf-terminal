@@ -552,7 +552,7 @@ Benchmark (Xvfb, llvmpipe), two runs: idle 0.02–0.03 s CPU per 30 s, `seq`
 profile skips the first-run tools check (`tools-checked`), as a returning
 user's does: its dialog would take the keyboard.
 
-### M7 — Parity, perf, packaging, release ◐
+### M7 — Parity, perf, packaging, release ☑
 
 - Parity checklist against the macOS app (all palette commands, every
   right-click menu, every manual page). The manual gets Linux shortcut text.
@@ -563,11 +563,11 @@ user's does: its dialog would take the keyboard.
   Debian 13 and Fedora containers.
 - Switch to the real folders. Release as the next minor version, with Linux
   native and macOS native.
-- Afterwards: decide whether to delete the Wails/Svelte UI. Nothing would ship it
-  any more; the manual pages move to `manual/`.
+- Afterwards: delete the Wails/Svelte UI. Nothing ships it any more; the
+  manual pages move to `manual/`. Planned for later as ROADMAP.md #21.
 
-**Status (2026-10-20): parity, perf and packaging done and checked headless;
-the release is waiting.**
+**Status (2026-10-20): done; released as v1.1.0** (cec7573, tag v1.1.0) with
+the Linux packages and the macOS app.
 
 - Real folders and ID: the app is `com.dayanraj.wtf` and uses `~/.config/wtf`
   and `~/.cache/wtf`, shared with the Wails build. Self-checks (and
