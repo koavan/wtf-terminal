@@ -40,6 +40,7 @@ var Commands = func() []Command {
 		cmd("app.quit", "Quit", "Ctrl+Shift+Q"),
 
 		cmd("tab.new", "New Tab", "Ctrl+Shift+T"),
+		cmd("tab.newApi", "New API Tab", "Ctrl+Alt+Shift+A"),
 		cmd("window.new", "New Window", "Ctrl+Shift+N"),
 		cmd("pane.splitRight", "Split Right", "Ctrl+Shift+D"),
 		cmd("pane.splitDown", "Split Down", "Ctrl+Alt+Shift+D"),

@@ -6,6 +6,8 @@ import (
 	"os"
 	"strings"
 	"time"
+
+	"github.com/dayanraj/wtf/internal/apiclient"
 )
 
 // One window's tabs, panes and groups, and the rules that keep them
@@ -23,8 +25,19 @@ type LastCommand struct {
 }
 
 // PaneState is one pane's shell and what's known about it.
+// PaneKind is what a pane shows: a shell, or the API tab's request editor.
+type PaneKind int
+
+const (
+	PaneTerminal PaneKind = iota
+	PaneAPI
+)
+
 type PaneState struct {
-	ID int
+	ID   int
+	Kind PaneKind
+	// An API pane's request, kept up to date by its view (saved with the session).
+	API *apiclient.Request
 	// Backend session ("s<N>"), empty until the shell is started.
 	SessionID  string
 	InitialCwd string
@@ -167,8 +180,9 @@ type WindowModel struct {
 	groups   []TabGroup
 	activeID int
 	// Panes by id; Tabs hold their ids.
-	Panes          map[int]*PaneState
-	recentlyClosed []string
+	Panes map[int]*PaneState
+	// Closed tabs' focused panes, to reopen: a folder, or an API request.
+	recentlyClosed []closedPane
 	nextTab        int
 	nextPane       int
 	nextGroup      int
@@ -311,6 +325,9 @@ func PrettyPath(path, home string) string {
 // PaneTitle is what a pane is called: the running program, or the folder of
 // an idle shell.
 func PaneTitle(p *PaneState, home string) string {
+	if p.Kind == PaneAPI {
+		return APITitle(p.API)
+	}
 	if !p.IsShell && p.Process != "" {
 		if p.OscTitle != "" {
 			return p.OscTitle
@@ -387,16 +404,37 @@ func (w *WindowModel) Open(o OpenOptions) int {
 	p := w.newPane(cwd)
 	p.InitialCommand = o.Command
 	p.GitIdentity = o.GitIdentity
-	t := Tab{ID: w.nextTab, Root: Leaf(p.ID), FocusedPaneID: p.ID, GroupID: o.Group}
-	w.nextTab++
-	at := len(w.tabs)
-	if o.At != nil {
-		at = min(max(0, *o.At), len(w.tabs))
+	return w.insert(p, o.At, o.Group)
+}
+
+// OpenAPI opens an API tab with this request, activates it, and returns its id.
+func (w *WindowModel) OpenAPI(r apiclient.Request, at *int, group int) int {
+	cwd := ""
+	if ap := w.ActivePane(); ap != nil {
+		cwd = ap.Cwd
 	}
-	w.tabs = insertTab(w.tabs, at, t)
+	p := w.newPane(cwd)
+	p.Kind = PaneAPI
+	p.API = &r
+	return w.insert(p, at, group)
+}
+
+func (w *WindowModel) insert(p *PaneState, at *int, group int) int {
+	t := Tab{ID: w.nextTab, Root: Leaf(p.ID), FocusedPaneID: p.ID, GroupID: group}
+	w.nextTab++
+	i := len(w.tabs)
+	if at != nil {
+		i = min(max(0, *at), len(w.tabs))
+	}
+	w.tabs = insertTab(w.tabs, i, t)
 	w.activate(t.ID, false)
 	w.changed()
 	return t.ID
+}
+
+type closedPane struct {
+	cwd string
+	api *apiclient.Request
 }
 
 func insertTab(tabs []Tab, at int, t Tab) []Tab {
@@ -422,6 +460,9 @@ func (w *WindowModel) OpenNextTo(id int, duplicate bool) int {
 	t := w.tabs[i]
 	at := i + 1
 	o := OpenOptions{At: &at, Group: t.GroupID}
+	if src := w.FocusedPane(t); duplicate && src != nil && src.Kind == PaneAPI {
+		return w.OpenAPI(apiOrBlank(src.API), &at, t.GroupID)
+	}
 	if src := w.FocusedPane(t); duplicate && src != nil {
 		cwd := src.Cwd
 		o.Cwd = &cwd
@@ -484,7 +525,12 @@ func (w *WindowModel) CloseMany(ids []int) {
 			continue
 		}
 		if p := w.FocusedPane(t); p != nil {
-			w.recentlyClosed = append(w.recentlyClosed, p.Cwd)
+			c := closedPane{cwd: p.Cwd}
+			if p.Kind == PaneAPI {
+				r := apiOrBlank(p.API)
+				c.api = &r
+			}
+			w.recentlyClosed = append(w.recentlyClosed, c)
 			if len(w.recentlyClosed) > maxReopen {
 				w.recentlyClosed = w.recentlyClosed[1:]
 			}
@@ -520,9 +566,13 @@ func (w *WindowModel) Reopen() {
 	if n == 0 {
 		return
 	}
-	cwd := w.recentlyClosed[n-1]
+	last := w.recentlyClosed[n-1]
 	w.recentlyClosed = w.recentlyClosed[:n-1]
-	w.Open(OpenOptions{Cwd: &cwd})
+	if last.api != nil {
+		w.OpenAPI(*last.api, nil, 0)
+		return
+	}
+	w.Open(OpenOptions{Cwd: &last.cwd})
 }
 
 func (w *WindowModel) Activate(id int) { w.activate(id, true) }
@@ -1142,6 +1192,15 @@ func (w *WindowModel) save(t Tab, live bool, buffers func(*PaneState) string) Sa
 			return n
 		}
 		n.Cwd = strPtr(p.Cwd)
+		if p.Kind == PaneAPI {
+			// Credentials stay in memory: moving windows keeps them, saving doesn't.
+			r := apiOrBlank(p.API)
+			if !live {
+				r = APIForSaving(r)
+			}
+			n.API = &r
+			return n
+		}
 		if live {
 			if p.SessionID != "" {
 				n.SessionID = strPtr(p.SessionID)
@@ -1187,6 +1246,13 @@ func (w *WindowModel) save(t Tab, live bool, buffers func(*PaneState) string) Sa
 func (w *WindowModel) load(n *SavedNode, depth int, live bool) *Layout {
 	if n == nil || depth > 16 {
 		return nil
+	}
+	if n.Cwd != nil && n.API != nil {
+		p := w.newPane(*n.Cwd)
+		p.Kind = PaneAPI
+		r := *n.API
+		p.API = &r
+		return Leaf(p.ID)
 	}
 	if n.Cwd != nil {
 		p := w.newPane(*n.Cwd)

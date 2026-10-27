@@ -93,6 +93,50 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             }
             NSApp.terminate(nil)
         }
+        if env["WTF_NATIVE_DEBUG"] == "api", let dir = env["WTF_NATIVE_SNAPSHOT_DIR"] {
+            // Serves a JSON file on 127.0.0.1:8766 from a terminal, then
+            // sends it from an API tab and renders each page. Local only.
+            func snap(_ name: String) {
+                guard let v = w.window?.contentView, let rep = v.bitmapImageRepForCachingDisplay(in: v.bounds) else { return }
+                v.cacheDisplay(in: v.bounds, to: rep)
+                try? rep.representation(using: .png, properties: [:])?.write(to: URL(fileURLWithPath: "\(dir)/\(name).png"))
+                NSLog("snapshot \(name): \(w.activeApi?.debugSummary ?? "-")")
+            }
+            w.window?.makeKey()
+            w.activeTerminal?.type("cd \(Shell.quote(dir)) && printf '%s' '{\"users\":[{\"id\":12345678901234567890,\"name\":\"ada\",\"admin\":true}],\"next\":null}' > users.json && python3 -m http.server 8766 --bind 127.0.0.1\r")
+            try? await Task.sleep(for: .seconds(2))
+            // A new, empty tab: each list still has its Add button.
+            w.model.openApi()
+            try? await Task.sleep(for: .seconds(0.5))
+            snap("api-new-params")
+            w.activeApi?.debugShow(request: 1)
+            try? await Task.sleep(for: .seconds(0.3))
+            snap("api-new-headers")
+            w.model.closeActivePane()
+            w.model.openApi(.init(method: "GET", url: "http://127.0.0.1:8766/users.json?page=2&limit=50", headers: [
+                .init(name: "Authorization", value: "Bearer abc.def.ghi"), .init(name: "Accept", value: "application/json"),
+                .init(name: "X-Debug", value: "1", off: true),
+            ]))
+            try? await Task.sleep(for: .seconds(0.8))
+            snap("api-empty")
+            w.activeApi?.send()
+            try? await Task.sleep(for: .seconds(1.5))
+            snap("api-params")
+            w.activeApi?.debugShow(request: 1)
+            try? await Task.sleep(for: .seconds(0.3))
+            snap("api-headers")
+            w.activeApi?.debugShow(request: 2, response: 1)
+            try? await Task.sleep(for: .seconds(0.3))
+            snap("api-body-resheaders")
+            w.model.split(.row)
+            try? await Task.sleep(for: .seconds(1))
+            snap("api-split")
+            w.model.closeActivePane()
+            w.model.activate(w.model.tabs[0].id)
+            w.activeTerminal?.type("\u{03}")
+            try? await Task.sleep(for: .seconds(0.5))
+            NSApp.terminate(nil)
+        }
         if env["WTF_NATIVE_DEBUG"] == "m5", let dir = env["WTF_NATIVE_SNAPSHOT_DIR"] {
             // Runs a few commands and a local web server, then renders every
             // M5 side-pane tab and the Resource Usage dialog. Read-only.
@@ -436,6 +480,7 @@ func buildMenu() -> NSMenu {
     _ = appMenu
     _ = submenu("Shell", [
         cmd("New Tab", "tab.new", "t"),
+        cmd("New API Tab", "tab.newApi", "t", [.command, .option]),
         cmd("New Window", "window.new", "n"),
         cmd("Split Right", "pane.splitRight", "d"),
         cmd("Split Down", "pane.splitDown", "d", [.command, .shift]),
@@ -458,6 +503,10 @@ func buildMenu() -> NSMenu {
         cmd("Close Window", "window.close", "w", [.command, .shift]),
     ])
     _ = submenu("Edit", [
+        role("Undo", Selector(("undo:")), "z"),
+        role("Redo", Selector(("redo:")), "z", [.command, .shift]),
+        .separator(),
+        role("Cut", #selector(NSText.cut(_:)), "x"),
         role("Copy", #selector(NSText.copy(_:)), "c"),
         role("Paste", #selector(NSText.paste(_:)), "v"),
         role("Select All", #selector(NSText.selectAll(_:)), "a"),

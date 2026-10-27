@@ -227,6 +227,41 @@ right-click Paste; control characters shown (␛…), bracketed-paste state and
 broadcast pane count stated; Paste Without Final Newline; `confirm-paste`
 (default on), Don't Ask Again, and a palette toggle.
 
+## Tier 5 — tab types
+
+Tools you work in for minutes at a time get a tab of their own, not a side-pane
+section: the side pane stays for glanceable helpers, and its width can't fit
+long URLs, header tables or request bodies.
+
+### 22. API client tab ☑
+
+A new kind of tab, opened from the new-tab (`+`) menu, the right-click menu and
+the command palette. Nothing loads until one is open. Native apps only (macOS
+and Linux); not the Wails UI (#21).
+
+First version:
+
+- Method, URL, query parameters, headers (key/value table), body (raw text or
+  JSON, with formatting).
+- Response: status, time, size, headers, body with JSON pretty-printing and find.
+- Copy as curl, and Run in Shell: type the equivalent `curl` into the focused
+  shell (runInPane), a new tab only if busy.
+- Paste a `curl` command into the URL bar to fill in the request.
+- Hide Secrets masks tokens in the response; Authorization values are masked
+  until revealed.
+
+Later: saved requests (a small collapsible side-pane list that opens them in a
+tab), environment variables from the focused shell, history, splitting an API
+tab beside a terminal.
+
+Built for macOS (2026-10-26): internal/apiclient (Send/Cancel, FormatJSON,
+Curl, ParseCurl — options it can't represent are refused, not dropped);
+an API pane kind in WindowModel, so splits, groups, moving windows, Duplicate
+and Reopen work; credential header values are left out of the saved session.
+Linux (2026-10-26): the same pane kind in uicore.WindowModel (sessions are
+shared with macOS), gtkui/apiview.go, Ctrl+Alt+Shift+A, self-check
+`WTF_NATIVE_DEBUG=api` in linux/check.sh.
+
 ## Also built
 
 - Resource usage (2026-10-13): wtf's own CPU and memory in the address bar

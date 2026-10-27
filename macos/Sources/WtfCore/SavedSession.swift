@@ -10,6 +10,8 @@ public struct SavedNode: Codable, Equatable, Sendable {
     /// Only when moving between windows: the live shell and its scrollback.
     public var sessionId: String?
     public var buffer: String?
+    /// An API pane's request (a terminal pane has none).
+    public var api: Api.Request?
     // Split
     public var dir: String?
     public var ratio: Double?
@@ -25,8 +27,9 @@ public struct SavedNode: Codable, Equatable, Sendable {
         public static func == (l: Box, r: Box) -> Bool { l.node == r.node }
     }
 
-    public init(cwd: String, gitIdentity: String? = nil, sessionId: String? = nil, buffer: String? = nil) {
+    public init(cwd: String, gitIdentity: String? = nil, sessionId: String? = nil, buffer: String? = nil, api: Api.Request? = nil) {
         self.cwd = cwd
+        self.api = api
         self.gitIdentity = gitIdentity
         self.sessionId = sessionId
         self.buffer = buffer
@@ -39,7 +42,7 @@ public struct SavedNode: Codable, Equatable, Sendable {
         self.b = Box(b)
     }
 
-    enum CodingKeys: String, CodingKey { case cwd, gitIdentity, sessionId, buffer, dir, ratio, a, b }
+    enum CodingKeys: String, CodingKey { case cwd, gitIdentity, sessionId, buffer, api, dir, ratio, a, b }
 
     public init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
@@ -47,6 +50,7 @@ public struct SavedNode: Codable, Equatable, Sendable {
         gitIdentity = try? c.decodeIfPresent(String.self, forKey: .gitIdentity)
         sessionId = try? c.decodeIfPresent(String.self, forKey: .sessionId)
         buffer = try? c.decodeIfPresent(String.self, forKey: .buffer)
+        api = try? c.decodeIfPresent(Api.Request.self, forKey: .api)
         dir = try? c.decodeIfPresent(String.self, forKey: .dir)
         ratio = try? c.decodeIfPresent(Double.self, forKey: .ratio)
         a = try? c.decodeIfPresent(Box.self, forKey: .a)
@@ -60,6 +64,7 @@ public struct SavedNode: Codable, Equatable, Sendable {
             try c.encodeIfPresent(gitIdentity, forKey: .gitIdentity)
             try c.encodeIfPresent(sessionId, forKey: .sessionId)
             try c.encodeIfPresent(buffer, forKey: .buffer)
+            try c.encodeIfPresent(api, forKey: .api)
         } else {
             try c.encodeIfPresent(dir, forKey: .dir)
             try c.encodeIfPresent(ratio, forKey: .ratio)

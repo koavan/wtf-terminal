@@ -13,6 +13,7 @@ import kubeContexts from './kube-contexts.md?raw';
 import kubernetes from './kubernetes.md?raw';
 import logs from './logs.md?raw';
 import inspectPage from './inspect.md?raw';
+import apiPage from './api.md?raw';
 import network from './network.md?raw';
 import pinsPage from './pins.md?raw';
 import panes from './panes.md?raw';
@@ -64,6 +65,7 @@ export const TOPICS: Topic[] = [
   t('Basics', 'broadcast', 'Broadcast input', broadcast),
   t('Basics', 'snippets', 'Snippets and runbooks', snippetsPage),
   t('Basics', 'workspaces', 'Workspaces', workspaces),
+  t('Basics', 'api', 'API requests', apiPage),
   t('Side pane', 'side-pane', 'The side pane', sideP),
   t('Side pane', 'files', 'Files', files),
   t('Side pane', 'network', 'Network', network),

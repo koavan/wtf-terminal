@@ -54,8 +54,10 @@ type Window struct {
 	infra       map[int]*infra.Context
 	infraSeq    int
 	infraLatest map[int]int
-	// A terminal for every pane, and a page for every tab.
+	// A terminal for every pane, a request editor for every API pane, and
+	// a page for every tab.
 	panes map[int]*Pane
+	apis  map[int]*apiPane
 	pages map[int]*tabPage
 	// Panes whose shells went to another window: not hung up when they go.
 	detached map[int]bool
@@ -71,7 +73,7 @@ type Window struct {
 
 func newWindow(a *App, name string) *Window {
 	w := &Window{app: a, name: name, model: uicore.NewWindowModel(a.home), sidebarState: uicore.NewSidebarState(),
-		panes: map[int]*Pane{}, pages: map[int]*tabPage{}, detached: map[int]bool{},
+		panes: map[int]*Pane{}, apis: map[int]*apiPane{}, pages: map[int]*tabPage{}, detached: map[int]bool{},
 		infra: map[int]*infra.Context{}, infraLatest: map[int]int{}, records: newWindowRecords()}
 	w.win = adw.NewApplicationWindow(&a.gtk.Application)
 	w.win.SetTitle("wtf")
@@ -200,8 +202,19 @@ func (w *Window) sync() {
 			detachWidget(&p.root.Widget)
 		}
 	}
+	for id, a := range w.apis {
+		if _, ok := m.Panes[id]; !ok {
+			delete(w.apis, id)
+			a.close()
+			detachWidget(&a.root.Widget)
+		}
+	}
 	for id, ps := range m.Panes {
-		if w.panes[id] == nil {
+		switch {
+		case w.panes[id] != nil || w.apis[id] != nil:
+		case ps.Kind == uicore.PaneAPI:
+			w.apis[id] = newAPIPane(w, id, *ps.API)
+		default:
 			w.startTerminal(ps)
 		}
 	}
@@ -309,6 +322,35 @@ func (w *Window) identityCommand(name string) string {
 	return ""
 }
 
+// activeAPI is the active tab's focused pane when it's an API pane.
+func (w *Window) activeAPI() *apiPane {
+	if ps := w.model.ActivePane(); ps != nil {
+		return w.apis[ps.ID]
+	}
+	return nil
+}
+
+// runFromAPI is Run in Shell from an API pane: typed at an idle shell in
+// the same tab, else in a new tab.
+func (w *Window) runFromAPI(apiPane int, command string) {
+	if t, ok := w.model.TabOf(apiPane); ok {
+		for _, id := range t.Root.Leaves() {
+			ps, p := w.model.Panes[id], w.panes[id]
+			if ps != nil && p != nil && ps.IsShell && !ps.Running {
+				w.model.FocusPane(id)
+				p.write(uicore.ClearLine + command + "\r")
+				p.term.GrabFocus()
+				return
+			}
+		}
+	}
+	var cwd *string
+	if ps := w.model.Panes[apiPane]; ps != nil {
+		cwd = &ps.Cwd
+	}
+	w.model.Open(uicore.OpenOptions{Cwd: cwd, Command: command})
+}
+
 // active is the active tab's focused pane.
 func (w *Window) active() *Pane {
 	if ps := w.model.ActivePane(); ps != nil {
@@ -320,6 +362,10 @@ func (w *Window) active() *Pane {
 // focusActive gives the keyboard to the active pane, unless a text field
 // in the window (renaming, find) has it.
 func (w *Window) focusActive() {
+	if a := w.activeAPI(); a != nil {
+		a.focus()
+		return
+	}
 	p := w.active()
 	if p == nil {
 		return
@@ -436,17 +482,43 @@ func (w *Window) windowCommands() map[string]func() {
 		"term.selectAll":  onPane(func(p *Pane) { p.term.SelectAll() }),
 		"term.copyOutput": onPane((*Pane).copyLastOutput),
 		"term.clear":      onPane((*Pane).clearBuffer),
-		"find":            onPane((*Pane).showFind),
-		"find.next":       onPane((*Pane).findNext),
-		"find.prev":       onPane((*Pane).findPrevious),
-		"prompt.prev":     onPane(func(p *Pane) { p.jumpPrompt(-1) }),
-		"prompt.next":     onPane(func(p *Pane) { p.jumpPrompt(1) }),
-		"secrets.toggle":  onPane((*Pane).toggleSecrets),
-		"font.bigger":     func() { s.setFontSize(s.fontSize + 1) },
-		"font.smaller":    func() { s.setFontSize(s.fontSize - 1) },
-		"font.reset":      func() { s.setFontSize(s.config().FontSize) },
+		"find": func() {
+			if a := w.activeAPI(); a != nil {
+				a.showFind()
+			} else if p := w.active(); p != nil {
+				p.showFind()
+			}
+		},
+		"find.next": func() {
+			if a := w.activeAPI(); a != nil {
+				a.find(1)
+			} else if p := w.active(); p != nil {
+				p.findNext()
+			}
+		},
+		"find.prev": func() {
+			if a := w.activeAPI(); a != nil {
+				a.find(-1)
+			} else if p := w.active(); p != nil {
+				p.findPrevious()
+			}
+		},
+		"prompt.prev": onPane(func(p *Pane) { p.jumpPrompt(-1) }),
+		"prompt.next": onPane(func(p *Pane) { p.jumpPrompt(1) }),
+		"secrets.toggle": func() {
+			s.setHide(!s.hide)
+			if s.hide {
+				w.toast("Secrets hidden — on screen and when copied")
+			} else {
+				w.toast("Secrets shown")
+			}
+		},
+		"font.bigger":  func() { s.setFontSize(s.fontSize + 1) },
+		"font.smaller": func() { s.setFontSize(s.fontSize - 1) },
+		"font.reset":   func() { s.setFontSize(s.config().FontSize) },
 
 		"tab.new":             func() { m.Open(uicore.OpenOptions{}) },
+		"tab.newApi":          func() { m.OpenAPI(uicore.APIBlank(), nil, 0) },
 		"tab.duplicate":       func() { m.Duplicate() },
 		"tab.close":           func() { w.closeTabs([]int{m.ActiveID()}) },
 		"tab.reopen":          m.Reopen,
@@ -593,7 +665,7 @@ func (w *Window) action(id string) string {
 // the sections of the macOS menus.
 func (w *Window) mainMenuButton() *gtk.MenuButton {
 	sections := [][]string{
-		{"tab.new", "window.new", "pane.splitRight", "pane.splitDown", "tab.duplicate", "tab.toNewWindow"},
+		{"tab.new", "tab.newApi", "window.new", "pane.splitRight", "pane.splitDown", "tab.duplicate", "tab.toNewWindow"},
 		{"tab.reopen", "pane.close", "tab.close", "window.close"},
 		{"palette", "config.open", "theme.pick", "themes.folder", "snippets.run", "workspace.open", "workspace.save", "findings.scan", "usage.show"},
 		{"sidebar.toggle", "sidebar.files", "sidebar.ssh", "sidebar.aws", "sidebar.kube", "sidebar.snippets", "sidebar.workspaces",
@@ -766,6 +838,9 @@ func (w *Window) closeForGood() {
 		if !w.detached[id] {
 			p.close()
 		}
+	}
+	for _, a := range w.apis {
+		a.close()
 	}
 	if w.sidebar != nil {
 		w.sidebar.drop()

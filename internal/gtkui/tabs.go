@@ -52,6 +52,17 @@ func newTabStrip(w *Window) *tabStrip {
 	add.AddCSSClass("flat")
 	add.SetTooltipText("New Tab (Ctrl+Shift+T)")
 	add.ConnectClicked(func() { w.model.Open(uicore.OpenOptions{}) })
+	// Right-click: the kinds of tab to open.
+	addMenu := newMenuPopover(add)
+	kinds := gtk.NewGestureClick()
+	kinds.SetButton(gdk.BUTTON_SECONDARY)
+	kinds.ConnectPressed(func(_ int, x, y float64) {
+		addMenu.show(x, y, []*menuItem{
+			item("New Tab", func() { w.model.Open(uicore.OpenOptions{}) }),
+			item("New API Tab", func() { w.model.OpenAPI(uicore.APIBlank(), nil, 0) }),
+		}, nil)
+	})
+	add.AddController(kinds)
 	s.root = gtk.NewBox(gtk.OrientationHorizontal, 4)
 	s.root.SetHExpand(true)
 	s.root.SetHAlign(gtk.AlignFill)
@@ -338,6 +349,10 @@ func (w *Window) tabMenu(id int) []*menuItem {
 	// In the macOS app's order.
 	items := []*menuItem{
 		item("New Tab to the Right", func() { m.OpenNextTo(id, false) }),
+		item("New API Tab to the Right", func() {
+			at := m.Index(id) + 1
+			m.OpenAPI(uicore.APIBlank(), &at, t.GroupID)
+		}),
 		menuSection,
 		item("Add Tab to New Group", func() { w.newGroup(id) }),
 	}
@@ -371,7 +386,7 @@ func (w *Window) tabMenu(id int) []*menuItem {
 		}
 		items = append(items, item(label, func() { w.toggleBroadcastTab(id) }))
 	}
-	if ps := m.FocusedPane(t); ps != nil {
+	if ps := m.FocusedPane(t); ps != nil && ps.Kind == uicore.PaneTerminal {
 		pane := w.panes[ps.ID]
 		label := "Start Recording…"
 		if w.isRecording(ps.ID) {

@@ -2,7 +2,7 @@
 
 ## Tabs
 
-- New tab: {{cmd:tab.new}}. It starts in the folder of the tab you were in.
+- New tab: {{cmd:tab.new}}. It starts in the folder of the tab you were in. Right-click the **+** for other kinds of tab, such as an [API tab](#api).
 - Close: {{cmd:pane.close}} closes the focused pane (the tab, if it's the last one); {{cmd:tab.close}} closes the whole tab; right-click a tab for **Close Other Tabs** and **Close Tabs to the Right**. If a program is still running, wtf asks first.
 - Reopen a closed tab: {{cmd:tab.reopen}} (in its old folder).
 - Switch: {{cmd:tab.next}} and {{cmd:tab.prev}}, `Ctrl+Tab`, or {{mac:⌘1–⌘8 (⌘9 for the last)|other:Alt+1–8 (Alt+9 for the last)}}.

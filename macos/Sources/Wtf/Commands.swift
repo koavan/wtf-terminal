@@ -92,6 +92,7 @@ enum Commands {
             }
         },
         Command("tab.new", "New Tab", "⌘T") { $0.model.open() },
+        Command("tab.newApi", "New API Tab (HTTP Requests)", "⌥⌘T") { $0.model.openApi() },
         Command("tab.duplicate", "Duplicate Tab") { $0.model.duplicate() },
         Command("tab.close", "Close Tab", "⌥⌘W") { w in if let id = w.model.activeId { w.closeTabs([id]) } },
         Command("tab.overview", "Show All Tabs", "⌘⇧\\") { TabOverview.toggle(in: $0) },
@@ -116,12 +117,21 @@ enum Commands {
         Command("pane.right", "Focus Pane Right", "⌥⌘→", available: split) { $0.model.focusDirection(.right) },
         Command("pane.up", "Focus Pane Above", "⌥⌘↑", available: split) { $0.model.focusDirection(.up) },
         Command("pane.down", "Focus Pane Below", "⌥⌘↓", available: split) { $0.model.focusDirection(.down) },
-        Command("find", "Find", "⌘F") { $0.activeTerminal?.showFind() },
-        Command("find.next", "Find Next", "⌘G") { $0.activeTerminal?.findNext() },
-        Command("find.prev", "Find Previous", "⌘⇧G") { $0.activeTerminal?.findPrevious() },
+        Command("find", "Find", "⌘F") { w in
+            if let a = w.activeApi { a.find(.showFindInterface) } else { w.activeTerminal?.showFind() }
+        },
+        Command("find.next", "Find Next", "⌘G") { w in
+            if let a = w.activeApi { a.find(.nextMatch) } else { w.activeTerminal?.findNext() }
+        },
+        Command("find.prev", "Find Previous", "⌘⇧G") { w in
+            if let a = w.activeApi { a.find(.previousMatch) } else { w.activeTerminal?.findPrevious() }
+        },
         Command("prompt.prev", "Jump to Previous Prompt", "⌘↑", available: integrated) { $0.activeTerminal?.jumpPrompt(-1) },
         Command("prompt.next", "Jump to Next Prompt", "⌘↓", available: integrated) { $0.activeTerminal?.jumpPrompt(1) },
-        Command("secrets.toggle", "Hide Secrets (toggle)", "⌥⌘R") { $0.activeTerminal?.toggleSecrets() },
+        Command("secrets.toggle", "Hide Secrets (toggle)", "⌥⌘R") { w in
+            Redaction.shared.on.toggle()
+            Toast.show(Redaction.shared.on ? "Secrets hidden — on screen and when copied" : "Secrets shown", in: w.rootView)
+        },
         Command("term.copyOutput", "Copy Last Command Output", "⌥⌘C", available: integrated) { $0.activeTerminal?.copyLastOutput() },
         Command("term.clear", "Clear Buffer", "⌘K") { $0.activeTerminal?.clearBuffer() },
         Command("term.selectAll", "Select All", "⌘A") { $0.activeTerminal?.view.selectAll() },

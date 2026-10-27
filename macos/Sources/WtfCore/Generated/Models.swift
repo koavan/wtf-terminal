@@ -8,6 +8,7 @@ import Foundation
 
 public enum Go {}
 extension Go { public enum about {} }
+extension Go { public enum apiclient {} }
 extension Go { public enum awsprofiles {} }
 extension Go { public enum certs {} }
 extension Go { public enum config {} }
@@ -91,6 +92,134 @@ extension Go.about {
             self.stateDir = (try? c.decodeIfPresent(String.self, forKey: .stateDir)) ?? ""
             self.cacheDir = (try? c.decodeIfPresent(String.self, forKey: .cacheDir)) ?? ""
             self.repository = (try? c.decodeIfPresent(String.self, forKey: .repository)) ?? ""
+        }
+    }
+}
+
+extension Go.apiclient {
+    /// apiclient.Header
+    public struct Header: Codable, Equatable, Sendable {
+        public var name: String
+        public var value: String
+        public var off: Bool
+
+        public init(name: String = "", value: String = "", off: Bool = false) {
+            self.name = name
+            self.value = value
+            self.off = off
+        }
+
+        enum CodingKeys: String, CodingKey {
+            case name = "name"
+            case value = "value"
+            case off = "off"
+        }
+
+        public init(from decoder: Decoder) throws {
+            let c = try decoder.container(keyedBy: CodingKeys.self)
+            self.name = (try? c.decodeIfPresent(String.self, forKey: .name)) ?? ""
+            self.value = (try? c.decodeIfPresent(String.self, forKey: .value)) ?? ""
+            self.off = (try? c.decodeIfPresent(Bool.self, forKey: .off)) ?? false
+        }
+    }
+}
+
+extension Go.apiclient {
+    /// apiclient.Request
+    public struct Request: Codable, Equatable, Sendable {
+        public var method: String
+        public var url: String
+        public var headers: [Go.apiclient.Header]
+        public var body: String
+        public var insecure: Bool
+
+        public init(method: String = "", url: String = "", headers: [Go.apiclient.Header] = [], body: String = "", insecure: Bool = false) {
+            self.method = method
+            self.url = url
+            self.headers = headers
+            self.body = body
+            self.insecure = insecure
+        }
+
+        enum CodingKeys: String, CodingKey {
+            case method = "method"
+            case url = "url"
+            case headers = "headers"
+            case body = "body"
+            case insecure = "insecure"
+        }
+
+        public init(from decoder: Decoder) throws {
+            let c = try decoder.container(keyedBy: CodingKeys.self)
+            self.method = (try? c.decodeIfPresent(String.self, forKey: .method)) ?? ""
+            self.url = (try? c.decodeIfPresent(String.self, forKey: .url)) ?? ""
+            self.headers = (try? c.decodeIfPresent([Go.apiclient.Header].self, forKey: .headers)) ?? []
+            self.body = (try? c.decodeIfPresent(String.self, forKey: .body)) ?? ""
+            self.insecure = (try? c.decodeIfPresent(Bool.self, forKey: .insecure)) ?? false
+        }
+    }
+}
+
+extension Go.apiclient {
+    /// apiclient.Response
+    public struct Response: Codable, Equatable, Sendable {
+        public var status: Int
+        public var statusText: String
+        public var proto: String
+        public var url: String
+        public var headers: [Go.apiclient.Header]
+        public var contentType: String
+        public var body: String
+        public var pretty: String
+        public var binary: Bool
+        public var size: Int
+        public var truncated: Bool
+        public var millis: Int
+
+        public init(status: Int = 0, statusText: String = "", proto: String = "", url: String = "", headers: [Go.apiclient.Header] = [], contentType: String = "", body: String = "", pretty: String = "", binary: Bool = false, size: Int = 0, truncated: Bool = false, millis: Int = 0) {
+            self.status = status
+            self.statusText = statusText
+            self.proto = proto
+            self.url = url
+            self.headers = headers
+            self.contentType = contentType
+            self.body = body
+            self.pretty = pretty
+            self.binary = binary
+            self.size = size
+            self.truncated = truncated
+            self.millis = millis
+        }
+
+        enum CodingKeys: String, CodingKey {
+            case status = "status"
+            case statusText = "statusText"
+            case proto = "proto"
+            case url = "url"
+            case headers = "headers"
+            case contentType = "contentType"
+            case body = "body"
+            case pretty = "pretty"
+            case binary = "binary"
+            case size = "size"
+            case truncated = "truncated"
+            case millis = "millis"
+        }
+
+        public init(from decoder: Decoder) throws {
+            let c = try decoder.container(keyedBy: CodingKeys.self)
+            self.status = (try? c.decodeIfPresent(Int.self, forKey: .status)) ?? 0
+            self.statusText = (try? c.decodeIfPresent(String.self, forKey: .statusText)) ?? ""
+            self.proto = (try? c.decodeIfPresent(String.self, forKey: .proto)) ?? ""
+            self.url = (try? c.decodeIfPresent(String.self, forKey: .url)) ?? ""
+            self.headers = (try? c.decodeIfPresent([Go.apiclient.Header].self, forKey: .headers)) ?? []
+            self.contentType = (try? c.decodeIfPresent(String.self, forKey: .contentType)) ?? ""
+            self.body = (try? c.decodeIfPresent(String.self, forKey: .body)) ?? ""
+            self.pretty = (try? c.decodeIfPresent(String.self, forKey: .pretty)) ?? ""
+            self.binary = (try? c.decodeIfPresent(Bool.self, forKey: .binary)) ?? false
+            self.size = (try? c.decodeIfPresent(Int.self, forKey: .size)) ?? 0
+            self.truncated = (try? c.decodeIfPresent(Bool.self, forKey: .truncated)) ?? false
+            self.millis = (try? c.decodeIfPresent(Int.self, forKey: .millis)) ?? 0
         }
     }
 }

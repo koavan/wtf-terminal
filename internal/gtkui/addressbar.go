@@ -74,7 +74,7 @@ func (a *addressBar) refresh() {
 		}
 	}
 	if ps != nil {
-		shape += fmt.Sprintf("|%s|%s|%v|%s|%v|%s", ps.Process, ps.Cwd, ps.IsShell, ps.Command, ps.Running, s.text(ps.Command))
+		shape += fmt.Sprintf("|%d|%s|%s|%v|%s|%v|%s", ps.Kind, ps.Process, ps.Cwd, ps.IsShell, ps.Command, ps.Running, s.text(ps.Command))
 		if l := ps.LastCommand; l != nil {
 			shape += fmt.Sprintf("|%s|%d|%v", s.text(l.Text), l.ExitCode, l.Duration.Round(100*time.Millisecond))
 		}
@@ -103,6 +103,12 @@ func (a *addressBar) refresh() {
 		chip := pill(name, "wtf-pill-group")
 		chip.Prepend(dot("group-dot-" + string(group.Color)))
 		a.box.Append(chip)
+	}
+	if ps.Kind == uicore.PaneAPI {
+		// The request has its own URL bar below; no shell, folder or context here.
+		a.box.SetTooltipText("")
+		a.box.Append(pill("API", "wtf-pill-shell"))
+		return
 	}
 	process := ps.Process
 	if process == "" {

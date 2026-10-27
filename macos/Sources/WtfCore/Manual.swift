@@ -17,7 +17,7 @@ public enum Manual {
         ("Basics", "secrets", "Hide Secrets (screen sharing)"), ("Basics", "recording", "Recording and saving a terminal"),
         ("Basics", "find", "Find"), ("Basics", "context-badges", "Address bar and context badges"),
         ("Basics", "broadcast", "Broadcast input"), ("Basics", "snippets", "Snippets and runbooks"),
-        ("Basics", "workspaces", "Workspaces"),
+        ("Basics", "workspaces", "Workspaces"), ("Basics", "api", "API requests"),
         ("Side pane", "side-pane", "The side pane"), ("Side pane", "files", "Files"), ("Side pane", "network", "Network"),
         ("Side pane", "processes", "Processes"), ("Side pane", "history", "History"), ("Side pane", "pins", "Pinned output"),
         ("Side pane", "share", "Share & Record"), ("Side pane", "generate", "Generate: SSH keys and passwords"),

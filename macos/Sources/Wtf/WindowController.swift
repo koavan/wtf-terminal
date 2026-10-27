@@ -16,6 +16,8 @@ final class WindowController: NSWindowController, NSWindowDelegate, NSMenuItemVa
     private let middle = MiddleStack()
     /// A terminal for every pane, kept while its tab is in the background.
     private(set) var terminals: [Int: TerminalController] = [:]
+    /// A request editor for every API pane.
+    private(set) var apis: [Int: ApiController] = [:]
     /// Panes whose shells went to another window: not hung up when they leave.
     private var detached = Set<Int>()
     /// Commands run, pins, recordings: in memory for this window.
@@ -51,6 +53,7 @@ final class WindowController: NSWindowController, NSWindowDelegate, NSMenuItemVa
         root.middle = middle
         window.contentView = root
         window.strip = strip
+        window.onFirstResponder = { [weak self] in self?.firstResponderChanged($0) }
         address.onShowSecrets = { Redaction.shared.on = false }
         address.onShowUsage = { [weak self] in self.map { UsageDialog.show(in: $0) } }
         address.onStopRecording = { [weak self] in self?.stopRecording(pane: $0) }
@@ -65,6 +68,12 @@ final class WindowController: NSWindowController, NSWindowDelegate, NSMenuItemVa
         strip.onActivate = { [weak self] in self?.model.activate($0) }
         strip.onClose = { [weak self] in self?.closeTabs([$0]) }
         strip.onNewTab = { [weak self] in self?.model.open() }
+        strip.onNewTabMenu = { [weak self] in
+            let m = NSMenu()
+            m.addItem(ClosureMenuItem(title: "New Tab", keyEquivalent: "") { self?.model.open() })
+            m.addItem(ClosureMenuItem(title: "New API Tab", keyEquivalent: "") { self?.model.openApi() })
+            return m
+        }
         strip.onMenu = { [weak self] id, _ in self?.tabMenu(id) }
         strip.onChip = { [weak self] g, right, r in
             guard let self else { return }
@@ -166,11 +175,20 @@ final class WindowController: NSWindowController, NSWindowDelegate, NSMenuItemVa
             recordsPaneGone(id, moved: moved)
             term.container.removeFromSuperview()
         }
-        for (id, pane) in model.panes where terminals[id] == nil { startTerminal(pane) }
+        for (id, api) in apis where !live.contains(id) {
+            apis[id] = nil
+            api.close()
+            api.container.removeFromSuperview()
+        }
+        for (id, pane) in model.panes where terminals[id] == nil && apis[id] == nil {
+            if pane.kind == .api { startApi(pane) } else { startTerminal(pane) }
+        }
 
         if let t = model.active {
             var views: [Int: NSView] = [:]
-            for id in t.root.leaves { if let term = terminals[id] { views[id] = term.container } }
+            for id in t.root.leaves {
+                if let term = terminals[id] { views[id] = term.container } else if let api = apis[id] { views[id] = api.container }
+            }
             panes.dimAmount = Settings.shared.config?.unfocusedSplitDim ?? 0.35
             panes.show(t.root, focused: t.focusedPaneId, zoomed: t.zoomedPaneId, views: views)
             for id in t.root.leaves { terminals[id]?.scheduleTints() }
@@ -248,7 +266,13 @@ final class WindowController: NSWindowController, NSWindowDelegate, NSMenuItemVa
     /// Gives the keyboard to the active tab's focused pane, unless a text
     /// field (rename, find) has it.
     func focusActive() {
-        guard let w = window, let t = model.active, let term = terminals[t.focusedPaneId] else { return }
+        guard let w = window, let t = model.active else { return }
+        if let api = apis[t.focusedPaneId] {
+            if let r = w.firstResponder as? NSView, r.isDescendant(of: strip) || r.isDescendant(of: api.container) { return }
+            api.focus()
+            return
+        }
+        guard let term = terminals[t.focusedPaneId] else { return }
         // Renaming a tab, or typing in this pane's find bar, keeps the keyboard.
         if let r = w.firstResponder as? NSView, r is NSTextView || r is NSTextField,
            r.isDescendant(of: strip) || r.isDescendant(of: term.container) { return }
@@ -272,6 +296,41 @@ final class WindowController: NSWindowController, NSWindowDelegate, NSMenuItemVa
             } catch {
                 Toast.show("Couldn't start a shell: \(error.localizedDescription)", in: root)
             }
+        }
+    }
+
+    private func startApi(_ pane: Pane) {
+        let api = ApiController(pane: pane.id, request: pane.api ?? Api.blank)
+        let id = pane.id
+        api.onFocus = { [weak self] in self?.model.focusPane(id) }
+        api.onChange = { [weak self, weak api] in
+            guard let self, let api, let p = model.panes[id] else { return }
+            p.api = api.request
+            paneTitleChanged()
+            scheduleSave()
+        }
+        api.onRunInShell = { [weak self] in self?.runFromApi(id, $0) }
+        apis[id] = api
+    }
+
+    /// The keyboard went into an API pane: it becomes the focused pane.
+    private func firstResponderChanged(_ r: NSResponder?) {
+        guard let v = r as? NSView, let (id, _) = apis.first(where: { v.isDescendant(of: $0.value.container) }) else { return }
+        model.focusPane(id)
+    }
+
+    /// Run in Shell from an API pane: typed at an idle shell in the same
+    /// tab, else in a new tab.
+    private func runFromApi(_ apiPane: Int, _ command: String) {
+        let idle = model.tabOf(pane: apiPane)?.root.leaves.first { id in
+            guard let p = model.panes[id], terminals[id] != nil else { return false }
+            return p.isShell && !p.running
+        }
+        if let id = idle, let term = terminals[id] {
+            model.focusPane(id)
+            term.run(command)
+        } else {
+            model.open(cwd: model.panes[apiPane]?.cwd, command: command)
         }
     }
 
@@ -475,6 +534,8 @@ final class WindowController: NSWindowController, NSWindowDelegate, NSMenuItemVa
         saveTimer?.invalidate()
         for (id, term) in terminals where !detached.contains(id) { term.close() }
         terminals.removeAll()
+        apis.values.forEach { $0.close() }
+        apis.removeAll()
         let name = name
         Task { try? await Backend.run("session", "Forget", [name]) }
         window?.close()
@@ -559,6 +620,10 @@ final class WindowController: NSWindowController, NSWindowDelegate, NSMenuItemVa
         }
         guard let t = model.tab(id) else { return m }
         add("New Tab to the Right") { [weak self] in self?.model.openNextTo(id) }
+        add("New API Tab to the Right") { [weak self] in
+            guard let self, let i = model.index(id) else { return }
+            model.openApi(at: i + 1, group: model.tab(id)?.groupId)
+        }
         m.addItem(.separator())
         add("Add Tab to New Group", key: "g", mods: [.command, .option]) { [weak self] in self?.newGroup(id) }
         let others = model.groups.filter { $0.id != t.groupId }
@@ -591,7 +656,7 @@ final class WindowController: NSWindowController, NSWindowDelegate, NSMenuItemVa
             }
         }
         // Recording and saving the tab's focused pane.
-        if let p = model.focusedPane(t) {
+        if let p = model.focusedPane(t), p.kind == .terminal {
             m.addItem(.separator())
             add(isRecording(pane: p.id) ? "Stop Recording" : "Start Recording…", key: "s", mods: [.command, .option]) { [weak self] in
                 self?.toggleRecording(pane: p)
@@ -689,6 +754,7 @@ final class WindowController: NSWindowController, NSWindowDelegate, NSMenuItemVa
 
     var activePane: Pane? { model.activePane }
     var activeTerminal: TerminalController? { model.active.flatMap { terminals[$0.focusedPaneId] } }
+    var activeApi: ApiController? { model.active.flatMap { apis[$0.focusedPaneId] } }
 
     @objc func newTab(_ sender: Any?) { model.open() }
     @objc func splitRight(_ sender: Any?) { model.split(.row) }
@@ -826,6 +892,14 @@ final class MiddleStack: NSView {
 @MainActor
 final class WtfWindow: NSWindow {
     weak var strip: TabStripView?
+    /// The keyboard moved to another view.
+    var onFirstResponder: ((NSResponder?) -> Void)?
+
+    override func makeFirstResponder(_ responder: NSResponder?) -> Bool {
+        let ok = super.makeFirstResponder(responder)
+        if ok { onFirstResponder?(responder) }
+        return ok
+    }
 
     override func sendEvent(_ event: NSEvent) {
         if event.type == .leftMouseDown, event.clickCount >= 2, let strip, let content = contentView,

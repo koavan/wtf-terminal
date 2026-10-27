@@ -79,6 +79,8 @@ func (a *App) selfCheck(w *Window) {
 		w.checkPanes()
 	case "viewers":
 		w.checkViewers()
+	case "api":
+		w.checkAPI()
 	case "perf":
 		w.checkPerf()
 	default:

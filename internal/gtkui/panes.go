@@ -85,6 +85,9 @@ func (pg *tabPage) rebuild(t uicore.Tab) {
 		if p := pg.w.panes[id]; p != nil {
 			detachWidget(&p.root.Widget)
 		}
+		if a := pg.w.apis[id]; a != nil {
+			detachWidget(&a.root.Widget)
+		}
 	}
 	if child := pg.root.FirstChild(); child != nil {
 		pg.root.Remove(child)
@@ -102,6 +105,9 @@ func (pg *tabPage) rebuild(t uicore.Tab) {
 }
 
 func (pg *tabPage) leaf(id int) gtk.Widgetter {
+	if a := pg.w.apis[id]; a != nil {
+		return a.root
+	}
 	p := pg.w.panes[id]
 	if p == nil {
 		return gtk.NewBox(gtk.OrientationVertical, 0)

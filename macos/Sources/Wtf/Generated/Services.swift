@@ -162,4 +162,12 @@ enum Services {
         static func Kill(_ a0: Int, _ a1: Bool) async throws { try await Backend.run("procs", "Kill", [a0, a1]) }
         static func List() async throws -> [Go.procs.Proc] { try await Backend.call("procs", "List", [], as: [Go.procs.Proc].self) }
     }
+
+    enum apiclient {
+        static func Cancel(_ a0: String) async throws { try await Backend.run("apiclient", "Cancel", [a0]) }
+        static func Curl(_ a0: Go.apiclient.Request, _ a1: Bool) async throws -> String { try await Backend.call("apiclient", "Curl", [a0, a1], as: String.self) }
+        static func FormatJSON(_ a0: String) async throws -> String { try await Backend.call("apiclient", "FormatJSON", [a0], as: String.self) }
+        static func ParseCurl(_ a0: String) async throws -> Go.apiclient.Request { try await Backend.call("apiclient", "ParseCurl", [a0], as: Go.apiclient.Request.self) }
+        static func Send(_ a0: String, _ a1: Go.apiclient.Request) async throws -> Go.apiclient.Response { try await Backend.call("apiclient", "Send", [a0, a1], as: Go.apiclient.Response.self) }
+    }
 }

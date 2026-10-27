@@ -21,6 +21,8 @@ final class TabStripView: NSView, NSTextFieldDelegate {
     var onActivate: ((Int) -> Void)?
     var onClose: ((Int) -> Void)?
     var onNewTab: (() -> Void)?
+    /// Right-click on +: the kinds of tab to open.
+    var onNewTabMenu: (() -> NSMenu?)?
     var onMenu: ((_ tab: Int, _ event: NSEvent) -> NSMenu?)?
     var onChip: ((_ group: Int, _ rightClick: Bool, _ rect: NSRect) -> Void)?
     var onTearOff: ((_ tab: Int, _ screenPoint: NSPoint) -> Void)?
@@ -295,6 +297,7 @@ final class TabStripView: NSView, NSTextFieldDelegate {
 
     /// The tab icon for what runs in its focused pane.
     static func icon(_ p: Pane?) -> String {
+        if p?.kind == .api { return "network" }
         guard let p, !p.isShell, !p.process.isEmpty else { return "terminal" }
         switch p.process {
         case "vim", "nvim", "vi", "nano", "hx", "emacs", "micro", "helix": return "pencil"
@@ -457,7 +460,7 @@ final class TabStripView: NSView, NSTextFieldDelegate {
         case .chip(let gid, let r):
             onChip?(gid, true, r)
         case nil:
-            break
+            if plusRect.contains(p), let menu = onNewTabMenu?() { NSMenu.popUpContextMenu(menu, with: event, for: self) }
         }
     }
 

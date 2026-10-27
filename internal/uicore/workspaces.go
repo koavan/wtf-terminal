@@ -384,18 +384,24 @@ func (w *WindowModel) CaptureWorkspace(home string) snippets.WorkspaceDef {
 	}
 	def := snippets.WorkspaceDef{Tabs: []snippets.WTab{}, Params: []snippets.Param{}}
 	for _, t := range w.Tabs() {
+		// Workspaces start shells: API panes aren't part of them.
+		var shells []*PaneState
+		for _, id := range t.Root.Leaves() {
+			if p := w.Panes[id]; p != nil && p.Kind == PaneTerminal {
+				shells = append(shells, p)
+			}
+		}
+		if len(shells) == 0 {
+			continue
+		}
 		wt := snippets.WTab{Title: t.CustomTitle, Panes: []snippets.WPane{}}
 		if g, ok := w.Group(t.GroupID); ok && t.GroupID != 0 {
 			wt.Group, wt.Color = g.Name, string(g.Color)
 		}
-		if t.Root.IsSplit() {
+		if t.Root.IsSplit() && len(shells) > 1 {
 			wt.Layout = string(t.Root.Dir)
 		}
-		for _, id := range t.Root.Leaves() {
-			p := w.Panes[id]
-			if p == nil {
-				continue
-			}
+		for _, p := range shells {
 			cmd := ""
 			if p.Running {
 				cmd = p.Command

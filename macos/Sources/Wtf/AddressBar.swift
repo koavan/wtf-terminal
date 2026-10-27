@@ -114,6 +114,15 @@ final class AddressBar: NSView {
             let color = NSColor(hex: group.color.hex(dark: dark))
             stack.addArrangedSubview(chip(text: group.name.isEmpty ? "Group" : group.name, dot: color, weight: .semibold, bg: nil, fg: .labelColor))
         }
+        if pane.kind == .api {
+            // The request has its own URL bar below; no shell, folder or context here.
+            stack.addArrangedSubview(chip(symbol: TabStripView.icon(pane), text: "API", weight: .semibold, bg: identityColor, fg: .labelColor))
+            let spacer = NSView()
+            spacer.setContentHuggingPriority(.init(1), for: .horizontal)
+            stack.addArrangedSubview(spacer)
+            addEnd()
+            return
+        }
         let busy = !pane.isShell
         stack.addArrangedSubview(chip(symbol: TabStripView.icon(pane), text: pane.process.isEmpty ? "shell" : pane.process,
                                       weight: .semibold, bg: busy ? accent.withAlphaComponent(0.16) : identityColor,

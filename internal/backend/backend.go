@@ -12,6 +12,7 @@ import (
 
 	"github.com/dayanraj/wtf/internal/about"
 	"github.com/dayanraj/wtf/internal/activity"
+	"github.com/dayanraj/wtf/internal/apiclient"
 	"github.com/dayanraj/wtf/internal/awsprofiles"
 	"github.com/dayanraj/wtf/internal/certs"
 	"github.com/dayanraj/wtf/internal/config"
@@ -54,6 +55,7 @@ type Backend struct {
 	Usage       *usage.Service
 	NetConn     *netconn.Service
 	Procs       *procs.Service
+	APIClient   *apiclient.Service
 
 	started []any // by Start, for Shutdown
 }
@@ -93,6 +95,7 @@ func New(version, commit, buildDate, stateDir string) (*Backend, error) {
 	b.Usage = usage.NewService(b.Terminal.ShellPIDs)
 	b.NetConn = netconn.NewService(b.Terminal.ShellPIDs)
 	b.Procs = procs.NewService(b.Terminal.ShellPIDs)
+	b.APIClient = apiclient.NewService()
 	return b, nil
 }
 
@@ -124,6 +127,7 @@ func (b *Backend) Services() []Named {
 		{"usage", b.Usage},
 		{"netconn", b.NetConn},
 		{"procs", b.Procs},
+		{"apiclient", b.APIClient},
 	}
 }
 

@@ -3,8 +3,16 @@
 // it through `onChange`. No AppKit here, so it's tested on its own.
 import Foundation
 
+/// What a pane shows: a shell, or the API tab's request editor.
+public enum PaneKind: Sendable {
+    case terminal, api
+}
+
 public final class Pane {
     public let id: Int
+    public let kind: PaneKind
+    /// An API pane's request, kept up to date by its view (saved with the session).
+    public var api: Api.Request?
     /// Backend session ("s<N>"), nil until the shell is started.
     public var sessionId: String?
     public var initialCwd: String
@@ -30,8 +38,9 @@ public final class Pane {
     /// Scrollback brought from another window, written once.
     public var restoreBuffer: String?
 
-    init(id: Int, cwd: String) {
+    init(id: Int, cwd: String, kind: PaneKind = .terminal) {
         self.id = id
+        self.kind = kind
         initialCwd = cwd
         self.cwd = cwd
     }
@@ -93,7 +102,8 @@ public final class WindowModel {
     public private(set) var groups: [TabGroup] = []
     public private(set) var activeId: Int?
     public private(set) var panes: [Int: Pane] = [:]
-    private var recentlyClosed: [String] = []
+    /// Closed tabs' focused panes, to reopen: a folder, or an API request.
+    private var recentlyClosed: [(cwd: String, api: Api.Request?)] = []
     private var nextTab = 1, nextPane = 1, nextGroup = 1
 
     /// The last tab went: the window closes.
@@ -134,6 +144,7 @@ public final class WindowModel {
 
     /// What a pane is called: the running program, or the folder of an idle shell.
     public static func paneTitle(_ p: Pane, home: String = NSHomeDirectory()) -> String {
+        if p.kind == .api { return Api.title(p.api) }
         if !p.isShell, !p.process.isEmpty {
             if !p.oscTitle.isEmpty { return p.oscTitle }
             if p.process == "ssh", p.running, p.command.hasPrefix("ssh ") { return p.command }
@@ -167,8 +178,8 @@ public final class WindowModel {
 
     // MARK: Tabs
 
-    private func newPane(cwd: String) -> Pane {
-        let p = Pane(id: nextPane, cwd: cwd)
+    private func newPane(cwd: String, kind: PaneKind = .terminal) -> Pane {
+        let p = Pane(id: nextPane, cwd: cwd, kind: kind)
         nextPane += 1
         panes[p.id] = p
         return p
@@ -181,6 +192,18 @@ public final class WindowModel {
         let p = newPane(cwd: cwd ?? activePane?.cwd ?? "")
         p.initialCommand = command
         p.gitIdentity = gitIdentity
+        return insert(p, at: index, group: group)
+    }
+
+    /// Opens an API tab and activates it.
+    @discardableResult
+    public func openApi(_ request: Api.Request = Api.blank, at index: Int? = nil, group: Int? = nil) -> Int {
+        let p = newPane(cwd: activePane?.cwd ?? "", kind: .api)
+        p.api = request
+        return insert(p, at: index, group: group)
+    }
+
+    private func insert(_ p: Pane, at index: Int?, group: Int?) -> Int {
         let t = Tab(id: nextTab, root: .pane(p.id), focusedPaneId: p.id, groupId: group)
         nextTab += 1
         tabs.insert(t, at: min(max(0, index ?? tabs.count), tabs.count))
@@ -196,6 +219,9 @@ public final class WindowModel {
         guard let i = index(id) else { return nil }
         let t = tabs[i]
         let src = focusedPane(t)
+        if duplicate, let src, src.kind == .api {
+            return openApi(src.api ?? Api.blank, at: i + 1, group: t.groupId)
+        }
         return open(cwd: duplicate ? src?.cwd : nil, at: i + 1, group: t.groupId,
                     gitIdentity: duplicate ? src?.identity : nil)
     }
@@ -223,7 +249,7 @@ public final class WindowModel {
         let wasActive = activeId.map(closing.contains) ?? false
         for t in tabs where closing.contains(t.id) {
             if let p = focusedPane(t) {
-                recentlyClosed.append(p.cwd)
+                recentlyClosed.append((p.cwd, p.kind == .api ? p.api ?? Api.blank : nil))
                 if recentlyClosed.count > Self.maxReopen { recentlyClosed.removeFirst() }
             }
             t.root.leaves.forEach { panes[$0] = nil }
@@ -247,8 +273,8 @@ public final class WindowModel {
     }
 
     public func reopen() {
-        guard let cwd = recentlyClosed.popLast() else { return }
-        open(cwd: cwd)
+        guard let last = recentlyClosed.popLast() else { return }
+        if let api = last.api { openApi(api) } else { open(cwd: last.cwd) }
     }
 
     public func activate(_ id: Int) { activate(id, notify: true) }
@@ -592,6 +618,11 @@ public final class WindowModel {
             switch l {
             case .pane(let id):
                 let p = panes[id]
+                if let p, p.kind == .api {
+                    // Credentials stay in memory: moving windows keeps them, saving doesn't.
+                    let r = p.api ?? Api.blank
+                    return SavedNode(cwd: p.cwd, api: live ? r : Api.forSaving(r))
+                }
                 return SavedNode(cwd: p?.cwd ?? "", gitIdentity: live ? nil : p?.identity,
                                  sessionId: live ? p?.sessionId : nil, buffer: live ? p.map(buffers) : nil)
             case .split(let d, let r, let a, let b):
@@ -607,6 +638,11 @@ public final class WindowModel {
     /// between windows (`live`) brings its running shells and scrollback.
     private func load(_ n: SavedNode?, depth: Int, live: Bool = false) -> Layout? {
         guard let n, depth <= 16 else { return nil }
+        if let cwd = n.cwd, let api = n.api {
+            let p = newPane(cwd: cwd, kind: .api)
+            p.api = api
+            return .pane(p.id)
+        }
         if let cwd = n.cwd {
             let p = newPane(cwd: cwd)
             if let g = n.gitIdentity, !g.isEmpty { p.gitIdentity = String(g.prefix(64)) }

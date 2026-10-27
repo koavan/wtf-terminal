@@ -296,13 +296,16 @@ extension WindowModel {
     /// in them now (an ssh host, `kubectl … -w`), and the root split's
     /// direction. Nested splits flatten to one direction.
     public func captureWorkspace(home: String = NSHomeDirectory()) -> Go.snippets.WorkspaceDef {
-        Go.snippets.WorkspaceDef(tabs: tabs.map { t in
+        // Workspaces start shells: API panes aren't part of them.
+        Go.snippets.WorkspaceDef(tabs: tabs.compactMap { t in
+            let shells = t.root.leaves.compactMap { panes[$0] }.filter { $0.kind == .terminal }
+            guard !shells.isEmpty else { return nil }
             let g = t.groupId.flatMap(group)
             var layout = ""
-            if case .split(let d, _, _, _) = t.root { layout = d.rawValue }
+            if case .split(let d, _, _, _) = t.root, shells.count > 1 { layout = d.rawValue }
             return Go.snippets.WTab(
                 title: t.customTitle ?? "", group: g?.name ?? "", color: g?.color.rawValue ?? "", layout: layout,
-                panes: t.root.leaves.compactMap { panes[$0] }.map {
+                panes: shells.map {
                     Go.snippets.WPane(cwd: WindowModel.prettyPath($0.cwd, home: home), command: $0.running ? $0.command : "")
                 })
         })

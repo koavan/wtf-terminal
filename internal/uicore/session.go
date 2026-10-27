@@ -6,6 +6,8 @@ import (
 	"errors"
 	"math"
 	"strconv"
+
+	"github.com/dayanraj/wtf/internal/apiclient"
 )
 
 // The session.json shapes the Svelte build writes (spec: file version 2 with
@@ -23,6 +25,8 @@ type SavedNode struct {
 	// Only when moving between windows: the live shell and its scrollback.
 	SessionID *string
 	Buffer    *string
+	// An API pane's request (a terminal pane has none).
+	API *apiclient.Request
 	// Split
 	Dir   *string
 	Ratio *float64
@@ -149,6 +153,18 @@ func lenientInt(raw json.RawMessage) *int {
 	return &i
 }
 
+// lenientRequest is an API pane's saved request; nil when absent or malformed.
+func lenientRequest(raw json.RawMessage) *apiclient.Request {
+	if _, ok := object(raw); !ok {
+		return nil
+	}
+	var r apiclient.Request
+	if json.Unmarshal(raw, &r) != nil {
+		return nil
+	}
+	return &r
+}
+
 func parseNode(raw json.RawMessage) *SavedNode {
 	m, ok := object(raw)
 	if !ok {
@@ -159,6 +175,7 @@ func parseNode(raw json.RawMessage) *SavedNode {
 		GitIdentity: lenientString(m["gitIdentity"]),
 		SessionID:   lenientString(m["sessionId"]),
 		Buffer:      lenientString(m["buffer"]),
+		API:         lenientRequest(m["api"]),
 		Dir:         lenientString(m["dir"]),
 		Ratio:       lenientFloat(m["ratio"]),
 		A:           parseNode(m["a"]),
@@ -290,11 +307,12 @@ func (p *TabPayload) UnmarshalJSON(data []byte) error {
 func (n SavedNode) MarshalJSON() ([]byte, error) {
 	if n.Cwd != nil {
 		return json.Marshal(struct {
-			Cwd         string  `json:"cwd"`
-			GitIdentity *string `json:"gitIdentity,omitempty"`
-			SessionID   *string `json:"sessionId,omitempty"`
-			Buffer      *string `json:"buffer,omitempty"`
-		}{*n.Cwd, n.GitIdentity, n.SessionID, n.Buffer})
+			Cwd         string             `json:"cwd"`
+			GitIdentity *string            `json:"gitIdentity,omitempty"`
+			SessionID   *string            `json:"sessionId,omitempty"`
+			Buffer      *string            `json:"buffer,omitempty"`
+			API         *apiclient.Request `json:"api,omitempty"`
+		}{*n.Cwd, n.GitIdentity, n.SessionID, n.Buffer, n.API})
 	}
 	return json.Marshal(struct {
 		Dir   *string    `json:"dir,omitempty"`
