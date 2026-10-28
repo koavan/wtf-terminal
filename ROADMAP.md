@@ -262,6 +262,96 @@ Linux (2026-10-26): the same pane kind in uicore.WindowModel (sessions are
 shared with macOS), gtkui/apiview.go, Ctrl+Alt+Shift+A, self-check
 `WTF_NATIVE_DEBUG=api` in linux/check.sh.
 
+## Tier 6 — AI assistance
+
+Agreed 2026-10-28. AI that works from what wtf already knows (command blocks,
+context badges, logs, the Kubernetes and AWS tabs, Findings, recordings)
+instead of guessing. Build in the order listed: the foundation first, then
+#24 to prove the pipeline end to end; #27 waits until #24–#26 are solid.
+Native apps only (macOS and Linux).
+
+Rules for every item here:
+
+- On demand only: nothing calls a model in the background, so no idle CPU,
+  memory or network cost.
+- Never runs a command that changes anything. Suggested commands are typed
+  into the focused shell (runInPane) and wait for Enter; the only exception is
+  #27's allowlist of read-only commands.
+- Secrets are redacted with the Hide Secrets patterns before anything is sent,
+  and the first send shows exactly what will leave the machine.
+- No guessed danger labels: facts (resource names, counts, account IDs) are
+  listed as facts; the model explains them, it doesn't raise alarms.
+- Every feature gets a clickable home (right-click / side pane / palette) and a
+  manual page.
+
+### 23. AI foundation ☐
+
+- `internal/ai`: one provider interface with streaming replies, cancel, and
+  token/cost counts per request.
+- Providers: Claude API (your own key; Haiku for quick inline features,
+  Sonnet/Opus for the heavier ones, configurable) and Ollama (local, any
+  pulled model; nothing leaves the machine).
+- API key in the macOS Keychain / Linux secret service, never in `config.toml`.
+- Redaction pass shared with Hide Secrets, plus a "what's being sent" preview
+  (shown the first time, then on request).
+- `config.toml`: `ai-provider`, `ai-model`, `ai-fast-model`, `ollama-url`;
+  AI features hidden entirely when no provider is set.
+
+### 24. Explain this failure ☐
+
+Right-click a failed command block → Explain. Sends the command, exit code,
+the tail of its output, cwd, relevant tool versions and the active context
+(kube context, AWS profile). Returns the likely cause and a suggested fix
+command, typed into the focused shell but not run.
+
+### 25. Plain English to command ☐
+
+A prompt bar (⌘K / Ctrl+K, palette, right-click) that turns "delete evicted
+pods in all namespaces" into a command for the current shell and context.
+Inserted at the prompt, never executed; a short explanation of each flag
+on request.
+
+### 26. Change reviewer ☐
+
+For `terraform plan`, `kubectl diff` and `helm diff` output (a command block
+or a plan file). Parse it first, deterministically: resources created,
+changed, replaced and destroyed, IAM/security-group changes, listed as facts.
+Then the model writes a plain-English summary of what will happen and why
+(e.g. "replaces the RDS instance because `engine_version` changed").
+
+### 27. Incident investigator ☐
+
+An AI side-pane tab (or its own tab) where you ask "why is `checkout-api`
+crashlooping in staging?". The agent investigates with an allowlist of
+read-only commands (`kubectl get/describe/logs/events`, `aws … describe-*`,
+`helm history`, `dig`, `curl -I`, …), each shown as a normal command block,
+using the active kube context and AWS profile. It ends with a finding that
+cites the evidence. Anything that changes state (rollback, scale, restart) is
+typed into the focused shell for you to confirm. Step and cost limits per run;
+Stop at any time.
+
+### 28. Log summarizer ☐
+
+On a logs pane or a selection: group repeated errors into patterns with
+counts, first/last seen, and a short timeline.
+
+### 29. Session to runbook or postmortem ☐
+
+From a recording or a range of command blocks: a parameterized runbook saved
+to Snippets, or a postmortem draft (timeline of commands, output and
+decisions).
+
+### 30. Findings triage ☐
+
+For a SARIF finding in the Findings tab: what it means, whether the code path
+looks reachable, and a proposed patch shown as a diff (applied only on
+confirm).
+
+### 31. Ask your history ☐
+
+Natural-language search over context-tagged history ("the command I used to
+rotate the RDS cert last month"). Depends on #17.
+
 ## Also built
 
 - Resource usage (2026-10-13): wtf's own CPU and memory in the address bar
