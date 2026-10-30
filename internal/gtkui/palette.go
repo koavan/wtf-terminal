@@ -171,6 +171,7 @@ func (p *palette) load() {
 		p.entries = append(p.entries, paletteEntry{section: "Commands", label: strings.TrimSuffix(c.Title, "…"),
 			hint: uicore.KeyLabel(c.Keys), run: run})
 	}
+	p.entries = append(p.entries, w.aiEntries()...)
 	for _, t := range m.Tabs() {
 		detail := ""
 		if ps := m.FocusedPane(t); ps != nil {

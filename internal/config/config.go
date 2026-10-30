@@ -41,7 +41,38 @@ type Config struct {
 	ConfirmPaste   bool    `toml:"confirm-paste" json:"confirmPaste"`
 
 	ShowUsage bool `toml:"show-usage" json:"showUsage"`
+
+	// Which [ai.providers] entry answers: AIDefault for most features,
+	// AIFast for quick inline ones (AIDefault when empty).
+	AIDefault string   `toml:"ai-default" json:"aiDefault"`
+	AIFast    string   `toml:"ai-fast" json:"aiFast"`
+	AI        AIConfig `toml:"ai" json:"ai"`
 }
+
+// AIConfig is the [ai] table.
+type AIConfig struct {
+	Providers map[string]AIProvider `toml:"providers" json:"providers"`
+}
+
+// AIProvider is one [ai.providers.<name>] table.
+type AIProvider struct {
+	// "anthropic", "openai" (any OpenAI-compatible endpoint) or "command".
+	Kind  string `toml:"kind" json:"kind"`
+	Model string `toml:"model" json:"model"`
+	// anthropic and openai: where requests go, when not the vendor's own API.
+	BaseURL string `toml:"base-url" json:"baseUrl"`
+	// Read the API key from this environment variable instead of the
+	// keychain.
+	APIKeyEnv string `toml:"api-key-env" json:"apiKeyEnv"`
+	// command: the program and its arguments; the prompt goes to its stdin.
+	Command []string `toml:"command" json:"command"`
+	// anthropic and openai: extra HTTP headers sent with every request, e.g.
+	// anthropic-workspace-id. Not for keys: those go in the keychain.
+	Headers map[string]string `toml:"headers" json:"headers"`
+}
+
+// AIKinds are the provider kinds, in the order the docs list them.
+var AIKinds = []string{"anthropic", "openai", "command"}
 
 func Defaults() Config {
 	return Config{
@@ -148,6 +179,41 @@ const template = `# wtf settings. Changes apply as soon as you save (or switch b
 # Show wtf's own CPU and memory in the address bar. It's measured only
 # while shown (every 2 seconds, while the window is in front).
 # show-usage = false
+
+# AI assistance works with any AI tool. Each [ai.providers.<name>] table is
+# one; ai-default answers most features and ai-fast the quick inline ones
+# (ai-default when not set). With no providers, AI features are hidden.
+# Kinds:
+#   "anthropic"  the Claude API.
+#   "openai"     any OpenAI-compatible endpoint: OpenAI, Azure OpenAI,
+#                Gemini, Mistral, Groq, DeepSeek, OpenRouter, or a local
+#                server (Ollama, LM Studio, vLLM, llama.cpp). Set base-url
+#                for anything but OpenAI itself.
+#   "command"    any CLI tool: the prompt goes to its stdin and its output
+#                is the reply, e.g. claude -p, codex exec, gemini, llm.
+# API keys go in the keychain (AI Providers… in the menu), never in this
+# file; or name an environment variable with api-key-env. Secrets are hidden
+# (as Hide Secrets does) before anything is sent, and the first request to
+# each provider shows exactly what will be sent.
+# ai-default = ""
+# ai-fast = ""
+#
+# For example:
+#   ai-default = "claude"
+#   ai-fast = "local"
+#
+#   [ai.providers.claude]
+#   kind = "anthropic"
+#   model = "claude-sonnet-5-5"
+#
+#   [ai.providers.local]
+#   kind = "openai"
+#   base-url = "http://localhost:11434/v1"
+#   model = "qwen3:8b"
+#
+#   [ai.providers.codex]
+#   kind = "command"
+#   command = ["codex", "exec", "-"]
 `
 
 // Dir is $XDG_CONFIG_HOME/wtf, or ~/.config/wtf, on every platform.
@@ -223,6 +289,8 @@ func validate(c Config, problems []string) (Config, []string, error) {
 	if strings.TrimSpace(c.FontFamily) == "" {
 		c.FontFamily = d.FontFamily
 	}
+	c.AI, problems = validateAI(c.AI, problems)
+	c.AIDefault, c.AIFast, problems = aiChoices(c, problems)
 	return c, problems, nil
 }
 
@@ -286,8 +354,14 @@ func withSetting(data, key, value string) string {
 	if loc := commented.FindStringIndex(data); loc != nil {
 		return data[:loc[0]] + line + data[loc[1]:]
 	}
+	// Top-level settings must come before the first [table].
+	if loc := tableHeader.FindStringIndex(data); loc != nil {
+		return data[:loc[0]] + line + "\n" + data[loc[0]:]
+	}
 	if data != "" && !strings.HasSuffix(data, "\n") {
 		data += "\n"
 	}
 	return data + line + "\n"
 }
+
+var tableHeader = regexp.MustCompile(`(?m)^[ \t]*\[`)

@@ -37,6 +37,10 @@ Backups are readable only by you. wtf's cache folder is {{mac:`~/Library/Caches/
 
 Listing SSH hosts, keys, AWS profiles and kubeconfig contexts reads local files only. Requests to AWS or a cluster happen when you open a section, press a check or test button (such as **Test GitHub Login**), or run an action — and side-pane tabs stop when you close them. **Inspect TLS Certificate…** connects to the server you chose and sends only the TLS handshake. Decoding a JWT or base64 happens on this computer.
 
+## AI assistance
+
+AI features are off until you set up a provider, and call it only when you use one. Secrets are replaced with `[REDACTED]` before anything is sent, the first request to each provider shows the exact text and waits for **Send**, and API keys live in the {{mac:Keychain|other:keyring}}, never in a file. See [AI assistance](#ai).
+
 ## What it won't do
 
 wtf doesn't guess which of your environments is "production" or flag commands as dangerous: a guess that's sometimes wrong is worse than none. It shows facts — account IDs, cluster names, the exact command — and leaves the call to you.

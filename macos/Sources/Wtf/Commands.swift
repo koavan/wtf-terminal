@@ -37,12 +37,14 @@ enum Commands {
         Command("app.about", "About wtf") { AboutDialog.show(in: $0) },
         Command("inspect.tls", "Inspect TLS Certificate…") { CertViewer(.host(""), owner: $0).show() },
         Command("tools.show", "Command-Line Tools (kubectl, AWS CLI, git…)") { ToolsDialog.show(in: $0) },
+        Command("ai.providers", "AI Providers (add, keys, default, test)") { SettingsWindow.show(.ai, from: $0) },
         Command("help.manual", "Open Manual", "⌘?") { ManualWindow.show(from: $0) },
         Command("help.shortcuts", "Show Keyboard Shortcuts") { _ in ManualWindow.show("shortcuts") },
         Command("workspace.open", "Open Workspace…") { Palette.toggle(.workspaces, in: $0) },
         Command("theme.pick", "Change Theme…") { Palette.toggle(.themes, in: $0) },
-        Command("config.open", "Open Settings File", "⌘,") { w in
-            Task { @MainActor in do { try await Backend.run("config", "OpenConfigFile") } catch { Toast.show("Couldn't open settings: \(error.localizedDescription)", in: w.rootView) } }
+        Command("config.open", "Settings…", "⌘,") { SettingsWindow.show(from: $0) },
+        Command("config.file", "Open config.toml") { w in
+            Task { @MainActor in do { try await Services.config.OpenConfigFile() } catch { Toast.show("Couldn't open config.toml: \(error.localizedDescription)", in: w.rootView) } }
         },
         Command("themes.folder", "Open Themes Folder") { w in
             Task { @MainActor in do { try await Backend.run("config", "OpenThemesFolder") } catch { Toast.show("Couldn't open folder: \(error.localizedDescription)", in: w.rootView) } }
@@ -140,7 +142,7 @@ enum Commands {
         Command("font.bigger", "Bigger Text", "⌘=") { _ in Settings.shared.biggerText() },
         Command("font.smaller", "Smaller Text", "⌘-") { _ in Settings.shared.smallerText() },
         Command("font.reset", "Actual Size", "⌘0") { _ in Settings.shared.actualSize() },
-    ] }
+    ] + aiProviderCommands }
 
     static func run(_ id: String, in w: WindowController) {
         if id.hasPrefix("tab.select.") {

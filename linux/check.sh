@@ -17,8 +17,10 @@ run() { # name, then the command
 }
 
 run "uicore tests" go test ./internal/uicore/
-for c in app snapshot view terminal tabs restore sidebar panes viewers api marks signals; do
-	run "self-check $c" env WTF_NATIVE_DEBUG=$c timeout 60 $bin
+for c in app snapshot view terminal tabs restore sidebar panes viewers api ai marks signals; do
+	# The ai check writes config.toml: give it its own.
+	xdg=; [ "$c" = ai ] && xdg="XDG_CONFIG_HOME=$(mktemp -d)"
+	run "self-check $c" env $xdg WTF_NATIVE_DEBUG=$c timeout 60 $bin
 done
 
 echo "== single instance"

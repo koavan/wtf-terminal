@@ -284,7 +284,7 @@ Rules for every item here:
 - Every feature gets a clickable home (right-click / side pane / palette) and a
   manual page.
 
-### 23. AI foundation ☐
+### 23. AI foundation ☑
 
 Works with any AI tool, not one vendor. Features talk to one interface; which
 model or tool answers is configuration.
@@ -332,6 +332,19 @@ model = "qwen3:8b"
 kind = "command"
 command = ["codex", "exec", "-"]
 ```
+
+Built: `internal/ai` (Status, Preview, Ask/Cancel streaming as `ai:chunk` /
+`ai:done`, Presets, Models, keys via go-keyring), provider tables edited in
+place by `config.SaveAIProvider`/`DeleteAIProvider`, per-provider extra
+`headers` (e.g. `anthropic-workspace-id`; key headers refused). A real
+Settings window (⌘, / Ctrl+,) with AI and General sections: add from presets
+(cloud APIs, Ollama/LM Studio, Claude Code/Codex/Gemini CLI/llm, custom),
+edit, delete, Fetch Models, keys, Test, default/quick; the first-send preview
+and a shared request helper for #24+ (AIRequest on macOS, askAI on Linux).
+Command providers run in an empty temp folder, through wtf-exec on macOS.
+Self-check `ai` on Linux. Not done: the Linux keyring path is untested on a
+real desktop (the check container has no Secret Service); tool calling for
+#27 is left to #27.
 
 ### 24. Explain this failure ☐
 

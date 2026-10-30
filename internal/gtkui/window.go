@@ -550,6 +550,7 @@ func (w *Window) windowCommands() map[string]func() {
 		"snippets.open":       w.openSnippetsFile,
 		"app.about":           w.showAbout,
 		"tools.show":          func() { w.showTools("") },
+		"ai.providers":        func() { w.showSettings("ai") },
 		"help.manual":         w.showHelp,
 		"tab.rename":          func() { w.strip.rename(m.ActiveID()) },
 		"inspect.tls":         func() { w.showCertHost("") },
@@ -566,14 +567,8 @@ func (w *Window) windowCommands() map[string]func() {
 			w.setting(func() error { return w.app.be.Config.SetShowUsage(on) },
 				map[bool]string{true: "wtf’s CPU and memory show in the address bar", false: "Resource usage hidden"}[on])
 		},
-		"config.open": func() {
-			cfg := w.app.be.Config
-			go func() {
-				if err := cfg.OpenConfigFile(); err != nil {
-					onMainAsync(func() { w.toast("Couldn't open settings: " + err.Error()) })
-				}
-			}()
-		},
+		"config.open": func() { w.showSettings("") },
+		"config.file": w.openConfigFile,
 		"themes.folder": func() {
 			cfg := w.app.be.Config
 			go func() {
@@ -667,14 +662,14 @@ func (w *Window) mainMenuButton() *gtk.MenuButton {
 	sections := [][]string{
 		{"tab.new", "tab.newApi", "window.new", "pane.splitRight", "pane.splitDown", "tab.duplicate", "tab.toNewWindow"},
 		{"tab.reopen", "pane.close", "tab.close", "window.close"},
-		{"palette", "config.open", "theme.pick", "themes.folder", "snippets.run", "workspace.open", "workspace.save", "findings.scan", "usage.show"},
+		{"palette", "config.open", "config.file", "theme.pick", "themes.folder", "snippets.run", "workspace.open", "workspace.save", "findings.scan", "usage.show"},
 		{"sidebar.toggle", "sidebar.files", "sidebar.ssh", "sidebar.aws", "sidebar.kube", "sidebar.snippets", "sidebar.workspaces",
 			"sidebar.network", "sidebar.processes", "sidebar.history", "sidebar.pins", "sidebar.findings", "sidebar.share", "sidebar.generate"},
 		{"find", "term.copyOutput", "term.pinOutput", "term.clear", "secrets.toggle"},
 		{"record.toggle", "export.text", "export.markdown"},
 		{"font.bigger", "font.smaller", "font.reset"},
 		{"tab.overview", "tab.group", "broadcast.toggle", "pane.zoom", "pane.next", "pane.prev"},
-		{"help.manual", "help.shortcuts", "tools.show", "app.about"},
+		{"help.manual", "help.shortcuts", "tools.show", "ai.providers", "app.about"},
 		{"app.quit"},
 	}
 	cmds := w.windowCommands()

@@ -12,6 +12,7 @@ import (
 
 	"github.com/dayanraj/wtf/internal/about"
 	"github.com/dayanraj/wtf/internal/activity"
+	"github.com/dayanraj/wtf/internal/ai"
 	"github.com/dayanraj/wtf/internal/apiclient"
 	"github.com/dayanraj/wtf/internal/awsprofiles"
 	"github.com/dayanraj/wtf/internal/certs"
@@ -28,6 +29,7 @@ import (
 	"github.com/dayanraj/wtf/internal/state"
 	"github.com/dayanraj/wtf/internal/terminal"
 	"github.com/dayanraj/wtf/internal/tools"
+	"github.com/dayanraj/wtf/internal/uicore"
 	"github.com/dayanraj/wtf/internal/usage"
 )
 
@@ -56,6 +58,7 @@ type Backend struct {
 	NetConn     *netconn.Service
 	Procs       *procs.Service
 	APIClient   *apiclient.Service
+	AI          *ai.Service
 
 	started []any // by Start, for Shutdown
 }
@@ -96,6 +99,7 @@ func New(version, commit, buildDate, stateDir string) (*Backend, error) {
 	b.NetConn = netconn.NewService(b.Terminal.ShellPIDs)
 	b.Procs = procs.NewService(b.Terminal.ShellPIDs)
 	b.APIClient = apiclient.NewService()
+	b.AI = ai.NewService(stateDir, func() config.Config { return b.Config.Current().Config }, redact)
 	return b, nil
 }
 
@@ -128,7 +132,13 @@ func (b *Backend) Services() []Named {
 		{"netconn", b.NetConn},
 		{"procs", b.Procs},
 		{"apiclient", b.APIClient},
+		{"ai", b.AI},
 	}
+}
+
+// redact hides secrets before an AI request leaves, as Hide Secrets does.
+func redact(text string) (string, int) {
+	return uicore.Redact(text), len(uicore.FindSecrets(text))
 }
 
 // Lifecycle hooks, from each package's native.go.

@@ -8,13 +8,20 @@ import WtfCore
 enum Services {
     enum config {
         static func Current() async throws -> Go.config.Resolved { try await Backend.call("config", "Current", [], as: Go.config.Resolved.self) }
+        static func DeleteAIProvider(_ a0: String) async throws { try await Backend.run("config", "DeleteAIProvider", [a0]) }
+        static func FormatHeaders(_ a0: [String: String]) async throws -> String { try await Backend.call("config", "FormatHeaders", [a0], as: String.self) }
+        static func JoinCommand(_ a0: [String]) async throws -> String { try await Backend.call("config", "JoinCommand", [a0], as: String.self) }
         static func OpenConfigFile() async throws { try await Backend.run("config", "OpenConfigFile", []) }
         static func OpenThemesFolder() async throws { try await Backend.run("config", "OpenThemesFolder", []) }
+        static func ParseHeaders(_ a0: String) async throws -> [String: String] { try await Backend.call("config", "ParseHeaders", [a0], as: [String: String].self) }
+        static func SaveAIProvider(_ a0: String, _ a1: String, _ a2: Go.config.AIProvider) async throws { try await Backend.run("config", "SaveAIProvider", [a0, a1, a2]) }
+        static func SetAIProvider(_ a0: Bool, _ a1: String) async throws { try await Backend.run("config", "SetAIProvider", [a0, a1]) }
         static func SetConfirmPaste(_ a0: Bool) async throws { try await Backend.run("config", "SetConfirmPaste", [a0]) }
         static func SetRedactSecrets(_ a0: Bool) async throws { try await Backend.run("config", "SetRedactSecrets", [a0]) }
         static func SetShowUsage(_ a0: Bool) async throws { try await Backend.run("config", "SetShowUsage", [a0]) }
         static func SetSidebarAutoRefresh(_ a0: Bool) async throws { try await Backend.run("config", "SetSidebarAutoRefresh", [a0]) }
         static func SetTheme(_ a0: String) async throws { try await Backend.run("config", "SetTheme", [a0]) }
+        static func SplitCommand(_ a0: String) async throws -> [String] { try await Backend.call("config", "SplitCommand", [a0], as: [String].self) }
         static func Themes() async throws -> [Go.config.Theme] { try await Backend.call("config", "Themes", [], as: [Go.config.Theme].self) }
     }
 
@@ -169,5 +176,17 @@ enum Services {
         static func FormatJSON(_ a0: String) async throws -> String { try await Backend.call("apiclient", "FormatJSON", [a0], as: String.self) }
         static func ParseCurl(_ a0: String) async throws -> Go.apiclient.Request { try await Backend.call("apiclient", "ParseCurl", [a0], as: Go.apiclient.Request.self) }
         static func Send(_ a0: String, _ a1: Go.apiclient.Request) async throws -> Go.apiclient.Response { try await Backend.call("apiclient", "Send", [a0, a1], as: Go.apiclient.Response.self) }
+    }
+
+    enum ai {
+        static func Ask(_ a0: String, _ a1: Go.ai.Request, _ a2: Bool) async throws { try await Backend.run("ai", "Ask", [a0, a1, a2]) }
+        static func Cancel(_ a0: String) async throws { try await Backend.run("ai", "Cancel", [a0]) }
+        static func DeleteKey(_ a0: String) async throws { try await Backend.run("ai", "DeleteKey", [a0]) }
+        static func Models(_ a0: String, _ a1: Go.config.AIProvider, _ a2: String) async throws -> [String] { try await Backend.call("ai", "Models", [a0, a1, a2], as: [String].self) }
+        static func MoveKey(_ a0: String, _ a1: String) async throws { try await Backend.run("ai", "MoveKey", [a0, a1]) }
+        static func Presets() async throws -> [Go.ai.Preset] { try await Backend.call("ai", "Presets", [], as: [Go.ai.Preset].self) }
+        static func Preview(_ a0: Go.ai.Request) async throws -> Go.ai.Outgoing { try await Backend.call("ai", "Preview", [a0], as: Go.ai.Outgoing.self) }
+        static func SetKey(_ a0: String, _ a1: String) async throws { try await Backend.run("ai", "SetKey", [a0, a1]) }
+        static func Status() async throws -> Go.ai.Status { try await Backend.call("ai", "Status", [], as: Go.ai.Status.self) }
     }
 }

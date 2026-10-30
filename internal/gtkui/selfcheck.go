@@ -17,6 +17,9 @@ package gtkui
 //	viewers   the manual, About, tools, and inspecting a JWT and JSON
 //	panes     the other side-pane tabs: History, Pins, Share, Network,
 //	          Processes, AWS, Generate, Findings, Snippets, Workspaces
+//	api       the API tab against a local server
+//	ai        Settings → AI with command providers: preview, Test, Stop,
+//	          adding, editing and deleting through the form
 //	view      the overlay's rows match VTE's view once old rows are trimmed
 //	marks     OSC 133 marks stay on their prompts across feeds, rewraps
 //	          and scrollback trimming (no shell; synthetic output)
@@ -81,6 +84,8 @@ func (a *App) selfCheck(w *Window) {
 		w.checkViewers()
 	case "api":
 		w.checkAPI()
+	case "ai":
+		w.checkAI()
 	case "perf":
 		w.checkPerf()
 	default:

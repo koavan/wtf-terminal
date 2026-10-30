@@ -28,9 +28,11 @@ var Commands = func() []Command {
 	c := []Command{
 		cmd("app.about", "About wtf", ""),
 		cmd("config.open", "Settings…", "Ctrl+Comma"),
+		cmd("config.file", "Open config.toml", ""),
 		cmd("theme.pick", "Change Theme…", ""),
 		cmd("themes.folder", "Open Themes Folder", ""),
 		cmd("tools.show", "Command-Line Tools…", ""),
+		cmd("ai.providers", "AI Providers…", ""),
 		cmd("inspect.tls", "Inspect TLS Certificate…", ""),
 		cmd("paste.confirm", "Toggle Paste Confirmation", ""),
 		cmd("generate.key", "Generate SSH Key…", ""),

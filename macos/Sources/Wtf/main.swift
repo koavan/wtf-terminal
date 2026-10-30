@@ -468,6 +468,7 @@ func buildMenu() -> NSMenu {
         cmd("Settings…", "config.open", ","),
         cmd("Change Theme…", "theme.pick"),
         cmd("Command-Line Tools…", "tools.show"),
+        cmd("AI Providers…", "ai.providers"),
         .separator(),
         servicesItem(),
         .separator(),

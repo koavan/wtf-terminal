@@ -8,6 +8,7 @@ import Foundation
 
 public enum Go {}
 extension Go { public enum about {} }
+extension Go { public enum ai {} }
 extension Go { public enum apiclient {} }
 extension Go { public enum awsprofiles {} }
 extension Go { public enum certs {} }
@@ -92,6 +93,242 @@ extension Go.about {
             self.stateDir = (try? c.decodeIfPresent(String.self, forKey: .stateDir)) ?? ""
             self.cacheDir = (try? c.decodeIfPresent(String.self, forKey: .cacheDir)) ?? ""
             self.repository = (try? c.decodeIfPresent(String.self, forKey: .repository)) ?? ""
+        }
+    }
+}
+
+extension Go.ai {
+    /// ai.Message
+    public struct Message: Codable, Equatable, Sendable {
+        public var role: String
+        public var content: String
+
+        public init(role: String = "", content: String = "") {
+            self.role = role
+            self.content = content
+        }
+
+        enum CodingKeys: String, CodingKey {
+            case role = "role"
+            case content = "content"
+        }
+
+        public init(from decoder: Decoder) throws {
+            let c = try decoder.container(keyedBy: CodingKeys.self)
+            self.role = (try? c.decodeIfPresent(String.self, forKey: .role)) ?? ""
+            self.content = (try? c.decodeIfPresent(String.self, forKey: .content)) ?? ""
+        }
+    }
+}
+
+extension Go.ai {
+    /// ai.Outgoing
+    public struct Outgoing: Codable, Equatable, Sendable {
+        public var provider: Go.ai.ProviderInfo
+        public var system: String
+        public var messages: [Go.ai.Message]
+        public var redacted: Int
+        public var firstSend: Bool
+
+        public init(provider: Go.ai.ProviderInfo = Go.ai.ProviderInfo(), system: String = "", messages: [Go.ai.Message] = [], redacted: Int = 0, firstSend: Bool = false) {
+            self.provider = provider
+            self.system = system
+            self.messages = messages
+            self.redacted = redacted
+            self.firstSend = firstSend
+        }
+
+        enum CodingKeys: String, CodingKey {
+            case provider = "provider"
+            case system = "system"
+            case messages = "messages"
+            case redacted = "redacted"
+            case firstSend = "firstSend"
+        }
+
+        public init(from decoder: Decoder) throws {
+            let c = try decoder.container(keyedBy: CodingKeys.self)
+            self.provider = (try? c.decodeIfPresent(Go.ai.ProviderInfo.self, forKey: .provider)) ?? Go.ai.ProviderInfo()
+            self.system = (try? c.decodeIfPresent(String.self, forKey: .system)) ?? ""
+            self.messages = (try? c.decodeIfPresent([Go.ai.Message].self, forKey: .messages)) ?? []
+            self.redacted = (try? c.decodeIfPresent(Int.self, forKey: .redacted)) ?? 0
+            self.firstSend = (try? c.decodeIfPresent(Bool.self, forKey: .firstSend)) ?? false
+        }
+    }
+}
+
+extension Go.ai {
+    /// ai.Preset
+    public struct Preset: Codable, Equatable, Sendable {
+        public var id: String
+        public var label: String
+        public var group: String
+        public var name: String
+        public var kind: String
+        public var baseUrl: String
+        public var model: String
+        public var command: [String]
+        public var needsKey: Bool
+        public var help: String
+
+        public init(id: String = "", label: String = "", group: String = "", name: String = "", kind: String = "", baseUrl: String = "", model: String = "", command: [String] = [], needsKey: Bool = false, help: String = "") {
+            self.id = id
+            self.label = label
+            self.group = group
+            self.name = name
+            self.kind = kind
+            self.baseUrl = baseUrl
+            self.model = model
+            self.command = command
+            self.needsKey = needsKey
+            self.help = help
+        }
+
+        enum CodingKeys: String, CodingKey {
+            case id = "id"
+            case label = "label"
+            case group = "group"
+            case name = "name"
+            case kind = "kind"
+            case baseUrl = "baseUrl"
+            case model = "model"
+            case command = "command"
+            case needsKey = "needsKey"
+            case help = "help"
+        }
+
+        public init(from decoder: Decoder) throws {
+            let c = try decoder.container(keyedBy: CodingKeys.self)
+            self.id = (try? c.decodeIfPresent(String.self, forKey: .id)) ?? ""
+            self.label = (try? c.decodeIfPresent(String.self, forKey: .label)) ?? ""
+            self.group = (try? c.decodeIfPresent(String.self, forKey: .group)) ?? ""
+            self.name = (try? c.decodeIfPresent(String.self, forKey: .name)) ?? ""
+            self.kind = (try? c.decodeIfPresent(String.self, forKey: .kind)) ?? ""
+            self.baseUrl = (try? c.decodeIfPresent(String.self, forKey: .baseUrl)) ?? ""
+            self.model = (try? c.decodeIfPresent(String.self, forKey: .model)) ?? ""
+            self.command = (try? c.decodeIfPresent([String].self, forKey: .command)) ?? []
+            self.needsKey = (try? c.decodeIfPresent(Bool.self, forKey: .needsKey)) ?? false
+            self.help = (try? c.decodeIfPresent(String.self, forKey: .help)) ?? ""
+        }
+    }
+}
+
+extension Go.ai {
+    /// ai.ProviderInfo
+    public struct ProviderInfo: Codable, Equatable, Sendable {
+        public var name: String
+        public var kind: String
+        public var model: String
+        public var destination: String
+        public var local: Bool
+        public var needsKey: Bool
+        public var hasKey: Bool
+        public var keyFrom: String
+        public var `default`: Bool
+        public var fast: Bool
+
+        public init(name: String = "", kind: String = "", model: String = "", destination: String = "", local: Bool = false, needsKey: Bool = false, hasKey: Bool = false, keyFrom: String = "", `default`: Bool = false, fast: Bool = false) {
+            self.name = name
+            self.kind = kind
+            self.model = model
+            self.destination = destination
+            self.local = local
+            self.needsKey = needsKey
+            self.hasKey = hasKey
+            self.keyFrom = keyFrom
+            self.`default` = `default`
+            self.fast = fast
+        }
+
+        enum CodingKeys: String, CodingKey {
+            case name = "name"
+            case kind = "kind"
+            case model = "model"
+            case destination = "destination"
+            case local = "local"
+            case needsKey = "needsKey"
+            case hasKey = "hasKey"
+            case keyFrom = "keyFrom"
+            case `default` = "default"
+            case fast = "fast"
+        }
+
+        public init(from decoder: Decoder) throws {
+            let c = try decoder.container(keyedBy: CodingKeys.self)
+            self.name = (try? c.decodeIfPresent(String.self, forKey: .name)) ?? ""
+            self.kind = (try? c.decodeIfPresent(String.self, forKey: .kind)) ?? ""
+            self.model = (try? c.decodeIfPresent(String.self, forKey: .model)) ?? ""
+            self.destination = (try? c.decodeIfPresent(String.self, forKey: .destination)) ?? ""
+            self.local = (try? c.decodeIfPresent(Bool.self, forKey: .local)) ?? false
+            self.needsKey = (try? c.decodeIfPresent(Bool.self, forKey: .needsKey)) ?? false
+            self.hasKey = (try? c.decodeIfPresent(Bool.self, forKey: .hasKey)) ?? false
+            self.keyFrom = (try? c.decodeIfPresent(String.self, forKey: .keyFrom)) ?? ""
+            self.`default` = (try? c.decodeIfPresent(Bool.self, forKey: .`default`)) ?? false
+            self.fast = (try? c.decodeIfPresent(Bool.self, forKey: .fast)) ?? false
+        }
+    }
+}
+
+extension Go.ai {
+    /// ai.Request
+    public struct Request: Codable, Equatable, Sendable {
+        public var fast: Bool
+        public var provider: String
+        public var system: String
+        public var messages: [Go.ai.Message]
+        public var maxTokens: Int
+        public var env: [String: String]
+
+        public init(fast: Bool = false, provider: String = "", system: String = "", messages: [Go.ai.Message] = [], maxTokens: Int = 0, env: [String: String] = [:]) {
+            self.fast = fast
+            self.provider = provider
+            self.system = system
+            self.messages = messages
+            self.maxTokens = maxTokens
+            self.env = env
+        }
+
+        enum CodingKeys: String, CodingKey {
+            case fast = "fast"
+            case provider = "provider"
+            case system = "system"
+            case messages = "messages"
+            case maxTokens = "maxTokens"
+            case env = "env"
+        }
+
+        public init(from decoder: Decoder) throws {
+            let c = try decoder.container(keyedBy: CodingKeys.self)
+            self.fast = (try? c.decodeIfPresent(Bool.self, forKey: .fast)) ?? false
+            self.provider = (try? c.decodeIfPresent(String.self, forKey: .provider)) ?? ""
+            self.system = (try? c.decodeIfPresent(String.self, forKey: .system)) ?? ""
+            self.messages = (try? c.decodeIfPresent([Go.ai.Message].self, forKey: .messages)) ?? []
+            self.maxTokens = (try? c.decodeIfPresent(Int.self, forKey: .maxTokens)) ?? 0
+            self.env = (try? c.decodeIfPresent([String: String].self, forKey: .env)) ?? [:]
+        }
+    }
+}
+
+extension Go.ai {
+    /// ai.Status
+    public struct Status: Codable, Equatable, Sendable {
+        public var enabled: Bool
+        public var providers: [Go.ai.ProviderInfo]
+
+        public init(enabled: Bool = false, providers: [Go.ai.ProviderInfo] = []) {
+            self.enabled = enabled
+            self.providers = providers
+        }
+
+        enum CodingKeys: String, CodingKey {
+            case enabled = "enabled"
+            case providers = "providers"
+        }
+
+        public init(from decoder: Decoder) throws {
+            let c = try decoder.container(keyedBy: CodingKeys.self)
+            self.enabled = (try? c.decodeIfPresent(Bool.self, forKey: .enabled)) ?? false
+            self.providers = (try? c.decodeIfPresent([Go.ai.ProviderInfo].self, forKey: .providers)) ?? []
         }
     }
 }
@@ -617,6 +854,66 @@ extension Go.certs {
 }
 
 extension Go.config {
+    /// config.AIConfig
+    public struct AIConfig: Codable, Equatable, Sendable {
+        public var providers: [String: Go.config.AIProvider]
+
+        public init(providers: [String: Go.config.AIProvider] = [:]) {
+            self.providers = providers
+        }
+
+        enum CodingKeys: String, CodingKey {
+            case providers = "providers"
+        }
+
+        public init(from decoder: Decoder) throws {
+            let c = try decoder.container(keyedBy: CodingKeys.self)
+            self.providers = (try? c.decodeIfPresent([String: Go.config.AIProvider].self, forKey: .providers)) ?? [:]
+        }
+    }
+}
+
+extension Go.config {
+    /// config.AIProvider
+    public struct AIProvider: Codable, Equatable, Sendable {
+        public var kind: String
+        public var model: String
+        public var baseUrl: String
+        public var apiKeyEnv: String
+        public var command: [String]
+        public var headers: [String: String]
+
+        public init(kind: String = "", model: String = "", baseUrl: String = "", apiKeyEnv: String = "", command: [String] = [], headers: [String: String] = [:]) {
+            self.kind = kind
+            self.model = model
+            self.baseUrl = baseUrl
+            self.apiKeyEnv = apiKeyEnv
+            self.command = command
+            self.headers = headers
+        }
+
+        enum CodingKeys: String, CodingKey {
+            case kind = "kind"
+            case model = "model"
+            case baseUrl = "baseUrl"
+            case apiKeyEnv = "apiKeyEnv"
+            case command = "command"
+            case headers = "headers"
+        }
+
+        public init(from decoder: Decoder) throws {
+            let c = try decoder.container(keyedBy: CodingKeys.self)
+            self.kind = (try? c.decodeIfPresent(String.self, forKey: .kind)) ?? ""
+            self.model = (try? c.decodeIfPresent(String.self, forKey: .model)) ?? ""
+            self.baseUrl = (try? c.decodeIfPresent(String.self, forKey: .baseUrl)) ?? ""
+            self.apiKeyEnv = (try? c.decodeIfPresent(String.self, forKey: .apiKeyEnv)) ?? ""
+            self.command = (try? c.decodeIfPresent([String].self, forKey: .command)) ?? []
+            self.headers = (try? c.decodeIfPresent([String: String].self, forKey: .headers)) ?? [:]
+        }
+    }
+}
+
+extension Go.config {
     /// config.Config
     public struct Config: Codable, Equatable, Sendable {
         public var theme: String
@@ -640,8 +937,11 @@ extension Go.config {
         public var clipboardClear: Double
         public var confirmPaste: Bool
         public var showUsage: Bool
+        public var aiDefault: String
+        public var aiFast: String
+        public var ai: Go.config.AIConfig
 
-        public init(theme: String = "", fontFamily: String = "", fontSize: Double = 0, lineHeight: Double = 0, cursorStyle: String = "", cursorBlink: Bool = false, scrollback: Int = 0, optionAsMeta: Bool = false, copyOnSelect: Bool = false, shell: String = "", shellIntegration: Bool = false, notifyAfter: Double = 0, unfocusedSplitDim: Double = 0, sidebarAutoRefresh: Bool = false, sidebarRefreshInterval: Double = 0, contextBadges: Bool = false, logHighlighting: Bool = false, redactSecrets: Bool = false, clipboardClear: Double = 0, confirmPaste: Bool = false, showUsage: Bool = false) {
+        public init(theme: String = "", fontFamily: String = "", fontSize: Double = 0, lineHeight: Double = 0, cursorStyle: String = "", cursorBlink: Bool = false, scrollback: Int = 0, optionAsMeta: Bool = false, copyOnSelect: Bool = false, shell: String = "", shellIntegration: Bool = false, notifyAfter: Double = 0, unfocusedSplitDim: Double = 0, sidebarAutoRefresh: Bool = false, sidebarRefreshInterval: Double = 0, contextBadges: Bool = false, logHighlighting: Bool = false, redactSecrets: Bool = false, clipboardClear: Double = 0, confirmPaste: Bool = false, showUsage: Bool = false, aiDefault: String = "", aiFast: String = "", ai: Go.config.AIConfig = Go.config.AIConfig()) {
             self.theme = theme
             self.fontFamily = fontFamily
             self.fontSize = fontSize
@@ -663,6 +963,9 @@ extension Go.config {
             self.clipboardClear = clipboardClear
             self.confirmPaste = confirmPaste
             self.showUsage = showUsage
+            self.aiDefault = aiDefault
+            self.aiFast = aiFast
+            self.ai = ai
         }
 
         enum CodingKeys: String, CodingKey {
@@ -687,6 +990,9 @@ extension Go.config {
             case clipboardClear = "clipboardClear"
             case confirmPaste = "confirmPaste"
             case showUsage = "showUsage"
+            case aiDefault = "aiDefault"
+            case aiFast = "aiFast"
+            case ai = "ai"
         }
 
         public init(from decoder: Decoder) throws {
@@ -712,6 +1018,9 @@ extension Go.config {
             self.clipboardClear = (try? c.decodeIfPresent(Double.self, forKey: .clipboardClear)) ?? 0
             self.confirmPaste = (try? c.decodeIfPresent(Bool.self, forKey: .confirmPaste)) ?? false
             self.showUsage = (try? c.decodeIfPresent(Bool.self, forKey: .showUsage)) ?? false
+            self.aiDefault = (try? c.decodeIfPresent(String.self, forKey: .aiDefault)) ?? ""
+            self.aiFast = (try? c.decodeIfPresent(String.self, forKey: .aiFast)) ?? ""
+            self.ai = (try? c.decodeIfPresent(Go.config.AIConfig.self, forKey: .ai)) ?? Go.config.AIConfig()
         }
     }
 }

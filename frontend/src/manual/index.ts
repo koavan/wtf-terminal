@@ -14,6 +14,7 @@ import kubernetes from './kubernetes.md?raw';
 import logs from './logs.md?raw';
 import inspectPage from './inspect.md?raw';
 import apiPage from './api.md?raw';
+import aiPage from './ai.md?raw';
 import network from './network.md?raw';
 import pinsPage from './pins.md?raw';
 import panes from './panes.md?raw';
@@ -85,6 +86,7 @@ export const TOPICS: Topic[] = [
   t('Cloud', 'kubernetes', 'Kubernetes: resources', kubernetes),
   t('Cloud', 'kube-contexts', 'Kubernetes: contexts', kubeContexts),
   t('Reference', 'tools', 'Command-line tools', toolsPage),
+  t('Reference', 'ai', 'AI assistance', aiPage),
   t('Reference', 'settings', 'Settings and themes', settings),
   t('Reference', 'usage', 'Resource usage (wtf’s CPU and memory)', usagePage),
   t('Reference', 'sessions', 'Sessions and windows', sessions),
