@@ -286,16 +286,52 @@ Rules for every item here:
 
 ### 23. AI foundation ☐
 
+Works with any AI tool, not one vendor. Features talk to one interface; which
+model or tool answers is configuration.
+
 - `internal/ai`: one provider interface with streaming replies, cancel, and
-  token/cost counts per request.
-- Providers: Claude API (your own key; Haiku for quick inline features,
-  Sonnet/Opus for the heavier ones, configurable) and Ollama (local, any
-  pulled model; nothing leaves the machine).
-- API key in the macOS Keychain / Linux secret service, never in `config.toml`.
+  token/cost counts per request when the provider reports them.
+- Three provider kinds, which between them cover any AI tool:
+  - `anthropic`: the Claude Messages API.
+  - `openai`: any OpenAI-compatible chat endpoint, with a configurable base
+    URL. Covers OpenAI, Azure OpenAI, Gemini (its OpenAI endpoint), Mistral,
+    Groq, DeepSeek, OpenRouter, and local servers (Ollama, LM Studio, vLLM,
+    llama.cpp), where nothing leaves the machine.
+  - `command`: any CLI tool. wtf writes the prompt to its stdin and streams
+    its stdout, e.g. `claude -p`, `codex exec`, `gemini -p`, `llm`, `aichat`.
+    No API key in wtf; the tool's own login, model and settings apply.
+    No token/cost counts unless the tool prints them.
+- Several named providers in `config.toml`; pick one for quick inline
+  features (`ai-fast`) and one for heavier ones (`ai-default`), switchable
+  from the palette. Tested against a fixed set (Claude API, OpenAI, Ollama,
+  one CLI); others work through the same kinds.
+- Tool calling (needed by #27) is used when the provider supports it
+  (`anthropic`, most `openai` endpoints); #27 says so and is unavailable
+  otherwise, never faked by parsing free text.
+- API keys in the macOS Keychain / Linux secret service, per provider, never
+  in `config.toml`.
 - Redaction pass shared with Hide Secrets, plus a "what's being sent" preview
-  (shown the first time, then on request).
-- `config.toml`: `ai-provider`, `ai-model`, `ai-fast-model`, `ollama-url`;
-  AI features hidden entirely when no provider is set.
+  (shown the first time per provider, then on request). Applies to `command`
+  providers too: wtf redacts before the text reaches the tool.
+- AI features hidden entirely when no provider is set.
+
+```toml
+ai-default = "claude"
+ai-fast = "local"
+
+[ai.providers.claude]
+kind = "anthropic"
+model = "claude-sonnet-5-5"
+
+[ai.providers.local]
+kind = "openai"
+base-url = "http://localhost:11434/v1"
+model = "qwen3:8b"
+
+[ai.providers.codex]
+kind = "command"
+command = ["codex", "exec", "-"]
+```
 
 ### 24. Explain this failure ☐
 
