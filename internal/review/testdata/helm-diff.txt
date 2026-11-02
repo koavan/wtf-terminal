@@ -1,0 +1,16 @@
+shop, checkout-api, Deployment (apps) has changed:
+  # Source: checkout/templates/deployment.yaml
+  apiVersion: apps/v1
+  kind: Deployment
+  spec:
+-   replicas: 2
++   replicas: 3
+        containers:
+-         - image: "shop/checkout:1.4.0"
++         - image: "shop/checkout:1.5.0"
+shop, checkout-db-password, Secret (v1) has been added:
++ # Source: checkout/templates/secret.yaml
++ apiVersion: v1
++ kind: Secret
+shop, checkout-legacy, Service (v1) has been removed:
+- # Source: checkout/templates/legacy.yaml

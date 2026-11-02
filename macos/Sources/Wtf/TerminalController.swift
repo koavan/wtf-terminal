@@ -413,6 +413,13 @@ final class TerminalController: NSObject, @MainActor TerminalViewDelegate, Outpu
                 owner?.pin(block: id, in: self)
             })
         }
+        if !b.running, b.hasOutput, Review.reviewable(b.text) {
+            items.append(.separator())
+            items.append(item("Review Changes…") { [weak self] in
+                guard let self, let o = owner else { return }
+                ReviewSheet.show(block: id, in: self, owner: o)
+            })
+        }
         if let code = b.exitCode, code != 0, ExplainSheet.available {
             items.append(.separator())
             items.append(item("Explain Failure…") { [weak self] in

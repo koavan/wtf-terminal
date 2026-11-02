@@ -383,13 +383,27 @@ Ctrl-U first, Explain Flags, What's Sent, Esc stops or closes. The typing
 helper (`typeAtPrompt`) is shared with #24. Linux self-check `explain`
 covers both.
 
-### 26. Change reviewer ☐
+### 26. Change reviewer ☑
 
 For `terraform plan`, `kubectl diff` and `helm diff` output (a command block
 or a plan file). Parse it first, deterministically: resources created,
 changed, replaced and destroyed, IAM/security-group changes, listed as facts.
 Then the model writes a plain-English summary of what will happen and why
 (e.g. "replaces the RDS instance because `engine_version` changed").
+
+Built: `internal/review` (service `review`): parsers for Terraform/OpenTofu/
+Terragrunt plan text (top-level changed attributes, `# forces replacement`,
+`(because …)`, moves, Terraform's own Plan line), `terraform show -json`
+plans (actions, replace_paths, action_reason, changed keys; sensitive values
+left out of the excerpt) and binary plans via read-only `terraform show
+-json`/`tofu`, `kubectl diff` (object names from the LIVE/MERGED paths,
+create/delete from the hunks) and `helm diff`. Changes are tagged IAM,
+Security group, RBAC, Network policy or Secret by type/kind. `Reviewable`
+(ported to WtfCore, shared cases in testdata/review/reviewable.json) gates
+the block menu's **Review Changes…**; also **Review Last Command's
+Changes…** and Files → **Review Terraform Plan…**. Facts work without AI;
+with one, `ai-default` summarizes. Linux self-check `explain` covers a plan
+block and a plan file.
 
 ### 27. Incident investigator ☐
 

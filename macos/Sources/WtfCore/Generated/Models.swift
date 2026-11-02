@@ -20,6 +20,7 @@ extension Go { public enum infra {} }
 extension Go { public enum kube {} }
 extension Go { public enum netconn {} }
 extension Go { public enum procs {} }
+extension Go { public enum review {} }
 extension Go { public enum snippets {} }
 extension Go { public enum sshhosts {} }
 extension Go { public enum suggest {} }
@@ -2299,6 +2300,190 @@ extension Go.procs {
             self.elapsed = (try? c.decodeIfPresent(Int.self, forKey: .elapsed)) ?? 0
             self.session = (try? c.decodeIfPresent(String.self, forKey: .session)) ?? ""
             self.shell = (try? c.decodeIfPresent(Bool.self, forKey: .shell)) ?? false
+        }
+    }
+}
+
+extension Go.review {
+    /// review.Ask
+    public struct Ask: Codable, Equatable, Sendable {
+        public var review: Go.review.Review
+        public var env: [String: String]
+        public var cwd: String
+
+        public init(review: Go.review.Review = Go.review.Review(), env: [String: String] = [:], cwd: String = "") {
+            self.review = review
+            self.env = env
+            self.cwd = cwd
+        }
+
+        enum CodingKeys: String, CodingKey {
+            case review = "review"
+            case env = "env"
+            case cwd = "cwd"
+        }
+
+        public init(from decoder: Decoder) throws {
+            let c = try decoder.container(keyedBy: CodingKeys.self)
+            self.review = (try? c.decodeIfPresent(Go.review.Review.self, forKey: .review)) ?? Go.review.Review()
+            self.env = (try? c.decodeIfPresent([String: String].self, forKey: .env)) ?? [:]
+            self.cwd = (try? c.decodeIfPresent(String.self, forKey: .cwd)) ?? ""
+        }
+    }
+}
+
+extension Go.review {
+    /// review.Change
+    public struct Change: Codable, Equatable, Sendable {
+        public var action: String
+        public var address: String
+        public var type: String
+        public var name: String
+        public var namespace: String
+        public var attributes: [String]
+        public var forcesReplacement: [String]
+        public var reason: String
+        public var from: String
+        public var area: String
+
+        public init(action: String = "", address: String = "", type: String = "", name: String = "", namespace: String = "", attributes: [String] = [], forcesReplacement: [String] = [], reason: String = "", from: String = "", area: String = "") {
+            self.action = action
+            self.address = address
+            self.type = type
+            self.name = name
+            self.namespace = namespace
+            self.attributes = attributes
+            self.forcesReplacement = forcesReplacement
+            self.reason = reason
+            self.from = from
+            self.area = area
+        }
+
+        enum CodingKeys: String, CodingKey {
+            case action = "action"
+            case address = "address"
+            case type = "type"
+            case name = "name"
+            case namespace = "namespace"
+            case attributes = "attributes"
+            case forcesReplacement = "forcesReplacement"
+            case reason = "reason"
+            case from = "from"
+            case area = "area"
+        }
+
+        public init(from decoder: Decoder) throws {
+            let c = try decoder.container(keyedBy: CodingKeys.self)
+            self.action = (try? c.decodeIfPresent(String.self, forKey: .action)) ?? ""
+            self.address = (try? c.decodeIfPresent(String.self, forKey: .address)) ?? ""
+            self.type = (try? c.decodeIfPresent(String.self, forKey: .type)) ?? ""
+            self.name = (try? c.decodeIfPresent(String.self, forKey: .name)) ?? ""
+            self.namespace = (try? c.decodeIfPresent(String.self, forKey: .namespace)) ?? ""
+            self.attributes = (try? c.decodeIfPresent([String].self, forKey: .attributes)) ?? []
+            self.forcesReplacement = (try? c.decodeIfPresent([String].self, forKey: .forcesReplacement)) ?? []
+            self.reason = (try? c.decodeIfPresent(String.self, forKey: .reason)) ?? ""
+            self.from = (try? c.decodeIfPresent(String.self, forKey: .from)) ?? ""
+            self.area = (try? c.decodeIfPresent(String.self, forKey: .area)) ?? ""
+        }
+    }
+}
+
+extension Go.review {
+    /// review.Counts
+    public struct Counts: Codable, Equatable, Sendable {
+        public var create: Int
+        public var update: Int
+        public var replace: Int
+        public var delete: Int
+        public var read: Int
+        public var `import`: Int
+        public var move: Int
+        public var forget: Int
+
+        public init(create: Int = 0, update: Int = 0, replace: Int = 0, delete: Int = 0, read: Int = 0, `import`: Int = 0, move: Int = 0, forget: Int = 0) {
+            self.create = create
+            self.update = update
+            self.replace = replace
+            self.delete = delete
+            self.read = read
+            self.`import` = `import`
+            self.move = move
+            self.forget = forget
+        }
+
+        enum CodingKeys: String, CodingKey {
+            case create = "create"
+            case update = "update"
+            case replace = "replace"
+            case delete = "delete"
+            case read = "read"
+            case `import` = "import"
+            case move = "move"
+            case forget = "forget"
+        }
+
+        public init(from decoder: Decoder) throws {
+            let c = try decoder.container(keyedBy: CodingKeys.self)
+            self.create = (try? c.decodeIfPresent(Int.self, forKey: .create)) ?? 0
+            self.update = (try? c.decodeIfPresent(Int.self, forKey: .update)) ?? 0
+            self.replace = (try? c.decodeIfPresent(Int.self, forKey: .replace)) ?? 0
+            self.delete = (try? c.decodeIfPresent(Int.self, forKey: .delete)) ?? 0
+            self.read = (try? c.decodeIfPresent(Int.self, forKey: .read)) ?? 0
+            self.`import` = (try? c.decodeIfPresent(Int.self, forKey: .`import`)) ?? 0
+            self.move = (try? c.decodeIfPresent(Int.self, forKey: .move)) ?? 0
+            self.forget = (try? c.decodeIfPresent(Int.self, forKey: .forget)) ?? 0
+        }
+    }
+}
+
+extension Go.review {
+    /// review.Review
+    public struct Review: Codable, Equatable, Sendable {
+        public var tool: String
+        public var changes: [Go.review.Change]
+        public var counts: Go.review.Counts
+        public var plan: String
+        public var noChanges: Bool
+        public var source: String
+        public var excerpt: String
+        public var countText: String
+        public var lines: [String]
+
+        public init(tool: String = "", changes: [Go.review.Change] = [], counts: Go.review.Counts = Go.review.Counts(), plan: String = "", noChanges: Bool = false, source: String = "", excerpt: String = "", countText: String = "", lines: [String] = []) {
+            self.tool = tool
+            self.changes = changes
+            self.counts = counts
+            self.plan = plan
+            self.noChanges = noChanges
+            self.source = source
+            self.excerpt = excerpt
+            self.countText = countText
+            self.lines = lines
+        }
+
+        enum CodingKeys: String, CodingKey {
+            case tool = "tool"
+            case changes = "changes"
+            case counts = "counts"
+            case plan = "plan"
+            case noChanges = "noChanges"
+            case source = "source"
+            case excerpt = "excerpt"
+            case countText = "countText"
+            case lines = "lines"
+        }
+
+        public init(from decoder: Decoder) throws {
+            let c = try decoder.container(keyedBy: CodingKeys.self)
+            self.tool = (try? c.decodeIfPresent(String.self, forKey: .tool)) ?? ""
+            self.changes = (try? c.decodeIfPresent([Go.review.Change].self, forKey: .changes)) ?? []
+            self.counts = (try? c.decodeIfPresent(Go.review.Counts.self, forKey: .counts)) ?? Go.review.Counts()
+            self.plan = (try? c.decodeIfPresent(String.self, forKey: .plan)) ?? ""
+            self.noChanges = (try? c.decodeIfPresent(Bool.self, forKey: .noChanges)) ?? false
+            self.source = (try? c.decodeIfPresent(String.self, forKey: .source)) ?? ""
+            self.excerpt = (try? c.decodeIfPresent(String.self, forKey: .excerpt)) ?? ""
+            self.countText = (try? c.decodeIfPresent(String.self, forKey: .countText)) ?? ""
+            self.lines = (try? c.decodeIfPresent([String].self, forKey: .lines)) ?? []
         }
     }
 }

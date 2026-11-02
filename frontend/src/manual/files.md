@@ -15,7 +15,7 @@ The Files tab ({{key:sidebar.files}}) shows the focused shell's folder as a tree
 
 - **Click a file** to put its path at the prompt (quoted, relative to the shell's folder when it's inside it).
 - **Drag a file** into a terminal to paste its path, or onto an [SSH host](#ssh-files) to upload it.
-- **Right-click a file**: insert its path, open it in `$EDITOR` (in a split), open it with the default app, copy its path or relative path, reveal it in {{mac:Finder|other:the file manager}}. Certificate files (`.pem`, `.crt`, `.cer`, `.der`) also get **Inspect Certificate…** (see [Tokens and certificates](#inspect)).
+- **Right-click a file**: insert its path, open it in `$EDITOR` (in a split), open it with the default app, copy its path or relative path, reveal it in {{mac:Finder|other:the file manager}}. Certificate files (`.pem`, `.crt`, `.cer`, `.der`) also get **Inspect Certificate…** (see [Tokens and certificates](#inspect)). Files with "plan" in their name get **Review Terraform Plan…** (see [AI assistance](#ai)).
 - **Right-click a folder**: `cd` there, open it in a new tab or split, insert its path, **Make Root** (pin the tree there), copy its path, reveal it.
 
 Git-ignored files are dimmed. The tree re-reads after each command you run, so new files show up. While the shell is connected to another machine (ssh), the tree says so instead of showing your local files.

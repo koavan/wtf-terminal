@@ -13,6 +13,7 @@ import (
 	"github.com/diamondburned/gotk4/pkg/glib/v2"
 	"github.com/diamondburned/gotk4/pkg/gtk/v4"
 
+	"github.com/dayanraj/wtf/internal/review"
 	"github.com/dayanraj/wtf/internal/uicore"
 )
 
@@ -213,6 +214,9 @@ func (p *Pane) blockItems(id int) []*menuItem {
 			label = "Pin Output (follows it)"
 		}
 		items = append(items, item(label, func() { p.win.pinBlock(p, id) }))
+	}
+	if !b.Running() && b.HasOutput && review.Reviewable(b.Text) {
+		items = append(items, menuSection, item("Review Changes…", func() { p.win.reviewBlock(p, id) }))
 	}
 	if b.ExitCode != nil && *b.ExitCode != 0 && p.win.aiEnabled() {
 		items = append(items, menuSection, item("Explain Failure…", func() { p.win.explainBlock(p, id) }))

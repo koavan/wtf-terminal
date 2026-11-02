@@ -4,6 +4,7 @@ package gtkui
 
 import (
 	"fmt"
+	"path/filepath"
 	"slices"
 	"strings"
 
@@ -603,6 +604,9 @@ func (f *filesTab) menu(id string) []*menuItem {
 				item("Insert Path", func() { f.insertPath(path) }),
 				item("Open in Editor", func() { w.openInEditor(path, 0) }),
 				item("Open with Default App", func() { f.run("Couldn't open it", func() error { return w.app.be.Files.Open(path) }) }))
+			if strings.Contains(strings.ToLower(filepath.Base(path)), "plan") {
+				items = append(items, item("Review Terraform Plan…", func() { w.reviewFile(path) }))
+			}
 			if uicore.InspectIsCertFile(path) {
 				items = append(items, item("Inspect Certificate…", func() { w.showCertFile(path) }))
 			}

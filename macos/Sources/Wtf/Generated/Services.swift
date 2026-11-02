@@ -200,4 +200,11 @@ enum Services {
         static func Parse(_ a0: String) async throws -> Go.suggest.Suggestion { try await Backend.call("suggest", "Parse", [a0], as: Go.suggest.Suggestion.self) }
         static func Request(_ a0: Go.suggest.Ask) async throws -> Go.ai.Request { try await Backend.call("suggest", "Request", [a0], as: Go.ai.Request.self) }
     }
+
+    enum review {
+        static func Parse(_ a0: String, _ a1: String) async throws -> Go.review.Review { try await Backend.call("review", "Parse", [a0, a1], as: Go.review.Review.self) }
+        static func ParseFile(_ a0: String, _ a1: [String: String]) async throws -> Go.review.Review { try await Backend.call("review", "ParseFile", [a0, a1], as: Go.review.Review.self) }
+        static func Request(_ a0: Go.review.Ask) async throws -> Go.ai.Request { try await Backend.call("review", "Request", [a0], as: Go.ai.Request.self) }
+        static func Reviewable(_ a0: String) async throws -> Bool { try await Backend.call("review", "Reviewable", [a0], as: Bool.self) }
+    }
 }

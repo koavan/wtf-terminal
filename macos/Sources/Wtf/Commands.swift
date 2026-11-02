@@ -38,6 +38,7 @@ enum Commands {
         Command("inspect.tls", "Inspect TLS Certificate…") { CertViewer(.host(""), owner: $0).show() },
         Command("tools.show", "Command-Line Tools (kubectl, AWS CLI, git…)") { ToolsDialog.show(in: $0) },
         Command("ai.ask", "Command from Plain English…", "⌘I", available: { _ in ExplainSheet.available }) { AskBar.toggle(in: $0) },
+        Command("review.last", "Review Last Command’s Changes…", available: integrated) { $0.reviewLastCommand() },
         Command("ai.explain", "Explain Last Failed Command…", available: { integrated($0) && ExplainSheet.available }) { $0.explainLastFailure() },
         Command("ai.providers", "AI Providers (add, keys, default, test)") { SettingsWindow.show(.ai, from: $0) },
         Command("help.manual", "Open Manual", "⌘?") { ManualWindow.show(from: $0) },

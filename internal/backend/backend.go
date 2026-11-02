@@ -25,6 +25,7 @@ import (
 	"github.com/dayanraj/wtf/internal/netconn"
 	"github.com/dayanraj/wtf/internal/notify"
 	"github.com/dayanraj/wtf/internal/procs"
+	"github.com/dayanraj/wtf/internal/review"
 	"github.com/dayanraj/wtf/internal/snippets"
 	"github.com/dayanraj/wtf/internal/sshhosts"
 	"github.com/dayanraj/wtf/internal/state"
@@ -63,6 +64,7 @@ type Backend struct {
 	AI          *ai.Service
 	Explain     *explain.Service
 	Suggest     *suggest.Service
+	Review      *review.Service
 
 	started []any // by Start, for Shutdown
 }
@@ -106,6 +108,7 @@ func New(version, commit, buildDate, stateDir string) (*Backend, error) {
 	b.AI = ai.NewService(stateDir, func() config.Config { return b.Config.Current().Config }, redact)
 	b.Explain = explain.NewService(b.Infra)
 	b.Suggest = suggest.NewService(b.Infra)
+	b.Review = review.NewService(b.Infra)
 	return b, nil
 }
 
@@ -141,6 +144,7 @@ func (b *Backend) Services() []Named {
 		{"ai", b.AI},
 		{"explain", b.Explain},
 		{"suggest", b.Suggest},
+		{"review", b.Review},
 	}
 }
 

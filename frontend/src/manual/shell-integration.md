@@ -23,6 +23,7 @@ Click a command's ✓/✗ mark, or right-click in its output. The command's bloc
 - **Copy Command and Output** — both, as they looked: `$ command` followed by the output. Handy for pasting into a ticket or chat.
 - **Select Output** — selects it in the terminal.
 - **Pin Output** — keeps a copy in the side pane's Pinned tab while you work on; a running command's pin follows it. See [Pinned output](#pins).
+- **Review Changes…** — for `terraform`/`tofu`/`terragrunt` plan, `kubectl diff` and `helm diff`: what it will create, change, replace and destroy, and a plain-English summary when an AI is set up. See [AI assistance](#ai).
 - **Explain Failure…** — for a command that failed, when an AI is set up: why it likely failed and a command to fix it, typed at the prompt but not run. See [AI assistance](#ai).
 - **Run Again** — types it at the prompt and runs it (when the shell is at its prompt), in this pane only.
 - **Save as Snippet…** — keep it, with blanks to fill in next time. See [Snippets and runbooks](#snippets).

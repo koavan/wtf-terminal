@@ -59,6 +59,21 @@ The quick provider (`ai-fast`, else the default) gets your words with the focuse
 - **Explain Flags** asks what each part does: every program, subcommand, flag and argument, one per line.
 - **What's Sent** shows exactly what went to the provider. **Esc** stops a reply, or closes the bar.
 
+## Review infrastructure changes
+
+Before you apply a change, see what it will do. Right-click the output of `terraform plan` (or `tofu`, `terragrunt`), `kubectl diff` or `helm diff` → **Review Changes…**, use **Review Last Command's Changes…** in the palette, or right-click a saved plan in the Files tab → **Review Terraform Plan…**. A binary plan is read with `terraform show -json` (or `tofu`) in its folder, which changes nothing; a `terraform show -json` file is read directly.
+
+wtf reads the output itself, without AI, and lists every change as a fact:
+
+- `+` create, `~` change, `-/+` replace, `-` destroy, `<=` read, `→` moved;
+- which attributes change, and which ones force a replacement (`engine_version forces replacement`);
+- why, when the output says (not in configuration, tainted);
+- changes to access control, marked **[IAM]**, **[Security group]**, **[RBAC]**, **[Network policy]** or **[Secret]** by resource type or kind.
+
+The counts at the top are wtf's; Terraform's own line ("Plan: 2 to add, 1 to change, 2 to destroy") is shown under them, counting a replacement as one add and one destroy.
+
+With an AI set up, the default provider then gets these facts, the shell's context and the start of the output, and writes a plain-English summary: what applying it will do, why each replacement and destruction happens, and what each access change grants or removes. Values a plan file marks sensitive aren't sent. Without an AI, you still get the facts.
+
 ## In config.toml
 
 Everything the Settings window saves is plain text in `config.toml` (**Open config.toml**), which you can also edit by hand:

@@ -176,5 +176,58 @@ func (w *Window) checkExplain() {
 	onMain(func() { _, running = p.tracker.Running(); closed = askBars[w] == nil })
 	check(os.IsNotExist(err) && !running && closed, "nothing ran it, and the bar closed (%v, running %v)", err, running)
 	p.write(uicore.ClearLine)
+	time.Sleep(300 * time.Millisecond)
+
+	// Review Changes: a stand-in terraform prints a real plan.
+	p.write("mkdir -p /tmp/tfbin && printf '#!/bin/sh\\ncat /src/internal/review/testdata/terraform-plan.txt\\n' > /tmp/tfbin/terraform && chmod +x /tmp/tfbin/terraform && export PATH=/tmp/tfbin:$PATH\r")
+	time.Sleep(500 * time.Millisecond)
+	p.write("terraform plan\r")
+	var planID int
+	check(waitUntil(5*time.Second, func() bool {
+		id, ok := p.tracker.LastFinished()
+		b, _ := p.tracker.Info(id)
+		planID = id
+		return ok && b.Text == "terraform plan" && !p.feed.busy()
+	}), "ran terraform plan")
+	labels = nil
+	onMain(func() {
+		for _, it := range p.blockItems(planID) {
+			if it != nil {
+				labels = append(labels, it.label)
+			}
+		}
+	})
+	check(slices.Contains(labels, "Review Changes…") && !slices.Contains(labels, "Explain Failure…"), "its menu offers Review Changes…: %q", labels)
+	onMain(func() { w.reviewBlock(p, planID) })
+	var rd *reviewDialog
+	check(waitUntil(5*time.Second, func() bool { rd = reviewShown; return rd != nil && rd.done != nil }), "the review is parsed and summarized")
+	if rd != nil && rd.review != nil {
+		var sub, facts, summary, sentFacts string
+		onMain(func() {
+			sub = rd.sub.Text()
+			buf := rd.facts.Buffer()
+			facts = buf.Text(buf.StartIter(), buf.EndIter(), false)
+			summary = rd.summaryText()
+			if rd.ready {
+				sentFacts = rd.req.Messages[0].Content
+			}
+		})
+		check(strings.HasPrefix(sub, "terraform · 1 to create, 1 to change, 1 to replace, 1 to destroy, 1 moved"), "counts: %q", sub)
+		check(strings.Contains(facts, "-/+ replace aws_db_instance.main (engine_version forces replacement") &&
+			strings.Contains(facts, "~ change aws_iam_role_policy.app (changes policy) [IAM]"), "the facts:\n%s", facts)
+		check(strings.Contains(sentFacts, "Excerpt of the output:") && !rd.req.Fast, "the default AI gets the facts and the plan")
+		check(strings.HasPrefix(summary, "The folder is missing."), "the summary shows: %q", summary)
+		time.Sleep(300 * time.Millisecond)
+		shotOf(&rd.s.win.Widget, "review")
+		onMain(rd.s.close)
+	}
+
+	// A saved plan file (terraform show -json output).
+	onMain(func() { w.reviewFile("/src/internal/review/testdata/plan.json") })
+	check(waitUntil(5*time.Second, func() bool { rd = reviewShown; return rd != nil && rd.review != nil && rd.done != nil }), "a plan file is reviewed")
+	if rd != nil && rd.review != nil {
+		check(len(rd.review.Changes) == 3 && rd.review.Source == "the plan file plan.json", "plan file: %d changes from %q", len(rd.review.Changes), rd.review.Source)
+		onMain(rd.s.close)
+	}
 	w.finish()
 }

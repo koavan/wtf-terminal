@@ -1,0 +1,29 @@
+diff -u -N /tmp/LIVE-2861479893/apps.v1.Deployment.shop.checkout-api /tmp/MERGED-1412870231/apps.v1.Deployment.shop.checkout-api
+--- /tmp/LIVE-2861479893/apps.v1.Deployment.shop.checkout-api	2026-11-02 10:00:00.000000000 +0000
++++ /tmp/MERGED-1412870231/apps.v1.Deployment.shop.checkout-api	2026-11-02 10:00:00.000000000 +0000
+@@ -6,7 +6,7 @@
+-  generation: 4
++  generation: 5
+   name: checkout-api
+ spec:
+-  replicas: 2
++  replicas: 3
+       containers:
+-      - image: shop/checkout:1.4.0
++      - image: shop/checkout:1.5.0
+diff -u -N /tmp/LIVE-2861479893/rbac.authorization.k8s.io.v1.ClusterRoleBinding..ci-admin /tmp/MERGED-1412870231/rbac.authorization.k8s.io.v1.ClusterRoleBinding..ci-admin
+--- /tmp/LIVE-2861479893/rbac.authorization.k8s.io.v1.ClusterRoleBinding..ci-admin	2026-11-02 10:00:00.000000000 +0000
++++ /tmp/MERGED-1412870231/rbac.authorization.k8s.io.v1.ClusterRoleBinding..ci-admin	2026-11-02 10:00:00.000000000 +0000
+@@ -0,0 +1,12 @@
++apiVersion: rbac.authorization.k8s.io/v1
++kind: ClusterRoleBinding
++metadata:
++  name: ci-admin
++roleRef:
++  name: cluster-admin
+diff -u -N /tmp/LIVE-2861479893/v1.ConfigMap.shop.app.config /tmp/MERGED-1412870231/v1.ConfigMap.shop.app.config
+--- /tmp/LIVE-2861479893/v1.ConfigMap.shop.app.config	2026-11-02 10:00:00.000000000 +0000
++++ /tmp/MERGED-1412870231/v1.ConfigMap.shop.app.config	2026-11-02 10:00:00.000000000 +0000
+@@ -1,8 +0,0 @@
+-apiVersion: v1
+-kind: ConfigMap

@@ -1,0 +1,11 @@
+{"format_version":"1.2","resource_changes":[
+ {"address":"aws_db_instance.main","mode":"managed","type":"aws_db_instance","name":"main",
+  "change":{"actions":["delete","create"],"before":{"engine_version":"13.4","password":"hunter2","id":"db-main","instance_class":"db.t3.medium"},
+   "after":{"engine_version":"14.1","password":"hunter3","instance_class":"db.t3.medium"},"after_unknown":{"id":true},
+   "before_sensitive":{"password":true},"after_sensitive":{"password":true},"replace_paths":[["engine_version"]]}},
+ {"address":"aws_security_group.web","mode":"managed","type":"aws_security_group","name":"web",
+  "change":{"actions":["update"],"before":{"description":"web","ingress":[]},"after":{"description":"web","ingress":[{"from_port":443}]},"after_unknown":{}}},
+ {"address":"aws_instance.tainted","mode":"managed","type":"aws_instance","name":"tainted","action_reason":"replace_because_tainted",
+  "change":{"actions":["create","delete"],"before":{},"after":{},"after_unknown":{}}},
+ {"address":"aws_s3_bucket.same","mode":"managed","type":"aws_s3_bucket","name":"same","change":{"actions":["no-op"]}}
+]}

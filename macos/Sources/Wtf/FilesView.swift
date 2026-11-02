@@ -498,6 +498,12 @@ final class FilesView: NSView, SidePaneTab, NSTableViewDataSource, NSTableViewDe
                     guard let self else { return }
                     Self.openInEditor(p.path, in: owner)
                 }
+                if (p.path as NSString).lastPathComponent.lowercased().contains("plan") {
+                    add("Review Terraform Plan…", "terraform show -json reads it; nothing is applied") { [weak self] in
+                        guard let self else { return }
+                        ReviewSheet.show(file: p.path, owner: owner)
+                    }
+                }
                 add("Open with Default App") { [weak self] in
                     Task { @MainActor in
                         do { try await Services.files.Open(p.path) } catch { if let self { Toast.show("Couldn't open it: \(error.localizedDescription)", in: self) } }

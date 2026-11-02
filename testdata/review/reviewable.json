@@ -1,0 +1,16 @@
+{
+  "terraform plan -out=tf.plan": true,
+  "tofu plan": true,
+  "terragrunt run-all plan": true,
+  "terraform apply": true,
+  "kubectl diff -f k8s/": true,
+  "oc diff -f app.yaml": true,
+  "helm diff upgrade shop ./chart": true,
+  "cd infra && terraform plan | tee p.txt": true,
+  "terraform fmt": false,
+  "terraform init": false,
+  "kubectl get pods": false,
+  "git diff": false,
+  "helm upgrade shop ./chart": false,
+  "echo terraform": false
+}
