@@ -518,6 +518,7 @@ func buildMenu() -> NSMenu {
         .separator(),
         cmd("Copy Last Command Output", "term.copyOutput", "c", [.command, .option]),
         cmd("Pin Last Command Output", "term.pinOutput"),
+        cmd("Explain Last Failed Command…", "ai.explain"),
         cmd("Clear Buffer", "term.clear", "k"),
     ])
     _ = submenu("View", [

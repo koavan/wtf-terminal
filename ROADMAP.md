@@ -346,12 +346,25 @@ Self-check `ai` on Linux. Not done: the Linux keyring path is untested on a
 real desktop (the check container has no Secret Service); tool calling for
 #27 is left to #27.
 
-### 24. Explain this failure ☐
+### 24. Explain this failure ☑
 
 Right-click a failed command block → Explain. Sends the command, exit code,
 the tail of its output, cwd, relevant tool versions and the active context
 (kube context, AWS profile). Returns the likely cause and a suggested fix
 command, typed into the focused shell but not run.
+
+Built: `internal/explain` (service `explain`: `Request` builds the facts —
+command, exit code with the shell's meaning for 126/127/signals, duration,
+last 150 lines of output, folder as `~`, system and shell, the shell's
+Kubernetes/AWS/GCP/Terraform/git context from infra.Resolve, and versions
+of an allowlist of well-known tools found on the shell's PATH; `Parse`
+splits the reply into cause and the last fenced block as the fix, with
+control characters dropped). Block menu **Explain Failure…** (failed blocks,
+only with a provider set up), palette/menu **Explain Last Failed Command…**,
+a dialog that streams the reply with What's Sent, Copy, Close (stops it) and
+**Type Fix at Prompt** (Ctrl-U then the fix, no Enter; a multi-line fix is
+bracketed, or copied when the shell has no bracketed paste). Uses
+`ai-default`. Linux self-check `explain`.
 
 ### 25. Plain English to command ☐
 

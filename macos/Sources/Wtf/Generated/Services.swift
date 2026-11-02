@@ -189,4 +189,9 @@ enum Services {
         static func SetKey(_ a0: String, _ a1: String) async throws { try await Backend.run("ai", "SetKey", [a0, a1]) }
         static func Status() async throws -> Go.ai.Status { try await Backend.call("ai", "Status", [], as: Go.ai.Status.self) }
     }
+
+    enum explain {
+        static func Parse(_ a0: String) async throws -> Go.explain.Reply { try await Backend.call("explain", "Parse", [a0], as: Go.explain.Reply.self) }
+        static func Request(_ a0: Go.explain.Failure) async throws -> Go.ai.Request { try await Backend.call("explain", "Request", [a0], as: Go.ai.Request.self) }
+    }
 }

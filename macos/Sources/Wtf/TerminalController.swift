@@ -413,6 +413,13 @@ final class TerminalController: NSObject, @MainActor TerminalViewDelegate, Outpu
                 owner?.pin(block: id, in: self)
             })
         }
+        if let code = b.exitCode, code != 0, ExplainSheet.available {
+            items.append(.separator())
+            items.append(item("Explain Failure…") { [weak self] in
+                guard let self, let o = owner else { return }
+                ExplainSheet.show(block: id, in: self, owner: o)
+            })
+        }
         if !b.text.isEmpty, !b.running {
             items.append(.separator())
             items.append(item("Run Again") { [weak self] in self?.runAgain(b.text) })

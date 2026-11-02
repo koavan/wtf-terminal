@@ -13,6 +13,7 @@ extension Go { public enum apiclient {} }
 extension Go { public enum awsprofiles {} }
 extension Go { public enum certs {} }
 extension Go { public enum config {} }
+extension Go { public enum explain {} }
 extension Go { public enum files {} }
 extension Go { public enum findings {} }
 extension Go { public enum infra {} }
@@ -1113,6 +1114,70 @@ extension Go.config {
             self.palette = (try? c.decodeIfPresent([String].self, forKey: .palette)) ?? []
             self.dark = (try? c.decodeIfPresent(Bool.self, forKey: .dark)) ?? false
             self.builtin = (try? c.decodeIfPresent(Bool.self, forKey: .builtin)) ?? false
+        }
+    }
+}
+
+extension Go.explain {
+    /// explain.Failure
+    public struct Failure: Codable, Equatable, Sendable {
+        public var command: String
+        public var exitCode: Int
+        public var durationMs: Double
+        public var output: String
+        public var env: [String: String]
+        public var cwd: String
+
+        public init(command: String = "", exitCode: Int = 0, durationMs: Double = 0, output: String = "", env: [String: String] = [:], cwd: String = "") {
+            self.command = command
+            self.exitCode = exitCode
+            self.durationMs = durationMs
+            self.output = output
+            self.env = env
+            self.cwd = cwd
+        }
+
+        enum CodingKeys: String, CodingKey {
+            case command = "command"
+            case exitCode = "exitCode"
+            case durationMs = "durationMs"
+            case output = "output"
+            case env = "env"
+            case cwd = "cwd"
+        }
+
+        public init(from decoder: Decoder) throws {
+            let c = try decoder.container(keyedBy: CodingKeys.self)
+            self.command = (try? c.decodeIfPresent(String.self, forKey: .command)) ?? ""
+            self.exitCode = (try? c.decodeIfPresent(Int.self, forKey: .exitCode)) ?? 0
+            self.durationMs = (try? c.decodeIfPresent(Double.self, forKey: .durationMs)) ?? 0
+            self.output = (try? c.decodeIfPresent(String.self, forKey: .output)) ?? ""
+            self.env = (try? c.decodeIfPresent([String: String].self, forKey: .env)) ?? [:]
+            self.cwd = (try? c.decodeIfPresent(String.self, forKey: .cwd)) ?? ""
+        }
+    }
+}
+
+extension Go.explain {
+    /// explain.Reply
+    public struct Reply: Codable, Equatable, Sendable {
+        public var cause: String
+        public var fix: String
+
+        public init(cause: String = "", fix: String = "") {
+            self.cause = cause
+            self.fix = fix
+        }
+
+        enum CodingKeys: String, CodingKey {
+            case cause = "cause"
+            case fix = "fix"
+        }
+
+        public init(from decoder: Decoder) throws {
+            let c = try decoder.container(keyedBy: CodingKeys.self)
+            self.cause = (try? c.decodeIfPresent(String.self, forKey: .cause)) ?? ""
+            self.fix = (try? c.decodeIfPresent(String.self, forKey: .fix)) ?? ""
         }
     }
 }

@@ -17,6 +17,7 @@ import (
 	"github.com/dayanraj/wtf/internal/awsprofiles"
 	"github.com/dayanraj/wtf/internal/certs"
 	"github.com/dayanraj/wtf/internal/config"
+	"github.com/dayanraj/wtf/internal/explain"
 	"github.com/dayanraj/wtf/internal/files"
 	"github.com/dayanraj/wtf/internal/findings"
 	"github.com/dayanraj/wtf/internal/infra"
@@ -59,6 +60,7 @@ type Backend struct {
 	Procs       *procs.Service
 	APIClient   *apiclient.Service
 	AI          *ai.Service
+	Explain     *explain.Service
 
 	started []any // by Start, for Shutdown
 }
@@ -100,6 +102,7 @@ func New(version, commit, buildDate, stateDir string) (*Backend, error) {
 	b.Procs = procs.NewService(b.Terminal.ShellPIDs)
 	b.APIClient = apiclient.NewService()
 	b.AI = ai.NewService(stateDir, func() config.Config { return b.Config.Current().Config }, redact)
+	b.Explain = explain.NewService(b.Infra)
 	return b, nil
 }
 
@@ -133,6 +136,7 @@ func (b *Backend) Services() []Named {
 		{"procs", b.Procs},
 		{"apiclient", b.APIClient},
 		{"ai", b.AI},
+		{"explain", b.Explain},
 	}
 }
 

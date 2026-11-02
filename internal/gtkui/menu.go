@@ -214,6 +214,9 @@ func (p *Pane) blockItems(id int) []*menuItem {
 		}
 		items = append(items, item(label, func() { p.win.pinBlock(p, id) }))
 	}
+	if b.ExitCode != nil && *b.ExitCode != 0 && p.win.aiEnabled() {
+		items = append(items, menuSection, item("Explain Failure…", func() { p.win.explainBlock(p, id) }))
+	}
 	if b.Text != "" && !b.Running() {
 		items = append(items, menuSection, item("Run Again", func() { p.runAgain(b.Text) }))
 	}

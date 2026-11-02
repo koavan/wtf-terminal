@@ -36,6 +36,18 @@ Each provider's row shows its model, where requests go, whether it has a key, an
 
 **Test** sends a tiny request ("Reply with the single word OK") and shows the reply, how long it took, and the tokens or cost when the provider reports them. Errors show as the provider gave them: a wrong key, an unknown model, a tool that isn't logged in.
 
+## Explain a failed command
+
+Right-click a failed command (or click its ✗ mark) → **Explain Failure…**, or **Explain Last Failed Command…** in the palette and {{mac:the Edit menu|other:the window menu}} for the focused pane's last command. The default provider gets the facts wtf already has:
+
+- the command, its exit code (with what the shell means by 126, 127 and the signal codes above 128) and how long it ran;
+- the end of its output: the last 150 lines;
+- the folder (your home folder as `~`), the system and shell;
+- the shell's Kubernetes context and namespace, AWS profile, region and account, Google Cloud project, Terraform workspace and git branch, as the address bar shows them;
+- the versions of well-known tools the command ran (`kubectl`, `aws`, `terraform`, `helm`, `docker`, `git`, `node`, `python3`…), asked from the shell's `PATH` and folder. Only tools on that list are asked; any other program is never run.
+
+The reply streams in: the likely cause, then a fix command when one helps. **Type Fix at Prompt** puts it at the shell's prompt without pressing Enter, so you read, edit and run it yourself. **Copy** copies the explanation and the fix; **What's Sent** shows exactly what went to the provider; **Close** stops a reply still coming in.
+
 ## In config.toml
 
 Everything the Settings window saves is plain text in `config.toml` (**Open config.toml**), which you can also edit by hand:
