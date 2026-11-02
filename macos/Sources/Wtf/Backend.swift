@@ -48,8 +48,9 @@ enum Backend {
         if let error = reply.error { throw BackendError(message: error) }
         if let result = reply.result { return result }
         if let none = Nothing() as? R { return none }
-        // A nil Go slice arrives as null: an empty list.
+        // A nil Go slice or map arrives as null: an empty list or dictionary.
         if let empty = [Any]() as? R { return empty }
+        if let empty = [String: Any]() as? R { return empty }
         throw BackendError(message: "\(service).\(method) returned nothing")
     }
 
