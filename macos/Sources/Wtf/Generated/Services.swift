@@ -207,4 +207,11 @@ enum Services {
         static func Request(_ a0: Go.review.Ask) async throws -> Go.ai.Request { try await Backend.call("review", "Request", [a0], as: Go.ai.Request.self) }
         static func Reviewable(_ a0: String) async throws -> Bool { try await Backend.call("review", "Reviewable", [a0], as: Bool.self) }
     }
+
+    enum investigate {
+        static func Request(_ a0: Go.investigate.Question) async throws -> Go.ai.Request { try await Backend.call("investigate", "Request", [a0], as: Go.ai.Request.self) }
+        static func Result(_ a0: String, _ a1: Int, _ a2: Go.investigate.StepResult) async throws { try await Backend.run("investigate", "Result", [a0, a1, a2]) }
+        static func Start(_ a0: String, _ a1: Go.investigate.Question, _ a2: Bool) async throws { try await Backend.run("investigate", "Start", [a0, a1, a2]) }
+        static func Stop(_ a0: String) async throws { try await Backend.run("investigate", "Stop", [a0]) }
+    }
 }

@@ -521,6 +521,7 @@ func buildMenu() -> NSMenu {
         cmd("Explain Last Failed Command…", "ai.explain"),
         cmd("Review Last Command’s Changes…", "review.last"),
         cmd("Command from Plain English…", "ai.ask", "i"),
+        cmd("Investigate (AI)…", "ai.investigate"),
         cmd("Clear Buffer", "term.clear", "k"),
     ])
     _ = submenu("View", [

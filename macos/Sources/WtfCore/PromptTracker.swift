@@ -269,6 +269,17 @@ public final class PromptTracker {
         }
     }
 
+    /// The last n finished commands, with what's left of their output in
+    /// the scrollback, oldest first. A command that printed nothing counts.
+    public func recent(_ n: Int) -> [Export.Block] {
+        var out: [Export.Block] = []
+        for r in records.reversed() where out.count < n {
+            guard r.exitCode != nil, !r.text.isEmpty else { continue }
+            out.append(Export.Block(text: r.text, output: output(r.id) ?? "", startedAt: r.startedAt, exitCode: r.exitCode, durationMs: r.durationMs))
+        }
+        return out.reversed()
+    }
+
     /// The most recent finished command whose output is still in the scrollback.
     public func lastFinished() -> Int? {
         records.last { $0.end != nil && $0.output?.isValid(in: term) == true }?.id

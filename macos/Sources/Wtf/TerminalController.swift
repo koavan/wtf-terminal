@@ -138,6 +138,7 @@ final class TerminalController: NSObject, @MainActor TerminalViewDelegate, Outpu
     func blockOutput(_ id: Int) -> String? { tracker.output(id) }
     var lastFinishedBlock: Int? { tracker.lastFinished() }
     func transcript() -> [Export.Block] { tracker.transcript() }
+    func recentBlocks(_ n: Int) -> [Export.Block] { tracker.recent(n) }
 
     /// Scrolls a command's prompt into view and flashes its block; false once
     /// it has left the scrollback.
@@ -457,6 +458,7 @@ final class TerminalController: NSObject, @MainActor TerminalViewDelegate, Outpu
                 guard let o = self?.owner else { return }
                 AskBar.toggle(in: o)
             })
+            items.append(item("Investigate (AI)…") { [weak self] in self?.owner?.showInvestigate() })
         }
         items += [
             item(Redaction.shared.on ? "Show Secrets" : "Hide Secrets", key: "r", mods: [.command, .option]) {

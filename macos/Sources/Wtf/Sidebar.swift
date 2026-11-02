@@ -46,6 +46,8 @@ final class Sidebar: NSView {
         TabInfo(tab: .findings, label: "Findings", symbol: "exclamationmark.shield", key: "⌘⇧F") { FindingsView(window: $0) },
         TabInfo(tab: .share, label: "Share & Record", symbol: "record.circle", key: "⌘⇧J") { ShareView(window: $0) },
         TabInfo(tab: .generate, label: "Generate Keys & Passwords", symbol: "key", key: "⌘⇧N") { GenerateView(window: $0) },
+        // Only with an AI provider set up (update() hides it otherwise).
+        TabInfo(tab: .investigate, label: "Investigate (AI)", symbol: "stethoscope", key: "") { InvestigateView(window: $0) },
     ]
 
     private unowned let owner: WindowController
@@ -70,7 +72,7 @@ final class Sidebar: NSView {
             b.bezelStyle = .regularSquare
             b.imagePosition = .imageOnly
             b.refusesFirstResponder = true
-            b.toolTip = "\(t.label) (\(t.key))"
+            b.toolTip = t.key.isEmpty ? t.label : "\(t.label) (\(t.key))"
             b.identifier = .init(t.tab.rawValue)
             b.wantsLayer = true
             b.layer?.cornerRadius = 7
@@ -113,6 +115,8 @@ final class Sidebar: NSView {
             self?.owner.layoutSidebar()
         }
         handle.startWidth = { [weak self] in self?.owner.sidebar.width ?? SidebarState.defaultWidth }
+        // Adding or removing the last AI provider shows or hides Investigate.
+        Settings.shared.observe(self) { $0.update() }
     }
 
     required init?(coder: NSCoder) { fatalError() }
@@ -121,8 +125,10 @@ final class Sidebar: NSView {
 
     /// Shows the window's chosen tab, making its view if it changed.
     func update() {
+        let ai = ExplainSheet.available
+        railButtons[.investigate]?.isHidden = !ai
         let want = owner.sidebar.tab
-        let tab = Self.tabs.contains { $0.tab == want } ? want : .files
+        let tab = Self.tabs.contains { $0.tab == want } && (want != .investigate || ai) ? want : .files
         Debug.log("sidebar update: want \(want), shown \(String(describing: shownTab))")
         if tab != shownTab {
             content?.removeFromSuperview()

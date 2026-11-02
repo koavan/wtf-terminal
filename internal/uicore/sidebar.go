@@ -30,12 +30,15 @@ const (
 	SidebarFindings   SidebarTab = "findings"
 	SidebarShare      SidebarTab = "share"
 	SidebarGenerate   SidebarTab = "generate"
+	// The incident investigator (#27); shown only with an AI provider.
+	SidebarInvestigate SidebarTab = "investigate"
 )
 
 // SidebarTabs lists every tab, in order.
 var SidebarTabs = []SidebarTab{
 	SidebarFiles, SidebarSSH, SidebarAWS, SidebarKube, SidebarSnippets, SidebarWorkspaces,
 	SidebarNetwork, SidebarProcesses, SidebarHistory, SidebarPins, SidebarFindings, SidebarShare, SidebarGenerate,
+	SidebarInvestigate,
 }
 
 const (

@@ -37,7 +37,7 @@ public enum Manual {
     public static let sidebarTopic: [SidebarTab: String] = [
         .files: "files", .ssh: "ssh-hosts", .aws: "aws", .kube: "kubernetes", .snippets: "snippets", .workspaces: "workspaces",
         .network: "network", .processes: "processes", .history: "history", .pins: "pins", .share: "share",
-        .generate: "generate", .findings: "findings",
+        .generate: "generate", .findings: "findings", .investigate: "ai",
     ]
 
     /// Help for what's in front: the side pane's tab (and section), or the welcome page.

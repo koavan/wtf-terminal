@@ -276,7 +276,7 @@ func (p *Pane) contextMenu(x, y float64) {
 		item("Clear", p.clearBuffer),
 		menuSection)
 	if p.win.aiEnabled() && !p.feed.alternate {
-		items = append(items, item("Command from Plain English…", p.win.toggleAskBar))
+		items = append(items, item("Command from Plain English…", p.win.toggleAskBar), item("Investigate (AI)…", p.win.showInvestigate))
 	}
 	items = append(items,
 		item(hide, p.toggleSecrets),

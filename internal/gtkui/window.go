@@ -117,6 +117,10 @@ func newWindow(a *App, name string) *Window {
 			badges = on
 			w.refreshContexts()
 		}
+		// An AI provider added or removed shows or hides Investigate.
+		if w.sidebar != nil {
+			w.sidebar.update()
+		}
 		w.queueSync()
 	})
 	w.model.OnEmpty = w.closeForGood
@@ -596,6 +600,8 @@ func (w *Window) windowCommands() map[string]func() {
 		tab := t.tab
 		cmds[t.cmd] = func() { w.showSidebar(tab) }
 	}
+	// Opens the tab and focuses the question (only with an AI set up).
+	cmds["ai.investigate"] = w.showInvestigate
 	return cmds
 }
 
@@ -668,7 +674,7 @@ func (w *Window) mainMenuButton() *gtk.MenuButton {
 		{"palette", "config.open", "config.file", "theme.pick", "themes.folder", "snippets.run", "workspace.open", "workspace.save", "findings.scan", "usage.show"},
 		{"sidebar.toggle", "sidebar.files", "sidebar.ssh", "sidebar.aws", "sidebar.kube", "sidebar.snippets", "sidebar.workspaces",
 			"sidebar.network", "sidebar.processes", "sidebar.history", "sidebar.pins", "sidebar.findings", "sidebar.share", "sidebar.generate"},
-		{"find", "term.copyOutput", "term.pinOutput", "ai.explain", "ai.ask", "review.last", "term.clear", "secrets.toggle"},
+		{"find", "term.copyOutput", "term.pinOutput", "ai.explain", "ai.ask", "ai.investigate", "review.last", "term.clear", "secrets.toggle"},
 		{"record.toggle", "export.text", "export.markdown"},
 		{"font.bigger", "font.smaller", "font.reset"},
 		{"tab.overview", "tab.group", "broadcast.toggle", "pane.zoom", "pane.next", "pane.prev"},

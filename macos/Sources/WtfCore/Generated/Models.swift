@@ -17,6 +17,7 @@ extension Go { public enum explain {} }
 extension Go { public enum files {} }
 extension Go { public enum findings {} }
 extension Go { public enum infra {} }
+extension Go { public enum investigate {} }
 extension Go { public enum kube {} }
 extension Go { public enum netconn {} }
 extension Go { public enum procs {} }
@@ -1700,6 +1701,106 @@ extension Go.infra {
             self.authorName = (try? c.decodeIfPresent(String.self, forKey: .authorName)) ?? ""
             self.authorEmail = (try? c.decodeIfPresent(String.self, forKey: .authorEmail)) ?? ""
             self.identity = (try? c.decodeIfPresent(String.self, forKey: .identity)) ?? ""
+        }
+    }
+}
+
+extension Go.investigate {
+    /// investigate.Question
+    public struct Question: Codable, Equatable, Sendable {
+        public var text: String
+        public var env: [String: String]
+        public var cwd: String
+        public var recent: [Go.investigate.Recent]
+
+        public init(text: String = "", env: [String: String] = [:], cwd: String = "", recent: [Go.investigate.Recent] = []) {
+            self.text = text
+            self.env = env
+            self.cwd = cwd
+            self.recent = recent
+        }
+
+        enum CodingKeys: String, CodingKey {
+            case text = "text"
+            case env = "env"
+            case cwd = "cwd"
+            case recent = "recent"
+        }
+
+        public init(from decoder: Decoder) throws {
+            let c = try decoder.container(keyedBy: CodingKeys.self)
+            self.text = (try? c.decodeIfPresent(String.self, forKey: .text)) ?? ""
+            self.env = (try? c.decodeIfPresent([String: String].self, forKey: .env)) ?? [:]
+            self.cwd = (try? c.decodeIfPresent(String.self, forKey: .cwd)) ?? ""
+            self.recent = (try? c.decodeIfPresent([Go.investigate.Recent].self, forKey: .recent)) ?? []
+        }
+    }
+}
+
+extension Go.investigate {
+    /// investigate.Recent
+    public struct Recent: Codable, Equatable, Sendable {
+        public var command: String
+        public var exitCode: Int
+        public var output: String
+
+        public init(command: String = "", exitCode: Int = 0, output: String = "") {
+            self.command = command
+            self.exitCode = exitCode
+            self.output = output
+        }
+
+        enum CodingKeys: String, CodingKey {
+            case command = "command"
+            case exitCode = "exitCode"
+            case output = "output"
+        }
+
+        public init(from decoder: Decoder) throws {
+            let c = try decoder.container(keyedBy: CodingKeys.self)
+            self.command = (try? c.decodeIfPresent(String.self, forKey: .command)) ?? ""
+            self.exitCode = (try? c.decodeIfPresent(Int.self, forKey: .exitCode)) ?? 0
+            self.output = (try? c.decodeIfPresent(String.self, forKey: .output)) ?? ""
+        }
+    }
+}
+
+extension Go.investigate {
+    /// investigate.StepResult
+    public struct StepResult: Codable, Equatable, Sendable {
+        public var exitCode: Int
+        public var output: String
+        public var timedOut: Bool
+        public var declined: Bool
+        public var error: String
+        public var block: Int
+
+        public init(exitCode: Int = 0, output: String = "", timedOut: Bool = false, declined: Bool = false, error: String = "", block: Int = 0) {
+            self.exitCode = exitCode
+            self.output = output
+            self.timedOut = timedOut
+            self.declined = declined
+            self.error = error
+            self.block = block
+        }
+
+        enum CodingKeys: String, CodingKey {
+            case exitCode = "exitCode"
+            case output = "output"
+            case timedOut = "timedOut"
+            case declined = "declined"
+            case error = "error"
+            case block = "block"
+        }
+
+        public init(from decoder: Decoder) throws {
+            let c = try decoder.container(keyedBy: CodingKeys.self)
+            self.exitCode = (try? c.decodeIfPresent(Int.self, forKey: .exitCode)) ?? 0
+            self.output = (try? c.decodeIfPresent(String.self, forKey: .output)) ?? ""
+            self.timedOut = (try? c.decodeIfPresent(Bool.self, forKey: .timedOut)) ?? false
+            self.declined = (try? c.decodeIfPresent(Bool.self, forKey: .declined)) ?? false
+            self.error = (try? c.decodeIfPresent(String.self, forKey: .error)) ?? ""
+            self.block = (try? c.decodeIfPresent(Int.self, forKey: .block)) ?? 0
         }
     }
 }

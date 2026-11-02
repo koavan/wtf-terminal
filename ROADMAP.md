@@ -275,8 +275,8 @@ Rules for every item here:
 - On demand only: nothing calls a model in the background, so no idle CPU,
   memory or network cost.
 - Never runs a command that changes anything. Suggested commands are typed
-  into the focused shell (runInPane) and wait for Enter; the only exception is
-  #27's allowlist of read-only commands.
+  into the focused shell (runInPane) and wait for Enter. #27 runs read-only
+  commands from an allowlist, and only each one the user approves (Run).
 - Secrets are redacted with the Hide Secrets patterns before anything is sent,
   and the first send shows exactly what will leave the machine.
 - No guessed danger labels: facts (resource names, counts, account IDs) are
@@ -405,7 +405,7 @@ Changes…** and Files → **Review Terraform Plan…**. Facts work without AI;
 with one, `ai-default` summarizes. Linux self-check `explain` covers a plan
 block and a plan file.
 
-### 27. Incident investigator ☐
+### 27. Incident investigator ☑
 
 An AI side-pane tab (or its own tab) where you ask "why is `checkout-api`
 crashlooping in staging?". The agent investigates with an allowlist of
@@ -415,6 +415,25 @@ using the active kube context and AWS profile. It ends with a finding that
 cites the evidence. Anything that changes state (rollback, scale, restart) is
 typed into the focused shell for you to confirm. Step and cost limits per run;
 Stop at any time.
+
+Built: tool calling in `internal/ai` (`NewToolSession`/`Send`, anthropic
+tool_use and OpenAI tool_calls, streamed; command providers refused with
+`ErrNoTools`; everything redacted; first-send rule kept). `internal/investigate`:
+the argv allowlist (`Check`: kubectl, helm, aws, gcloud, docker, dig/host/
+nslookup, curl -I, ping; refuses context/credential switches, follow/watch,
+secret-printing; adds --tail, --no-cli-pager, --max-time, -c; quotes every
+argument) and the loop (`Start`/`Result`/`Stop`, events investigate:text/
+run/refused/done; 12 commands, 250k tokens, then a forced finding). Per the
+user's choice, commands are typed into the focused shell (full credentials,
+normal command blocks); the UI waits for each block (Ctrl-C after 60 s) and
+returns its output. After the first hands-on test (it ran `aws route53
+list-hosted-zones` unasked for a how-to question), every command waits for
+the user's Run or Skip (declined → the model is told and mustn't re-ask),
+general questions are answered without commands, and the shell's last three
+commands go with the question. Side-pane tab Investigate (hidden without a provider),
+palette and right-click; the finding cites steps, Type Fix at Prompt.
+Linux self-check `investigate` (fake Claude API in-process, stand-in kubectl).
+
 
 ### 28. Log summarizer ☐
 

@@ -74,6 +74,29 @@ The counts at the top are wtf's; Terraform's own line ("Plan: 2 to add, 1 to cha
 
 With an AI set up, the default provider then gets these facts, the shell's context and the start of the output, and writes a plain-English summary: what applying it will do, why each replacement and destruction happens, and what each access change grants or removes. Values a plan file marks sensitive aren't sent. Without an AI, you still get the facts.
 
+## Investigate an incident
+
+Ask why something is broken ("why is checkout-api crashlooping in staging?") and let the AI find out. Open the **Investigate** tab in the side pane (the stethoscope{{mac:|other: / search}} icon, shown once an AI is set up), **Investigate (AI)…** in the palette, or right-click the terminal. Type the question and press Return.
+
+The default provider gets your question, the focused shell's facts (folder, Kubernetes context and namespace, AWS profile and region, installed tools) and the last three commands you ran in it, with the end of their output. When those already answer the question (a command that just failed), it answers without running anything; so it does for a general question ("is it possible to back up Route 53?", "how do I…"); for a single failed command, **Explain Failure…** is quicker. Otherwise it works step by step.
+
+**Nothing runs without you.** Each command it wants is first checked by wtf against a read-only list, then shown in the tab with why it wants it, marked *waiting for you*. **Run** types it into **that shell**, where it shows as a normal command block, uses exactly your shell's credentials, and lands in its history; **Skip** declines it, and the AI carries on without it (it's told not to ask for it again). Return in the terminal never approves a command: only a click on **Run** does. The tab lists every step: click one to scroll the terminal to it. When it has enough evidence it writes a **finding** that cites the steps ([1], [2]…), and what to do next.
+
+What it may run:
+
+- `kubectl` get, describe, logs, events, top, explain, api-resources, version, cluster-info, auth can-i, rollout status/history
+- `helm` history, status, list, get notes/metadata, show chart
+- `aws` describe-\*, list-\*, get-\*, sts get-caller-identity, s3 ls, logs filter-log-events/tail
+- `gcloud` … list / describe; `docker` ps, images, inspect, logs, stats, top; `dig`, `host`, `nslookup`; `curl -I`; `ping`
+
+Everything else is refused, and the tab shows the refusal and why. So are flags that would switch context or credentials (`--context`, `--kubeconfig`, `--profile`, `--as`), never end (`-f`, `--watch`, `--follow`), or print secret values (`kubectl get secret -o yaml`, `helm get values`, `get-secret-value`, `--with-decryption`). wtf adds what keeps a command finite: `--tail=200` for logs, `--no-cli-pager` for aws, `--max-time 10` for curl, `-c 3` for ping. The AI names a program and its arguments, never shell text: wtf quotes each argument itself, so nothing it writes can become a pipe, redirect or second command.
+
+- **Limits**: at most 12 commands and 250,000 tokens per investigation; then it gives its finding from what it has. A command still running after 60 seconds gets Ctrl-C.
+- **Stop** ends it at any time, also while a command waits for you. The shell is in use while a command you approved runs: don't type in it meanwhile.
+- **A fix is never run.** When the finding suggests one (a rollback, a restart, a scale), **Type Fix at Prompt** puts it at the shell's prompt for you to read and run.
+- It needs a provider that can call tools: the Claude API or an OpenAI-compatible endpoint (most local models served by Ollama or LM Studio can, if the model supports tools). Command-line AI tools can't, and the tab says so.
+- Output goes through Hide Secrets' redaction before it's sent, like everything else; the first request to a provider shows what will be sent.
+
 ## In config.toml
 
 Everything the Settings window saves is plain text in `config.toml` (**Open config.toml**), which you can also edit by hand:
@@ -106,7 +129,7 @@ command = ["codex", "exec", "-"]
 - **`command` providers** get the text on their standard input. wtf runs them in a new, empty folder that's deleted afterwards, so a coding agent finds no project to work on. Beyond that, the tool's own settings apply: what it sends, where, and what it may do.
 - **On this computer**: an `openai` provider at `localhost` sends nothing off the machine.
 
-AI never runs a command that changes anything. Commands it suggests are typed into your shell for you to read, edit and run.
+AI never runs a command that changes anything. Commands it suggests are typed into your shell for you to read, edit and run; the investigator asks before each read-only command it wants to run.
 
 ## Cost
 

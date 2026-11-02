@@ -118,9 +118,13 @@ func newSidebar(w *Window) *sidebar {
 
 // update shows the window's chosen tab, making its view if it changed.
 func (s *sidebar) update() {
+	ai := s.w.aiEnabled()
+	if b := s.buttons[uicore.SidebarInvestigate]; b != nil {
+		b.SetVisible(ai)
+	}
 	want := s.w.sidebarState.Tab
 	info, ok := sidebarTabInfoOf(want)
-	if !ok && len(sidebarTabs) > 0 {
+	if (!ok || want == uicore.SidebarInvestigate && !ai) && len(sidebarTabs) > 0 {
 		info = sidebarTabs[0]
 	}
 	if info.tab != s.shown || s.content == nil {

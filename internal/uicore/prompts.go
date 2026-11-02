@@ -1,6 +1,7 @@
 package uicore
 
 import (
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -368,5 +369,22 @@ func (p *PromptTracker) Transcript() []ExportBlock {
 		}
 		out = append(out, b)
 	}
+	return out
+}
+
+// Recent is the last n finished commands, with what's left of their
+// output in the scrollback, oldest first.
+func (p *PromptTracker) Recent(n int) []ExportBlock {
+	var out []ExportBlock
+	for i := len(p.records) - 1; i >= 0 && len(out) < n; i-- {
+		r := p.records[i]
+		if r.exitCode == nil || r.text == "" {
+			continue
+		}
+		// A command that printed nothing still counts.
+		o, _ := p.Output(r.id)
+		out = append(out, ExportBlock{Text: r.text, StartedAt: r.startedAt, ExitCode: r.exitCode, Output: &o})
+	}
+	slices.Reverse(out)
 	return out
 }

@@ -64,6 +64,7 @@ var ManualSidebarTopic = map[SidebarTab]string{
 	SidebarFiles: "files", SidebarSSH: "ssh-hosts", SidebarAWS: "aws", SidebarKube: "kubernetes", SidebarSnippets: "snippets",
 	SidebarWorkspaces: "workspaces", SidebarNetwork: "network", SidebarProcesses: "processes", SidebarHistory: "history",
 	SidebarPins: "pins", SidebarShare: "share", SidebarGenerate: "generate", SidebarFindings: "findings",
+	SidebarInvestigate: "ai",
 }
 
 // ManualHelpTopic is help for what's in front: the side pane's tab (and

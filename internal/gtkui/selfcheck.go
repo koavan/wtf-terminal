@@ -88,6 +88,8 @@ func (a *App) selfCheck(w *Window) {
 		w.checkAI()
 	case "explain":
 		w.checkExplain()
+	case "investigate":
+		w.checkInvestigate()
 	case "perf":
 		w.checkPerf()
 	default:

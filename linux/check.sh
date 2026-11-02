@@ -17,9 +17,9 @@ run() { # name, then the command
 }
 
 run "uicore tests" go test ./internal/uicore/
-for c in app snapshot view terminal tabs restore sidebar panes viewers api ai explain marks signals; do
-	# The ai and explain checks write config.toml: give each its own.
-	xdg=; case $c in ai|explain) xdg="XDG_CONFIG_HOME=$(mktemp -d)" ;; esac
+for c in app snapshot view terminal tabs restore sidebar panes viewers api ai explain investigate marks signals; do
+	# The AI checks write config.toml: give each its own.
+	xdg=; case $c in ai|explain|investigate) xdg="XDG_CONFIG_HOME=$(mktemp -d)" ;; esac
 	run "self-check $c" env $xdg WTF_NATIVE_DEBUG=$c timeout 60 $bin
 done
 
