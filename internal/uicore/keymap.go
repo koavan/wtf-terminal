@@ -72,6 +72,7 @@ var Commands = func() []Command {
 		cmd("term.copyOutput", "Copy Last Command Output", "Ctrl+Alt+Shift+C"),
 		cmd("term.pinOutput", "Pin Last Command Output", ""),
 		cmd("ai.explain", "Explain Last Failed Command…", ""),
+		cmd("ai.ask", "Command from Plain English…", "Ctrl+Shift+I"),
 		cmd("term.clear", "Clear Buffer", "Ctrl+Shift+K"),
 
 		cmd("palette", "Command Palette…", "Ctrl+Shift+P"),

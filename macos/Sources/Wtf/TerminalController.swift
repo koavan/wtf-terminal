@@ -444,6 +444,14 @@ final class TerminalController: NSObject, @MainActor TerminalViewDelegate, Outpu
             item("Find…", key: "f") { [weak self] in self?.showFind() },
             item("Clear", key: "k") { [weak self] in self?.clearBuffer() },
             .separator(),
+        ]
+        if ExplainSheet.available, !view.getTerminal().isCurrentBufferAlternate {
+            items.append(item("Command from Plain English…", key: "i") { [weak self] in
+                guard let o = self?.owner else { return }
+                AskBar.toggle(in: o)
+            })
+        }
+        items += [
             item(Redaction.shared.on ? "Show Secrets" : "Hide Secrets", key: "r", mods: [.command, .option]) {
                 [weak self] in self?.toggleSecrets()
             },

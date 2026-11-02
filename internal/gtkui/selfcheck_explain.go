@@ -12,12 +12,15 @@ import (
 	"github.com/dayanraj/wtf/internal/uicore"
 )
 
-// checkExplain (WTF_NATIVE_DEBUG=explain): a command fails in the shell;
+// checkExplain (WTF_NATIVE_DEBUG=explain): AI features on a command line.
+// A command fails in the shell;
 // its block menu offers Explain Failure…, and the palette command opens the
 // dialog. The facts sent hold the command, exit code and output; the first
 // send waits for the preview; a command provider answers with a cause and a
 // fix in a sh block; Type Fix at Prompt puts the fix at the prompt and runs
-// nothing. It writes config.toml, so like the ai check it runs only with
+// nothing. Then Command from Plain English: the bar asks with the shell's
+// facts, Explain Flags follows up, and Enter types the suggestion without
+// running it. It writes config.toml, so like the ai check it runs only with
 // XDG_CONFIG_HOME set to a throwaway folder, and puts the file back.
 func (w *Window) checkExplain() {
 	a := w.app
@@ -126,6 +129,52 @@ func (w *Window) checkExplain() {
 	var closed bool
 	onMain(func() { closed = explainShown == nil })
 	check(closed, "the dialog closed")
+	p.write(uicore.ClearLine)
+	time.Sleep(300 * time.Millisecond)
+
+	// Plain English to command: the bar asks with the shell's facts; the
+	// same provider answers, so its fix is the suggestion.
+	onMain(func() { w.win.ActivateAction("ai.ask", nil) })
+	var b *askBar
+	check(waitUntil(3*time.Second, func() bool { b = askBars[w]; return b != nil }), "Command from Plain English opens the bar")
+	if b == nil {
+		w.finish()
+		return
+	}
+	onMain(func() {
+		b.entry.SetText("make the folder")
+		b.enter()
+	})
+	answered := waitUntil(5*time.Second, func() bool { return b.done != nil && b.suggestion != nil })
+	check(answered, "the bar gets an answer")
+	if !answered {
+		w.finish()
+		return
+	}
+	var cmd, sent string
+	var previewed bool
+	onMain(func() {
+		cmd, sent = b.suggestion.Command, b.req.Messages[0].Content
+		previewed = b.call != nil && b.call.preview != nil
+	})
+	check(cmd == fix, "the suggestion is %q", cmd)
+	check(strings.Contains(sent, "\nRequest: make the folder\n") && strings.Contains(sent, "System: Linux") && b.req.Fast,
+		"the quick AI gets the request with the shell's facts:\n%s", sent)
+	check(!previewed, "no preview the second time")
+	time.Sleep(300 * time.Millisecond)
+	w.shot("ask")
+
+	onMain(b.askFlags)
+	check(waitUntil(5*time.Second, func() bool { return b.call == nil && b.flags.Text() != "" }), "Explain Flags answers")
+
+	_ = os.RemoveAll("/tmp/wtf-explain-fix")
+	onMain(b.enter) // same text: Enter inserts
+	check(waitUntil(3*time.Second, func() bool { return strings.Contains(screen(), "$ "+fix) || strings.Contains(screen(), "# "+fix) }),
+		"Enter types the command at the prompt:\n%s", screen())
+	time.Sleep(500 * time.Millisecond)
+	_, err = os.Stat("/tmp/wtf-explain-fix")
+	onMain(func() { _, running = p.tracker.Running(); closed = askBars[w] == nil })
+	check(os.IsNotExist(err) && !running && closed, "nothing ran it, and the bar closed (%v, running %v)", err, running)
 	p.write(uicore.ClearLine)
 	w.finish()
 }

@@ -14,6 +14,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"runtime"
+	"slices"
 	"strings"
 	"sync"
 	"time"
@@ -100,24 +101,7 @@ func (s *Service) facts(f Failure) string {
 	if pwd := f.Env["PWD"]; pwd != "" {
 		cwd = pwd
 	}
-	line("Folder", tilde(cwd))
-	line("System", systemLine(f.Env))
-
-	if s.infra != nil && f.Env != nil {
-		env := f.Env
-		if env["PWD"] == "" && cwd != "" {
-			env = copyEnv(env)
-			env["PWD"] = cwd
-		}
-		c := s.infra.Resolve(env)
-		line("Kubernetes", kube(c))
-		line("AWS", aws(c))
-		line("Google Cloud project", c.GCPProject)
-		line("Terraform workspace", c.TFWorkspace)
-		if g := c.Git; g != nil {
-			line("Git", gitLine(g))
-		}
-	}
+	b.WriteString(ShellFacts(s.infra, f.Env, cwd))
 	if v := s.versions(f, cwd); len(v) > 0 {
 		b.WriteString("Tool versions:\n")
 		for _, l := range v {
@@ -135,6 +119,61 @@ func (s *Service) facts(f Failure) string {
 		fmt.Fprintf(&b, "\nOutput:\n%s\n", out)
 	}
 	return b.String()
+}
+
+// ShellFacts are the lines that say where a shell is: its folder (home as
+// ~), system and shell, and the Kubernetes, AWS, Google Cloud, Terraform
+// and git context its variables point at. They're read from files only,
+// never asked of a cloud.
+func ShellFacts(in *infra.Service, env map[string]string, cwd string) string {
+	var b strings.Builder
+	line := func(label, value string) {
+		if value != "" {
+			fmt.Fprintf(&b, "%s: %s\n", label, value)
+		}
+	}
+	line("Folder", tilde(cwd))
+	line("System", systemLine(env))
+	if in != nil && env != nil {
+		if env["PWD"] == "" && cwd != "" {
+			env = copyEnv(env)
+			env["PWD"] = cwd
+		}
+		c := in.Resolve(env)
+		line("Kubernetes", kube(c))
+		line("AWS", aws(c))
+		line("Google Cloud project", c.GCPProject)
+		line("Terraform workspace", c.TFWorkspace)
+		if g := c.Git; g != nil {
+			line("Git", gitLine(g))
+		}
+	}
+	return b.String()
+}
+
+// ToolsOnPath are the well-known tools (those Explain asks for a version)
+// found on a shell's PATH, sorted. Nothing is run.
+func ToolsOnPath(env map[string]string) []string {
+	path := env["PATH"]
+	if path == "" {
+		path = os.Getenv("PATH")
+	}
+	var found []string
+	for name := range versionArgs {
+		if tools.Find(name, path) != "" {
+			found = append(found, name)
+		}
+	}
+	slices.Sort(found)
+	return found
+}
+
+// SplitCommand splits a reply into its text and the command in its last
+// fenced block, made safe to type (see typeable); command is empty when
+// there's no block.
+func SplitCommand(text string) (rest, command string) {
+	r := parse(text)
+	return r.Cause, r.Fix
 }
 
 // fence is a fenced code block; the last one in a reply is the fix.

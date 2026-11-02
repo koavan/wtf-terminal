@@ -48,6 +48,17 @@ Right-click a failed command (or click its ✗ mark) → **Explain Failure…**,
 
 The reply streams in: the likely cause, then a fix command when one helps. **Type Fix at Prompt** puts it at the shell's prompt without pressing Enter, so you read, edit and run it yourself. **Copy** copies the explanation and the fix; **What's Sent** shows exactly what went to the provider; **Close** stops a reply still coming in.
 
+## Command from plain English
+
+Press {{mac:⌘I|other:Ctrl+Shift+I}}, or choose **Command from Plain English…** from the palette, {{mac:the Edit menu|other:the window menu}} or the terminal's right-click menu. Describe what you want ("delete evicted pods in all namespaces", "biggest files under this folder", "which process holds port 8080") and press Return.
+
+The quick provider (`ai-fast`, else the default) gets your words with the focused shell's facts: folder, system and shell, its Kubernetes context and namespace, AWS profile and region, Google Cloud project, Terraform workspace, git branch, and which well-known tools are installed (looked up on the `PATH`, nothing is run). It answers with one command for that shell, written for your system's flavour of the tools, and a sentence about what it does. Names it would have to guess come back as `<placeholders>`.
+
+- **Return** again (or **Insert at Prompt**) types the command at the prompt without pressing Enter: read it, edit it, run it.
+- Change the words and press **Return** to ask again.
+- **Explain Flags** asks what each part does: every program, subcommand, flag and argument, one per line.
+- **What's Sent** shows exactly what went to the provider. **Esc** stops a reply, or closes the bar.
+
 ## In config.toml
 
 Everything the Settings window saves is plain text in `config.toml` (**Open config.toml**), which you can also edit by hand:

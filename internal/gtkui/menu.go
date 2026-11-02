@@ -270,7 +270,11 @@ func (p *Pane) contextMenu(x, y float64) {
 		menuSection,
 		item("Find…", p.showFind),
 		item("Clear", p.clearBuffer),
-		menuSection,
+		menuSection)
+	if p.win.aiEnabled() && !p.feed.alternate {
+		items = append(items, item("Command from Plain English…", p.win.toggleAskBar))
+	}
+	items = append(items,
 		item(hide, p.toggleSecrets),
 		item(map[bool]string{true: "Stop Recording", false: "Start Recording…"}[p.win.isRecording(p.id)],
 			func() { p.win.toggleRecording(p) }),

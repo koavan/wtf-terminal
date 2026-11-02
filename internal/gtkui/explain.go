@@ -10,7 +10,6 @@ import (
 
 	"github.com/dayanraj/wtf/internal/ai"
 	"github.com/dayanraj/wtf/internal/explain"
-	"github.com/dayanraj/wtf/internal/uicore"
 )
 
 // Explain this failure (#24): a failed command block's facts go to the AI
@@ -21,12 +20,12 @@ import (
 // explainDialog is one explanation: gathering the facts, then the reply.
 // Main loop only.
 type explainDialog struct {
-	w     *Window
-	p     *Pane
-	s     *toolsSheet
-	text  *gtk.TextView
-	fixAt *gtk.Label
-	state *gtk.Label
+	w                   *Window
+	p                   *Pane
+	s                   *toolsSheet
+	text                *gtk.TextView
+	fixAt               *gtk.Label
+	state               *gtk.Label
 	sent, copy, typeFix *gtk.Button
 
 	call *aiCall
@@ -218,29 +217,18 @@ func (d *explainDialog) copyAll() {
 
 // typeAtPrompt puts the fix at the pane's prompt, without Enter.
 func (d *explainDialog) typeAtPrompt() {
-	ps := d.w.model.Panes[d.p.id]
-	if d.fix == "" || ps == nil {
+	if d.fix == "" {
 		return
 	}
-	if !ps.IsShell || ps.Running {
+	switch d.p.typeAtPrompt(d.fix) {
+	case shellBusy:
 		d.w.toast("The shell is busy — finish the running program first")
-		return
+	case copiedInstead:
+		d.s.close()
+		d.w.toast("The fix has several lines and this shell would run them as typed: copied instead")
+	default:
+		d.s.close()
 	}
-	text := d.fix
-	if strings.Contains(text, "\n") {
-		// Without bracketed paste, a newline would run the lines.
-		if !d.p.feed.bracketed {
-			d.p.term.Clipboard().SetText(text)
-			d.w.toast("The fix has several lines and this shell would run them as typed: copied instead")
-			d.s.close()
-			return
-		}
-		text = "\x1b[200~" + text + "\x1b[201~"
-	}
-	d.s.close()
-	// One write, so nothing lands between clearing the line and the fix.
-	d.p.write(uicore.ClearLine + text)
-	d.p.term.GrabFocus()
 }
 
 // aiSummary is "1.2 s · 12 in, 3 out tokens · $0.0004": what the provider reported.

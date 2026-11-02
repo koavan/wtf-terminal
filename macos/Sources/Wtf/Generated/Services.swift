@@ -194,4 +194,10 @@ enum Services {
         static func Parse(_ a0: String) async throws -> Go.explain.Reply { try await Backend.call("explain", "Parse", [a0], as: Go.explain.Reply.self) }
         static func Request(_ a0: Go.explain.Failure) async throws -> Go.ai.Request { try await Backend.call("explain", "Request", [a0], as: Go.ai.Request.self) }
     }
+
+    enum suggest {
+        static func FlagsRequest(_ a0: Go.ai.Request, _ a1: String) async throws -> Go.ai.Request { try await Backend.call("suggest", "FlagsRequest", [a0, a1], as: Go.ai.Request.self) }
+        static func Parse(_ a0: String) async throws -> Go.suggest.Suggestion { try await Backend.call("suggest", "Parse", [a0], as: Go.suggest.Suggestion.self) }
+        static func Request(_ a0: Go.suggest.Ask) async throws -> Go.ai.Request { try await Backend.call("suggest", "Request", [a0], as: Go.ai.Request.self) }
+    }
 }

@@ -22,6 +22,7 @@ extension Go { public enum netconn {} }
 extension Go { public enum procs {} }
 extension Go { public enum snippets {} }
 extension Go { public enum sshhosts {} }
+extension Go { public enum suggest {} }
 extension Go { public enum terminal {} }
 extension Go { public enum tools {} }
 extension Go { public enum usage {} }
@@ -3370,6 +3371,58 @@ extension Go.sshhosts {
             self.error = (try? c.decodeIfPresent(String.self, forKey: .error)) ?? ""
             self.since = (try? c.decodeIfPresent(Int.self, forKey: .since)) ?? 0
             self.command = (try? c.decodeIfPresent(String.self, forKey: .command)) ?? ""
+        }
+    }
+}
+
+extension Go.suggest {
+    /// suggest.Ask
+    public struct Ask: Codable, Equatable, Sendable {
+        public var text: String
+        public var env: [String: String]
+        public var cwd: String
+
+        public init(text: String = "", env: [String: String] = [:], cwd: String = "") {
+            self.text = text
+            self.env = env
+            self.cwd = cwd
+        }
+
+        enum CodingKeys: String, CodingKey {
+            case text = "text"
+            case env = "env"
+            case cwd = "cwd"
+        }
+
+        public init(from decoder: Decoder) throws {
+            let c = try decoder.container(keyedBy: CodingKeys.self)
+            self.text = (try? c.decodeIfPresent(String.self, forKey: .text)) ?? ""
+            self.env = (try? c.decodeIfPresent([String: String].self, forKey: .env)) ?? [:]
+            self.cwd = (try? c.decodeIfPresent(String.self, forKey: .cwd)) ?? ""
+        }
+    }
+}
+
+extension Go.suggest {
+    /// suggest.Suggestion
+    public struct Suggestion: Codable, Equatable, Sendable {
+        public var command: String
+        public var note: String
+
+        public init(command: String = "", note: String = "") {
+            self.command = command
+            self.note = note
+        }
+
+        enum CodingKeys: String, CodingKey {
+            case command = "command"
+            case note = "note"
+        }
+
+        public init(from decoder: Decoder) throws {
+            let c = try decoder.container(keyedBy: CodingKeys.self)
+            self.command = (try? c.decodeIfPresent(String.self, forKey: .command)) ?? ""
+            self.note = (try? c.decodeIfPresent(String.self, forKey: .note)) ?? ""
         }
     }
 }

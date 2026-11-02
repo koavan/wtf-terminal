@@ -28,6 +28,7 @@ import (
 	"github.com/dayanraj/wtf/internal/snippets"
 	"github.com/dayanraj/wtf/internal/sshhosts"
 	"github.com/dayanraj/wtf/internal/state"
+	"github.com/dayanraj/wtf/internal/suggest"
 	"github.com/dayanraj/wtf/internal/terminal"
 	"github.com/dayanraj/wtf/internal/tools"
 	"github.com/dayanraj/wtf/internal/uicore"
@@ -61,6 +62,7 @@ type Backend struct {
 	APIClient   *apiclient.Service
 	AI          *ai.Service
 	Explain     *explain.Service
+	Suggest     *suggest.Service
 
 	started []any // by Start, for Shutdown
 }
@@ -103,6 +105,7 @@ func New(version, commit, buildDate, stateDir string) (*Backend, error) {
 	b.APIClient = apiclient.NewService()
 	b.AI = ai.NewService(stateDir, func() config.Config { return b.Config.Current().Config }, redact)
 	b.Explain = explain.NewService(b.Infra)
+	b.Suggest = suggest.NewService(b.Infra)
 	return b, nil
 }
 
@@ -137,6 +140,7 @@ func (b *Backend) Services() []Named {
 		{"apiclient", b.APIClient},
 		{"ai", b.AI},
 		{"explain", b.Explain},
+		{"suggest", b.Suggest},
 	}
 }
 

@@ -366,12 +366,22 @@ a dialog that streams the reply with What's Sent, Copy, Close (stops it) and
 bracketed, or copied when the shell has no bracketed paste). Uses
 `ai-default`. Linux self-check `explain`.
 
-### 25. Plain English to command ☐
+### 25. Plain English to command ☑
 
-A prompt bar (⌘K / Ctrl+K, palette, right-click) that turns "delete evicted
-pods in all namespaces" into a command for the current shell and context.
-Inserted at the prompt, never executed; a short explanation of each flag
-on request.
+A prompt bar (⌘I / Ctrl+Shift+I, palette, right-click) that turns "delete
+evicted pods in all namespaces" into a command for the current shell and
+context. Inserted at the prompt, never executed; a short explanation of each
+flag on request. (⌘K stays Clear Buffer; Ctrl+K belongs to the shell.)
+
+Built: `internal/suggest` (service `suggest`: `Request` sends the words with
+explain's shared `ShellFacts` — folder, system, shell, Kubernetes/AWS/GCP/
+Terraform/git context — and the well-known tools on the PATH, to `ai-fast`;
+`Parse` takes the last fenced block as the command, made safe to type;
+`FlagsRequest` continues the conversation to explain each part). A bar in
+the palette's style: Return asks, Return again (same words) inserts with
+Ctrl-U first, Explain Flags, What's Sent, Esc stops or closes. The typing
+helper (`typeAtPrompt`) is shared with #24. Linux self-check `explain`
+covers both.
 
 ### 26. Change reviewer ☐
 

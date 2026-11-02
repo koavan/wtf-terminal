@@ -133,20 +133,15 @@ final class ExplainSheet {
     /// Puts the fix at the pane's prompt, without Return.
     private func typeFix() {
         guard !fix.isEmpty, let w = owner, let term = terminal else { return }
-        guard let p = w.model.panes[paneId], p.isShell, !p.running else {
+        switch term.typeAtPrompt(fix) {
+        case .busy:
             Toast.show("The shell is busy — finish the running program first", in: sheet.panel.contentView)
-            return
-        }
-        // Without bracketed paste, a newline would run the lines.
-        if fix.contains("\n"), !term.view.getTerminal().bracketedPasteMode {
-            Clipboard.copy(fix)
-            Toast.show("The fix has several lines and this shell would run them as typed: copied instead", in: w.rootView)
+        case .copied:
             sheet.close()
-            return
+            Toast.show("The fix has several lines and this shell would run them as typed: copied instead", in: w.rootView)
+        case .typed:
+            sheet.close()
         }
-        sheet.close()
-        term.type(Shell.clearLine)
-        term.insert(fix)
     }
 
     private func copy() {
@@ -163,6 +158,25 @@ final class ExplainSheet {
     private func closed() {
         request?.cancel()
         Self.open.removeAll { $0 === self }
+    }
+}
+
+extension TerminalController {
+    enum TypeResult { case typed, busy, copied }
+
+    /// Types a suggested command at this pane's prompt without Return: Ctrl-U
+    /// first, then the text as a paste (bracketed when the shell asks). A
+    /// multi-line one is copied instead when the shell would run each line;
+    /// nothing is typed while a program runs.
+    func typeAtPrompt(_ text: String) -> TypeResult {
+        guard let p = owner?.model.panes[paneId], p.isShell, !p.running else { return .busy }
+        if text.contains("\n"), !view.getTerminal().bracketedPasteMode {
+            Clipboard.copy(text)
+            return .copied
+        }
+        type(Shell.clearLine)
+        insert(text)
+        return .typed
     }
 }
 
