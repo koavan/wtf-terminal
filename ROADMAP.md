@@ -264,7 +264,8 @@ shared with macOS), gtkui/apiview.go, Ctrl+Alt+Shift+A, self-check
 
 ## Tier 6 — AI assistance
 
-Agreed 2026-10-28. AI that works from what wtf already knows (command blocks,
+Agreed 2026-10-28; moving to Claude Code as a plugin from 2026-11-02 (#32),
+which replaces the API-key providers of #23. AI that works from what wtf already knows (command blocks,
 context badges, logs, the Kubernetes and AWS tabs, Findings, recordings)
 instead of guessing. Build in the order listed: the foundation first, then
 #24 to prove the pipeline end to end; #27 waits until #24–#26 are solid.
@@ -434,6 +435,63 @@ commands go with the question. Side-pane tab Investigate (hidden without a provi
 palette and right-click; the finding cites steps, Type Fix at Prompt.
 Linux self-check `investigate` (fake Claude API in-process, stand-in kubectl).
 
+
+### 32. AI through Claude Code (rearchitecture) ☐
+
+Agreed 2026-11-02, after #23–#27 were built on API-key providers. wtf's AI
+moves to the user's own Claude Code, run interactively in a wtf pane with a
+bundled wtf plugin, like the VS Code extension. No API keys; wtf never calls
+Claude Code in the background (`claude -p`): Anthropic's terms let a user
+run the unmodified `claude` with their own login, not an app make requests
+on that login. wtf's name and logo don't use Claude's or Anthropic's.
+
+Design:
+
+- **Ask Claude** (⌘I / Ctrl+Shift+I, palette, right-click; replaces #25's
+  bar) opens a split running `claude --plugin-dir <bundled plugin>`
+  attached to the shell it came from (the target). Nothing is installed
+  into `~/.claude`.
+- Plugin (`claude-plugin/`): an MCP server, `wtf-mcp`, a thin helper that
+  relays to the running app over a private, token-protected local socket.
+  Tools: `recent_commands`, `pane_context`, `review_changes` (#26's
+  parsers), `run_readonly` (#27's allowlist; typed into the target shell
+  as a normal command block), `type_at_prompt` (no Enter). Hooks report
+  busy / idle / needs-you to the pane's badge and turn notifications into
+  wtf's. Slash commands `/wtf:explain`, `/wtf:cmd`, `/wtf:review`,
+  `/wtf:investigate`.
+- Approval: a PreToolUse hook answers "ask" for `run_readonly`,
+  `type_at_prompt` and Claude Code's own Bash in wtf-launched sessions, so
+  every command shows Claude Code's Allow/Deny prompt each time, even in
+  auto mode and after "don't ask again". The user may opt into Claude
+  Code's auto mode with an explicit wtf setting; it's never on by default.
+- Hide Secrets applies to everything a tool returns.
+
+Phases:
+
+0. ☑ Spike (2026-11-02, macOS, real Claude Code 2.1.316): the plugin loads
+   with `--plugin-dir`; its MCP server gets wtf's per-pane variables; the
+   forced "ask" works for MCP tools and Bash, in auto mode and after
+   "don't ask again"; `/wtf:…` sent as one write or a bracketed paste is
+   accepted; UserPromptSubmit / Notification / Stop give busy / needs-you /
+   idle. Linux with real Claude Code not yet tried.
+1. ☐ Bridge: the app's local socket and token; `WTF_PANE`, `WTF_BRIDGE` and
+   `WTF_MCP` in every shell; `cmd/wtf-mcp` (official Go MCP SDK) relaying
+   the app's tool list and calls. The UIs answer four requests (pane,
+   blocks, type, run); tools, allowlist, parsers and redaction stay in Go.
+2. ☐ Plugin: `claude-plugin/` (plugin.json, .mcp.json, hooks, commands),
+   bundled into the macOS app and the Linux packages; `claude plugin
+   validate` in the checks; quoted paths (Application Support has a space).
+3. ☐ Claude pane: launch, attach to the target shell, busy / idle / needs-you
+   badge, notifications, the auto-mode setting.
+4. ☐ Rewire #24–#27: Explain Failure, the command bar, Review Changes'
+   summary and Investigate go through the Claude pane's slash commands.
+5. ☐ Remove the API-key providers: internal/ai providers, keys and presets,
+   Settings → AI, the first-send preview, the #24–#27 dialogs and the
+   Investigate tab's agent loop. Old `[ai.*]` tables are ignored with a note.
+6. ☐ Self-checks (a Linux check that drives `wtf-mcp` the way Claude Code
+   does) and the user's hands-on test with real Claude Code.
+7. ☐ Manual and roadmap: the AI pages rewritten; #28–#31 become plugin
+   tools and slash commands.
 
 ### 28. Log summarizer ☐
 
