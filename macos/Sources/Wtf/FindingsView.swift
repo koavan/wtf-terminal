@@ -228,6 +228,12 @@ final class FindingsView: NSView, SidePaneTab, NSSearchFieldDelegate {
         }
         if let f = items[id] {
             let root = report?.root ?? ""
+            add("Triage with Claude…") {
+                var at = f.path.hasPrefix(root + "/") ? String(f.path.dropFirst(root.count + 1)) : f.path
+                if f.line > 0, !at.isEmpty { at += ":\(f.line)" }
+                ClaudePane.triage(rule: f.ruleId, at: at, in: o)
+            }
+            m.addItem(.separator())
             if f.path.hasPrefix("/") {
                 add(f.line > 0 ? "Open in Editor at Line \(f.line)" : "Open in Editor") { [weak self] in self?.openInEditor(f) }
                 add("Reveal in Finder") {

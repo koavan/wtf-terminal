@@ -310,3 +310,47 @@ func TestHelper(t *testing.T) {
 		t.Fatalf("no env: %v %s", err, out)
 	}
 }
+
+// TestFindings: the Findings tab's SARIF for the shell's repository, most
+// severe first, with the code around each finding and filters.
+func TestFindings(t *testing.T) {
+	f := newFake(t)
+	repo := t.TempDir()
+	os.Mkdir(filepath.Join(repo, ".git"), 0o755)
+	os.WriteFile(filepath.Join(repo, "db.go"), []byte("package db\n\nfunc q(id string) {\n\tdb.Query(\"select * from t where id=\" + id)\n}\n"), 0o644)
+	sarif := `{"runs":[{"tool":{"driver":{"name":"Semgrep OSS","semanticVersion":"1.90.0","rules":[
+	  {"id":"go.sqli","shortDescription":{"text":"SQL built from user input"},"defaultConfiguration":{"level":"error"}},
+	  {"id":"go.style","shortDescription":{"text":"Odd name"},"defaultConfiguration":{"level":"note"}}]}},
+	  "results":[
+	    {"ruleId":"go.style","message":{"text":"rename q"},"locations":[{"physicalLocation":{"artifactLocation":{"uri":"db.go"},"region":{"startLine":3}}}]},
+	    {"ruleId":"go.sqli","message":{"text":"Use a parameterized query"},"locations":[{"physicalLocation":{"artifactLocation":{"uri":"db.go"},"region":{"startLine":4,"startColumn":2}}}]}]}]}`
+	os.WriteFile(filepath.Join(repo, "semgrep.sarif"), []byte(sarif), 0o644)
+	sub := filepath.Join(repo, "sub")
+	os.Mkdir(sub, 0o755)
+	f.pane.Cwd, f.pane.Env["PWD"] = sub, sub
+	tok := f.s.token("s1")
+
+	r := call(t, f.s, "s1", tok, "findings", map[string]any{})
+	sqli, style := strings.Index(r.Text, "#2 [error] Semgrep OSS go.sqli — SQL built from user input"), strings.Index(r.Text, "#1 [note]")
+	if r.IsError || sqli < 0 || style < sqli || !strings.Contains(r.Text, "at db.go:4:2") ||
+		!strings.Contains(r.Text, ">    4 | \tdb.Query(") || !strings.Contains(r.Text, "Semgrep OSS 1.90.0: 2 findings, in the folder") ||
+		!strings.Contains(r.Text, "All: 2 (1 error, 1 note). Matching: 2.") {
+		t.Fatalf("findings = %+v", r)
+	}
+	r = call(t, f.s, "s1", tok, "findings", map[string]any{"severity": "high"})
+	if r.IsError || strings.Contains(r.Text, "go.style") || !strings.Contains(r.Text, "Matching: 1.") {
+		t.Errorf("severity high = %+v", r)
+	}
+	r = call(t, f.s, "s1", tok, "findings", map[string]any{"rule": "STYLE", "path": "db"})
+	if r.IsError || strings.Contains(r.Text, "go.sqli —") || !strings.Contains(r.Text, "#1 [note]") {
+		t.Errorf("rule filter = %+v", r)
+	}
+	if r = call(t, f.s, "s1", tok, "findings", map[string]any{"severity": "bad"}); !r.IsError {
+		t.Errorf("bad severity = %+v", r)
+	}
+	f.pane.Cwd, f.pane.Env["PWD"] = t.TempDir(), ""
+	f.pane.Env["PWD"] = f.pane.Cwd
+	if r = call(t, f.s, "s1", tok, "findings", map[string]any{}); r.IsError || !strings.Contains(r.Text, "No SARIF reports") {
+		t.Errorf("no reports = %+v", r)
+	}
+}

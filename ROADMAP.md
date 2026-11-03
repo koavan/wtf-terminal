@@ -595,15 +595,21 @@ block's menu → **Runbook from Here… (Claude)**, and the palette (Runbook
 from Recent Commands…, Postmortem Draft…). Built 2026-11-03; the bridge
 self-checks open the editor through wtf-mcp on both platforms.
 
-### 30. Findings triage ☐
+### 30. Findings triage ☑
 
-`findings`: the SARIF results the Findings tab shows for a folder (rule,
-severity, file:line, message, snippet), read by `internal/findings`.
-`/wtf:triage [rule or file]` asks Claude what one means, whether the code
-path looks reachable, and for a patch as a diff; it's applied only through
-Claude Code's own edit tools, which ask in Claude panes (decided
-2026-11-03: Edit, MultiEdit, Write and NotebookEdit are forced to "ask"
-like Bash). Home: a finding's menu → **Triage with Claude**.
+`findings`: the SARIF results the Findings tab shows for the target
+shell's repository (`internal/findings`, the same files and wtf's own scan
+results), most severe first (critical, high/error, medium/warning,
+low/note), each numbered with tool, rule, file:line:column, message, help
+link and the two lines of code either side; filters `rule`, `path`,
+`severity` (that or worse), `limit` (30, at most 100); the reports' tools,
+versions and dates first. `/wtf:triage [rule, file or number]` has Claude
+explain it for this code, judge reachability from the code it reads, and
+propose a unified diff, applied only through Claude Code's edit tools,
+which ask in Claude panes (Edit, MultiEdit, Write and NotebookEdit are
+forced to "ask" like Bash, decided 2026-11-03). Home: a finding's menu →
+**Triage with Claude…** (`/wtf:triage <rule> at <path:line>`). Built
+2026-11-03.
 
 ### 31. Ask your history ☐
 

@@ -357,6 +357,8 @@ func (f *findingsTab) ruleItems(it findings.Finding) []*menuItem {
 func (f *findingsTab) menu(id string) []*menuItem {
 	var items []*menuItem
 	if it, ok := f.items[id]; ok {
+		where := uicore.FindingWhere(it, f.reportRoot())
+		items = append(items, item("Triage with Claude…", func() { f.w.claudeTriage(it.RuleID, where) }), menuSection)
 		switch {
 		case strings.HasPrefix(it.Path, "/"):
 			open := "Open in Editor"

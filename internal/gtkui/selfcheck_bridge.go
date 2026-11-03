@@ -132,7 +132,7 @@ func (w *Window) checkBridge() {
 	}
 	slices.Sort(names)
 	errText, _ := os.ReadFile("/tmp/mcp-one.err")
-	check(slices.Equal(names, []string{"log_patterns", "open_snippet_editor", "pane_context", "recent_commands", "review_changes", "run_readonly", "session_commands", "type_at_prompt"}),
+	check(slices.Equal(names, []string{"findings", "log_patterns", "open_snippet_editor", "pane_context", "recent_commands", "review_changes", "run_readonly", "session_commands", "type_at_prompt"}),
 		"wtf-mcp lists the app's tools: %v (stderr %q)", names, errText)
 	recent, isErr := text(got[3])
 	check(!isErr && strings.Contains(recent, "echo hello-bridge") && strings.Contains(recent, "hello-bridge\n"),

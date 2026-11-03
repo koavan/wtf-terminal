@@ -278,6 +278,19 @@ func (w *Window) claudeRunbook(block int) {
 // what happened.
 func (w *Window) claudePostmortem() { w.askClaudeTo(claudeMessage{text: "/wtf:postmortem "}) }
 
+// claudeTriage: triage of a finding (#30), its rule and where it is
+// (`src/db.go:40`).
+func (w *Window) claudeTriage(rule, where string) {
+	text := "/wtf:triage"
+	if rule != "" {
+		text += " " + rule
+	}
+	if where != "" {
+		text += " at " + where
+	}
+	w.askClaudeTo(claudeMessage{text: text, enter: true})
+}
+
 // claudeReview: a summary of a change preview, block id or a saved plan file.
 func (w *Window) claudeReview(block int, file string) {
 	text := "/wtf:review"

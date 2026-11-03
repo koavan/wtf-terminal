@@ -38,7 +38,7 @@ Severity is the scanner's own, never worked out by wtf:
 
 - **Click a rule** to show where it was found; click again to hide.
 - **Click a location** to open the file in `$EDITOR` at that line, in a split.
-- **Right-click a location**: Open in Editor, {{mac:Reveal in Finder|other:Open Containing Folder}}, Copy Path, Copy `path:line`, Copy Message, Copy Rule ID, and **Open Rule Documentation** when the scanner links to it.
+- **Right-click a location**: **Triage with Claude…** (see [Ask Claude](#ask-claude): what it means here, whether it looks reachable, and a patch you approve), Open in Editor, {{mac:Reveal in Finder|other:Open Containing Folder}}, Copy Path, Copy `path:line`, Copy Message, Copy Rule ID, and **Open Rule Documentation** when the scanner links to it.
 - **Filter** by rule, file, message or scanner; every word must match.
 
 A results file with more than 5,000 findings shows the first 5,000 and says how many were left out.

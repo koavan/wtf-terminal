@@ -84,7 +84,8 @@ enum ClaudeCheck {
             check(false, "a first shell")
             return
         }
-        check(await waitUntil(10) { m.panes[targetId]?.integrated == true && m.panes[targetId]?.running == false }, "shell integration in the shell")
+        // A restored session starts many shells at once: give the first longer.
+        check(await waitUntil(20) { m.panes[targetId]?.integrated == true && m.panes[targetId]?.running == false }, "shell integration in the shell")
         target.type("echo hello-claude-target\r")
         check(await waitUntil(10) { target.lastFinishedBlock.flatMap { target.block($0) }?.text == "echo hello-claude-target" }, "the shell ran echo")
         guard let targetSession = m.panes[targetId]?.sessionId else { return }

@@ -189,6 +189,10 @@ func (w *Window) checkClaude() {
 	runbook := fmt.Sprintf("/wtf:runbook from block %d", seqID)
 	check(waitUntil(5*time.Second, func() bool { return typed(runbook) }), "which types %q, with Enter", runbook)
 	check(waitUntil(5*time.Second, func() bool { return state() == bridge.StateIdle }), "and Claude Code is idle again")
+	// Triage with Claude, as the Findings tab's menu does it.
+	onMain(func() { w.model.FocusPane(target.id); w.claudeTriage("go.sqli", "db.go:4") })
+	check(waitUntil(5*time.Second, func() bool { return typed("/wtf:triage go.sqli at db.go:4") }), "Triage with Claude types /wtf:triage go.sqli at db.go:4")
+	check(waitUntil(5*time.Second, func() bool { return state() == bridge.StateIdle }), "and Claude Code is idle again")
 
 	onMain(func() { w.model.FocusPane(target.id); w.claudeCommand() })
 	time.Sleep(500 * time.Millisecond)

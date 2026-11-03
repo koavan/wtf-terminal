@@ -1,14 +1,19 @@
 package bridge
 
 import (
+	"cmp"
 	"context"
 	"encoding/json"
 	"fmt"
+	"os"
+	"path/filepath"
+	"slices"
 	"strings"
 	"time"
 
 	"github.com/dayanraj/wtf/internal/bridge/wire"
 	"github.com/dayanraj/wtf/internal/explain"
+	"github.com/dayanraj/wtf/internal/findings"
 	"github.com/dayanraj/wtf/internal/investigate"
 	"github.com/dayanraj/wtf/internal/logsum"
 	"github.com/dayanraj/wtf/internal/review"
@@ -41,6 +46,12 @@ const (
 	sessionLookback = 200
 	sessionLines    = 12
 	sessionBytes    = 3000
+	// findings: how many by default and at most, the code around each, and
+	// the biggest file read for it.
+	findingsDefault = 30
+	findingsMax     = 100
+	findingsContext = 2
+	findingsFile    = 2 << 20
 )
 
 // Tools are what the plugin's MCP server offers. Every result is passed
@@ -100,6 +111,18 @@ var Tools = []wire.Tool{
 			`"steps":{"type":"array","items":{"type":"object","properties":{"title":{"type":"string"},"command":{"type":"string"}},"required":["command"],"additionalProperties":false},"description":"A runbook's steps, in order."},` +
 			`"params":{"type":"array","items":{"type":"object","properties":{"name":{"type":"string"},"description":{"type":"string"},"default":{"type":"string"},"choices":{"type":"array","items":{"type":"string"}}},"required":["name"],"additionalProperties":false},"description":"What each placeholder is."}},` +
 			`"required":["name"],"additionalProperties":false}`),
+	},
+	{
+		Name: "findings",
+		Description: "The security scan results wtf's Findings tab shows for the user's wtf shell's folder (its git repository): every SARIF report there " +
+			"and from scans run in wtf (Trivy, Semgrep, Gitleaks, Checkov, CodeQL…). Each finding has a number, severity, tool, rule, file:line, message " +
+			"and the lines of code around it; most severe first. Filter with rule (id or name), path (part of the file's path) and severity " +
+			"(the least severe to include). Read more of the code with your own tools.",
+		InputSchema: json.RawMessage(`{"type":"object","properties":{` +
+			`"rule":{"type":"string","description":"Part of a rule id or name."},` +
+			`"path":{"type":"string","description":"Part of a file's path, relative to the repository."},` +
+			`"severity":{"type":"string","enum":["critical","high","medium","low"],"description":"Include this severity and worse (SARIF error counts as high, warning as medium, note as low)."},` +
+			`"limit":{"type":"integer","minimum":1,"maximum":100,"description":"How many (default 30)."}},"additionalProperties":false}`),
 	},
 	{
 		Name: "run_readonly",
@@ -163,6 +186,16 @@ func (s *Service) call(ctx context.Context, session, tool string, raw json.RawMe
 		var a snippets.Snippet
 		if err = json.Unmarshal(raw, &a); err == nil {
 			text, err = s.openSnippetEditor(ctx, session, a)
+		}
+	case "findings":
+		var a struct {
+			Rule     string `json:"rule"`
+			Path     string `json:"path"`
+			Severity string `json:"severity"`
+			Limit    int    `json:"limit"`
+		}
+		if err = json.Unmarshal(raw, &a); err == nil {
+			text, err = s.findings(ctx, session, a.Rule, a.Path, a.Severity, a.Limit)
 		}
 	case "run_readonly":
 		var a struct {
@@ -428,6 +461,187 @@ func (s *Service) openSnippetEditor(ctx context.Context, session string, sn snip
 		return "", err
 	}
 	return "Opened wtf's snippet editor with it. Nothing is saved until the user reviews it there and clicks Confirm & Save.", nil
+}
+
+// severityRank orders findings, most severe first; SARIF levels sit with
+// the security severities they're closest to.
+var severityRank = map[string]int{"critical": 0, "high": 1, "error": 1, "medium": 2, "warning": 2, "low": 3, "note": 3, "none": 4}
+
+func rankOf(sev string) int {
+	if r, ok := severityRank[sev]; ok {
+		return r
+	}
+	return 4
+}
+
+func (s *Service) findings(ctx context.Context, session, rule, path, severity string, limit int) (string, error) {
+	p, err := s.pane(ctx, session)
+	if err != nil {
+		return "", err
+	}
+	folder := p.Cwd
+	if pwd := p.Env["PWD"]; pwd != "" {
+		folder = pwd
+	}
+	r, err := findings.NewService().Load(folder)
+	if err != nil {
+		return "", err
+	}
+	if limit <= 0 {
+		limit = findingsDefault
+	}
+	limit = min(limit, findingsMax)
+	worst := 4
+	if severity != "" {
+		rk, ok := severityRank[severity]
+		if !ok {
+			return "", fmt.Errorf("severity is critical, high, medium or low")
+		}
+		worst = rk
+	}
+	rel := func(f string) string {
+		if r2, err := filepath.Rel(r.Root, f); err == nil && !strings.HasPrefix(r2, "..") {
+			return r2
+		}
+		return f
+	}
+	type numbered struct {
+		n int
+		f findings.Finding
+	}
+	var all []numbered
+	for i, f := range r.Findings {
+		all = append(all, numbered{i + 1, f})
+	}
+	slices.SortStableFunc(all, func(a, b numbered) int {
+		if d := rankOf(a.f.Severity) - rankOf(b.f.Severity); d != 0 {
+			return d
+		}
+		if a.f.Score != b.f.Score {
+			return cmp.Compare(b.f.Score, a.f.Score)
+		}
+		return cmp.Compare(a.n, b.n)
+	})
+	counts := map[string]int{}
+	var picked []numbered
+	for _, x := range all {
+		counts[x.f.Severity]++
+		f := x.f
+		if rankOf(f.Severity) > worst ||
+			rule != "" && !strings.Contains(strings.ToLower(f.RuleID+" "+f.Rule), strings.ToLower(rule)) ||
+			path != "" && !strings.Contains(strings.ToLower(rel(f.Path)), strings.ToLower(path)) {
+			continue
+		}
+		picked = append(picked, x)
+	}
+	var b strings.Builder
+	fmt.Fprintf(&b, "Findings for %s\n", tildePath(r.Root))
+	if len(r.Sources) == 0 {
+		b.WriteString("No SARIF reports: none at the repository's top and no scans run from wtf. The user can run one from the Findings tab (Run Security Scan…).\n")
+		return b.String(), nil
+	}
+	b.WriteString("Reports:\n")
+	for _, src := range r.Sources {
+		what := src.Tool
+		if src.Version != "" {
+			what += " " + src.Version
+		}
+		where := "in the folder"
+		if src.FromScan {
+			where = "scan run from wtf"
+		}
+		if src.Error != "" {
+			fmt.Fprintf(&b, "- %s (%s): couldn't be read: %s\n", filepath.Base(src.Path), where, src.Error)
+			continue
+		}
+		fmt.Fprintf(&b, "- %s: %d findings, %s, written %s\n", what, src.Count, where, src.Modified)
+	}
+	var sev []string
+	for _, k := range []string{"critical", "high", "error", "medium", "warning", "low", "note", "none"} {
+		if counts[k] > 0 {
+			sev = append(sev, fmt.Sprintf("%d %s", counts[k], k))
+		}
+	}
+	fmt.Fprintf(&b, "All: %d (%s)", len(r.Findings), strings.Join(sev, ", "))
+	if r.Truncated > 0 {
+		fmt.Fprintf(&b, "; %d more past wtf's limit", r.Truncated)
+	}
+	fmt.Fprintf(&b, ". Matching: %d", len(picked))
+	if len(picked) > limit {
+		fmt.Fprintf(&b, ", the first %d shown", limit)
+		picked = picked[:limit]
+	}
+	b.WriteString(".\n")
+	for _, x := range picked {
+		f := x.f
+		name := f.RuleID
+		if f.Rule != "" && f.Rule != f.RuleID {
+			name += " — " + f.Rule
+		}
+		where := rel(f.Path)
+		if f.Line > 0 {
+			where += fmt.Sprintf(":%d", f.Line)
+			if f.Column > 0 {
+				where += fmt.Sprintf(":%d", f.Column)
+			}
+		}
+		fmt.Fprintf(&b, "\n#%d [%s] %s %s\n   at %s\n", x.n, f.Severity, f.Tool, name, where)
+		if f.Message != "" {
+			fmt.Fprintf(&b, "   %s\n", strings.ReplaceAll(strings.TrimSpace(f.Message), "\n", "\n   "))
+		}
+		if code := codeAround(f.Path, f.Line); code != "" {
+			b.WriteString(code)
+		}
+		if f.HelpURI != "" {
+			fmt.Fprintf(&b, "   help: %s\n", f.HelpURI)
+		}
+	}
+	return b.String(), nil
+}
+
+// codeAround is a finding's line and the ones around it, numbered.
+func codeAround(path string, line int) string {
+	if line <= 0 || !filepath.IsAbs(path) {
+		return ""
+	}
+	fi, err := os.Stat(path)
+	if err != nil || !fi.Mode().IsRegular() || fi.Size() > findingsFile {
+		return ""
+	}
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return ""
+	}
+	lines := strings.Split(string(data), "\n")
+	if line > len(lines) {
+		return ""
+	}
+	var b strings.Builder
+	for i := max(1, line-findingsContext); i <= min(len(lines), line+findingsContext); i++ {
+		mark := " "
+		if i == line {
+			mark = ">"
+		}
+		t := lines[i-1]
+		if len(t) > 200 {
+			t = t[:200] + "…"
+		}
+		fmt.Fprintf(&b, "   %s%5d | %s\n", mark, i, t)
+	}
+	return b.String()
+}
+
+// tildePath shortens the home folder to ~.
+func tildePath(p string) string {
+	if home, err := os.UserHomeDir(); err == nil && home != "" {
+		if p == home {
+			return "~"
+		}
+		if rest, ok := strings.CutPrefix(p, home+"/"); ok {
+			return "~/" + rest
+		}
+	}
+	return p
 }
 
 func (s *Service) runReadonly(ctx context.Context, session string, argv []string) (string, error) {

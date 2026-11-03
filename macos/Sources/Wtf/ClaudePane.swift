@@ -196,6 +196,12 @@ extension ClaudePane {
     /// A postmortem draft: `/wtf:postmortem ` for you to say which commands and what happened.
     static func postmortem(in w: WindowController) { ask(in: w, send: Message(text: "/wtf:postmortem ", enter: false)) }
 
+    /// Triage of a finding (#30): its rule and where it is (`src/db.go:40`).
+    static func triage(rule: String, at location: String, in w: WindowController) {
+        let what = [rule, location.isEmpty ? "" : "at \(location)"].filter { !$0.isEmpty }.joined(separator: " ")
+        ask(in: w, send: Message(text: "/wtf:triage " + what, enter: true))
+    }
+
     /// A summary of a change preview: block `id`, or a saved plan file.
     static func review(block id: Int? = nil, file: String? = nil, in w: WindowController) {
         let what = file.map { " plan file \(Shell.quote($0))" } ?? id.map { " block \($0)" } ?? ""
