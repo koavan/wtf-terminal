@@ -280,6 +280,16 @@ public final class PromptTracker {
         return out.reversed()
     }
 
+    /// The ids of the last n finished commands, oldest first.
+    public func recentIDs(_ n: Int) -> [Int] {
+        var out: [Int] = []
+        for r in records.reversed() where out.count < n {
+            guard r.exitCode != nil, !r.text.isEmpty else { continue }
+            out.append(r.id)
+        }
+        return out.reversed()
+    }
+
     /// The most recent finished command whose output is still in the scrollback.
     public func lastFinished() -> Int? {
         records.last { $0.end != nil && $0.output?.isValid(in: term) == true }?.id

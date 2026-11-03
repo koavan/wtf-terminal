@@ -15,6 +15,7 @@ import (
 	"github.com/dayanraj/wtf/internal/ai"
 	"github.com/dayanraj/wtf/internal/apiclient"
 	"github.com/dayanraj/wtf/internal/awsprofiles"
+	"github.com/dayanraj/wtf/internal/bridge"
 	"github.com/dayanraj/wtf/internal/certs"
 	"github.com/dayanraj/wtf/internal/config"
 	"github.com/dayanraj/wtf/internal/explain"
@@ -67,6 +68,7 @@ type Backend struct {
 	Suggest     *suggest.Service
 	Review      *review.Service
 	Investigate *investigate.Service
+	Bridge      *bridge.Service
 
 	started []any // by Start, for Shutdown
 }
@@ -112,6 +114,8 @@ func New(version, commit, buildDate, stateDir string) (*Backend, error) {
 	b.Suggest = suggest.NewService(b.Infra)
 	b.Review = review.NewService(b.Infra)
 	b.Investigate = investigate.NewService(b.AI, b.Infra)
+	b.Bridge = bridge.NewService(b.Infra)
+	b.Terminal.ExtraEnv = bridge.ShellEnv(b.Bridge)
 	return b, nil
 }
 
@@ -149,6 +153,7 @@ func (b *Backend) Services() []Named {
 		{"suggest", b.Suggest},
 		{"review", b.Review},
 		{"investigate", b.Investigate},
+		{"bridge", b.Bridge},
 	}
 }
 

@@ -51,6 +51,18 @@ cp "$bin/wtf" "$app/Contents/MacOS/wtf"
 if [ -n "$universal" ]; then helper_archs="-arch arm64 -arch x86_64"; else helper_archs=; fi
 # shellcheck disable=SC2086
 cc -O2 -Wall $helper_archs -mmacosx-version-min=14.0 -o "$app/Contents/MacOS/wtf-exec" macos/exec/wtf-exec.c
+# The wtf plugin's MCP server, which Claude Code starts in a wtf shell (#32).
+gohelper() { # gohelper <goarch> <out>
+	CGO_ENABLED=0 GOARCH=$1 go build -tags native -trimpath -buildvcs=false \
+		-ldflags "-s -w -X main.version=$version" -o "$2" ./cmd/wtf-mcp
+}
+if [ -n "$universal" ]; then
+	gohelper arm64 bin/native/arm64/wtf-mcp
+	gohelper amd64 bin/native/amd64/wtf-mcp
+	lipo -create bin/native/arm64/wtf-mcp bin/native/amd64/wtf-mcp -output "$app/Contents/MacOS/wtf-mcp"
+else
+	gohelper "$(go env GOARCH)" "$app/Contents/MacOS/wtf-mcp"
+fi
 cp build/darwin/icons.icns build/darwin/Assets.car "$app/Contents/Resources/"
 # JetBrains Mono (OFL), the terminal's default font, as in the Wails build.
 mkdir -p "$app/Contents/Resources/Fonts"
@@ -72,6 +84,7 @@ pb "Add :ATSApplicationFontsPath string Fonts"
 pb "Add :WtfCommit string $commit"
 pb "Add :WtfBuildDate string $date"
 codesign --force --sign - --timestamp=none "$app/Contents/MacOS/wtf-exec" >/dev/null
+codesign --force --sign - --timestamp=none "$app/Contents/MacOS/wtf-mcp" >/dev/null
 codesign --force --sign - --timestamp=none "$app" >/dev/null
 echo "built: $app ($version, $commit)"
 

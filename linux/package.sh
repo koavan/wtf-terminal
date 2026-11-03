@@ -36,6 +36,8 @@ for arch in $archs; do
 		go build -tags native -trimpath -buildvcs=false \
 			-ldflags "-s -w -X main.version=$1 -X main.commit=$2 -X main.buildDate=$3" \
 			-o "$4/wtf" ./cmd/wtf-gtk
+		CGO_ENABLED=0 go build -trimpath -buildvcs=false -ldflags "-s -w -X main.version=$1" \
+			-o "$4/wtf-mcp" ./cmd/wtf-mcp
 		for size in 32 48 64 128 256 512; do
 			mkdir -p "$4/icons/${size}x${size}/apps"
 			convert build/appicon.png -resize ${size}x${size} "$4/icons/${size}x${size}/apps/com.dayanraj.wtf.png"

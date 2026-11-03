@@ -214,4 +214,9 @@ enum Services {
         static func Start(_ a0: String, _ a1: Go.investigate.Question, _ a2: Bool) async throws { try await Backend.run("investigate", "Start", [a0, a1, a2]) }
         static func Stop(_ a0: String) async throws { try await Backend.run("investigate", "Stop", [a0]) }
     }
+
+    enum bridge {
+        static func Reply(_ a0: String, _ a1: Go.bridge.Reply) async throws { try await Backend.run("bridge", "Reply", [a0, a1]) }
+        static func SetTarget(_ a0: String, _ a1: String) async throws { try await Backend.run("bridge", "SetTarget", [a0, a1]) }
+    }
 }

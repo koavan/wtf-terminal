@@ -28,6 +28,7 @@ import (
 	"github.com/diamondburned/gotk4/pkg/gtk/v4"
 
 	"github.com/dayanraj/wtf/internal/backend"
+	"github.com/dayanraj/wtf/internal/bridge"
 	"github.com/dayanraj/wtf/internal/infra"
 	"github.com/dayanraj/wtf/internal/paths"
 	"github.com/dayanraj/wtf/internal/state"
@@ -131,6 +132,11 @@ func (a *App) startup() {
 			if w := a.windowOf(info.ID); w != nil {
 				w.model.ApplyInfo(info.ID, info.Process, info.Cwd, info.IsShell)
 			}
+		}
+	})
+	a.events.on(bridge.EventRequest, func(data any) {
+		if req, ok := data.(bridge.UIRequest); ok {
+			a.bridgeRequest(req)
 		}
 	})
 	a.events.on(infra.EventChanged, func(any) {

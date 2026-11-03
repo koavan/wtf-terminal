@@ -11,6 +11,7 @@ extension Go { public enum about {} }
 extension Go { public enum ai {} }
 extension Go { public enum apiclient {} }
 extension Go { public enum awsprofiles {} }
+extension Go { public enum bridge {} }
 extension Go { public enum certs {} }
 extension Go { public enum config {} }
 extension Go { public enum explain {} }
@@ -741,6 +742,118 @@ extension Go.awsprofiles {
             let c = try decoder.container(keyedBy: CodingKeys.self)
             self.key = (try? c.decodeIfPresent(String.self, forKey: .key)) ?? ""
             self.value = (try? c.decodeIfPresent(String.self, forKey: .value)) ?? ""
+        }
+    }
+}
+
+extension Go.bridge {
+    /// bridge.Block
+    public struct Block: Codable, Equatable, Sendable {
+        public var id: Int
+        public var command: String
+        public var exitCode: Int
+        public var output: String
+        public var durationMs: Double
+        public var timedOut: Bool
+
+        public init(id: Int = 0, command: String = "", exitCode: Int = 0, output: String = "", durationMs: Double = 0, timedOut: Bool = false) {
+            self.id = id
+            self.command = command
+            self.exitCode = exitCode
+            self.output = output
+            self.durationMs = durationMs
+            self.timedOut = timedOut
+        }
+
+        enum CodingKeys: String, CodingKey {
+            case id = "id"
+            case command = "command"
+            case exitCode = "exitCode"
+            case output = "output"
+            case durationMs = "durationMs"
+            case timedOut = "timedOut"
+        }
+
+        public init(from decoder: Decoder) throws {
+            let c = try decoder.container(keyedBy: CodingKeys.self)
+            self.id = (try? c.decodeIfPresent(Int.self, forKey: .id)) ?? 0
+            self.command = (try? c.decodeIfPresent(String.self, forKey: .command)) ?? ""
+            self.exitCode = (try? c.decodeIfPresent(Int.self, forKey: .exitCode)) ?? 0
+            self.output = (try? c.decodeIfPresent(String.self, forKey: .output)) ?? ""
+            self.durationMs = (try? c.decodeIfPresent(Double.self, forKey: .durationMs)) ?? 0
+            self.timedOut = (try? c.decodeIfPresent(Bool.self, forKey: .timedOut)) ?? false
+        }
+    }
+}
+
+extension Go.bridge {
+    /// bridge.Pane
+    public struct Pane: Codable, Equatable, Sendable {
+        public var title: String
+        public var cwd: String
+        public var env: [String: String]
+        public var running: Bool
+        public var process: String
+        public var integrated: Bool
+
+        public init(title: String = "", cwd: String = "", env: [String: String] = [:], running: Bool = false, process: String = "", integrated: Bool = false) {
+            self.title = title
+            self.cwd = cwd
+            self.env = env
+            self.running = running
+            self.process = process
+            self.integrated = integrated
+        }
+
+        enum CodingKeys: String, CodingKey {
+            case title = "title"
+            case cwd = "cwd"
+            case env = "env"
+            case running = "running"
+            case process = "process"
+            case integrated = "integrated"
+        }
+
+        public init(from decoder: Decoder) throws {
+            let c = try decoder.container(keyedBy: CodingKeys.self)
+            self.title = (try? c.decodeIfPresent(String.self, forKey: .title)) ?? ""
+            self.cwd = (try? c.decodeIfPresent(String.self, forKey: .cwd)) ?? ""
+            self.env = (try? c.decodeIfPresent([String: String].self, forKey: .env)) ?? [:]
+            self.running = (try? c.decodeIfPresent(Bool.self, forKey: .running)) ?? false
+            self.process = (try? c.decodeIfPresent(String.self, forKey: .process)) ?? ""
+            self.integrated = (try? c.decodeIfPresent(Bool.self, forKey: .integrated)) ?? false
+        }
+    }
+}
+
+extension Go.bridge {
+    /// bridge.Reply
+    public struct Reply: Codable, Equatable, Sendable {
+        public var pane: Go.bridge.Pane?
+        public var blocks: [Go.bridge.Block]
+        public var block: Go.bridge.Block?
+        public var error: String
+
+        public init(pane: Go.bridge.Pane? = nil, blocks: [Go.bridge.Block] = [], block: Go.bridge.Block? = nil, error: String = "") {
+            self.pane = pane
+            self.blocks = blocks
+            self.block = block
+            self.error = error
+        }
+
+        enum CodingKeys: String, CodingKey {
+            case pane = "pane"
+            case blocks = "blocks"
+            case block = "block"
+            case error = "error"
+        }
+
+        public init(from decoder: Decoder) throws {
+            let c = try decoder.container(keyedBy: CodingKeys.self)
+            self.pane = (try? c.decodeIfPresent(Go.bridge.Pane.self, forKey: .pane)) ?? nil
+            self.blocks = (try? c.decodeIfPresent([Go.bridge.Block].self, forKey: .blocks)) ?? []
+            self.block = (try? c.decodeIfPresent(Go.bridge.Block.self, forKey: .block)) ?? nil
+            self.error = (try? c.decodeIfPresent(String.self, forKey: .error)) ?? ""
         }
     }
 }

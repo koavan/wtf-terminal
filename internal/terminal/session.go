@@ -237,6 +237,13 @@ func (s *Session) info() (Info, error) {
 		return Info{}, err
 	}
 	name := strings.TrimPrefix(processName(pid), "-")
+	// The launcher (wtf-exec), a moment before it execs the shell, is the
+	// shell as far as anyone asking is concerned. (Its pid, once it's
+	// another name, is a program the shell exec'd.)
+	if Launcher != nil && s.cmd != nil && s.cmd.Process != nil && pid == s.cmd.Process.Pid &&
+		name == filepath.Base(s.cmd.Path) {
+		name = s.Shell
+	}
 	return Info{
 		ID:      s.ID,
 		Process: name,

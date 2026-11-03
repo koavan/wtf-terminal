@@ -18,6 +18,8 @@ package gtkui
 //	panes     the other side-pane tabs: History, Pins, Share, Network,
 //	          Processes, AWS, Generate, Findings, Snippets, Workspaces
 //	api       the API tab against a local server
+//	bridge    the plugin's MCP helper, started in one shell as Claude Code
+//	          would, reads, runs in and types into another (#32)
 //	ai        Settings → AI with command providers: preview, Test, Stop,
 //	          adding, editing and deleting through the form
 //	view      the overlay's rows match VTE's view once old rows are trimmed
@@ -90,6 +92,8 @@ func (a *App) selfCheck(w *Window) {
 		w.checkExplain()
 	case "investigate":
 		w.checkInvestigate()
+	case "bridge":
+		w.checkBridge()
 	case "perf":
 		w.checkPerf()
 	default:

@@ -60,6 +60,9 @@ type Service struct {
 	// Where the shell integration scripts live; "" disables integration.
 	integrationDir string
 
+	// More variables for a new session's shell, by its id (the bridge's).
+	ExtraEnv func(id string) []string
+
 	// Set while quitting: shells killed by shutdown must not be reported as
 	// exits, or the frontend would close their tabs and save an empty session.
 	shuttingDown atomic.Bool
@@ -159,6 +162,9 @@ func (s *Service) Create(window string, cols, rows int, cwd string) (string, err
 		}
 	}
 	args, extraEnv := integrate(integrationDir, shell)
+	if s.ExtraEnv != nil {
+		extraEnv = append(extraEnv, s.ExtraEnv(id)...)
+	}
 	sess, err := startSession(id, spawnOptions{
 		Shell: shell,
 		Args:  args,
@@ -371,6 +377,8 @@ func (s *Service) env() []string {
 		"TERM": true, "COLORTERM": true, "TERM_PROGRAM": true,
 		"TERM_PROGRAM_VERSION": true, "TERM_SESSION_ID": true,
 		"WTF_SHELL_INTEGRATION": true, "WTF_ORIG_ZDOTDIR": true,
+		// A wtf started from a wtf shell gives its own.
+		"WTF_PANE": true, "WTF_BRIDGE": true, "WTF_BRIDGE_TOKEN": true, "WTF_MCP": true,
 	}
 	env := make([]string, 0, len(os.Environ())+5)
 	hasLang := false

@@ -372,6 +372,18 @@ func (p *PromptTracker) Transcript() []ExportBlock {
 	return out
 }
 
+// RecentIDs are the ids of the last n finished commands, oldest first.
+func (p *PromptTracker) RecentIDs(n int) []int {
+	var out []int
+	for i := len(p.records) - 1; i >= 0 && len(out) < n; i-- {
+		if r := p.records[i]; r.exitCode != nil && r.text != "" {
+			out = append(out, r.id)
+		}
+	}
+	slices.Reverse(out)
+	return out
+}
+
 // Recent is the last n finished commands, with what's left of their
 // output in the scrollback, oldest first.
 func (p *PromptTracker) Recent(n int) []ExportBlock {

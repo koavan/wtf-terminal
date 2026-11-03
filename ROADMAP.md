@@ -474,10 +474,23 @@ Phases:
    "don't ask again"; `/wtf:…` sent as one write or a bracketed paste is
    accepted; UserPromptSubmit / Notification / Stop give busy / needs-you /
    idle. Linux with real Claude Code not yet tried.
-1. ☐ Bridge: the app's local socket and token; `WTF_PANE`, `WTF_BRIDGE` and
-   `WTF_MCP` in every shell; `cmd/wtf-mcp` (official Go MCP SDK) relaying
-   the app's tool list and calls. The UIs answer four requests (pane,
-   blocks, type, run); tools, allowlist, parsers and redaction stay in Go.
+1. ☑ Bridge (2026-11-02): `internal/bridge` listens on a Unix socket in a
+   private (0700) temp folder; every shell gets `WTF_PANE` (its session),
+   `WTF_BRIDGE`, `WTF_BRIDGE_TOKEN` (an HMAC of the session, so one shell's
+   token doesn't work for another) and `WTF_MCP`. `cmd/wtf-mcp` (Go MCP
+   SDK v1.8.0, depends only on `internal/bridge/wire`) lists the app's
+   tools and relays calls: `pane_context`, `recent_commands`,
+   `review_changes`, `run_readonly` (#27's Check), `type_at_prompt`, all
+   redacted. The UIs answer `bridge:request` (pane, blocks, type, run) with
+   `bridge.Reply`; `SetTarget` points a Claude pane at another shell
+   (phase 3). Bundled in `Contents/MacOS` and `/usr/lib/wtf/wtf-mcp`.
+   Tested: Go tests drive the built helper with an MCP client; the Linux
+   self-check `bridge` runs it in one shell, as Claude Code would, against
+   another; macOS has the same check (`WTF_NATIVE_DEBUG=bridge`, run with
+   `open -n -W --env … --stdout …`), passing. It found a pane just split
+   while the window wasn't in front kept the launcher's name (wtf-exec) and
+   looked busy; the session's leader still named wtf-exec now counts as
+   the shell.
 2. ☐ Plugin: `claude-plugin/` (plugin.json, .mcp.json, hooks, commands),
    bundled into the macOS app and the Linux packages; `claude plugin
    validate` in the checks; quoted paths (Application Support has a space).

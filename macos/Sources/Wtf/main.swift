@@ -48,6 +48,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             NSLog("wtf \(about.version) (\(about.commit)) on \(about.os) \(about.arch), state \(about.stateDir)")
         }
         try? await Task.sleep(for: .seconds(1.5))
+        if env["WTF_NATIVE_DEBUG"] == "bridge" {
+            await BridgeCheck.run(w, dir: env["WTF_NATIVE_SNAPSHOT_DIR"])
+        }
         if env["WTF_NATIVE_DEBUG"] == "paste" {
             // Pastes two lines from a private pasteboard through the
             // responder chain, as ⌘V does, then quits.

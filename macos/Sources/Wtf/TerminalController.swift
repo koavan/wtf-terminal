@@ -139,6 +139,7 @@ final class TerminalController: NSObject, @MainActor TerminalViewDelegate, Outpu
     var lastFinishedBlock: Int? { tracker.lastFinished() }
     func transcript() -> [Export.Block] { tracker.transcript() }
     func recentBlocks(_ n: Int) -> [Export.Block] { tracker.recent(n) }
+    func recentBlockIDs(_ n: Int) -> [Int] { tracker.recentIDs(n) }
 
     /// Scrolls a command's prompt into view and flashes its block; false once
     /// it has left the scrollback.

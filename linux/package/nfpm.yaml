@@ -21,6 +21,10 @@ contents:
   - src: ${STAGE}/wtf
     dst: /usr/bin/wtf
     file_info: {mode: 0755}
+  # The wtf plugin's MCP server, which Claude Code starts in a wtf shell.
+  - src: ${STAGE}/wtf-mcp
+    dst: /usr/lib/wtf/wtf-mcp
+    file_info: {mode: 0755}
   - src: ${STAGE}/fonts/
     dst: /usr/share/wtf/fonts/
     type: tree
