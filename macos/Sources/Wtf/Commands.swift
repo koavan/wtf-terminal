@@ -43,6 +43,7 @@ enum Commands {
         Command("ai.investigate", "Investigate… (Claude)") { ClaudePane.investigate(in: $0) },
         Command("ai.logs", "Summarize Logs of a Recent Command… (Claude)", available: integrated) { ClaudePane.logs(in: $0) },
         Command("ai.runbook", "Runbook from Recent Commands… (Claude)", available: integrated) { ClaudePane.runbook(in: $0) },
+        Command("ai.history", "Ask Your History… (Claude)") { ClaudePane.history(in: $0) },
         Command("ai.postmortem", "Postmortem Draft from Recent Commands… (Claude)", available: integrated) { ClaudePane.postmortem(in: $0) },
         Command("ai.explain", "Explain Last Failed Command… (Claude)", available: integrated) { $0.explainLastFailure() },
         Command("help.manual", "Open Manual", "⌘?") { ManualWindow.show(from: $0) },

@@ -16,5 +16,6 @@ The History tab ({{key:sidebar.history}}) lists the commands run in the focused 
 - The filters narrow it to **Today**, **Last 7 days** or **Last 30 days**, one **Kubernetes** context, and one **AWS** account, profile or region. Each lists the values your saved commands have, with how many. "What did I run against account 123456789012 today?" is **Today** + that account.
 - Click, double-click and right-click work as above, in the focused shell; right-click also has **Forget This Command**.
 - **🗑** here forgets every saved command (after asking); each shell's own history stays.
+- The {{mac:sparkles|other:star}} button asks [Claude](#ask-claude) instead, in plain words: "the command I used to rotate the RDS cert last month".
 
 Secrets in commands are replaced with `[REDACTED]` (the [Hide Secrets](#secrets) patterns) before anything is saved. The commands are in `history.jsonl` in wtf's state folder, readable only by you. Clearing a pane's list also forgets that shell's saved commands. `history-days` in [Settings](#settings) sets how long they're kept; 0 saves nothing and removes what was saved.

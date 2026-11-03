@@ -628,12 +628,19 @@ forced to "ask" like Bash, decided 2026-11-03). Home: a finding's menu →
 **Triage with Claude…** (`/wtf:triage <rule> at <path:line>`). Built
 2026-11-03.
 
-### 31. Ask your history ☐
+### 31. Ask your history ☑
 
-`search_history`: the History tab's commands (folder, exit code, time) and,
-once #17 records it, each one's Kubernetes/AWS context. `/wtf:history
-<question>` ("the command I used to rotate the RDS cert last month").
-Depends on #17.
+`search_history`: #17's saved history (all shells, across windows and
+restarts), filtered by words in the command or folder, `days`, Kubernetes
+context/namespace, AWS account/profile/region and `failed`; newest first
+(30, at most 100), each with when, exit code, duration, folder and the
+context it ran under; the answer starts with the contexts saved (with
+counts) so Claude can map "staging" or "the prod account" to real values.
+`/wtf:history <question>` tries a few wordings, answers with when and where
+each command ran, and types one at the prompt on request (stating both
+contexts as facts when the shell now points elsewhere). Homes: the palette
+(Ask Your History…) and a button in History's Saved view. Built
+2026-11-03.
 
 ## Also built
 

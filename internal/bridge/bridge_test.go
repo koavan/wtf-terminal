@@ -10,10 +10,12 @@ import (
 	"strings"
 	"sync"
 	"testing"
+	"time"
 
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 
 	"github.com/dayanraj/wtf/internal/bridge/wire"
+	"github.com/dayanraj/wtf/internal/cmdhistory"
 	"github.com/dayanraj/wtf/internal/events"
 	"github.com/dayanraj/wtf/internal/snippets"
 )
@@ -352,5 +354,34 @@ func TestFindings(t *testing.T) {
 	f.pane.Env["PWD"] = f.pane.Cwd
 	if r = call(t, f.s, "s1", tok, "findings", map[string]any{}); r.IsError || !strings.Contains(r.Text, "No SARIF reports") {
 		t.Errorf("no reports = %+v", r)
+	}
+}
+
+// TestSearchHistory: the saved history, with its contexts, for the model.
+func TestSearchHistory(t *testing.T) {
+	f := newFake(t)
+	tok := f.s.token("s1")
+	if r := call(t, f.s, "s1", tok, "search_history", map[string]any{}); !r.IsError {
+		t.Errorf("without a store = %+v", r)
+	}
+	h := cmdhistory.NewService(t.TempDir(), nil)
+	f.s.History = h
+	now := time.Now().UTC()
+	for i, c := range []string{"aws rds modify-db-instance --db-instance-identifier main --ca-certificate-identifier rds-ca-rsa2048-g1", "ls", "aws rds describe-db-instances"} {
+		if err := h.Record(cmdhistory.Record{Session: "s1", Command: c, Cwd: "/w", StartedAt: now.Add(time.Duration(i-40*24) * time.Hour).Format(time.RFC3339), DurationMs: 900}); err != nil {
+			t.Fatal(err)
+		}
+	}
+	r := call(t, f.s, "s1", tok, "search_history", map[string]any{"text": "rds cert"})
+	if r.IsError || !strings.Contains(r.Text, "1 matching") || !strings.Contains(r.Text, "$ aws rds modify-db-instance") || !strings.Contains(r.Text, "keeps 90 days") {
+		t.Errorf("search = %+v", r)
+	}
+	r = call(t, f.s, "s1", tok, "search_history", map[string]any{"text": "rds", "days": 7})
+	if r.IsError || !strings.Contains(r.Text, "0 matching") {
+		t.Errorf("last 7 days = %+v", r)
+	}
+	r = call(t, f.s, "s1", tok, "search_history", map[string]any{"limit": 1})
+	if r.IsError || !strings.Contains(r.Text, "3 matching, the newest 1 shown") || !strings.Contains(r.Text, "describe-db-instances") {
+		t.Errorf("limit = %+v", r)
 	}
 }

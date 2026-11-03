@@ -202,6 +202,9 @@ extension ClaudePane {
         ask(in: w, send: Message(text: "/wtf:triage " + what, enter: true))
     }
 
+    /// Ask your history (#31): `/wtf:history ` for you to say what you're after.
+    static func history(in w: WindowController) { ask(in: w, send: Message(text: "/wtf:history ", enter: false)) }
+
     /// A summary of a change preview: block `id`, or a saved plan file.
     static func review(block id: Int? = nil, file: String? = nil, in w: WindowController) {
         let what = file.map { " plan file \(Shell.quote($0))" } ?? id.map { " block \($0)" } ?? ""

@@ -106,7 +106,7 @@ enum BridgeCheck {
         var got = await answers("one", [2, 3, 4, 5])
         let names = ((got[2]?["tools"] as? [[String: Any]]) ?? []).compactMap { $0["name"] as? String }.sorted()
         let err = (try? String(contentsOfFile: "\(dir)/mcp-one.err", encoding: .utf8)) ?? ""
-        check(names == ["findings", "log_patterns", "open_snippet_editor", "pane_context", "recent_commands", "review_changes", "run_readonly", "session_commands", "type_at_prompt"],
+        check(names == ["findings", "log_patterns", "open_snippet_editor", "pane_context", "recent_commands", "review_changes", "run_readonly", "search_history", "session_commands", "type_at_prompt"],
               "wtf-mcp lists the app's tools: \(names) (stderr \(err.debugDescription))")
         var (t, isErr) = text(got[3])
         check(!isErr && t.contains("$ echo hello-bridge") && t.contains("hello-bridge\n"), "recent_commands reads the target's blocks: \(t.debugDescription)")

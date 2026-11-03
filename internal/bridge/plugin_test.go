@@ -128,7 +128,7 @@ func TestPluginFiles(t *testing.T) {
 		}
 	}
 	slices.Sort(seen)
-	if !slices.Equal(seen, []string{"cmd", "explain", "investigate", "logs", "postmortem", "review", "runbook", "triage"}) {
+	if !slices.Equal(seen, []string{"cmd", "explain", "history", "investigate", "logs", "postmortem", "review", "runbook", "triage"}) {
 		t.Errorf("commands = %v", seen)
 	}
 }

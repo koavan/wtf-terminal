@@ -291,6 +291,10 @@ func (w *Window) claudeTriage(rule, where string) {
 	w.askClaudeTo(claudeMessage{text: text, enter: true})
 }
 
+// claudeHistory: ask your history (#31), `/wtf:history ` for you to say
+// what you're after.
+func (w *Window) claudeHistory() { w.askClaudeTo(claudeMessage{text: "/wtf:history "}) }
+
 // claudeReview: a summary of a change preview, block id or a saved plan file.
 func (w *Window) claudeReview(block int, file string) {
 	text := "/wtf:review"

@@ -39,6 +39,8 @@ type historyTab struct {
 	root   *gtk.Box
 	scope  [3]*gtk.ToggleButton
 	trash  *gtk.Button
+	// Saved: ask Claude about it (#31).
+	ask *gtk.Button
 	filter *gtk.SearchEntry
 	list   *sideList
 	shown  []uicore.HistoryEntry
@@ -90,6 +92,13 @@ func newHistoryTab(w *Window) *historyTab {
 	h.trash.SetTooltipText("Clear history")
 	h.trash.SetFocusOnClick(false)
 	h.trash.ConnectClicked(h.clear)
+	h.ask = gtk.NewButtonFromIconName("starred-symbolic")
+	h.ask.AddCSSClass("flat")
+	h.ask.AddCSSClass("wtf-tool")
+	h.ask.SetTooltipText("Ask your history (Claude)")
+	h.ask.SetFocusOnClick(false)
+	h.ask.ConnectClicked(w.claudeHistory)
+	bar.Append(h.ask)
 	bar.Append(h.trash)
 
 	h.filter = gtk.NewSearchEntry()
@@ -202,6 +211,7 @@ func (h *historyTab) source() []uicore.HistoryEntry {
 
 func (h *historyTab) rebuild() {
 	h.filters.SetVisible(h.saved())
+	h.ask.SetVisible(h.saved())
 	if h.saved() {
 		h.filter.SetPlaceholderText("Search saved commands")
 		h.loadSaved()

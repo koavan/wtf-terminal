@@ -185,6 +185,18 @@ func (w *Window) checkClaude() {
 	check(waitUntil(5*time.Second, func() bool { return typed(logs) }), "it types %q, with Enter", logs)
 	check(waitUntil(5*time.Second, func() bool { return state() == bridge.StateIdle }), "and Claude Code is idle again")
 	check(slices.Contains(labels, "Runbook from Here… (Claude)"), "and Runbook from Here")
+	// Ask Your History: /wtf:history for you to finish.
+	onMain(func() { w.model.FocusPane(target.id); w.claudeHistory() })
+	time.Sleep(500 * time.Millisecond)
+	var hist string
+	onMain(func() {
+		top, _ := claude.top()
+		for r := top; r < top+claude.term.Rows(); r++ {
+			hist += claude.term.Row(r) + "\n"
+		}
+	})
+	check(strings.Contains(hist, "/wtf:history") && !strings.Contains(read("typed"), "/wtf:history"), "Ask Your History types /wtf:history for you to finish")
+	claude.write(uicore.ClearLine)
 	onMain(func() { w.model.FocusPane(target.id); w.claudeRunbook(seqID) })
 	runbook := fmt.Sprintf("/wtf:runbook from block %d", seqID)
 	check(waitUntil(5*time.Second, func() bool { return typed(runbook) }), "which types %q, with Enter", runbook)

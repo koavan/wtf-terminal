@@ -27,12 +27,13 @@ Ask Claude again from the same shell and you go back to its Claude pane. If you 
 | `session_commands` | Reads a stretch of your work in the shell: each command with when it started, how long it took, its exit code and the start and end of its output (a range of blocks, or the last ones). |
 | `open_snippet_editor` | Opens wtf's own [snippet editor](#snippets) filled in with a snippet or runbook Claude wrote. Nothing is saved until you review it there and click **Confirm & Save**. |
 | `findings` | Reads the security scan results the [Findings](#findings) tab shows for the shell's repository (SARIF from Trivy, Semgrep, Gitleaks, Checkov, CodeQL…), most severe first, each with the lines of code around it; filtered by rule, file or severity. |
+| `search_history` | Searches the commands you ran in any wtf shell, saved across windows and restarts ([History](#history)'s **Saved** view), with the Kubernetes and AWS context each ran under. |
 | `run_readonly` | Runs one command from a fixed read-only list (`kubectl get`, `aws … describe`, `dig` and the like) in the shell, as a normal command block you can see, and returns its output. Anything else is refused. |
 | `type_at_prompt` | Types a command at the shell's prompt without pressing Enter, so you read, edit and run it yourself. |
 
 Secrets are hidden (as **Hide Secrets** does) in everything these tools return. Claude Code's own tools, such as reading files or its own Bash, aren't filtered by wtf.
 
-Slash commands do the common jobs. wtf's own menus type them for you: **Explain Failure…**, **Summarize Logs…** (a command's right-click menu, when it has 10 lines or more, or the palette), **Runbook from Here…** (a command's right-click menu, or the palette), **Postmortem Draft…** (the palette), **Triage with Claude…** (a finding's right-click menu in the Findings tab), **Command from Plain English…**, **Investigate…** and a review's **Summarize with Claude** open the shell's Claude pane if needed and type the command once Claude Code is ready for a prompt (never while it starts or works).
+Slash commands do the common jobs. wtf's own menus type them for you: **Explain Failure…**, **Summarize Logs…** (a command's right-click menu, when it has 10 lines or more, or the palette), **Runbook from Here…** (a command's right-click menu, or the palette), **Postmortem Draft…** (the palette), **Triage with Claude…** (a finding's right-click menu in the Findings tab), **Ask Your History…** (the palette, or the {{mac:sparkles|other:star}} button in History's Saved view), **Command from Plain English…**, **Investigate…** and a review's **Summarize with Claude** open the shell's Claude pane if needed and type the command once Claude Code is ready for a prompt (never while it starts or works).
 
 - `/wtf:explain`: why the last command failed, and one command that fixes it.
 - `/wtf:cmd <what you want>`: one command for this shell, typed at the prompt.
@@ -40,6 +41,7 @@ Slash commands do the common jobs. wtf's own menus type them for you: **Explain 
 - `/wtf:logs`: a summary of a command's logs: the patterns that matter, how often and when.
 - `/wtf:runbook`: a runbook from what you just did, with `{{placeholders}}` for what changes, opened in wtf's snippet editor for you to save.
 - `/wtf:triage`: what a security finding means in this code, whether it looks reachable, and a patch as a diff, applied only if you agree.
+- `/wtf:history <what you're looking for>`: finds a command you ran before ("the command I used to rotate the RDS cert last month"), with when and where it ran.
 - `/wtf:postmortem`: a postmortem draft: timeline, evidence, root cause and follow-ups, from your commands and their output.
 - `/wtf:investigate <what's wrong>`: an investigation with read-only commands, each approved by you.
 

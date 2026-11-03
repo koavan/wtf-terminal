@@ -534,6 +534,7 @@ func buildMenu() -> NSMenu {
         cmd("Summarize Logs…", "ai.logs"),
         cmd("Runbook from Recent Commands…", "ai.runbook"),
         cmd("Postmortem Draft…", "ai.postmortem"),
+        cmd("Ask Your History…", "ai.history"),
         cmd("Clear Buffer", "term.clear", "k"),
     ])
     _ = submenu("View", [

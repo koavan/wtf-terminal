@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/dayanraj/wtf/internal/bridge/wire"
+	"github.com/dayanraj/wtf/internal/cmdhistory"
 	"github.com/dayanraj/wtf/internal/explain"
 	"github.com/dayanraj/wtf/internal/findings"
 	"github.com/dayanraj/wtf/internal/investigate"
@@ -52,6 +53,11 @@ const (
 	findingsMax     = 100
 	findingsContext = 2
 	findingsFile    = 2 << 20
+	// search_history: how many by default and at most, and the context
+	// values listed.
+	historyDefault = 30
+	historyMax     = 100
+	historyFacets  = 12
 )
 
 // Tools are what the plugin's MCP server offers. Every result is passed
@@ -122,6 +128,21 @@ var Tools = []wire.Tool{
 			`"rule":{"type":"string","description":"Part of a rule id or name."},` +
 			`"path":{"type":"string","description":"Part of a file's path, relative to the repository."},` +
 			`"severity":{"type":"string","enum":["critical","high","medium","low"],"description":"Include this severity and worse (SARIF error counts as high, warning as medium, note as low)."},` +
+			`"limit":{"type":"integer","minimum":1,"maximum":100,"description":"How many (default 30)."}},"additionalProperties":false}`),
+	},
+	{
+		Name: "search_history",
+		Description: "Searches the commands the user ran in any wtf shell, saved across windows and restarts (the History tab's Saved view): " +
+			"each with when it ran, exit code, duration, folder, and the Kubernetes context and namespace, AWS profile, account and region, " +
+			"Google Cloud project, Terraform workspace and git branch it ran under. text matches commands and folders that contain every word " +
+			"(try a few wordings: the tool's name, a resource, a flag). The answer also lists the contexts saved, so you can map \"staging\" or " +
+			"an account to the right value. Newest first.",
+		InputSchema: json.RawMessage(`{"type":"object","properties":{` +
+			`"text":{"type":"string","description":"Words that must all appear in the command or its folder."},` +
+			`"days":{"type":"integer","minimum":1,"description":"Only the last this many days."},` +
+			`"kube_context":{"type":"string"},"kube_namespace":{"type":"string"},` +
+			`"aws_account":{"type":"string"},"aws_profile":{"type":"string"},"aws_region":{"type":"string"},` +
+			`"failed":{"type":"boolean","description":"Only commands that failed."},` +
 			`"limit":{"type":"integer","minimum":1,"maximum":100,"description":"How many (default 30)."}},"additionalProperties":false}`),
 	},
 	{
@@ -196,6 +217,26 @@ func (s *Service) call(ctx context.Context, session, tool string, raw json.RawMe
 		}
 		if err = json.Unmarshal(raw, &a); err == nil {
 			text, err = s.findings(ctx, session, a.Rule, a.Path, a.Severity, a.Limit)
+		}
+	case "search_history":
+		var a struct {
+			Text          string `json:"text"`
+			Days          int    `json:"days"`
+			KubeContext   string `json:"kube_context"`
+			KubeNamespace string `json:"kube_namespace"`
+			AWSAccount    string `json:"aws_account"`
+			AWSProfile    string `json:"aws_profile"`
+			AWSRegion     string `json:"aws_region"`
+			Failed        bool   `json:"failed"`
+			Limit         int    `json:"limit"`
+		}
+		if err = json.Unmarshal(raw, &a); err == nil {
+			q := cmdhistory.Query{Text: a.Text, KubeContext: a.KubeContext, KubeNamespace: a.KubeNamespace, AWSAccount: a.AWSAccount,
+				AWSProfile: a.AWSProfile, AWSRegion: a.AWSRegion, Failed: a.Failed, Limit: a.Limit}
+			if a.Days > 0 {
+				q.Since = time.Now().AddDate(0, 0, -a.Days).Format(time.RFC3339)
+			}
+			text, err = s.searchHistory(q)
 		}
 	case "run_readonly":
 		var a struct {
@@ -642,6 +683,80 @@ func tildePath(p string) string {
 		}
 	}
 	return p
+}
+
+func (s *Service) searchHistory(q cmdhistory.Query) (string, error) {
+	if s.History == nil {
+		return "", fmt.Errorf("this wtf keeps no saved history")
+	}
+	if q.Limit <= 0 {
+		q.Limit = historyDefault
+	}
+	q.Limit = min(q.Limit, historyMax)
+	r := s.History.Search(q)
+	var b strings.Builder
+	if !r.Saving {
+		b.WriteString("Saving history is off (history-days = 0 in the user's wtf settings), so there are no saved commands.\n")
+		return b.String(), nil
+	}
+	fmt.Fprintf(&b, "Saved history keeps %d days. %d matching", r.Days, r.Total)
+	if r.Total > len(r.Entries) {
+		fmt.Fprintf(&b, ", the newest %d shown", len(r.Entries))
+	}
+	b.WriteString(".\n")
+	facet := func(label string, list []cmdhistory.Facet) {
+		if len(list) == 0 {
+			return
+		}
+		var parts []string
+		for i, f := range list {
+			if i == historyFacets {
+				parts = append(parts, fmt.Sprintf("… %d more", len(list)-historyFacets))
+				break
+			}
+			parts = append(parts, fmt.Sprintf("%s (%d)", f.Value, f.Count))
+		}
+		fmt.Fprintf(&b, "%s in all saved commands: %s\n", label, strings.Join(parts, ", "))
+	}
+	facet("Kubernetes contexts", r.KubeContexts)
+	facet("Kubernetes namespaces", r.Namespaces)
+	facet("AWS accounts", r.AWSAccounts)
+	facet("AWS profiles", r.AWSProfiles)
+	facet("AWS regions", r.AWSRegions)
+	for _, e := range r.Entries {
+		at := e.StartedAt
+		if t, err := time.Parse(time.RFC3339, e.StartedAt); err == nil {
+			at = t.Local().Format("2006-01-02 15:04")
+		}
+		fmt.Fprintf(&b, "\n%s · exit %d · %s · in %s\n$ %s\n", at, e.ExitCode,
+			(time.Duration(e.DurationMs) * time.Millisecond).Round(100*time.Millisecond), tildePath(e.Cwd), e.Command)
+		var ctx []string
+		if e.KubeContext != "" {
+			k := "Kubernetes " + e.KubeContext
+			if e.KubeNamespace != "" {
+				k += " (namespace " + e.KubeNamespace + ")"
+			}
+			ctx = append(ctx, k)
+		}
+		if e.AWSProfile != "" || e.AWSAccount != "" {
+			a := "AWS"
+			for _, v := range [][2]string{{"profile", e.AWSProfile}, {"account", e.AWSAccount}, {"region", e.AWSRegion}} {
+				if v[1] != "" {
+					a += " " + v[0] + " " + v[1]
+				}
+			}
+			ctx = append(ctx, a)
+		}
+		for _, v := range [][2]string{{"GCP project", e.GCPProject}, {"Terraform workspace", e.TFWorkspace}, {"git branch", e.GitBranch}} {
+			if v[1] != "" {
+				ctx = append(ctx, v[0]+" "+v[1])
+			}
+		}
+		if len(ctx) > 0 {
+			fmt.Fprintf(&b, "  ran under: %s\n", strings.Join(ctx, "; "))
+		}
+	}
+	return b.String(), nil
 }
 
 func (s *Service) runReadonly(ctx context.Context, session string, argv []string) (string, error) {

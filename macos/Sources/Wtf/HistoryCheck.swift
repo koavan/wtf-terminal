@@ -40,6 +40,8 @@ enum HistoryCheck {
         let m = w.model
         guard let id = m.active?.focusedPaneId, let term = w.terminals[id] else { return check(false, "a shell") }
         check(await waitUntil(20) { m.panes[id]?.integrated == true && m.panes[id]?.running == false }, "shell integration")
+        // A restored session's shell can still be finishing its startup files.
+        try? await Task.sleep(for: .seconds(1))
         term.type("export KUBECONFIG=\(Shell.quote(kube)) AWS_PROFILE=ops AWS_REGION=eu-west-1\r")
         check(await waitUntil(10) { m.panes[id]?.env?["AWS_REGION"] == "eu-west-1" }, "the shell reports its context")
         for c in ["echo first-saved", "echo token=ghp_abcdefghijklmnopqrstuvwxyz0123456789", "false"] {

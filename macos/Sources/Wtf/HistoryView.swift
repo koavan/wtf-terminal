@@ -37,6 +37,8 @@ final class HistoryView: NSView, SidePaneTab, NSSearchFieldDelegate {
     private var aws = ""
     private var loading = false, again = false
     private let trash = ToolButton(symbol: "trash", tip: "Clear history") {}
+    /// Saved: ask Claude about it (#31).
+    private let askClaude = ToolButton(symbol: "sparkles", tip: "Ask your history (Claude)") {}
     private let filter = NSSearchField()
     private let list = SideList()
     private var note: NoteView?
@@ -54,6 +56,10 @@ final class HistoryView: NSView, SidePaneTab, NSSearchFieldDelegate {
         trash.target = self
         trash.action = #selector(clear)
         addSubview(trash)
+        askClaude.target = self
+        askClaude.action = #selector(askHistory)
+        askClaude.isHidden = true
+        addSubview(askClaude)
         filter.placeholderString = "Filter commands"
         filter.delegate = self
         filter.sendsSearchStringImmediately = true
@@ -96,8 +102,9 @@ final class HistoryView: NSView, SidePaneTab, NSSearchFieldDelegate {
 
     override func layout() {
         super.layout()
-        scope.frame = NSRect(x: 8, y: 4, width: bounds.width - 46, height: 22)
+        scope.frame = NSRect(x: 8, y: 4, width: bounds.width - (saved ? 72 : 46), height: 22)
         trash.frame = NSRect(x: bounds.width - 32, y: 3, width: 24, height: 24)
+        askClaude.frame = NSRect(x: bounds.width - 58, y: 3, width: 24, height: 24)
         filter.frame = NSRect(x: 8, y: 32, width: bounds.width - 16, height: 24)
         var top: CGFloat = 62
         if saved {
@@ -126,6 +133,8 @@ final class HistoryView: NSView, SidePaneTab, NSSearchFieldDelegate {
         rebuild()
     }
 
+    @objc private func askHistory() { ClaudePane.history(in: owner) }
+
     @objc private func savedFilterChanged(_ pop: NSPopUpButton) {
         switch pop {
         case timePop: since = pop.indexOfSelectedItem
@@ -146,6 +155,7 @@ final class HistoryView: NSView, SidePaneTab, NSSearchFieldDelegate {
     private func rebuild() {
         scope.selectedSegment = saved ? 2 : all ? 1 : 0
         for pop in [timePop, kubePop, awsPop] { pop.isHidden = !saved }
+        askClaude.isHidden = !saved
         filter.placeholderString = saved ? "Search saved commands" : "Filter commands"
         if saved {
             loadSaved()
