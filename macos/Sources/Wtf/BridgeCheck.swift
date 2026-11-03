@@ -106,7 +106,7 @@ enum BridgeCheck {
         var got = await answers("one", [2, 3, 4, 5])
         let names = ((got[2]?["tools"] as? [[String: Any]]) ?? []).compactMap { $0["name"] as? String }.sorted()
         let err = (try? String(contentsOfFile: "\(dir)/mcp-one.err", encoding: .utf8)) ?? ""
-        check(names == ["log_patterns", "pane_context", "recent_commands", "review_changes", "run_readonly", "type_at_prompt"],
+        check(names == ["log_patterns", "open_snippet_editor", "pane_context", "recent_commands", "review_changes", "run_readonly", "session_commands", "type_at_prompt"],
               "wtf-mcp lists the app's tools: \(names) (stderr \(err.debugDescription))")
         var (t, isErr) = text(got[3])
         check(!isErr && t.contains("$ echo hello-bridge") && t.contains("hello-bridge\n"), "recent_commands reads the target's blocks: \(t.debugDescription)")
@@ -140,6 +140,23 @@ enum BridgeCheck {
         check(m.panes[targetId]?.running == false && (target.lastFinishedBlock.flatMap { target.block($0) }?.text ?? "") == "dig example.com",
               "nothing ran after typing")
         target.type(Shell.clearLine)
+
+        // open_snippet_editor: wtf's editor opens as a sheet, filled in; nothing is saved.
+        check(await idle(claudeId), "the third helper exits")
+        session("four", [#"{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"open_snippet_editor","arguments":{"name":"Restart it","description":"Rolls the pods","steps":[{"title":"Restart","command":"kubectl -n {{ns}} rollout restart deploy/{{name}}"},{"title":"Wait","command":"kubectl -n {{ns}} rollout status deploy/{{name}}"}]}}}"#])
+        got = await answers("four", [2])
+        (t, isErr) = text(got[2])
+        check(!isErr && t.contains("Nothing is saved"), "open_snippet_editor answers: \(t.debugDescription)")
+        check(await waitUntil(5) { w.window?.attachedSheet != nil }, "and wtf's snippet editor opens on the window")
+        if let sheet = w.window?.attachedSheet {
+            let fields = sheet.contentView.map { allTextFields($0) }?.map(\.stringValue) ?? []
+            check(fields.contains("Restart it") && fields.contains("Rolls the pods"), "filled in, named as given: \(fields.prefix(6))")
+            w.window?.endSheet(sheet)
+        }
         try? await Services.bridge.SetTarget(claudeSession, "")
+    }
+
+    private static func allTextFields(_ v: NSView) -> [NSTextField] {
+        (v as? NSTextField).map { [$0] } ?? [] + v.subviews.flatMap { allTextFields($0) }
     }
 }

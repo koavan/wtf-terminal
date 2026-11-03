@@ -11,6 +11,7 @@ private struct BridgeRequest: Decodable {
     let session: String
     let count: Int?
     let text: String?
+    let snippet: Go.snippets.Snippet?
 }
 
 @MainActor
@@ -60,6 +61,12 @@ enum BridgeRequests {
             }
         case "run":
             run(req, p, term)
+        case "snippet":
+            // Filled in for the user to review and save; nothing is saved here.
+            guard let s = req.snippet else { return fail(req.id, "No snippet given") }
+            w.window?.makeKeyAndOrderFront(nil)
+            SnippetEditor.show(.draft(s), in: w)
+            reply(req.id, Go.bridge.Reply())
         default:
             fail(req.id, "wtf doesn't know the request \(req.kind)")
         }
@@ -68,7 +75,8 @@ enum BridgeRequests {
     private static func block(_ term: TerminalController, _ id: Int, timedOut: Bool = false) -> Go.bridge.Block? {
         guard let b = term.block(id) else { return nil }
         return Go.bridge.Block(id: id, command: b.text, exitCode: b.exitCode ?? -1,
-                               output: term.blockOutput(id) ?? "", durationMs: b.durationMs ?? 0, timedOut: timedOut)
+                               output: term.blockOutput(id) ?? "", durationMs: b.durationMs ?? 0,
+                               startedAt: b.startedAt.map { ISO8601DateFormatter().string(from: $0) } ?? "", timedOut: timedOut)
     }
 
     /// Types the line with Enter and waits for its block to end.

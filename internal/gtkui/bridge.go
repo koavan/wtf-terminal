@@ -60,6 +60,15 @@ func (a *App) bridgeRequest(req bridge.UIRequest) {
 		}
 	case bridge.KindRun:
 		a.bridgeRun(req, p, reply, fail)
+	case bridge.KindSnippet:
+		// Filled in for the user to review and save; nothing is saved here.
+		if req.Snippet == nil {
+			fail("No snippet given")
+			return
+		}
+		w.win.Present()
+		w.showSnippetDraft(*req.Snippet)
+		reply(bridge.Reply{})
 	default:
 		fail("wtf doesn't know the request " + req.Kind)
 	}
@@ -89,8 +98,12 @@ func bridgeBlock(p *Pane, id int, timedOut bool) (bridge.Block, bool) {
 	if b.ExitCode != nil {
 		code = *b.ExitCode
 	}
+	started := ""
+	if !b.StartedAt.IsZero() {
+		started = b.StartedAt.Format(time.RFC3339)
+	}
 	return bridge.Block{ID: id, Command: b.Text, ExitCode: code, Output: out,
-		DurationMs: float64(b.Duration.Milliseconds()), TimedOut: timedOut}, true
+		DurationMs: float64(b.Duration.Milliseconds()), StartedAt: started, TimedOut: timedOut}, true
 }
 
 // bridgeRun types the line with Enter and waits for its block to end.

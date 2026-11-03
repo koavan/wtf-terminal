@@ -38,6 +38,7 @@ import (
 	"github.com/dayanraj/wtf/internal/bridge/wire"
 	"github.com/dayanraj/wtf/internal/events"
 	"github.com/dayanraj/wtf/internal/infra"
+	"github.com/dayanraj/wtf/internal/snippets"
 )
 
 const (
@@ -61,6 +62,8 @@ const (
 	KindBlocks = "blocks"
 	KindType   = "type"
 	KindRun    = "run"
+	// snippet: open wtf's snippet editor filled in with Snippet (#29).
+	KindSnippet = "snippet"
 )
 
 // UIRequest is EventRequest's payload.
@@ -73,6 +76,9 @@ type UIRequest struct {
 	Count int `json:"count"`
 	// type: the text (no Enter); run: the line (the UI adds Enter).
 	Text string `json:"text"`
+	// snippet: what the editor starts with; nothing is saved until the
+	// user reviews it there.
+	Snippet *snippets.Snippet `json:"snippet,omitempty"`
 }
 
 // Claude Code states, from its hooks.
@@ -126,6 +132,8 @@ type Block struct {
 	// Empty once it left the scrollback.
 	Output     string  `json:"output"`
 	DurationMs float64 `json:"durationMs"`
+	// When it started (RFC 3339), "" when unknown.
+	StartedAt string `json:"startedAt"`
 	// run: it didn't finish in time and was interrupted.
 	TimedOut bool `json:"timedOut"`
 }

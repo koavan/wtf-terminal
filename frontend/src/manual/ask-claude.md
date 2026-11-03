@@ -24,17 +24,21 @@ Ask Claude again from the same shell and you go back to its Claude pane. If you 
 | `recent_commands` | Reads the last commands you ran in the shell, with exit codes and the end of their output. |
 | `review_changes` | Reads a `terraform plan`, `kubectl diff` or `helm diff` you ran, or a saved plan file, and lists each change as facts. |
 | `log_patterns` | Groups a command's log output (`kubectl logs`, `docker logs`, `journalctl`…, also while it runs) into patterns: lines that differ only in numbers, ids, addresses, durations, times and quoted values count as one, each with its count, level, first and last time seen; errors and warnings first, with a timeline of them. |
+| `session_commands` | Reads a stretch of your work in the shell: each command with when it started, how long it took, its exit code and the start and end of its output (a range of blocks, or the last ones). |
+| `open_snippet_editor` | Opens wtf's own [snippet editor](#snippets) filled in with a snippet or runbook Claude wrote. Nothing is saved until you review it there and click **Confirm & Save**. |
 | `run_readonly` | Runs one command from a fixed read-only list (`kubectl get`, `aws … describe`, `dig` and the like) in the shell, as a normal command block you can see, and returns its output. Anything else is refused. |
 | `type_at_prompt` | Types a command at the shell's prompt without pressing Enter, so you read, edit and run it yourself. |
 
 Secrets are hidden (as **Hide Secrets** does) in everything these tools return. Claude Code's own tools, such as reading files or its own Bash, aren't filtered by wtf.
 
-Slash commands do the common jobs. wtf's own menus type them for you: **Explain Failure…**, **Summarize Logs…** (a command's right-click menu, when it has 10 lines or more, or the palette), **Command from Plain English…**, **Investigate…** and a review's **Summarize with Claude** open the shell's Claude pane if needed and type the command once Claude Code is ready for a prompt (never while it starts or works).
+Slash commands do the common jobs. wtf's own menus type them for you: **Explain Failure…**, **Summarize Logs…** (a command's right-click menu, when it has 10 lines or more, or the palette), **Runbook from Here…** (a command's right-click menu, or the palette), **Postmortem Draft…** (the palette), **Command from Plain English…**, **Investigate…** and a review's **Summarize with Claude** open the shell's Claude pane if needed and type the command once Claude Code is ready for a prompt (never while it starts or works).
 
 - `/wtf:explain`: why the last command failed, and one command that fixes it.
 - `/wtf:cmd <what you want>`: one command for this shell, typed at the prompt.
 - `/wtf:review`: a plain-English summary of the latest change preview.
 - `/wtf:logs`: a summary of a command's logs: the patterns that matter, how often and when.
+- `/wtf:runbook`: a runbook from what you just did, with `{{placeholders}}` for what changes, opened in wtf's snippet editor for you to save.
+- `/wtf:postmortem`: a postmortem draft: timeline, evidence, root cause and follow-ups, from your commands and their output.
 - `/wtf:investigate <what's wrong>`: an investigation with read-only commands, each approved by you.
 
 ## Approving commands

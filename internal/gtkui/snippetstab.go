@@ -254,7 +254,7 @@ type snippetsTab struct {
 func newSnippetsTab(w *Window) *snippetsTab {
 	t := &snippetsTab{w: w}
 	header := newPaneHeader("Snippets")
-	header.tool("list-add-symbolic", "New snippet", func() { w.showSnippetEditor(nil, nil, "") })
+	header.tool("list-add-symbolic", "New snippet", func() { w.showSnippetEditor(nil, nil, "", false) })
 	header.tool("document-open-symbolic", "Open your snippets file in a text editor", func() {
 		w.openSnippetsFileThen("Couldn't open it", nil)
 	})
@@ -383,8 +383,8 @@ func (t *snippetsTab) menu(s snippets.Snippet) []*menuItem {
 	}
 	return append(items,
 		menuSection,
-		item("Edit…", func() { w.showSnippetEditor(&s, &s, "") }),
-		item("Duplicate…", func() { w.showSnippetEditor(nil, &s, "") }),
+		item("Edit…", func() { w.showSnippetEditor(&s, &s, "", false) }),
+		item("Duplicate…", func() { w.showSnippetEditor(nil, &s, "", false) }),
 		menuSection,
 		item("Delete…", func() { t.confirmDelete(s) }),
 	)

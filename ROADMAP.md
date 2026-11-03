@@ -580,15 +580,20 @@ lines whose step (1 min … 1 day) keeps it to 30 rows. `/wtf:logs [block]`
 has Claude summarize it. Homes: a block's menu → **Summarize Logs…
 (Claude)** (10 lines or more) and the palette. Built 2026-11-03.
 
-### 29. Session to runbook or postmortem ☐
+### 29. Session to runbook or postmortem ☑
 
-`session_commands`: a range of command blocks (ids, or the last N) with
-start time, folder, exit code, duration and the start and end of each
-output. `/wtf:runbook` turns them into a parameterized runbook and opens
-wtf's own snippet editor prefilled (`open_snippet_editor`; nothing is saved
-until the user clicks Save). `/wtf:postmortem` drafts a timeline of
-commands, output and decisions. Needs each block's start time from the UIs.
-Home: History tab and a block's menu.
+`session_commands`: a range of command blocks (`from_block`/`to_block`
+among the last 200, or the last `count`, default 20, at most 50), each with
+its start time (the UIs now send `startedAt`), duration, exit code and the
+first and last 12 lines of output. `/wtf:runbook` keeps the steps that did
+the work, makes `{{placeholders}}` with shell-following defaults, and calls
+`open_snippet_editor`, which opens wtf's own snippet editor filled in (a
+new `draft` source: named as given, not "(copy)"); nothing is saved until
+the user clicks Confirm & Save. `/wtf:postmortem` drafts a Markdown
+timeline, evidence, root cause and follow-ups, shown in the pane. Homes: a
+block's menu → **Runbook from Here… (Claude)**, and the palette (Runbook
+from Recent Commands…, Postmortem Draft…). Built 2026-11-03; the bridge
+self-checks open the editor through wtf-mcp on both platforms.
 
 ### 30. Findings triage ☐
 

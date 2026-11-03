@@ -225,7 +225,8 @@ func (p *Pane) blockItems(id int) []*menuItem {
 		items = append(items, menuSection, item("Explain Failure… (Claude)", func() { p.win.explainBlock(p, id) }))
 	}
 	if b.Text != "" && !b.Running() {
-		items = append(items, menuSection, item("Run Again", func() { p.runAgain(b.Text) }))
+		items = append(items, menuSection, item("Run Again", func() { p.runAgain(b.Text) }),
+			item("Runbook from Here… (Claude)", func() { p.win.model.FocusPane(p.id); p.win.claudeRunbook(id) }))
 	}
 	if b.Text != "" {
 		items = append(items, item("Save as Snippet…", func() { p.win.saveAsSnippet(b.Text) }))

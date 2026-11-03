@@ -514,14 +514,16 @@ extension Go.bridge {
         public var exitCode: Int
         public var output: String
         public var durationMs: Double
+        public var startedAt: String
         public var timedOut: Bool
 
-        public init(id: Int = 0, command: String = "", exitCode: Int = 0, output: String = "", durationMs: Double = 0, timedOut: Bool = false) {
+        public init(id: Int = 0, command: String = "", exitCode: Int = 0, output: String = "", durationMs: Double = 0, startedAt: String = "", timedOut: Bool = false) {
             self.id = id
             self.command = command
             self.exitCode = exitCode
             self.output = output
             self.durationMs = durationMs
+            self.startedAt = startedAt
             self.timedOut = timedOut
         }
 
@@ -531,6 +533,7 @@ extension Go.bridge {
             case exitCode = "exitCode"
             case output = "output"
             case durationMs = "durationMs"
+            case startedAt = "startedAt"
             case timedOut = "timedOut"
         }
 
@@ -541,6 +544,7 @@ extension Go.bridge {
             self.exitCode = (try? c.decodeIfPresent(Int.self, forKey: .exitCode)) ?? 0
             self.output = (try? c.decodeIfPresent(String.self, forKey: .output)) ?? ""
             self.durationMs = (try? c.decodeIfPresent(Double.self, forKey: .durationMs)) ?? 0
+            self.startedAt = (try? c.decodeIfPresent(String.self, forKey: .startedAt)) ?? ""
             self.timedOut = (try? c.decodeIfPresent(Bool.self, forKey: .timedOut)) ?? false
         }
     }

@@ -504,7 +504,13 @@ func snippetParamOf(drafts map[string]*snippetParamDraft, name string) *snippetP
 
 // saveAsSnippet opens the snippet editor with a command filled in (a
 // command block's Save as Snippet…).
-func (w *Window) saveAsSnippet(command string) { w.showSnippetEditor(nil, nil, command) }
+func (w *Window) saveAsSnippet(command string) { w.showSnippetEditor(nil, nil, command, false) }
+
+// showSnippetDraft opens the editor filled in by Claude (open_snippet_editor,
+// #29): a new snippet, named as given.
+func (w *Window) showSnippetDraft(s snippets.Snippet) {
+	w.showSnippetEditor(nil, &s, "", true)
+}
 
 // snippetEditor is the snippet editor: a command or a runbook of steps,
 // its placeholders, the file to save to; then a review of exactly what
@@ -539,12 +545,16 @@ type snippetReview struct {
 
 // showSnippetEditor edits a snippet (editing), or makes one: a copy of
 // from, or a command.
-func (w *Window) showSnippetEditor(editing, from *snippets.Snippet, command string) {
+// snippetEditorShown is the open editor, if any (for the self-check).
+var snippetEditorShown *snippetEditor
+
+// draft: from is new as given (Claude's), not a copy to rename.
+func (w *Window) showSnippetEditor(editing, from *snippets.Snippet, command string, draft bool) {
 	e := &snippetEditor{w: w, editing: editing, command: command, steps: []snippets.Step{{}}, params: map[string]*snippetParamDraft{}}
 	if from != nil {
 		e.tags = from.Tags
 		e.name = from.Name
-		if editing == nil {
+		if editing == nil && !draft {
 			e.name += " (copy)"
 		}
 		e.summary, e.command = from.Description, from.Command
@@ -565,7 +575,11 @@ func (w *Window) showSnippetEditor(editing, from *snippets.Snippet, command stri
 		if e.off != nil {
 			e.off()
 		}
+		if snippetEditorShown == e {
+			snippetEditorShown = nil
+		}
 	})
+	snippetEditorShown = e
 	e.render()
 	if !st.loaded || editing == nil {
 		e.off = st.observe(e.listLoaded)

@@ -441,6 +441,11 @@ final class TerminalController: NSObject, @MainActor TerminalViewDelegate, Outpu
         if !b.text.isEmpty, !b.running {
             items.append(.separator())
             items.append(item("Run Again") { [weak self] in self?.runAgain(b.text) })
+            items.append(item("Runbook from Here… (Claude)") { [weak self] in
+                guard let self, let o = owner else { return }
+                o.model.focusPane(paneId)
+                ClaudePane.runbook(from: id, in: o)
+            })
         }
         if !b.text.isEmpty {
             items.append(item("Save as Snippet…") { [weak self] in

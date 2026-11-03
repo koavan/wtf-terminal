@@ -30,6 +30,8 @@ Values are shell-quoted for you, so a value with spaces stays one argument.
 
 Right-click a command in the terminal (or its ✓/✗ mark) → **Save as Snippet…**, or right-click it in [History](#history). The editor opens with the command filled in: name it, turn the parts that change into placeholders — `{{ns}}`, `{{name}}` — and choose where to save it.
 
+With [Ask Claude](#ask-claude), right-click the first command of something you did → **Runbook from Here… (Claude)**: Claude turns the commands after it into a runbook with placeholders and opens this editor filled in. Nothing is saved until you click **Confirm & Save**.
+
 ## Writing them by hand
 
 {{cmd:snippets.open}} opens your file (`~/.config/wtf/snippets.toml`), created with examples the first time:

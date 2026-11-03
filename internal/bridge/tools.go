@@ -12,6 +12,7 @@ import (
 	"github.com/dayanraj/wtf/internal/investigate"
 	"github.com/dayanraj/wtf/internal/logsum"
 	"github.com/dayanraj/wtf/internal/review"
+	"github.com/dayanraj/wtf/internal/snippets"
 	"github.com/dayanraj/wtf/internal/uicore"
 )
 
@@ -33,6 +34,13 @@ const (
 	logLookback = 20
 	logMinLines = 10
 	logPatterns = 40
+	// session_commands: how many blocks by default and at most, how far
+	// back a range may start, and the start and end of each output.
+	sessionDefault  = 20
+	sessionMax      = 50
+	sessionLookback = 200
+	sessionLines    = 12
+	sessionBytes    = 3000
 )
 
 // Tools are what the plugin's MCP server offers. Every result is passed
@@ -69,6 +77,29 @@ var Tools = []wire.Tool{
 			"Without block_id it reads the latest command with at least 10 lines of output, also one still running. Use it to summarize logs " +
 			"instead of reading every line.",
 		InputSchema: json.RawMessage(`{"type":"object","properties":{"block_id":{"type":"integer","description":"A command block id from recent_commands."}},"additionalProperties":false}`),
+	},
+	{
+		Name: "session_commands",
+		Description: "A stretch of the user's work in their wtf shell, oldest first: each command with when it started, how long it took, " +
+			"its exit code, and the start and end of its output. Give from_block and to_block (ids from recent_commands) for a range, " +
+			"or count for the last commands (default 20, at most 50). Use it to write a runbook or a postmortem from what the user did.",
+		InputSchema: json.RawMessage(`{"type":"object","properties":{` +
+			`"count":{"type":"integer","minimum":1,"maximum":50,"description":"How many of the last commands (default 20)."},` +
+			`"from_block":{"type":"integer","description":"The first block of a range."},` +
+			`"to_block":{"type":"integer","description":"The last block of a range (default: the latest)."}},"additionalProperties":false}`),
+	},
+	{
+		Name: "open_snippet_editor",
+		Description: "Opens wtf's snippet editor filled in with a snippet (one command) or a runbook (steps run one at a time), for the user " +
+			"to review, change and save; nothing is saved until they confirm there. Write the parts that change as {{placeholders}} " +
+			"(e.g. kubectl -n {{ns}} rollout restart deploy/{{name}}); a default can follow the shell: {{ns=$kube_namespace}}, " +
+			"$kube_context, $aws_profile, $aws_region, $cwd. Give command, or steps, not both.",
+		InputSchema: json.RawMessage(`{"type":"object","properties":{` +
+			`"name":{"type":"string"},"description":{"type":"string"},` +
+			`"command":{"type":"string","description":"A snippet's one command."},` +
+			`"steps":{"type":"array","items":{"type":"object","properties":{"title":{"type":"string"},"command":{"type":"string"}},"required":["command"],"additionalProperties":false},"description":"A runbook's steps, in order."},` +
+			`"params":{"type":"array","items":{"type":"object","properties":{"name":{"type":"string"},"description":{"type":"string"},"default":{"type":"string"},"choices":{"type":"array","items":{"type":"string"}}},"required":["name"],"additionalProperties":false},"description":"What each placeholder is."}},` +
+			`"required":["name"],"additionalProperties":false}`),
 	},
 	{
 		Name: "run_readonly",
@@ -118,6 +149,20 @@ func (s *Service) call(ctx context.Context, session, tool string, raw json.RawMe
 		}
 		if err = json.Unmarshal(raw, &a); err == nil {
 			text, err = s.logPatterns(ctx, session, a.BlockID)
+		}
+	case "session_commands":
+		var a struct {
+			Count int  `json:"count"`
+			From  *int `json:"from_block"`
+			To    *int `json:"to_block"`
+		}
+		if err = json.Unmarshal(raw, &a); err == nil {
+			text, err = s.sessionCommands(ctx, session, a.Count, a.From, a.To)
+		}
+	case "open_snippet_editor":
+		var a snippets.Snippet
+		if err = json.Unmarshal(raw, &a); err == nil {
+			text, err = s.openSnippetEditor(ctx, session, a)
 		}
 	case "run_readonly":
 		var a struct {
@@ -290,6 +335,99 @@ func (s *Service) logPatterns(ctx context.Context, session string, id *int) (str
 	}
 	sum := logsum.Summarize(found.Output, time.Now(), time.Local)
 	return fmt.Sprintf("[block %d] $ %s\n%s\n\n%s", found.ID, strings.TrimSpace(found.Command), exitLine(*found), sum.Text(logPatterns)), nil
+}
+
+func (s *Service) sessionCommands(ctx context.Context, session string, count int, from, to *int) (string, error) {
+	n := count
+	if from != nil {
+		n = sessionLookback
+	} else if n <= 0 {
+		n = sessionDefault
+	}
+	if from == nil {
+		n = min(n, sessionMax)
+	}
+	list, err := s.blocks(ctx, session, n)
+	if err != nil {
+		return "", err
+	}
+	if from != nil {
+		var picked []Block
+		for _, bl := range list {
+			if bl.ID >= *from && (to == nil || bl.ID <= *to) {
+				picked = append(picked, bl)
+			}
+		}
+		if len(picked) == 0 {
+			return "", fmt.Errorf("no commands from block %d among the last %d", *from, sessionLookback)
+		}
+		if len(picked) > sessionMax {
+			picked = picked[:sessionMax]
+		}
+		list = picked
+	}
+	if len(list) == 0 {
+		return "No commands yet in this shell (or it has no shell integration).", nil
+	}
+	var b strings.Builder
+	for i, bl := range list {
+		if i > 0 {
+			b.WriteString("\n")
+		}
+		when := ""
+		if t, err := time.Parse(time.RFC3339, bl.StartedAt); err == nil {
+			when = " " + t.Local().Format("2006-01-02 15:04:05")
+		}
+		took := ""
+		if bl.DurationMs > 0 {
+			took = " (took " + (time.Duration(bl.DurationMs) * time.Millisecond).Round(100*time.Millisecond).String() + ")"
+		}
+		fmt.Fprintf(&b, "[block %d]%s%s $ %s\n%s\n", bl.ID, when, took, strings.TrimSpace(bl.Command), exitLine(bl))
+		out := strings.TrimRight(bl.Output, "\n")
+		if strings.TrimSpace(out) == "" {
+			b.WriteString("Output: none (or no longer in the scrollback)\n")
+			continue
+		}
+		lines := strings.Split(out, "\n")
+		if len(lines) > 2*sessionLines {
+			fmt.Fprintf(&b, "Output (first and last %d lines; %d left out):\n%s\n…\n%s\n", sessionLines, len(lines)-2*sessionLines,
+				strings.Join(lines[:sessionLines], "\n"), strings.Join(lines[len(lines)-sessionLines:], "\n"))
+		} else {
+			if len(out) > sessionBytes {
+				out = out[:sessionBytes] + "…"
+			}
+			fmt.Fprintf(&b, "Output:\n%s\n", out)
+		}
+	}
+	return b.String(), nil
+}
+
+func (s *Service) openSnippetEditor(ctx context.Context, session string, sn snippets.Snippet) (string, error) {
+	sn.Name = strings.TrimSpace(sn.Name)
+	sn.ID, sn.Source, sn.Index, sn.Project, sn.Tags = "", "", 0, false, []string{}
+	if sn.Steps == nil {
+		sn.Steps = []snippets.Step{}
+	}
+	if sn.Params == nil {
+		sn.Params = []snippets.Param{}
+	}
+	switch {
+	case sn.Name == "":
+		return "", fmt.Errorf("give the snippet a name")
+	case strings.TrimSpace(sn.Command) == "" && len(sn.Steps) == 0:
+		return "", fmt.Errorf("give command, or steps for a runbook")
+	case strings.TrimSpace(sn.Command) != "" && len(sn.Steps) > 0:
+		return "", fmt.Errorf("give command or steps, not both")
+	}
+	for _, st := range sn.Steps {
+		if strings.TrimSpace(st.Command) == "" {
+			return "", fmt.Errorf("every step needs a command")
+		}
+	}
+	if _, err := s.ask(ctx, UIRequest{Kind: KindSnippet, Session: session, Snippet: &sn}); err != nil {
+		return "", err
+	}
+	return "Opened wtf's snippet editor with it. Nothing is saved until the user reviews it there and clicks Confirm & Save.", nil
 }
 
 func (s *Service) runReadonly(ctx context.Context, session string, argv []string) (string, error) {

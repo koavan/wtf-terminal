@@ -76,6 +76,8 @@ var Commands = func() []Command {
 		cmd("review.last", "Review Last Command’s Changes…", ""),
 		cmd("ai.investigate", "Investigate… (Claude)", ""),
 		cmd("ai.logs", "Summarize Logs of a Recent Command… (Claude)", ""),
+		cmd("ai.runbook", "Runbook from Recent Commands… (Claude)", ""),
+		cmd("ai.postmortem", "Postmortem Draft from Recent Commands… (Claude)", ""),
 		cmd("term.clear", "Clear Buffer", "Ctrl+Shift+K"),
 
 		cmd("palette", "Command Palette…", "Ctrl+Shift+P"),

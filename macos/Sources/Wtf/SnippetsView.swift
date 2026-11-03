@@ -380,6 +380,8 @@ final class SnippetEditor: NSObject {
         case new(command: String)
         case edit(Snippet)
         case duplicate(Snippet)
+        /// Filled in by Claude (open_snippet_editor, #29): new, named as given.
+        case draft(Snippet)
     }
 
     struct ParamDraft { var description = "", def = "", choices = "", raw = false }
@@ -415,12 +417,14 @@ final class SnippetEditor: NSObject {
         switch source {
         case .new(let c): editing = nil; command = c
         case .edit(let s): editing = s; from = s
-        case .duplicate(let s): editing = nil; from = s
+        case .duplicate(let s), .draft(let s): editing = nil; from = s
         }
+        var draft = false
+        if case .draft = source { draft = true }
         tags = from?.tags ?? []
         super.init()
         if let s = from {
-            name = editing == nil ? "\(s.name) (copy)" : s.name
+            name = editing == nil && !draft ? "\(s.name) (copy)" : s.name
             summary = s.description
             command = s.command
             runbook = s.isRunbook

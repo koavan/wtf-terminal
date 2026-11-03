@@ -15,6 +15,7 @@ import (
 
 	"github.com/dayanraj/wtf/internal/bridge/wire"
 	"github.com/dayanraj/wtf/internal/events"
+	"github.com/dayanraj/wtf/internal/snippets"
 )
 
 // fakeUI answers the bridge's requests the way the native UIs do, for one
@@ -30,6 +31,7 @@ type fakeUI struct {
 	runOut  string
 	nextBlk int
 	status  []Status
+	drafts  []snippets.Snippet
 }
 
 func newFake(t *testing.T) *fakeUI {
@@ -82,6 +84,9 @@ func (f *fakeUI) answer(req UIRequest) Reply {
 		b := Block{ID: f.nextBlk, Command: req.Text, Output: f.runOut}
 		f.blocks = append(f.blocks, b)
 		return Reply{Block: &b}
+	case KindSnippet:
+		f.drafts = append(f.drafts, *req.Snippet)
+		return Reply{}
 	}
 	return Reply{Error: "unknown"}
 }
@@ -173,6 +178,36 @@ func TestTools(t *testing.T) {
 		t.Errorf("log_patterns of a missing block = %+v", r)
 	}
 	f.blocks = f.blocks[:2]
+
+	// session_commands: the last ones, or a range, with start times.
+	f.blocks[0].StartedAt, f.blocks[0].DurationMs = "2026-11-03T10:00:00Z", 1500
+	r = call(t, s, "s1", tok, "session_commands", map[string]any{})
+	if r.IsError || !strings.Contains(r.Text, "[block 1] ") || !strings.Contains(r.Text, "(took 1.5s) $ terraform plan") ||
+		!strings.Contains(r.Text, "first and last 12 lines") || !strings.Contains(r.Text, "[block 2] $ kubectl get pods") || strings.Contains(r.Text, secret) {
+		t.Errorf("session_commands = %+v", r)
+	}
+	r = call(t, s, "s1", tok, "session_commands", map[string]any{"from_block": 2})
+	if r.IsError || strings.Contains(r.Text, "[block 1]") || !strings.Contains(r.Text, "[block 2]") {
+		t.Errorf("session_commands from 2 = %+v", r)
+	}
+	if r = call(t, s, "s1", tok, "session_commands", map[string]any{"from_block": 9}); !r.IsError {
+		t.Errorf("session_commands from a missing block = %+v", r)
+	}
+
+	// open_snippet_editor: checked, then handed to the UI; nothing saved.
+	for _, bad := range []map[string]any{{"command": "ls"}, {"name": "x"}, {"name": "x", "command": "ls", "steps": []map[string]string{{"command": "ls"}}},
+		{"name": "x", "steps": []map[string]string{{"title": "empty"}}}} {
+		if r = call(t, s, "s1", tok, "open_snippet_editor", bad); !r.IsError {
+			t.Errorf("open_snippet_editor %v = %+v", bad, r)
+		}
+	}
+	r = call(t, s, "s1", tok, "open_snippet_editor", map[string]any{"name": " Restart ", "description": "Rolls the pods",
+		"steps":  []map[string]string{{"title": "Restart", "command": "kubectl -n {{ns=$kube_namespace}} rollout restart deploy/{{name}}"}},
+		"params": []map[string]any{{"name": "name", "description": "The deployment"}}})
+	if r.IsError || !strings.Contains(r.Text, "Nothing is saved") || len(f.drafts) != 1 || f.drafts[0].Name != "Restart" ||
+		len(f.drafts[0].Steps) != 1 || len(f.drafts[0].Params) != 1 || f.drafts[0].Params[0].Description != "The deployment" {
+		t.Errorf("open_snippet_editor = %+v, drafts %+v", r, f.drafts)
+	}
 
 	// Refused by the allowlist: nothing reaches the shell.
 	r = call(t, s, "s1", tok, "run_readonly", map[string]any{"argv": []string{"kubectl", "delete", "pod", "x"}})

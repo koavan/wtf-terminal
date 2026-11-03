@@ -188,6 +188,14 @@ extension ClaudePane {
         ask(in: w, send: Message(text: "/wtf:logs" + (id.map { " block \($0)" } ?? ""), enter: true))
     }
 
+    /// A runbook from the commands from block `id` on, or ones you name (#29).
+    static func runbook(from id: Int? = nil, in w: WindowController) {
+        ask(in: w, send: id.map { Message(text: "/wtf:runbook from block \($0)", enter: true) } ?? Message(text: "/wtf:runbook ", enter: false))
+    }
+
+    /// A postmortem draft: `/wtf:postmortem ` for you to say which commands and what happened.
+    static func postmortem(in w: WindowController) { ask(in: w, send: Message(text: "/wtf:postmortem ", enter: false)) }
+
     /// A summary of a change preview: block `id`, or a saved plan file.
     static func review(block id: Int? = nil, file: String? = nil, in w: WindowController) {
         let what = file.map { " plan file \(Shell.quote($0))" } ?? id.map { " block \($0)" } ?? ""

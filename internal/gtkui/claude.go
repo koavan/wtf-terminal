@@ -264,6 +264,20 @@ func (w *Window) claudeLogs(block int) {
 	w.askClaudeTo(claudeMessage{text: text, enter: true})
 }
 
+// claudeRunbook: a runbook from block id on (#29), or `/wtf:runbook ` for
+// you to say which commands (0).
+func (w *Window) claudeRunbook(block int) {
+	if block > 0 {
+		w.askClaudeTo(claudeMessage{text: fmt.Sprintf("/wtf:runbook from block %d", block), enter: true})
+		return
+	}
+	w.askClaudeTo(claudeMessage{text: "/wtf:runbook "})
+}
+
+// claudePostmortem: `/wtf:postmortem ` for you to say which commands and
+// what happened.
+func (w *Window) claudePostmortem() { w.askClaudeTo(claudeMessage{text: "/wtf:postmortem "}) }
+
 // claudeReview: a summary of a change preview, block id or a saved plan file.
 func (w *Window) claudeReview(block int, file string) {
 	text := "/wtf:review"

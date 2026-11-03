@@ -184,6 +184,11 @@ func (w *Window) checkClaude() {
 	logs := fmt.Sprintf("/wtf:logs block %d", seqID)
 	check(waitUntil(5*time.Second, func() bool { return typed(logs) }), "it types %q, with Enter", logs)
 	check(waitUntil(5*time.Second, func() bool { return state() == bridge.StateIdle }), "and Claude Code is idle again")
+	check(slices.Contains(labels, "Runbook from Here… (Claude)"), "and Runbook from Here")
+	onMain(func() { w.model.FocusPane(target.id); w.claudeRunbook(seqID) })
+	runbook := fmt.Sprintf("/wtf:runbook from block %d", seqID)
+	check(waitUntil(5*time.Second, func() bool { return typed(runbook) }), "which types %q, with Enter", runbook)
+	check(waitUntil(5*time.Second, func() bool { return state() == bridge.StateIdle }), "and Claude Code is idle again")
 
 	onMain(func() { w.model.FocusPane(target.id); w.claudeCommand() })
 	time.Sleep(500 * time.Millisecond)

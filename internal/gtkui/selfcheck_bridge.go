@@ -132,7 +132,7 @@ func (w *Window) checkBridge() {
 	}
 	slices.Sort(names)
 	errText, _ := os.ReadFile("/tmp/mcp-one.err")
-	check(slices.Equal(names, []string{"log_patterns", "pane_context", "recent_commands", "review_changes", "run_readonly", "type_at_prompt"}),
+	check(slices.Equal(names, []string{"log_patterns", "open_snippet_editor", "pane_context", "recent_commands", "review_changes", "run_readonly", "session_commands", "type_at_prompt"}),
 		"wtf-mcp lists the app's tools: %v (stderr %q)", names, errText)
 	recent, isErr := text(got[3])
 	check(!isErr && strings.Contains(recent, "echo hello-bridge") && strings.Contains(recent, "hello-bridge\n"),
@@ -175,6 +175,28 @@ func (w *Window) checkBridge() {
 	check(!isErr && strings.Contains(typedText, "Nothing ran") && strings.Contains(screen, "echo typed-not-run") &&
 		!strings.Contains(screen, "\ntyped-not-run"), "type_at_prompt types without Enter: %q", typedText)
 	w.shot("bridge-typed")
+	onMain(func() { target.write(uicore.ClearLine) })
+
+	// open_snippet_editor: wtf's editor opens filled in; nothing is saved.
+	check(waitUntil(15*time.Second, func() bool { ps := w.model.Panes[claude.id]; return ps != nil && !ps.Running }), "the third helper exits")
+	session("four", `{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"open_snippet_editor","arguments":{"name":"Restart it","description":"Rolls the pods","steps":[{"title":"Restart","command":"kubectl -n {{ns}} rollout restart deploy/{{name}}"},{"title":"Wait","command":"kubectl -n {{ns}} rollout status deploy/{{name}}"}],"params":[{"name":"name","description":"The deployment"}]}}}`)
+	got = answers("four", 2)
+	opened, isErr := text(got[2])
+	var name string
+	var steps int
+	var runbook bool
+	check(waitUntil(5*time.Second, func() bool {
+		if e := snippetEditorShown; e != nil {
+			name, steps, runbook = e.name, len(e.steps), e.runbook
+			return true
+		}
+		return false
+	}), "open_snippet_editor opens wtf's snippet editor: %q", opened)
+	check(!isErr && name == "Restart it" && runbook && steps == 2, "filled in as a runbook of 2 steps, named as given (%q, %d steps, runbook %v)", name, steps, runbook)
+	if e := snippetEditorShown; e != nil {
+		shotOf(&e.sheet.win.Widget, "bridge-snippet")
+		onMain(e.sheet.close)
+	}
 	a.be.Bridge.SetTarget(claudeSession, "")
 	w.finish()
 }
