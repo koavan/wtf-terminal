@@ -178,7 +178,9 @@ func (w *Window) checkClaude() {
 
 	// While it works, a review waits for its next prompt.
 	onMain(func() { w.model.FocusPane(target.id); w.reviewFile("/src/internal/review/testdata/plan.json") })
-	check(waitUntil(5*time.Second, func() bool { return reviewShown != nil && reviewShown.review != nil && reviewShown.summarize.Sensitive() }),
+	check(waitUntil(5*time.Second, func() bool {
+		return reviewShown != nil && reviewShown.review != nil && reviewShown.summarize.Sensitive()
+	}),
 		"a plan file's review offers Summarize with Claude")
 	onMain(func() { reviewShown.summarize.Activate() })
 	review := "/wtf:review plan file /src/internal/review/testdata/plan.json"

@@ -86,8 +86,6 @@ func (a *App) selfCheck(w *Window) {
 		w.checkViewers()
 	case "api":
 		w.checkAPI()
-	case "ai":
-		w.checkAI()
 	case "bridge":
 		w.checkBridge()
 	case "claude":

@@ -39,7 +39,7 @@ Listing SSH hosts, keys, AWS profiles and kubeconfig contexts reads local files 
 
 ## AI assistance
 
-AI features are off until you set up a provider, and call it only when you use one. Secrets are replaced with `[REDACTED]` before anything is sent, the first request to each provider shows the exact text and waits for **Send**, and API keys live in the {{mac:Keychain|other:keyring}}, never in a file. See [AI assistance](#ai).
+AI runs only when you open a Claude pane: your own Claude Code, with your login, where you see everything it does. wtf calls no AI in the background and holds no AI keys. What wtf's tools give Claude has secrets replaced with `[REDACTED]`, and every command Claude Code wants to run or type in your shells asks you first. See [Ask Claude](#ask-claude).
 
 ## What it won't do
 

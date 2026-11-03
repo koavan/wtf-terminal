@@ -1,6 +1,6 @@
 # Settings and themes
 
-{{cmd:config.open}} opens the Settings window. Its **AI** section adds and edits [AI providers](#ai); **General** has the theme and the folders below. Everything else is set in `~/.config/wtf/config.toml` (or `$XDG_CONFIG_HOME/wtf/config.toml`): {{cmd:config.file}} opens it, created with every setting documented. Changes apply when you save (if wtf is in the background, as soon as you switch back to it); mistakes are reported in the window and the last good settings stay in effect.
+{{cmd:config.open}} opens the Settings window. Its **General** section has the theme, the folders below, and whether [Ask Claude](#ask-claude) asks before every command. Everything else is set in `~/.config/wtf/config.toml` (or `$XDG_CONFIG_HOME/wtf/config.toml`): {{cmd:config.file}} opens it, created with every setting documented. Changes apply when you save (if wtf is in the background, as soon as you switch back to it); mistakes are reported in the window and the last good settings stay in effect.
 
 | Setting | What it does |
 |---|---|
@@ -19,7 +19,7 @@
 | `redact-secrets` | start with Hide Secrets on — see [Hide Secrets](#secrets) |
 | `show-usage` | show wtf's own CPU and memory in the address bar (default off) — see [Resource usage](#usage) |
 | `confirm-paste` | show a paste first when it has more than one line, a final newline or control characters (default on) — see [Privacy](#privacy) |
-| `ai-default`, `ai-fast`, `[ai.providers.<name>]` | which AI answers, and how to reach it — see [AI assistance](#ai) |
+| `claude-auto-mode` | let Claude Code's own permission mode decide which commands in a Claude pane run without asking (off: wtf asks every time) — see [Ask Claude](#ask-claude) |
 | `clipboard-clear` | seconds before a copied secret leaves the clipboard (default 30, up to 600); 0 keeps it — see [Privacy](#privacy) |
 | `log-highlighting` | colors for log levels, timestamps, URLs, IPs and Kubernetes resources — see [Logs in the output](#logs) |
 

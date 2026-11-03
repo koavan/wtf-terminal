@@ -8,21 +8,14 @@ import WtfCore
 enum Services {
     enum config {
         static func Current() async throws -> Go.config.Resolved { try await Backend.call("config", "Current", [], as: Go.config.Resolved.self) }
-        static func DeleteAIProvider(_ a0: String) async throws { try await Backend.run("config", "DeleteAIProvider", [a0]) }
-        static func FormatHeaders(_ a0: [String: String]) async throws -> String { try await Backend.call("config", "FormatHeaders", [a0], as: String.self) }
-        static func JoinCommand(_ a0: [String]) async throws -> String { try await Backend.call("config", "JoinCommand", [a0], as: String.self) }
         static func OpenConfigFile() async throws { try await Backend.run("config", "OpenConfigFile", []) }
         static func OpenThemesFolder() async throws { try await Backend.run("config", "OpenThemesFolder", []) }
-        static func ParseHeaders(_ a0: String) async throws -> [String: String] { try await Backend.call("config", "ParseHeaders", [a0], as: [String: String].self) }
-        static func SaveAIProvider(_ a0: String, _ a1: String, _ a2: Go.config.AIProvider) async throws { try await Backend.run("config", "SaveAIProvider", [a0, a1, a2]) }
-        static func SetAIProvider(_ a0: Bool, _ a1: String) async throws { try await Backend.run("config", "SetAIProvider", [a0, a1]) }
         static func SetClaudeAutoMode(_ a0: Bool) async throws { try await Backend.run("config", "SetClaudeAutoMode", [a0]) }
         static func SetConfirmPaste(_ a0: Bool) async throws { try await Backend.run("config", "SetConfirmPaste", [a0]) }
         static func SetRedactSecrets(_ a0: Bool) async throws { try await Backend.run("config", "SetRedactSecrets", [a0]) }
         static func SetShowUsage(_ a0: Bool) async throws { try await Backend.run("config", "SetShowUsage", [a0]) }
         static func SetSidebarAutoRefresh(_ a0: Bool) async throws { try await Backend.run("config", "SetSidebarAutoRefresh", [a0]) }
         static func SetTheme(_ a0: String) async throws { try await Backend.run("config", "SetTheme", [a0]) }
-        static func SplitCommand(_ a0: String) async throws -> [String] { try await Backend.call("config", "SplitCommand", [a0], as: [String].self) }
         static func Themes() async throws -> [Go.config.Theme] { try await Backend.call("config", "Themes", [], as: [Go.config.Theme].self) }
     }
 
@@ -179,41 +172,10 @@ enum Services {
         static func Send(_ a0: String, _ a1: Go.apiclient.Request) async throws -> Go.apiclient.Response { try await Backend.call("apiclient", "Send", [a0, a1], as: Go.apiclient.Response.self) }
     }
 
-    enum ai {
-        static func Ask(_ a0: String, _ a1: Go.ai.Request, _ a2: Bool) async throws { try await Backend.run("ai", "Ask", [a0, a1, a2]) }
-        static func Cancel(_ a0: String) async throws { try await Backend.run("ai", "Cancel", [a0]) }
-        static func DeleteKey(_ a0: String) async throws { try await Backend.run("ai", "DeleteKey", [a0]) }
-        static func Models(_ a0: String, _ a1: Go.config.AIProvider, _ a2: String) async throws -> [String] { try await Backend.call("ai", "Models", [a0, a1, a2], as: [String].self) }
-        static func MoveKey(_ a0: String, _ a1: String) async throws { try await Backend.run("ai", "MoveKey", [a0, a1]) }
-        static func Presets() async throws -> [Go.ai.Preset] { try await Backend.call("ai", "Presets", [], as: [Go.ai.Preset].self) }
-        static func Preview(_ a0: Go.ai.Request) async throws -> Go.ai.Outgoing { try await Backend.call("ai", "Preview", [a0], as: Go.ai.Outgoing.self) }
-        static func SetKey(_ a0: String, _ a1: String) async throws { try await Backend.run("ai", "SetKey", [a0, a1]) }
-        static func Status() async throws -> Go.ai.Status { try await Backend.call("ai", "Status", [], as: Go.ai.Status.self) }
-    }
-
-    enum explain {
-        static func Parse(_ a0: String) async throws -> Go.explain.Reply { try await Backend.call("explain", "Parse", [a0], as: Go.explain.Reply.self) }
-        static func Request(_ a0: Go.explain.Failure) async throws -> Go.ai.Request { try await Backend.call("explain", "Request", [a0], as: Go.ai.Request.self) }
-    }
-
-    enum suggest {
-        static func FlagsRequest(_ a0: Go.ai.Request, _ a1: String) async throws -> Go.ai.Request { try await Backend.call("suggest", "FlagsRequest", [a0, a1], as: Go.ai.Request.self) }
-        static func Parse(_ a0: String) async throws -> Go.suggest.Suggestion { try await Backend.call("suggest", "Parse", [a0], as: Go.suggest.Suggestion.self) }
-        static func Request(_ a0: Go.suggest.Ask) async throws -> Go.ai.Request { try await Backend.call("suggest", "Request", [a0], as: Go.ai.Request.self) }
-    }
-
     enum review {
         static func Parse(_ a0: String, _ a1: String) async throws -> Go.review.Review { try await Backend.call("review", "Parse", [a0, a1], as: Go.review.Review.self) }
         static func ParseFile(_ a0: String, _ a1: [String: String]) async throws -> Go.review.Review { try await Backend.call("review", "ParseFile", [a0, a1], as: Go.review.Review.self) }
-        static func Request(_ a0: Go.review.Ask) async throws -> Go.ai.Request { try await Backend.call("review", "Request", [a0], as: Go.ai.Request.self) }
         static func Reviewable(_ a0: String) async throws -> Bool { try await Backend.call("review", "Reviewable", [a0], as: Bool.self) }
-    }
-
-    enum investigate {
-        static func Request(_ a0: Go.investigate.Question) async throws -> Go.ai.Request { try await Backend.call("investigate", "Request", [a0], as: Go.ai.Request.self) }
-        static func Result(_ a0: String, _ a1: Int, _ a2: Go.investigate.StepResult) async throws { try await Backend.run("investigate", "Result", [a0, a1, a2]) }
-        static func Start(_ a0: String, _ a1: Go.investigate.Question, _ a2: Bool) async throws { try await Backend.run("investigate", "Start", [a0, a1, a2]) }
-        static func Stop(_ a0: String) async throws { try await Backend.run("investigate", "Stop", [a0]) }
     }
 
     enum bridge {

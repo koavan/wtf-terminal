@@ -13,17 +13,14 @@ import (
 
 	"github.com/dayanraj/wtf/internal/about"
 	"github.com/dayanraj/wtf/internal/activity"
-	"github.com/dayanraj/wtf/internal/ai"
 	"github.com/dayanraj/wtf/internal/apiclient"
 	"github.com/dayanraj/wtf/internal/awsprofiles"
 	"github.com/dayanraj/wtf/internal/bridge"
 	"github.com/dayanraj/wtf/internal/certs"
 	"github.com/dayanraj/wtf/internal/config"
-	"github.com/dayanraj/wtf/internal/explain"
 	"github.com/dayanraj/wtf/internal/files"
 	"github.com/dayanraj/wtf/internal/findings"
 	"github.com/dayanraj/wtf/internal/infra"
-	"github.com/dayanraj/wtf/internal/investigate"
 	"github.com/dayanraj/wtf/internal/kube"
 	"github.com/dayanraj/wtf/internal/netconn"
 	"github.com/dayanraj/wtf/internal/notify"
@@ -32,10 +29,8 @@ import (
 	"github.com/dayanraj/wtf/internal/snippets"
 	"github.com/dayanraj/wtf/internal/sshhosts"
 	"github.com/dayanraj/wtf/internal/state"
-	"github.com/dayanraj/wtf/internal/suggest"
 	"github.com/dayanraj/wtf/internal/terminal"
 	"github.com/dayanraj/wtf/internal/tools"
-	"github.com/dayanraj/wtf/internal/uicore"
 	"github.com/dayanraj/wtf/internal/usage"
 )
 
@@ -64,11 +59,7 @@ type Backend struct {
 	NetConn     *netconn.Service
 	Procs       *procs.Service
 	APIClient   *apiclient.Service
-	AI          *ai.Service
-	Explain     *explain.Service
-	Suggest     *suggest.Service
 	Review      *review.Service
-	Investigate *investigate.Service
 	Bridge      *bridge.Service
 
 	started []any // by Start, for Shutdown
@@ -110,11 +101,7 @@ func New(version, commit, buildDate, stateDir string) (*Backend, error) {
 	b.NetConn = netconn.NewService(b.Terminal.ShellPIDs)
 	b.Procs = procs.NewService(b.Terminal.ShellPIDs)
 	b.APIClient = apiclient.NewService()
-	b.AI = ai.NewService(stateDir, func() config.Config { return b.Config.Current().Config }, redact)
-	b.Explain = explain.NewService(b.Infra)
-	b.Suggest = suggest.NewService(b.Infra)
 	b.Review = review.NewService(b.Infra)
-	b.Investigate = investigate.NewService(b.AI, b.Infra)
 	b.Bridge = bridge.NewService(b.Infra)
 	b.Bridge.AutoMode = func() bool { return b.Config.Current().Config.ClaudeAutoMode }
 	// The Claude pane self-checks (WTF_NATIVE_DEBUG=claude) run a stand-in,
@@ -161,18 +148,9 @@ func (b *Backend) Services() []Named {
 		{"netconn", b.NetConn},
 		{"procs", b.Procs},
 		{"apiclient", b.APIClient},
-		{"ai", b.AI},
-		{"explain", b.Explain},
-		{"suggest", b.Suggest},
 		{"review", b.Review},
-		{"investigate", b.Investigate},
 		{"bridge", b.Bridge},
 	}
-}
-
-// redact hides secrets before an AI request leaves, as Hide Secrets does.
-func redact(text string) (string, int) {
-	return uicore.Redact(text), len(uicore.FindSecrets(text))
 }
 
 // Lifecycle hooks, from each package's native.go.

@@ -103,47 +103,6 @@ func (s *Service) SetShowUsage(on bool) error {
 	return s.set("show-usage", strconv.FormatBool(on))
 }
 
-// SetAIProvider chooses the [ai.providers] entry that answers quick inline
-// features (fast) or everything else.
-func (s *Service) SetAIProvider(fast bool, name string) error {
-	if _, ok := s.Current().Config.AI.Providers[name]; !ok {
-		return fmt.Errorf("there's no AI provider named %q", name)
-	}
-	key := "ai-default"
-	if fast {
-		key = "ai-fast"
-	}
-	return s.set(key, strconv.Quote(name))
-}
-
-// SaveAIProvider adds a provider (old is ""), or replaces the one named old,
-// renaming it when name differs. The rest of the file is kept as it is.
-func (s *Service) SaveAIProvider(old, name string, p AIProvider) error {
-	return s.edit(func(data string) (string, error) {
-		return withAIProvider(data, old, name, &p)
-	})
-}
-
-// DeleteAIProvider removes a provider's table, and ai-default / ai-fast if
-// they named it.
-func (s *Service) DeleteAIProvider(name string) error {
-	return s.edit(func(data string) (string, error) {
-		return withAIProvider(data, name, name, nil)
-	})
-}
-
-// SplitCommand splits a Command field into the program and its arguments.
-func (s *Service) SplitCommand(line string) ([]string, error) { return SplitCommand(line) }
-
-// JoinCommand shows a command as one line to edit.
-func (s *Service) JoinCommand(args []string) string { return JoinCommand(args) }
-
-// ParseHeaders reads an Extra headers field: one "Name: value" per line.
-func (s *Service) ParseHeaders(text string) (map[string]string, error) { return ParseHeaders(text) }
-
-// FormatHeaders shows a provider's headers as lines to edit.
-func (s *Service) FormatHeaders(h map[string]string) string { return FormatHeaders(h) }
-
 // set writes one setting into the config file, creating it if needed.
 func (s *Service) set(key, value string) error {
 	return s.edit(func(data string) (string, error) { return withSetting(data, key, value), nil })

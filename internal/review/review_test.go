@@ -136,28 +136,17 @@ func TestPlanFile(t *testing.T) {
 	}
 }
 
-func TestRequest(t *testing.T) {
+// TestFacts: what review_changes tells Claude.
+func TestFacts(t *testing.T) {
 	s := NewService(nil)
-	if _, err := s.Request(Ask{Review: s.Parse("ls", "x")}); err == nil {
-		t.Error("asked about plain output")
-	}
-	r, err := s.Request(Ask{Review: s.Parse("terraform plan", read(t, "terraform-plan.txt")), Cwd: "/w"})
-	if err != nil {
-		t.Fatal(err)
-	}
-	msg := r.Messages[0].Content
+	msg := Facts(s.Parse("terraform plan", read(t, "terraform-plan.txt")))
 	for _, want := range []string{
 		"Tool: terraform\nSource: the output of `terraform plan`\n",
 		"terraform's own count: Plan: 2 to add, 1 to change, 2 to destroy.\n",
 		"- replace aws_db_instance.main (engine_version forces replacement",
-		"\nShell:\nFolder: /w\n",
-		"\nExcerpt of the output:\n",
 	} {
 		if !strings.Contains(msg, want) {
-			t.Errorf("request lacks %q:\n%s", want, msg)
+			t.Errorf("facts lack %q:\n%s", want, msg)
 		}
-	}
-	if r.Fast {
-		t.Error("a review goes to the default provider")
 	}
 }

@@ -1,3 +1,5 @@
+// Package investigate holds the read-only allowlist the wtf plugin's
+// run_readonly tool (internal/bridge, #32) checks every command against.
 package investigate
 
 import (

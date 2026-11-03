@@ -1,8 +1,6 @@
 package config
 
 import (
-	"encoding/json"
-	"fmt"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -347,185 +345,19 @@ func TestShowUsage(t *testing.T) {
 	}
 }
 
-func TestAIProviders(t *testing.T) {
-	cfg, problems, err := Parse(`
-ai-fast = "local"
-
-[ai.providers.claude]
-kind = "anthropic"
-model = "claude-sonnet-5-5"
-
-[ai.providers.local]
-kind = "openai"
-base-url = "http://localhost:11434/v1"
-model = "qwen3:8b"
-
-[ai.providers.codex]
-kind = "command"
-command = ["codex", "exec", "-"]
-
-[ai.providers.nomodel]
-kind = "openai"
-
-[ai.providers.typo]
-kind = "gemini"
-model = "x"
-`)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if len(cfg.AI.Providers) != 3 {
-		t.Errorf("providers = %v, want claude, local and codex", cfg.AI.Providers)
-	}
-	// Two problems for the bad tables; ai-default falls back to ai-fast.
-	if len(problems) != 2 || cfg.AIDefault != "local" || cfg.AIFast != "local" {
-		t.Errorf("default %q fast %q problems %q", cfg.AIDefault, cfg.AIFast, problems)
-	}
-
-	cfg, problems, _ = Parse("[ai.providers.only]\nkind = \"command\"\ncommand = [\"llm\"]\n")
-	if cfg.AIDefault != "only" || cfg.AIFast != "only" || len(problems) != 0 {
-		t.Errorf("lone provider: default %q fast %q problems %q", cfg.AIDefault, cfg.AIFast, problems)
-	}
-
-	cfg, problems, _ = Parse("ai-default = \"gone\"\n")
-	if cfg.AIDefault != "" || len(problems) != 1 {
-		t.Errorf("missing provider: default %q problems %q", cfg.AIDefault, problems)
-	}
-}
-
 func TestWithSettingStaysAboveTables(t *testing.T) {
-	data := "theme = \"Nord\"\n\n[ai.providers.x]\nkind = \"command\"\ncommand = [\"llm\"]\n"
-	got := withSetting(data, "ai-default", `"x"`)
-	cfg, problems, err := Parse(got)
-	if err != nil || len(problems) != 0 || cfg.AIDefault != "x" {
-		t.Errorf("got %q: %v %v, default %q", got, err, problems, cfg.AIDefault)
+	data := "theme = \"Nord\"\n\n[ai.providers.x]\nkind = \"command\"\n"
+	got := withSetting(data, "show-usage", "true")
+	cfg, _, err := Parse(got)
+	if err != nil || !cfg.ShowUsage || !strings.Contains(strings.SplitN(got, "[ai.providers.x]", 2)[0], "show-usage = true") {
+		t.Errorf("got %q: %v", got, err)
 	}
 }
 
-func TestEditAIProviders(t *testing.T) {
-	data := "theme = \"Nord\"\n\n# my claude\n[ai.providers.claude]\nkind = \"anthropic\"\nmodel = \"old\"\n# kept\n\n[ai.providers.local]\nkind = \"openai\"\nbase-url = \"http://localhost:11434/v1\"\nmodel = \"qwen\"\n"
-	parse := func(d string) Config {
-		t.Helper()
-		cfg, problems, err := Parse(d)
-		if err != nil || len(problems) > 0 {
-			t.Fatalf("%v %v in:\n%s", err, problems, d)
-		}
-		return cfg
-	}
-	// The file has two providers and no ai-default: a problem, which an edit fixes.
-	data = withSetting(data, "ai-default", `"claude"`)
-
-	// Edit in place, keeping the rest.
-	got, err := withAIProvider(data, "claude", "claude", &AIProvider{Kind: "anthropic", Model: "new", Command: []string{"x"}})
-	if err != nil {
-		t.Fatal(err)
-	}
-	cfg := parse(got)
-	if cfg.AI.Providers["claude"].Model != "new" || cfg.AI.Providers["claude"].Command != nil || cfg.Theme != "Nord" || !strings.Contains(got, "# my claude") {
-		t.Errorf("edit:\n%s", got)
-	}
-
-	// Rename: ai-default follows.
-	got, err = withAIProvider(got, "claude", "sonnet", &AIProvider{Kind: "anthropic", Model: "new"})
-	if err != nil {
-		t.Fatal(err)
-	}
-	if cfg = parse(got); cfg.AIDefault != "sonnet" || len(cfg.AI.Providers) != 2 {
-		t.Errorf("rename: default %q\n%s", cfg.AIDefault, got)
-	}
-
-	// A name that's taken, a bad name, a bad provider.
-	if _, err := withAIProvider(got, "", "local", &AIProvider{Kind: "command", Command: []string{"llm"}}); err == nil {
-		t.Error("added a second provider named local")
-	}
-	if _, err := withAIProvider(got, "", "my ai", &AIProvider{Kind: "command", Command: []string{"llm"}}); err == nil {
-		t.Error("accepted a name with a space")
-	}
-	if _, err := withAIProvider(got, "", "x", &AIProvider{Kind: "openai"}); err == nil || err.Error() != "model is missing" {
-		t.Errorf("no model: %v", err)
-	}
-
-	// Add, with quotes that need escaping.
-	got, err = withAIProvider(got, "", "tool", &AIProvider{Kind: "command", Command: []string{"sh", "-c", `echo "hi" \ there`}, Model: "dropped"})
-	if err != nil {
-		t.Fatal(err)
-	}
-	if cfg = parse(got); fmt.Sprint(cfg.AI.Providers["tool"].Command) != `[sh -c echo "hi" \ there]` || cfg.AI.Providers["tool"].Model != "" {
-		t.Errorf("add: %+v\n%s", cfg.AI.Providers["tool"], got)
-	}
-
-	// Delete the default: the first remaining one takes over.
-	got, err = withAIProvider(got, "sonnet", "sonnet", nil)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if cfg = parse(got); cfg.AIDefault != "local" || len(cfg.AI.Providers) != 2 || strings.Contains(got, "sonnet") {
-		t.Errorf("delete: default %q\n%s", cfg.AIDefault, got)
-	}
-}
-
-func TestAddSecondProviderKeepsTheFirstAnswering(t *testing.T) {
-	data := "[ai.providers.only]\nkind = \"command\"\ncommand = [\"llm\"]\n"
-	got, err := withAIProvider(data, "", "other", &AIProvider{Kind: "command", Command: []string{"cat"}})
-	if err != nil {
-		t.Fatal(err)
-	}
-	cfg, problems, _ := Parse(got)
-	if cfg.AIDefault != "only" || len(problems) != 0 {
-		t.Errorf("default %q problems %v\n%s", cfg.AIDefault, problems, got)
-	}
-	// Into a fresh file (the template).
-	got, err = withAIProvider(template, "", "first", &AIProvider{Kind: "openai", Model: "m", BaseURL: "http://localhost:1234/v1"})
-	if cfg, problems, _ = Parse(got); err != nil || cfg.AIDefault != "first" || len(problems) != 0 {
-		t.Errorf("template: %v %q %v", err, cfg.AIDefault, problems)
-	}
-}
-
-func TestSplitCommand(t *testing.T) {
-	for line, want := range map[string]string{
-		`codex exec -`:           `["codex","exec","-"]`,
-		`sh -c 'echo "a b"'`:     `["sh","-c","echo \"a b\""]`,
-		`llm -m "gpt x" a\ b ''`: `["llm","-m","gpt x","a b",""]`,
-		`  claude   -p  `:        `["claude","-p"]`,
-	} {
-		args, err := SplitCommand(line)
-		j, _ := json.Marshal(args)
-		if err != nil || string(j) != want {
-			t.Errorf("%s → %s %v, want %s", line, j, err, want)
-		}
-		back, _ := SplitCommand(JoinCommand(args))
-		if !reflect.DeepEqual(back, args) {
-			t.Errorf("%s: join/split → %q", line, back)
-		}
-	}
-	if _, err := SplitCommand(`a "b`); err == nil {
-		t.Error("unclosed quote")
-	}
-}
-
-func TestAIProviderHeaders(t *testing.T) {
-	h, err := ParseHeaders("anthropic-workspace-id: wrkspc_1\n\n X-Team : ops \n")
-	if err != nil || len(h) != 2 || h["anthropic-workspace-id"] != "wrkspc_1" || h["X-Team"] != "ops" {
-		t.Fatalf("%v %v", h, err)
-	}
-	if FormatHeaders(h) != "X-Team: ops\nanthropic-workspace-id: wrkspc_1" {
-		t.Errorf("format %q", FormatHeaders(h))
-	}
-	for _, bad := range []string{"no colon", "Authorization: Bearer x", "x-api-key: k", "bad name: v", "Content-Type: x"} {
-		if _, err := ParseHeaders(bad); err == nil {
-			t.Errorf("accepted %q", bad)
-		}
-	}
-	got, err := withAIProvider("", "", "claude", &AIProvider{Kind: "anthropic", Model: "m", Headers: h})
-	if err != nil {
-		t.Fatal(err)
-	}
-	cfg, problems, _ := Parse(got)
-	if !reflect.DeepEqual(cfg.AI.Providers["claude"].Headers, h) || len(problems) != 0 {
-		t.Errorf("round trip %v %v\n%s", cfg.AI.Providers["claude"].Headers, problems, got)
-	}
-	// A command provider drops them.
-	if p, _ := CheckAIProvider("x", AIProvider{Kind: "command", Command: []string{"llm"}, Headers: h}); p.Headers != nil {
-		t.Error("command kept headers")
+// TestOldAIIgnored: #23's provider settings load with one note, not errors.
+func TestOldAIIgnored(t *testing.T) {
+	cfg, problems, err := Parse("ai-default = \"claude\"\nai-fast = \"local\"\nfont-size = 14\n\n[ai.providers.claude]\nkind = \"anthropic\"\nmodel = \"m\"\n")
+	if err != nil || len(problems) != 1 || problems[0] != OldAINote || cfg.FontSize != 14 {
+		t.Fatalf("problems %q, err %v, font %v", problems, err, cfg.FontSize)
 	}
 }

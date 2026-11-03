@@ -20,8 +20,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/dayanraj/wtf/internal/ai"
-	"github.com/dayanraj/wtf/internal/explain"
 	"github.com/dayanraj/wtf/internal/infra"
 	"github.com/dayanraj/wtf/internal/tools"
 )
@@ -44,7 +42,6 @@ const (
 	// The output sent along with the facts.
 	excerptLines = 300
 	excerptBytes = 16000
-	maxTokens    = 1500
 	showTimeout  = time.Minute
 )
 
@@ -102,13 +99,6 @@ type Review struct {
 	// ("+ ", "~ ", "-/+ ", "- ", "<= ", "→ ").
 	CountText string   `json:"countText"`
 	Lines     []string `json:"lines"`
-}
-
-// Ask is a review to summarize, and the shell it came from.
-type Ask struct {
-	Review Review            `json:"review"`
-	Env    map[string]string `json:"env"`
-	Cwd    string            `json:"cwd"`
 }
 
 type Service struct {
@@ -771,31 +761,4 @@ func ChangeLine(c Change) string {
 		s += " [" + c.Area + "]"
 	}
 	return s
-}
-
-const system = `You review an infrastructure change before it is applied, for the engineer about to apply it. The facts list every resource change, parsed from the tool's output; trust them over your reading of the excerpt.
-
-Write a plain-English summary in plain text, without Markdown headings or bold:
-1. One or two sentences on what applying it will do overall.
-2. Then one short line per notable change: every replacement and destruction, saying why when the output shows it (e.g. "Replaces the RDS instance main because engine_version changes from 13.4 to 14.1."), and every change marked [IAM], [Security group], [RBAC], [Network policy] or [Secret], saying what access it grants, removes or changes as far as the excerpt shows. Group similar changes.
-3. If nothing is replaced, destroyed or access-related, say so in one line.
-
-State what the output shows; don't guess about things it doesn't show, and don't add warnings or advice beyond what the facts support.`
-
-// Request is the AI request summarizing a review. It reads the shell's
-// context files, so call it off the main thread.
-func (s *Service) Request(a Ask) (ai.Request, error) {
-	r := a.Review
-	if r.Tool == "" {
-		return ai.Request{}, errors.New("this isn't terraform plan, kubectl diff or helm diff output")
-	}
-	cwd := a.Cwd
-	if pwd := a.Env["PWD"]; pwd != "" {
-		cwd = pwd
-	}
-	msg := Facts(r) + "\nShell:\n" + explain.ShellFacts(s.infra, a.Env, cwd)
-	if r.Excerpt != "" {
-		msg += "\nExcerpt of the output:\n" + r.Excerpt + "\n"
-	}
-	return ai.Request{System: system, Messages: []ai.Message{{Role: "user", Content: msg}}, MaxTokens: maxTokens, Env: a.Env}, nil
 }

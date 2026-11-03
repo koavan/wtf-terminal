@@ -27,15 +27,6 @@ public struct Config: Decodable, Equatable, Sendable {
     public var logHighlighting: Bool
     /// claude-auto-mode (older backends lack it).
     public var claudeAutoMode: Bool?
-    /// ai-default, ai-fast and the [ai.providers] tables: names only matter
-    /// here (the palette's per-provider commands); AI Providers asks the
-    /// backend for the rest.
-    public var aiDefault: String?
-    public var aiFast: String?
-    public var ai: Go.config.AIConfig?
-
-    /// The configured AI providers' names, sorted.
-    public var aiProviderNames: [String] { (ai?.providers.keys).map { $0.sorted() } ?? [] }
 }
 
 public struct Theme: Decodable, Equatable, Sendable {

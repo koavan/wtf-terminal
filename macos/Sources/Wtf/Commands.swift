@@ -42,7 +42,6 @@ enum Commands {
         Command("review.last", "Review Last Command’s Changes…", available: integrated) { $0.reviewLastCommand() },
         Command("ai.investigate", "Investigate… (Claude)") { ClaudePane.investigate(in: $0) },
         Command("ai.explain", "Explain Last Failed Command… (Claude)", available: integrated) { $0.explainLastFailure() },
-        Command("ai.providers", "AI Providers (add, keys, default, test)") { SettingsWindow.show(.ai, from: $0) },
         Command("help.manual", "Open Manual", "⌘?") { ManualWindow.show(from: $0) },
         Command("help.shortcuts", "Show Keyboard Shortcuts") { _ in ManualWindow.show("shortcuts") },
         Command("workspace.open", "Open Workspace…") { Palette.toggle(.workspaces, in: $0) },
@@ -147,7 +146,7 @@ enum Commands {
         Command("font.bigger", "Bigger Text", "⌘=") { _ in Settings.shared.biggerText() },
         Command("font.smaller", "Smaller Text", "⌘-") { _ in Settings.shared.smallerText() },
         Command("font.reset", "Actual Size", "⌘0") { _ in Settings.shared.actualSize() },
-    ] + aiProviderCommands }
+    ] }
 
     static func run(_ id: String, in w: WindowController) {
         if id.hasPrefix("tab.select.") {

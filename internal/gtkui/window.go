@@ -561,7 +561,6 @@ func (w *Window) windowCommands() map[string]func() {
 		"snippets.open":       w.openSnippetsFile,
 		"app.about":           w.showAbout,
 		"tools.show":          func() { w.showTools("") },
-		"ai.providers":        func() { w.showSettings("ai") },
 		"help.manual":         w.showHelp,
 		"tab.rename":          func() { w.strip.rename(m.ActiveID()) },
 		"inspect.tls":         func() { w.showCertHost("") },
@@ -578,7 +577,7 @@ func (w *Window) windowCommands() map[string]func() {
 			w.setting(func() error { return w.app.be.Config.SetShowUsage(on) },
 				map[bool]string{true: "wtf’s CPU and memory show in the address bar", false: "Resource usage hidden"}[on])
 		},
-		"config.open": func() { w.showSettings("") },
+		"config.open": w.showSettings,
 		"config.file": w.openConfigFile,
 		"themes.folder": func() {
 			cfg := w.app.be.Config
@@ -680,7 +679,7 @@ func (w *Window) mainMenuButton() *gtk.MenuButton {
 		{"record.toggle", "export.text", "export.markdown"},
 		{"font.bigger", "font.smaller", "font.reset"},
 		{"tab.overview", "tab.group", "broadcast.toggle", "pane.zoom", "pane.next", "pane.prev"},
-		{"help.manual", "help.shortcuts", "tools.show", "ai.providers", "app.about"},
+		{"help.manual", "help.shortcuts", "tools.show", "app.about"},
 		{"app.quit"},
 	}
 	cmds := w.windowCommands()

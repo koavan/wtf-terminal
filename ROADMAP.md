@@ -285,7 +285,7 @@ Rules for every item here:
 - Every feature gets a clickable home (right-click / side pane / palette) and a
   manual page.
 
-### 23. AI foundation ☑
+### 23. AI foundation ☑ (replaced by #32: providers removed 2026-11-03)
 
 Works with any AI tool, not one vendor. Features talk to one interface; which
 model or tool answers is configuration.
@@ -542,11 +542,16 @@ Phases:
    explain/investigate self-checks; the `claude` self-check covers the
    new paths on both platforms. Seen there: a Claude pane split from a
    crowded tab can be very narrow.
-5. ☐ Remove the API-key providers: internal/ai providers, keys and presets,
-   Settings → AI, the first-send preview, internal/explain, suggest and
-   investigate's request builders and agent loop (keep the allowlist and
-   fact builders the bridge uses), the `ai` self-check. Old `[ai.*]`
-   tables are ignored with a note.
+5. ☑ Remove the API-key providers (2026-11-03): `internal/ai` (providers,
+   keys, presets, streaming, the first-send preview), `internal/suggest`,
+   investigate's agent loop (its allowlist stays, for `run_readonly`),
+   explain's request builder (its shell facts stay, for `pane_context`),
+   review's AI request (its parsers stay), Settings → AI (Settings is
+   General only), the per-provider palette entries, AI Providers in the
+   menus, and the `ai` self-check; go-keyring left go.mod. Old
+   `ai-default`, `ai-fast` and `[ai.*]` load with one note instead of
+   "unknown setting" errors; keys saved under "wtf AI" stay in the
+   keychain/keyring for the user to remove (the manual says how).
 6. ☐ Self-checks (a Linux check that drives `wtf-mcp` the way Claude Code
    does) and the user's hands-on test with real Claude Code.
 7. ☐ Manual and roadmap: the AI pages rewritten; #28–#31 become plugin
