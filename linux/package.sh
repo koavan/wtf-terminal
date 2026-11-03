@@ -43,6 +43,7 @@ for arch in $archs; do
 			convert build/appicon.png -resize ${size}x${size} "$4/icons/${size}x${size}/apps/com.dayanraj.wtf.png"
 		done' sh "$version" "$commit" "$date" "$stage"
 	cp macos/Resources/Fonts/*.ttf macos/Resources/Fonts/OFL.txt "$stage/fonts/"
+	cp -R claude-plugin "$stage/claude-plugin"
 
 	echo "== $arch: packaging"
 	# nfpm expands variables in some fields but not in file paths.

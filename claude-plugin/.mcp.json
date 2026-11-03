@@ -1,0 +1,12 @@
+{
+  "mcpServers": {
+    "wtf": {
+      "command": "${WTF_MCP}",
+      "env": {
+        "WTF_PANE": "${WTF_PANE}",
+        "WTF_BRIDGE": "${WTF_BRIDGE}",
+        "WTF_BRIDGE_TOKEN": "${WTF_BRIDGE_TOKEN}"
+      }
+    }
+  }
+}

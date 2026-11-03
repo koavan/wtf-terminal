@@ -5,10 +5,12 @@ package gtkui
 import (
 	"encoding/json"
 	"os"
+	"path/filepath"
 	"slices"
 	"strings"
 	"time"
 
+	"github.com/dayanraj/wtf/internal/bridge"
 	"github.com/dayanraj/wtf/internal/uicore"
 )
 
@@ -40,6 +42,9 @@ func (w *Window) checkBridge() {
 		targetSession = w.model.Panes[target.id].SessionID
 	})
 	a.be.Bridge.SetTarget(claudeSession, targetSession)
+	plugin := bridge.PluginDir(a.be.Bridge)
+	_, perr := os.Stat(filepath.Join(plugin, "hooks", "hooks.json"))
+	check(plugin != "" && perr == nil, "the app finds its Claude Code plugin: %q", plugin)
 
 	// The target: a stand-in dig, and a command to read back.
 	_ = os.RemoveAll("/tmp/brbin")

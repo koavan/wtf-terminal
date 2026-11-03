@@ -25,6 +25,10 @@ contents:
   - src: ${STAGE}/wtf-mcp
     dst: /usr/lib/wtf/wtf-mcp
     file_info: {mode: 0755}
+  # The wtf Claude Code plugin, for `claude --plugin-dir`.
+  - src: ${STAGE}/claude-plugin/
+    dst: /usr/share/wtf/claude-plugin/
+    type: tree
   - src: ${STAGE}/fonts/
     dst: /usr/share/wtf/fonts/
     type: tree

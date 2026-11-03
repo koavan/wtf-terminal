@@ -1,0 +1,15 @@
+{
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash|Monitor|mcp__plugin_wtf_wtf__run_readonly|mcp__plugin_wtf_wtf__type_at_prompt",
+        "hooks": [{"type": "command", "command": "\"${WTF_MCP}\" hook || exit 2"}]
+      }
+    ],
+    "SessionStart": [{"hooks": [{"type": "command", "command": "\"${WTF_MCP}\" hook || true"}]}],
+    "UserPromptSubmit": [{"hooks": [{"type": "command", "command": "\"${WTF_MCP}\" hook || true"}]}],
+    "Notification": [{"hooks": [{"type": "command", "command": "\"${WTF_MCP}\" hook || true"}]}],
+    "Stop": [{"hooks": [{"type": "command", "command": "\"${WTF_MCP}\" hook || true"}]}],
+    "SessionEnd": [{"hooks": [{"type": "command", "command": "\"${WTF_MCP}\" hook || true"}]}]
+  }
+}

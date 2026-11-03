@@ -491,9 +491,22 @@ Phases:
    while the window wasn't in front kept the launcher's name (wtf-exec) and
    looked busy; the session's leader still named wtf-exec now counts as
    the shell.
-2. ☐ Plugin: `claude-plugin/` (plugin.json, .mcp.json, hooks, commands),
-   bundled into the macOS app and the Linux packages; `claude plugin
-   validate` in the checks; quoted paths (Application Support has a space).
+2. ☑ Plugin (2026-11-03): `claude-plugin/` (plugin `wtf`, server `wtf`, so
+   tools are `mcp__plugin_wtf_wtf__*`). `.mcp.json` starts `${WTF_MCP}` with
+   the pane's variables. Every hook runs `"${WTF_MCP}" hook` (quoted: the
+   macOS path has a space): PreToolUse for Bash, Monitor, `run_readonly`
+   and `type_at_prompt` answers "ask" without asking the app and fails
+   closed (`|| exit 2`: no helper or unreadable input refuses the call);
+   SessionStart / UserPromptSubmit / Notification / Stop / SessionEnd send
+   the bridge's `hook` op, which emits `bridge:status` (idle, busy,
+   waiting with the notification's text, ended) for phase 3's badge.
+   Slash commands `/wtf:explain`, `/wtf:cmd`, `/wtf:review`,
+   `/wtf:investigate` carry #24–#27's instructions. Bundled in
+   `Contents/Resources/claude-plugin`, `/usr/share/wtf/claude-plugin` and
+   next to a Linux dev build; `bridge.PluginDir` finds it. Go tests check
+   the files (matcher, events, tools the commands name), run the hooks
+   through sh as Claude Code does, and run `claude plugin validate` when
+   it's installed; the Linux self-check `bridge` checks the app finds it.
 3. ☐ Claude pane: launch, attach to the target shell, busy / idle / needs-you
    badge, notifications, the auto-mode setting.
 4. ☐ Rewire #24–#27: Explain Failure, the command bar, Review Changes'

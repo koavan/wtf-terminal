@@ -22,10 +22,13 @@ type Request struct {
 	V     int    `json:"v"`
 	Pane  string `json:"pane"`
 	Token string `json:"token"`
-	// "list" or "call".
+	// "list", "call" or "hook".
 	Op   string          `json:"op"`
 	Tool string          `json:"tool,omitempty"`
 	Args json.RawMessage `json:"args,omitempty"`
+	// hook: Claude Code's hook_event_name, and a Notification's message.
+	Event   string `json:"event,omitempty"`
+	Message string `json:"message,omitempty"`
 }
 
 // Response is the app's answer.

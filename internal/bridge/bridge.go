@@ -42,6 +42,9 @@ import (
 const (
 	// EventRequest asks the UI about a shell; it answers with Reply.
 	EventRequest = "bridge:request"
+	// EventStatus tells the UI what Claude Code in a shell is doing, from
+	// the plugin's hooks (payload Status).
+	EventStatus = "bridge:status"
 
 	maxRequest = 1 << 20
 	ioTimeout  = 10 * time.Second
@@ -69,6 +72,28 @@ type UIRequest struct {
 	Count int `json:"count"`
 	// type: the text (no Enter); run: the line (the UI adds Enter).
 	Text string `json:"text"`
+}
+
+// Claude Code states, from its hooks.
+const (
+	StateIdle    = "idle"    // SessionStart, Stop: waiting for a prompt
+	StateBusy    = "busy"    // UserPromptSubmit: working
+	StateWaiting = "waiting" // Notification: needs the user (a permission prompt)
+	StateEnded   = "ended"   // SessionEnd
+)
+
+// Status is EventStatus's payload.
+type Status struct {
+	// The session of the shell Claude Code runs in.
+	Session string `json:"session"`
+	State   string `json:"state"`
+	// Notification's text ("Claude needs your permission to use Bash").
+	Message string `json:"message"`
+}
+
+var hookStates = map[string]string{
+	"SessionStart": StateIdle, "Stop": StateIdle, "UserPromptSubmit": StateBusy,
+	"Notification": StateWaiting, "SessionEnd": StateEnded,
 }
 
 // Pane is what the UI knows about a shell.
@@ -112,6 +137,8 @@ type Service struct {
 	infra *infra.Service
 	// The helper's path; "" when it isn't installed next to the app.
 	helper string
+	// The bundled Claude Code plugin's folder (claude-plugin/); "" without.
+	plugin string
 
 	key  []byte
 	dir  string
@@ -137,8 +164,25 @@ func NewService(in *infra.Service) *Service {
 				break
 			}
 		}
+		s.plugin = findPlugin(dir)
 	}
 	return s
+}
+
+// findPlugin looks for the plugin next to the app (a Linux dev build), in
+// the macOS bundle's Resources, or where the Linux packages put it
+// (/usr/bin/wtf → /usr/share/wtf/claude-plugin).
+func findPlugin(exeDir string) string {
+	for _, d := range []string{
+		filepath.Join(exeDir, "claude-plugin"),
+		filepath.Join(exeDir, "..", "Resources", "claude-plugin"),
+		filepath.Join(exeDir, "..", "share", "wtf", "claude-plugin"),
+	} {
+		if fi, err := os.Stat(filepath.Join(d, ".claude-plugin", "plugin.json")); err == nil && fi.Mode().IsRegular() {
+			return filepath.Clean(d)
+		}
+	}
+	return ""
 }
 
 func (s *Service) startup() error {
@@ -303,6 +347,13 @@ func (s *Service) do(ctx context.Context, req wire.Request) wire.Response {
 			return wire.Response{Text: err.Error(), IsError: true}
 		}
 		return wire.Response{Text: text}
+	case "hook":
+		state := hookStates[req.Event]
+		if state == "" {
+			return wire.Response{Error: "unknown hook event " + strconv.Quote(req.Event)}
+		}
+		events.Emit(EventStatus, Status{Session: req.Pane, State: state, Message: req.Message})
+		return wire.Response{}
 	}
 	return wire.Response{Error: "unknown op " + strconv.Quote(req.Op)}
 }
@@ -320,3 +371,7 @@ func (s *Service) ServiceShutdown() error {
 // WTF_BRIDGE, WTF_BRIDGE_TOKEN and WTF_MCP (a function, so it isn't one of
 // the service's methods the UIs can call).
 func ShellEnv(s *Service) func(session string) []string { return s.shellEnv }
+
+// PluginDir is the bundled Claude Code plugin's folder, for
+// `claude --plugin-dir`; "" when it isn't installed with the app.
+func PluginDir(s *Service) string { return s.plugin }

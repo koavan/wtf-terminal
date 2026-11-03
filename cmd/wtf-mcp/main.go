@@ -4,6 +4,12 @@
 // list, and relays every call to the app over the bridge's Unix socket
 // (internal/bridge; the messages are in internal/bridge/wire). It holds no
 // logic of its own, so the tools always match the app that's running.
+//
+// "wtf-mcp hook" is the plugin's hook command: it reads a Claude Code hook
+// event on stdin. For PreToolUse it answers "ask" without asking the app,
+// so every command shows Claude Code's own prompt even if wtf is gone; the
+// other events tell the app whether Claude Code is busy, idle or waiting
+// for the user.
 package main
 
 import (
@@ -12,6 +18,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"log"
 	"net"
 	"os"
@@ -69,6 +76,9 @@ func main() {
 		return
 	}
 	c := client{os.Getenv(wire.EnvBridge), os.Getenv(wire.EnvPane), os.Getenv(wire.EnvToken)}
+	if len(os.Args) > 1 && os.Args[1] == "hook" {
+		os.Exit(hook(c, os.Stdin, os.Stdout))
+	}
 	if c.sock == "" || c.pane == "" || c.token == "" {
 		log.Fatal("not running in a wtf shell (WTF_PANE, WTF_BRIDGE and WTF_BRIDGE_TOKEN are unset)")
 	}
@@ -101,4 +111,43 @@ func main() {
 	if err := s.Run(ctx, &mcp.StdioTransport{}); err != nil && !errors.Is(err, context.Canceled) {
 		log.Fatal(err)
 	}
+}
+
+// askReason is shown in Claude Code's permission prompt.
+const askReason = "wtf asks before every command Claude Code runs or types in your shell."
+
+// hook handles one hook event and returns the exit code. A PreToolUse it
+// can't read exits 2, which makes Claude Code refuse the tool call.
+func hook(c client, in io.Reader, out io.Writer) int {
+	var ev struct {
+		Event   string `json:"hook_event_name"`
+		Message string `json:"message"`
+	}
+	data, err := io.ReadAll(io.LimitReader(in, 1<<20))
+	if err == nil {
+		err = json.Unmarshal(data, &ev)
+	}
+	if err != nil || ev.Event == "" {
+		log.Printf("can't read the hook event: %v", err)
+		return 2
+	}
+	if ev.Event == "PreToolUse" {
+		answer, _ := json.Marshal(map[string]any{"hookSpecificOutput": map[string]any{
+			"hookEventName": "PreToolUse", "permissionDecision": "ask", "permissionDecisionReason": askReason,
+		}})
+		if _, err := fmt.Fprintf(out, "%s\n", answer); err != nil {
+			return 2
+		}
+		return 0
+	}
+	if c.sock == "" || c.pane == "" || c.token == "" {
+		return 0
+	}
+	// Best effort: a status the app misses changes nothing.
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+	if _, err := c.do(ctx, wire.Request{Op: "hook", Event: ev.Event, Message: ev.Message}); err != nil {
+		log.Print(err)
+	}
+	return 0
 }

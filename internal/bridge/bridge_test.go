@@ -29,6 +29,7 @@ type fakeUI struct {
 	gone    bool
 	runOut  string
 	nextBlk int
+	status  []Status
 }
 
 func newFake(t *testing.T) *fakeUI {
@@ -41,6 +42,11 @@ func newFake(t *testing.T) *fakeUI {
 	f := &fakeUI{s: s, nextBlk: 100,
 		pane: Pane{Title: "shop", Cwd: "/tmp", Env: map[string]string{"PWD": "/tmp", "PATH": "/usr/bin:/bin"}, Integrated: true}}
 	events.SetEmitter(func(name string, data any) {
+		if name == EventStatus {
+			f.mu.Lock()
+			f.status = append(f.status, data.(Status))
+			f.mu.Unlock()
+		}
 		if name != EventRequest {
 			return
 		}

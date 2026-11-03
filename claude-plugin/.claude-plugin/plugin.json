@@ -1,0 +1,9 @@
+{
+  "name": "wtf",
+  "description": "Works with the wtf terminal you run Claude Code in: reads your shell's context and recent commands, reviews change previews, runs allowlisted read-only commands where you see them (asking every time), and types commands at your prompt for you to run.",
+  "version": "1.0.0",
+  "author": {
+    "name": "dayanraj"
+  },
+  "license": "MIT"
+}

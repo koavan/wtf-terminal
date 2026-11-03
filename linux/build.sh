@@ -1,12 +1,16 @@
 #!/bin/sh
 # Builds the native Linux app in the dev image: bin/gtk/wtf-gtk, and the
-# plugin's MCP helper next to it, bin/gtk/wtf-mcp.
+# plugin's MCP helper and the plugin next to it, bin/gtk/wtf-mcp and
+# bin/gtk/claude-plugin.
 set -eu
 cd "$(dirname "$0")/.."
 version=$(git describe --tags --abbrev=0 2>/dev/null | sed 's/^v//' || echo dev)
 commit=$(git rev-parse --short HEAD 2>/dev/null || echo "")
 if [ -n "$commit" ] && [ -n "$(git status --porcelain 2>/dev/null)" ]; then commit="$commit-dirty"; fi
 date=$(date -u +%Y-%m-%d)
+rm -rf bin/gtk/claude-plugin
+mkdir -p bin/gtk
+cp -R claude-plugin bin/gtk/claude-plugin
 exec docker run --rm -v "$PWD":/src -w /src \
 	-v wtf-gtk-gomod:/root/go/pkg/mod -v wtf-gtk-gocache:/root/.cache/go-build \
 	wtf-gtk-dev:ubuntu24 sh -c '

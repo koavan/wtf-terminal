@@ -67,6 +67,8 @@ cp build/darwin/icons.icns build/darwin/Assets.car "$app/Contents/Resources/"
 # JetBrains Mono (OFL), the terminal's default font, as in the Wails build.
 mkdir -p "$app/Contents/Resources/Fonts"
 cp macos/Resources/Fonts/*.ttf macos/Resources/Fonts/OFL.txt "$app/Contents/Resources/Fonts/"
+# The wtf Claude Code plugin, for `claude --plugin-dir` (#32).
+cp -R claude-plugin "$app/Contents/Resources/claude-plugin"
 # The manual: the same pages as the Wails build.
 mkdir -p "$app/Contents/Resources/manual"
 cp frontend/src/manual/*.md "$app/Contents/Resources/manual/"
