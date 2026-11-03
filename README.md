@@ -125,6 +125,7 @@ Every command is also in the command palette.
 | Add tab to new group | ⌥⌘G | Ctrl+Shift+G |
 | Broadcast input (group, or split panes) | ⌥⌘B | Ctrl+Shift+Alt+B |
 | Run Snippet… | ⌘⇧R | Ctrl+Shift+Alt+R |
+| Ask Claude (Claude Code beside the shell) | ⌘I | Ctrl+Shift+I |
 | Next / previous tab | ⌘⇧] / ⌘⇧[, Ctrl+Tab | Ctrl+PgDn / Ctrl+PgUp, Ctrl+Tab |
 | Go to tab 1–8 / last | ⌘1–⌘8 / ⌘9 | Alt+1–8 / Alt+9 |
 | Move tab | ⌘⇧← / ⌘⇧→ | Ctrl+Shift+PgUp / PgDn |
@@ -364,7 +365,11 @@ The **History** tab lists the commands run in the focused pane's shell
 long it took and its exit code. Click to put a command at the prompt,
 double-click to run it again, or right-click to scroll the terminal back to
 it. It comes from shell integration (bash and zsh) and lasts as long as the
-shell does.
+shell does. **Saved** lists every shell's commands across windows and
+restarts (90 days, `history-days`), each with the Kubernetes context and AWS
+account and region it ran under, filtered by time and context; secrets are
+redacted before saving (`internal/cmdhistory`, `history.jsonl` in the state
+folder, mode 0600).
 
 🗑 clears the list and, after asking, removes the session's commands from
 the shell's own history (↑ / Ctrl-R) via a key binding the integration sets
@@ -503,6 +508,31 @@ focused shell. The SARIF goes to wtf's cache, not the repository. `.sarif`
 files at the repository's top (from CI, say) are read too. Read when the tab
 opens, on refresh, and when a scan finishes; never polled. Missing scanners
 get an **Install…** (Homebrew on macOS). Code: `internal/findings`.
+
+## Ask Claude
+
+**Ask Claude** (⌘I / Ctrl+Shift+I, the palette, or right-click) splits the
+shell and runs your own [Claude Code](https://claude.com/claude-code) there
+with wtf's bundled plugin (`claude --plugin-dir`; nothing is installed into
+`~/.claude`). It uses your Claude Code login; wtf holds no AI keys and never
+runs Claude in the background. The plugin's MCP server (`wtf-mcp`, talking
+to the app over a private socket) gives Claude tools for the shell it came
+from: its context, recent commands and output, change previews (terraform
+plan, kubectl/helm diff), log patterns, a range of commands, security
+findings, saved history, read-only commands from an allowlist (run where you
+see them), and typing a command at the prompt without Enter. Everything
+they return is redacted. Claude Code asks before every command it runs or
+types and every file it edits, even in its auto mode, unless you set
+`claude-auto-mode`. The tab shows whether Claude is working, needs you or
+is idle, and wtf notifies when it needs you.
+
+wtf's menus type the plugin's slash commands for you: Explain Failure
+(`/wtf:explain`), Command from Plain English (`/wtf:cmd`), Investigate
+(`/wtf:investigate`), Summarize with Claude in a review (`/wtf:review`),
+Summarize Logs (`/wtf:logs`), Runbook from Here (`/wtf:runbook`, opening
+wtf's snippet editor filled in), Postmortem Draft (`/wtf:postmortem`),
+Triage with Claude on a finding (`/wtf:triage`) and Ask Your History
+(`/wtf:history`). Code: `claude-plugin/`, `cmd/wtf-mcp`, `internal/bridge`.
 
 ## Resource usage
 
