@@ -39,7 +39,7 @@ Slash commands do the common jobs. wtf's own menus type them for you: **Explain 
 
 ## Approving commands
 
-wtf makes Claude Code ask you before every command it runs or types: `run_readonly`, `type_at_prompt`, and Claude Code's own Bash and Monitor. It asks even in Claude Code's auto mode, and even after you chose "don't ask again". Claude Code shows the command, and you choose to allow or deny it.
+wtf makes Claude Code ask you before every command it runs or types (`run_readonly`, `type_at_prompt`, and Claude Code's own Bash and Monitor) and before every file it changes (Edit, Write and the like). It asks even in Claude Code's auto mode or accept-edits mode, and even after you chose "don't ask again". Claude Code shows the command or the change, and you choose to allow or deny it.
 
 To let Claude Code's own permission mode decide instead, turn on **Let Claude Code's own permission mode decide instead** in **Settings** ({{mac:⌘,|other:Ctrl+,}}) → **General**, or set `claude-auto-mode = true` in `config.toml`. It applies to Claude panes opened after that. It's off unless you turn it on.
 

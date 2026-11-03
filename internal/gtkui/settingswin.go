@@ -124,7 +124,7 @@ func (s *settingsWindow) generalPage() *adw.PreferencesPage {
 	claude := adw.NewPreferencesGroup()
 	claude.SetTitle("Ask Claude")
 	claude.SetDescription("Ask Claude (Ctrl+Shift+I) runs your own Claude Code in a split beside the shell, with wtf's tools for that shell. " +
-		"wtf makes Claude Code ask before every command it runs or types in your shells, even in its auto mode or after \u201cdon't ask again\u201d.")
+		"wtf makes Claude Code ask before every command it runs or types in your shells and every file it changes, even in its auto mode or after \u201cdon't ask again\u201d.")
 	auto := adw.NewSwitchRow()
 	auto.SetUseMarkup(false)
 	auto.SetTitle("Let Claude Code's own permission mode decide instead")

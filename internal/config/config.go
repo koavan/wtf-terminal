@@ -43,7 +43,8 @@ type Config struct {
 	ShowUsage bool `toml:"show-usage" json:"showUsage"`
 
 	// Ask Claude: let Claude Code's own permission mode decide which
-	// commands run without asking, instead of wtf asking for every one.
+	// commands and file edits go without asking, instead of wtf asking for
+	// every one.
 	ClaudeAutoMode bool `toml:"claude-auto-mode" json:"claudeAutoMode"`
 }
 
@@ -155,8 +156,9 @@ const template = `# wtf settings. Changes apply as soon as you save (or switch b
 
 # Ask Claude (⌘I / Ctrl+Shift+I) runs Claude Code in a split beside your
 # shell. wtf makes Claude Code ask before every command it runs or types in
-# your shells, even in its auto mode or after "don't ask again". Set this to
-# let Claude Code's own permission mode decide instead.
+# your shells and every file it changes, even in its auto mode or after
+# "don't ask again". Set this to let Claude Code's own permission mode
+# decide instead.
 # claude-auto-mode = false
 `
 

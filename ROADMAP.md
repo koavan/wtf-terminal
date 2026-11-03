@@ -596,9 +596,9 @@ Home: History tab and a block's menu.
 severity, file:line, message, snippet), read by `internal/findings`.
 `/wtf:triage [rule or file]` asks Claude what one means, whether the code
 path looks reachable, and for a patch as a diff; it's applied only through
-Claude Code's own edit tools. Open question: whether wtf-launched sessions
-should also force "ask" on Edit/Write, as they do on Bash. Home: a
-finding's menu → **Triage with Claude**.
+Claude Code's own edit tools, which ask in Claude panes (decided
+2026-11-03: Edit, MultiEdit, Write and NotebookEdit are forced to "ask"
+like Bash). Home: a finding's menu → **Triage with Claude**.
 
 ### 31. Ask your history ☐
 

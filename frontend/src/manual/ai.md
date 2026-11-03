@@ -33,7 +33,7 @@ The counts at the top are wtf's; Terraform's own line ("Plan: 2 to add, 1 to cha
 - **Only what you ask.** Claude Code runs only in a Claude pane you opened, and you see everything it does there. wtf never starts it in the background.
 - **Secrets are removed from wtf's tools.** Everything `pane_context`, `recent_commands`, `review_changes`, `run_readonly` and `type_at_prompt` return goes through the same patterns as [Hide Secrets](#secrets): access keys, tokens, JWTs, passwords in URLs and settings, private keys become `[REDACTED]`. It's best effort. Claude Code's own tools (reading files, its own Bash) aren't filtered by wtf.
 - **Where it goes** is up to Claude Code and your account: it sends to Anthropic (or the provider your Claude Code is set up for) under its own terms and settings.
-- **Every command asks.** wtf makes Claude Code ask before each command it runs or types in your shells (see [Ask Claude](#ask-claude)), unless you turned on `claude-auto-mode`.
+- **Every command and file change asks.** wtf makes Claude Code ask before each command it runs or types in your shells and each file it changes (see [Ask Claude](#ask-claude)), unless you turned on `claude-auto-mode`.
 
 AI never runs a command that changes anything on its own. Fixes are typed at your prompt for you to read, edit and run.
 

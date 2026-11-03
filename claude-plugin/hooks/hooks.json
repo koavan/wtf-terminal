@@ -2,7 +2,7 @@
   "hooks": {
     "PreToolUse": [
       {
-        "matcher": "Bash|Monitor|mcp__plugin_wtf_wtf__run_readonly|mcp__plugin_wtf_wtf__type_at_prompt",
+        "matcher": "Bash|Monitor|Edit|MultiEdit|Write|NotebookEdit|mcp__plugin_wtf_wtf__run_readonly|mcp__plugin_wtf_wtf__type_at_prompt",
         "hooks": [{"type": "command", "command": "\"${WTF_MCP}\" hook || exit 2"}]
       }
     ],

@@ -205,7 +205,7 @@ final class SettingsWindow: NSObject, NSWindowDelegate, NSToolbarDelegate {
         let claude = NSTextField(labelWithString: "Ask Claude")
         claude.font = .systemFont(ofSize: 12.5, weight: .semibold)
         content.addArrangedSubview(claude)
-        content.addArrangedSubview(label("Ask Claude (⌘I) runs your own Claude Code in a split beside the shell, with wtf’s tools for that shell. wtf makes Claude Code ask before every command it runs or types in your shells, even in its auto mode or after “don’t ask again”.", size: 12, color: .secondaryLabelColor))
+        content.addArrangedSubview(label("Ask Claude (⌘I) runs your own Claude Code in a split beside the shell, with wtf’s tools for that shell. wtf makes Claude Code ask before every command it runs or types in your shells and every file it changes, even in its auto mode or after “don’t ask again”.", size: 12, color: .secondaryLabelColor))
         let auto = NSButton(checkboxWithTitle: "Let Claude Code’s own permission mode decide instead (claude-auto-mode)", target: self, action: #selector(toggleClaudeAuto(_:)))
         auto.state = Settings.shared.config?.claudeAutoMode == true ? .on : .off
         auto.toolTip = "Applies to Claude panes opened from now on"

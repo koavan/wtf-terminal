@@ -92,7 +92,7 @@ func TestPluginFiles(t *testing.T) {
 		t.Fatalf("PreToolUse groups = %d", len(pre))
 	}
 	re := regexp.MustCompile(pre[0].Matcher)
-	for _, name := range []string{"Bash", "Monitor", toolPrefix + "run_readonly", toolPrefix + "type_at_prompt"} {
+	for _, name := range []string{"Bash", "Monitor", "Edit", "MultiEdit", "Write", "NotebookEdit", toolPrefix + "run_readonly", toolPrefix + "type_at_prompt"} {
 		if !re.MatchString(name) {
 			t.Errorf("%s doesn't ask", name)
 		}

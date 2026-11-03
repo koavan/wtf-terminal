@@ -116,7 +116,7 @@ func main() {
 }
 
 // askReason is shown in Claude Code's permission prompt.
-const askReason = "wtf asks before every command Claude Code runs or types in your shell."
+const askReason = "wtf asks before every command Claude Code runs or types in your shell, and every file it changes."
 
 // hook handles one hook event and returns the exit code. A PreToolUse it
 // can't read exits 2, which makes Claude Code refuse the tool call.
