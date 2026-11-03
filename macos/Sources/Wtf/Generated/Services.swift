@@ -183,4 +183,13 @@ enum Services {
         static func Reply(_ a0: String, _ a1: Go.bridge.Reply) async throws { try await Backend.run("bridge", "Reply", [a0, a1]) }
         static func SetTarget(_ a0: String, _ a1: String) async throws { try await Backend.run("bridge", "SetTarget", [a0, a1]) }
     }
+
+    enum cmdhistory {
+        static func Forget(_ a0: String) async throws { try await Backend.run("cmdhistory", "Forget", [a0]) }
+        static func ForgetAll() async throws { try await Backend.run("cmdhistory", "ForgetAll", []) }
+        static func ForgetSession(_ a0: String) async throws { try await Backend.run("cmdhistory", "ForgetSession", [a0]) }
+        static func Path() async throws -> String { try await Backend.call("cmdhistory", "Path", [], as: String.self) }
+        static func Record(_ a0: Go.cmdhistory.Record) async throws { try await Backend.run("cmdhistory", "Record", [a0]) }
+        static func Search(_ a0: Go.cmdhistory.Query) async throws -> Go.cmdhistory.Result { try await Backend.call("cmdhistory", "Search", [a0], as: Go.cmdhistory.Result.self) }
+    }
 }

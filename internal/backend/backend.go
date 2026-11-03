@@ -17,6 +17,7 @@ import (
 	"github.com/dayanraj/wtf/internal/awsprofiles"
 	"github.com/dayanraj/wtf/internal/bridge"
 	"github.com/dayanraj/wtf/internal/certs"
+	"github.com/dayanraj/wtf/internal/cmdhistory"
 	"github.com/dayanraj/wtf/internal/config"
 	"github.com/dayanraj/wtf/internal/files"
 	"github.com/dayanraj/wtf/internal/findings"
@@ -61,6 +62,7 @@ type Backend struct {
 	APIClient   *apiclient.Service
 	Review      *review.Service
 	Bridge      *bridge.Service
+	History     *cmdhistory.Service
 
 	started []any // by Start, for Shutdown
 }
@@ -102,7 +104,22 @@ func New(version, commit, buildDate, stateDir string) (*Backend, error) {
 	b.Procs = procs.NewService(b.Terminal.ShellPIDs)
 	b.APIClient = apiclient.NewService()
 	b.Review = review.NewService(b.Infra)
+	// Self-checks don't add to (or prune) the user's saved history; the
+	// history check saves to a throwaway folder.
+	switch debug := os.Getenv("WTF_NATIVE_DEBUG"); debug {
+	case "history":
+		dir, err := os.MkdirTemp("", "wtf-history-check-")
+		if err != nil {
+			return nil, err
+		}
+		b.History = cmdhistory.NewService(dir, b.Infra)
+	default:
+		b.History = cmdhistory.NewService(stateDir, b.Infra)
+		b.History.ReadOnly = debug != ""
+	}
+	b.History.Days = func() int { return b.Config.Current().Config.HistoryDays }
 	b.Bridge = bridge.NewService(b.Infra)
+	b.Bridge.History = b.History
 	b.Bridge.AutoMode = func() bool { return b.Config.Current().Config.ClaudeAutoMode }
 	// The Claude pane self-checks (WTF_NATIVE_DEBUG=claude) run a stand-in,
 	// never the user's real claude.
@@ -150,6 +167,7 @@ func (b *Backend) Services() []Named {
 		{"apiclient", b.APIClient},
 		{"review", b.Review},
 		{"bridge", b.Bridge},
+		{"cmdhistory", b.History},
 	}
 }
 

@@ -42,6 +42,9 @@ type Config struct {
 
 	ShowUsage bool `toml:"show-usage" json:"showUsage"`
 
+	// Days the History tab's saved commands are kept; 0 saves none.
+	HistoryDays int `toml:"history-days" json:"historyDays"`
+
 	// Ask Claude: let Claude Code's own permission mode decide which
 	// commands and file edits go without asking, instead of wtf asking for
 	// every one.
@@ -70,6 +73,8 @@ func Defaults() Config {
 
 		ClipboardClear: 30,
 		ConfirmPaste:   true,
+
+		HistoryDays: 90,
 	}
 }
 
@@ -153,6 +158,13 @@ const template = `# wtf settings. Changes apply as soon as you save (or switch b
 # Show wtf's own CPU and memory in the address bar. It's measured only
 # while shown (every 2 seconds, while the window is in front).
 # show-usage = false
+
+# Days wtf keeps the commands you run, with the Kubernetes context, AWS
+# account and region and the rest they ran under, for History's Everywhere
+# view (across windows and restarts). Secrets are hidden before they're
+# saved, in history.jsonl in wtf's state folder. 0 saves nothing and removes
+# what was saved (History then lasts as long as each shell).
+# history-days = 90
 
 # Ask Claude (⌘I / Ctrl+Shift+I) runs Claude Code in a split beside your
 # shell. wtf makes Claude Code ask before every command it runs or types in
@@ -244,6 +256,10 @@ func validate(c Config, problems []string) (Config, []string, error) {
 	if c.ClipboardClear < 0 || c.ClipboardClear > 600 {
 		bad("clipboard-clear", c.ClipboardClear, "must be between 0 and 600")
 		c.ClipboardClear = d.ClipboardClear
+	}
+	if c.HistoryDays < 0 || c.HistoryDays > 3650 {
+		bad("history-days", c.HistoryDays, "must be between 0 and 3650")
+		c.HistoryDays = d.HistoryDays
 	}
 	if strings.TrimSpace(c.FontFamily) == "" {
 		c.FontFamily = d.FontFamily

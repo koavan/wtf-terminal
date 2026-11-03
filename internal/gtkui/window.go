@@ -16,6 +16,7 @@ import (
 	"github.com/diamondburned/gotk4/pkg/gtk/v4"
 
 	"github.com/dayanraj/wtf/internal/infra"
+	"github.com/dayanraj/wtf/internal/cmdhistory"
 	"github.com/dayanraj/wtf/internal/uicore"
 )
 
@@ -433,6 +434,15 @@ func (w *Window) commandEnded(p *Pane, code int, took time.Duration) {
 	}
 	ps.LastCommand = &uicore.LastCommand{Text: ps.Command, ExitCode: code, Duration: took}
 	w.records.history.Finished(p.id, code, took, time.Now())
+	// Saved with the context it ran in (#17); ps.Env is still the prompt's before it.
+	if p.session != "" && ps.Command != "" {
+		r := cmdhistory.Record{Session: p.session, Command: ps.Command, Cwd: ps.Cwd, Env: ps.Env, DurationMs: float64(took.Milliseconds()), ExitCode: code}
+		hist, app := w.app.be.History, w.app
+		go func() {
+			_ = hist.Record(r)
+			onMainAsync(app.savedHistoryChanged)
+		}()
+	}
 	// A pin following this command gets its final output.
 	if b, ok := w.records.runningBlock[p.id]; ok {
 		delete(w.records.runningBlock, p.id)

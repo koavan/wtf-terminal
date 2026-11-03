@@ -376,6 +376,11 @@ final class WindowController: NSWindowController, NSWindowDelegate, NSMenuItemVa
             p.lastCommand = (p.command, code, ms)
             SshStore.shared.commandFinished(p.command)
             records.history.finished(pane: id, exitCode: code, durationMs: ms)
+            // Saved with the context it ran in (#17); p.env is still the prompt's before it.
+            if let s = p.sessionId {
+                let r = Go.cmdhistory.Record(session: s, command: p.command, cwd: p.cwd, env: p.env ?? [:], startedAt: "", durationMs: ms, exitCode: code)
+                Task { try? await Services.cmdhistory.Record(r); SavedHistory.changed() }
+            }
             // A pin following this command gets its final output.
             if let b = records.runningBlock.removeValue(forKey: id), let term = terminals[id] {
                 records.pins.update(pane: id, block: b, text: term.blockOutput(b) ?? "", done: (code, ms))

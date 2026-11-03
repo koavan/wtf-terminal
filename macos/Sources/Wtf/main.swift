@@ -54,6 +54,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         if env["WTF_NATIVE_DEBUG"] == "claude" {
             await ClaudeCheck.run(w)
         }
+        if env["WTF_NATIVE_DEBUG"] == "history" {
+            await HistoryCheck.run(w)
+        }
         if env["WTF_NATIVE_DEBUG"] == "paste" {
             // Pastes two lines from a private pasteboard through the
             // responder chain, as ⌘V does, then quits.

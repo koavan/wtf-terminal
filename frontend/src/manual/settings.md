@@ -20,6 +20,7 @@
 | `show-usage` | show wtf's own CPU and memory in the address bar (default off) — see [Resource usage](#usage) |
 | `confirm-paste` | show a paste first when it has more than one line, a final newline or control characters (default on) — see [Privacy](#privacy) |
 | `claude-auto-mode` | let Claude Code's own permission mode decide which commands in a Claude pane run without asking (off: wtf asks every time) — see [Ask Claude](#ask-claude) |
+| `history-days` | days History's **Saved** view keeps the commands you run, with their context (default 90, up to 3650); 0 saves nothing and removes what was saved — see [History](#history) |
 | `clipboard-clear` | seconds before a copied secret leaves the clipboard (default 30, up to 600); 0 keeps it — see [Privacy](#privacy) |
 | `log-highlighting` | colors for log levels, timestamps, URLs, IPs and Kubernetes resources — see [Logs in the output](#logs) |
 

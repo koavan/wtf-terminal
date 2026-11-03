@@ -42,7 +42,7 @@ public struct SidebarState: Equatable, Sendable {
         if case .string(let n)? = o["networkScope"], ["terminals", "all"].contains(n) { networkScope = n }
         if case .string(let n)? = o["processScope"], ["terminals", "all"].contains(n) { processScope = n }
         if case .string(let n)? = o["processSort"], ["cpu", "memory", "name"].contains(n) { processSort = n }
-        if case .string(let h)? = o["historyScope"], ["pane", "all"].contains(h) { historyScope = h }
+        if case .string(let h)? = o["historyScope"], ["pane", "all", "saved"].contains(h) { historyScope = h }
         if case .string(let g)? = o["generateSection"], ["key", "password"].contains(g) { generateSection = g }
     }
 

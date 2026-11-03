@@ -208,10 +208,27 @@ Built: **agent fwd** and **hostkey no/off/accept-new** pills (resolved like
 ssh, `Host *` included; exact setting on hover), jump hosts as "via …";
 keys show RSA/ECDSA sizes and "from Mar 2023" (the file's time).
 
-### 17. Context-tagged history ☐
+### 17. Context-tagged history ☑
 
 Record each command with the kube context, AWS account/region it ran under;
 filter History by them ("what did I run against account X today?").
+
+Built 2026-11-03: `internal/cmdhistory` (backend service `cmdhistory`)
+saves each finished command, from both UIs, with the context its shell's
+variables pointed at before it ran (infra.Resolve: Kubernetes context and
+namespace, AWS profile/account/region, GCP project, Terraform workspace,
+git branch; files only). Redacted with Hide Secrets' patterns, appended to
+`history.jsonl` in the state folder (0600), kept `history-days` (default
+90, decided by the user; 0 saves nothing and removes the file), at most
+100,000 entries. Each entry has a random per-launch run id with the
+session, so clearing a pane's History forgets only that shell's commands.
+History's new **Saved** scope (beside This pane / All panes) searches it
+with filters for time (today, 7, 30 days), Kubernetes context and AWS
+account/profile/region, each listing the saved values with counts; rows
+show the context as pills; Forget This Command, and 🗑 forgets all.
+Self-checks write nothing to the real history (read-only under
+WTF_NATIVE_DEBUG); the `history` self-check (both platforms) uses a
+throwaway store.
 
 ### 18. Cloud secrets browser ☐
 

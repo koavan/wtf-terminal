@@ -119,7 +119,7 @@ func ParseSidebarState(raw json.RawMessage) SidebarState {
 	oneOf("networkScope", &s.NetworkScope, "terminals", "all")
 	oneOf("processScope", &s.ProcessScope, "terminals", "all")
 	oneOf("processSort", &s.ProcessSort, "cpu", "memory", "name")
-	oneOf("historyScope", &s.HistoryScope, "pane", "all")
+	oneOf("historyScope", &s.HistoryScope, "pane", "all", "saved")
 	oneOf("generateSection", &s.GenerateSection, "key", "password")
 	return s
 }

@@ -36,6 +36,7 @@ import (
 	"time"
 
 	"github.com/dayanraj/wtf/internal/bridge/wire"
+	"github.com/dayanraj/wtf/internal/cmdhistory"
 	"github.com/dayanraj/wtf/internal/events"
 	"github.com/dayanraj/wtf/internal/infra"
 	"github.com/dayanraj/wtf/internal/snippets"
@@ -172,6 +173,8 @@ type Service struct {
 	// The claude to run (nil or "": claude from the shell's PATH); the
 	// self-checks give a stand-in.
 	Program func() string
+	// Saved command history, for search_history (#31); nil without.
+	History *cmdhistory.Service
 }
 
 func NewService(in *infra.Service) *Service {

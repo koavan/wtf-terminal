@@ -12,6 +12,7 @@ extension Go { public enum apiclient {} }
 extension Go { public enum awsprofiles {} }
 extension Go { public enum bridge {} }
 extension Go { public enum certs {} }
+extension Go { public enum cmdhistory {} }
 extension Go { public enum config {} }
 extension Go { public enum files {} }
 extension Go { public enum findings {} }
@@ -734,6 +735,258 @@ extension Go.certs {
     }
 }
 
+extension Go.cmdhistory {
+    /// cmdhistory.Entry
+    public struct Entry: Codable, Equatable, Sendable {
+        public var id: String
+        public var run: String
+        public var session: String
+        public var command: String
+        public var cwd: String
+        public var startedAt: String
+        public var durationMs: Double
+        public var exitCode: Int
+        public var kubeContext: String
+        public var kubeNamespace: String
+        public var awsProfile: String
+        public var awsAccount: String
+        public var awsRegion: String
+        public var gcpProject: String
+        public var tfWorkspace: String
+        public var gitBranch: String
+
+        public init(id: String = "", run: String = "", session: String = "", command: String = "", cwd: String = "", startedAt: String = "", durationMs: Double = 0, exitCode: Int = 0, kubeContext: String = "", kubeNamespace: String = "", awsProfile: String = "", awsAccount: String = "", awsRegion: String = "", gcpProject: String = "", tfWorkspace: String = "", gitBranch: String = "") {
+            self.id = id
+            self.run = run
+            self.session = session
+            self.command = command
+            self.cwd = cwd
+            self.startedAt = startedAt
+            self.durationMs = durationMs
+            self.exitCode = exitCode
+            self.kubeContext = kubeContext
+            self.kubeNamespace = kubeNamespace
+            self.awsProfile = awsProfile
+            self.awsAccount = awsAccount
+            self.awsRegion = awsRegion
+            self.gcpProject = gcpProject
+            self.tfWorkspace = tfWorkspace
+            self.gitBranch = gitBranch
+        }
+
+        enum CodingKeys: String, CodingKey {
+            case id = "id"
+            case run = "run"
+            case session = "session"
+            case command = "command"
+            case cwd = "cwd"
+            case startedAt = "startedAt"
+            case durationMs = "durationMs"
+            case exitCode = "exitCode"
+            case kubeContext = "kubeContext"
+            case kubeNamespace = "kubeNamespace"
+            case awsProfile = "awsProfile"
+            case awsAccount = "awsAccount"
+            case awsRegion = "awsRegion"
+            case gcpProject = "gcpProject"
+            case tfWorkspace = "tfWorkspace"
+            case gitBranch = "gitBranch"
+        }
+
+        public init(from decoder: Decoder) throws {
+            let c = try decoder.container(keyedBy: CodingKeys.self)
+            self.id = (try? c.decodeIfPresent(String.self, forKey: .id)) ?? ""
+            self.run = (try? c.decodeIfPresent(String.self, forKey: .run)) ?? ""
+            self.session = (try? c.decodeIfPresent(String.self, forKey: .session)) ?? ""
+            self.command = (try? c.decodeIfPresent(String.self, forKey: .command)) ?? ""
+            self.cwd = (try? c.decodeIfPresent(String.self, forKey: .cwd)) ?? ""
+            self.startedAt = (try? c.decodeIfPresent(String.self, forKey: .startedAt)) ?? ""
+            self.durationMs = (try? c.decodeIfPresent(Double.self, forKey: .durationMs)) ?? 0
+            self.exitCode = (try? c.decodeIfPresent(Int.self, forKey: .exitCode)) ?? 0
+            self.kubeContext = (try? c.decodeIfPresent(String.self, forKey: .kubeContext)) ?? ""
+            self.kubeNamespace = (try? c.decodeIfPresent(String.self, forKey: .kubeNamespace)) ?? ""
+            self.awsProfile = (try? c.decodeIfPresent(String.self, forKey: .awsProfile)) ?? ""
+            self.awsAccount = (try? c.decodeIfPresent(String.self, forKey: .awsAccount)) ?? ""
+            self.awsRegion = (try? c.decodeIfPresent(String.self, forKey: .awsRegion)) ?? ""
+            self.gcpProject = (try? c.decodeIfPresent(String.self, forKey: .gcpProject)) ?? ""
+            self.tfWorkspace = (try? c.decodeIfPresent(String.self, forKey: .tfWorkspace)) ?? ""
+            self.gitBranch = (try? c.decodeIfPresent(String.self, forKey: .gitBranch)) ?? ""
+        }
+    }
+}
+
+extension Go.cmdhistory {
+    /// cmdhistory.Facet
+    public struct Facet: Codable, Equatable, Sendable {
+        public var value: String
+        public var count: Int
+
+        public init(value: String = "", count: Int = 0) {
+            self.value = value
+            self.count = count
+        }
+
+        enum CodingKeys: String, CodingKey {
+            case value = "value"
+            case count = "count"
+        }
+
+        public init(from decoder: Decoder) throws {
+            let c = try decoder.container(keyedBy: CodingKeys.self)
+            self.value = (try? c.decodeIfPresent(String.self, forKey: .value)) ?? ""
+            self.count = (try? c.decodeIfPresent(Int.self, forKey: .count)) ?? 0
+        }
+    }
+}
+
+extension Go.cmdhistory {
+    /// cmdhistory.Query
+    public struct Query: Codable, Equatable, Sendable {
+        public var text: String
+        public var kubeContext: String
+        public var kubeNamespace: String
+        public var awsAccount: String
+        public var awsProfile: String
+        public var awsRegion: String
+        public var since: String
+        public var failed: Bool
+        public var limit: Int
+
+        public init(text: String = "", kubeContext: String = "", kubeNamespace: String = "", awsAccount: String = "", awsProfile: String = "", awsRegion: String = "", since: String = "", failed: Bool = false, limit: Int = 0) {
+            self.text = text
+            self.kubeContext = kubeContext
+            self.kubeNamespace = kubeNamespace
+            self.awsAccount = awsAccount
+            self.awsProfile = awsProfile
+            self.awsRegion = awsRegion
+            self.since = since
+            self.failed = failed
+            self.limit = limit
+        }
+
+        enum CodingKeys: String, CodingKey {
+            case text = "text"
+            case kubeContext = "kubeContext"
+            case kubeNamespace = "kubeNamespace"
+            case awsAccount = "awsAccount"
+            case awsProfile = "awsProfile"
+            case awsRegion = "awsRegion"
+            case since = "since"
+            case failed = "failed"
+            case limit = "limit"
+        }
+
+        public init(from decoder: Decoder) throws {
+            let c = try decoder.container(keyedBy: CodingKeys.self)
+            self.text = (try? c.decodeIfPresent(String.self, forKey: .text)) ?? ""
+            self.kubeContext = (try? c.decodeIfPresent(String.self, forKey: .kubeContext)) ?? ""
+            self.kubeNamespace = (try? c.decodeIfPresent(String.self, forKey: .kubeNamespace)) ?? ""
+            self.awsAccount = (try? c.decodeIfPresent(String.self, forKey: .awsAccount)) ?? ""
+            self.awsProfile = (try? c.decodeIfPresent(String.self, forKey: .awsProfile)) ?? ""
+            self.awsRegion = (try? c.decodeIfPresent(String.self, forKey: .awsRegion)) ?? ""
+            self.since = (try? c.decodeIfPresent(String.self, forKey: .since)) ?? ""
+            self.failed = (try? c.decodeIfPresent(Bool.self, forKey: .failed)) ?? false
+            self.limit = (try? c.decodeIfPresent(Int.self, forKey: .limit)) ?? 0
+        }
+    }
+}
+
+extension Go.cmdhistory {
+    /// cmdhistory.Record
+    public struct Record: Codable, Equatable, Sendable {
+        public var session: String
+        public var command: String
+        public var cwd: String
+        public var env: [String: String]
+        public var startedAt: String
+        public var durationMs: Double
+        public var exitCode: Int
+
+        public init(session: String = "", command: String = "", cwd: String = "", env: [String: String] = [:], startedAt: String = "", durationMs: Double = 0, exitCode: Int = 0) {
+            self.session = session
+            self.command = command
+            self.cwd = cwd
+            self.env = env
+            self.startedAt = startedAt
+            self.durationMs = durationMs
+            self.exitCode = exitCode
+        }
+
+        enum CodingKeys: String, CodingKey {
+            case session = "session"
+            case command = "command"
+            case cwd = "cwd"
+            case env = "env"
+            case startedAt = "startedAt"
+            case durationMs = "durationMs"
+            case exitCode = "exitCode"
+        }
+
+        public init(from decoder: Decoder) throws {
+            let c = try decoder.container(keyedBy: CodingKeys.self)
+            self.session = (try? c.decodeIfPresent(String.self, forKey: .session)) ?? ""
+            self.command = (try? c.decodeIfPresent(String.self, forKey: .command)) ?? ""
+            self.cwd = (try? c.decodeIfPresent(String.self, forKey: .cwd)) ?? ""
+            self.env = (try? c.decodeIfPresent([String: String].self, forKey: .env)) ?? [:]
+            self.startedAt = (try? c.decodeIfPresent(String.self, forKey: .startedAt)) ?? ""
+            self.durationMs = (try? c.decodeIfPresent(Double.self, forKey: .durationMs)) ?? 0
+            self.exitCode = (try? c.decodeIfPresent(Int.self, forKey: .exitCode)) ?? 0
+        }
+    }
+}
+
+extension Go.cmdhistory {
+    /// cmdhistory.Result
+    public struct Result: Codable, Equatable, Sendable {
+        public var entries: [Go.cmdhistory.Entry]
+        public var total: Int
+        public var saving: Bool
+        public var days: Int
+        public var kubeContexts: [Go.cmdhistory.Facet]
+        public var awsAccounts: [Go.cmdhistory.Facet]
+        public var awsRegions: [Go.cmdhistory.Facet]
+        public var awsProfiles: [Go.cmdhistory.Facet]
+        public var namespaces: [Go.cmdhistory.Facet]
+
+        public init(entries: [Go.cmdhistory.Entry] = [], total: Int = 0, saving: Bool = false, days: Int = 0, kubeContexts: [Go.cmdhistory.Facet] = [], awsAccounts: [Go.cmdhistory.Facet] = [], awsRegions: [Go.cmdhistory.Facet] = [], awsProfiles: [Go.cmdhistory.Facet] = [], namespaces: [Go.cmdhistory.Facet] = []) {
+            self.entries = entries
+            self.total = total
+            self.saving = saving
+            self.days = days
+            self.kubeContexts = kubeContexts
+            self.awsAccounts = awsAccounts
+            self.awsRegions = awsRegions
+            self.awsProfiles = awsProfiles
+            self.namespaces = namespaces
+        }
+
+        enum CodingKeys: String, CodingKey {
+            case entries = "entries"
+            case total = "total"
+            case saving = "saving"
+            case days = "days"
+            case kubeContexts = "kubeContexts"
+            case awsAccounts = "awsAccounts"
+            case awsRegions = "awsRegions"
+            case awsProfiles = "awsProfiles"
+            case namespaces = "namespaces"
+        }
+
+        public init(from decoder: Decoder) throws {
+            let c = try decoder.container(keyedBy: CodingKeys.self)
+            self.entries = (try? c.decodeIfPresent([Go.cmdhistory.Entry].self, forKey: .entries)) ?? []
+            self.total = (try? c.decodeIfPresent(Int.self, forKey: .total)) ?? 0
+            self.saving = (try? c.decodeIfPresent(Bool.self, forKey: .saving)) ?? false
+            self.days = (try? c.decodeIfPresent(Int.self, forKey: .days)) ?? 0
+            self.kubeContexts = (try? c.decodeIfPresent([Go.cmdhistory.Facet].self, forKey: .kubeContexts)) ?? []
+            self.awsAccounts = (try? c.decodeIfPresent([Go.cmdhistory.Facet].self, forKey: .awsAccounts)) ?? []
+            self.awsRegions = (try? c.decodeIfPresent([Go.cmdhistory.Facet].self, forKey: .awsRegions)) ?? []
+            self.awsProfiles = (try? c.decodeIfPresent([Go.cmdhistory.Facet].self, forKey: .awsProfiles)) ?? []
+            self.namespaces = (try? c.decodeIfPresent([Go.cmdhistory.Facet].self, forKey: .namespaces)) ?? []
+        }
+    }
+}
+
 extension Go.config {
     /// config.Config
     public struct Config: Codable, Equatable, Sendable {
@@ -758,9 +1011,10 @@ extension Go.config {
         public var clipboardClear: Double
         public var confirmPaste: Bool
         public var showUsage: Bool
+        public var historyDays: Int
         public var claudeAutoMode: Bool
 
-        public init(theme: String = "", fontFamily: String = "", fontSize: Double = 0, lineHeight: Double = 0, cursorStyle: String = "", cursorBlink: Bool = false, scrollback: Int = 0, optionAsMeta: Bool = false, copyOnSelect: Bool = false, shell: String = "", shellIntegration: Bool = false, notifyAfter: Double = 0, unfocusedSplitDim: Double = 0, sidebarAutoRefresh: Bool = false, sidebarRefreshInterval: Double = 0, contextBadges: Bool = false, logHighlighting: Bool = false, redactSecrets: Bool = false, clipboardClear: Double = 0, confirmPaste: Bool = false, showUsage: Bool = false, claudeAutoMode: Bool = false) {
+        public init(theme: String = "", fontFamily: String = "", fontSize: Double = 0, lineHeight: Double = 0, cursorStyle: String = "", cursorBlink: Bool = false, scrollback: Int = 0, optionAsMeta: Bool = false, copyOnSelect: Bool = false, shell: String = "", shellIntegration: Bool = false, notifyAfter: Double = 0, unfocusedSplitDim: Double = 0, sidebarAutoRefresh: Bool = false, sidebarRefreshInterval: Double = 0, contextBadges: Bool = false, logHighlighting: Bool = false, redactSecrets: Bool = false, clipboardClear: Double = 0, confirmPaste: Bool = false, showUsage: Bool = false, historyDays: Int = 0, claudeAutoMode: Bool = false) {
             self.theme = theme
             self.fontFamily = fontFamily
             self.fontSize = fontSize
@@ -782,6 +1036,7 @@ extension Go.config {
             self.clipboardClear = clipboardClear
             self.confirmPaste = confirmPaste
             self.showUsage = showUsage
+            self.historyDays = historyDays
             self.claudeAutoMode = claudeAutoMode
         }
 
@@ -807,6 +1062,7 @@ extension Go.config {
             case clipboardClear = "clipboardClear"
             case confirmPaste = "confirmPaste"
             case showUsage = "showUsage"
+            case historyDays = "historyDays"
             case claudeAutoMode = "claudeAutoMode"
         }
 
@@ -833,6 +1089,7 @@ extension Go.config {
             self.clipboardClear = (try? c.decodeIfPresent(Double.self, forKey: .clipboardClear)) ?? 0
             self.confirmPaste = (try? c.decodeIfPresent(Bool.self, forKey: .confirmPaste)) ?? false
             self.showUsage = (try? c.decodeIfPresent(Bool.self, forKey: .showUsage)) ?? false
+            self.historyDays = (try? c.decodeIfPresent(Int.self, forKey: .historyDays)) ?? 0
             self.claudeAutoMode = (try? c.decodeIfPresent(Bool.self, forKey: .claudeAutoMode)) ?? false
         }
     }

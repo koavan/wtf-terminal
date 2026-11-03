@@ -9,13 +9,33 @@ func clockTime(_ d: Date) -> String {
     return f.string(from: d)
 }
 
+/// Saved history (#17) changed: a command was saved or forgotten.
+@MainActor
+enum SavedHistory {
+    static let notification = Notification.Name("wtf.savedHistoryChanged")
+    static func changed() { NotificationCenter.default.post(name: notification, object: nil) }
+}
+
 /// The History tab: the commands this pane (or every pane in the window)
-/// ran, newest first, with how they went. Click to put one at the prompt,
-/// double-click to run it again. Like HistoryView.svelte.
+/// ran, newest first, with how they went; or Saved: every shell's, across
+/// windows and restarts, with the Kubernetes and AWS context each ran in
+/// (#17), filtered by it. Click to put one at the prompt, double-click to
+/// run it again. Like HistoryView.svelte.
 @MainActor
 final class HistoryView: NSView, SidePaneTab, NSSearchFieldDelegate {
     private unowned let owner: WindowController
-    private let scope = NSSegmentedControl(labels: ["This pane", "All panes"], trackingMode: .selectOne, target: nil, action: nil)
+    private let scope = NSSegmentedControl(labels: ["This pane", "All panes", "Saved"], trackingMode: .selectOne, target: nil, action: nil)
+    /// Saved: the filters (time, Kubernetes, AWS) and what Search returned.
+    private let timePop = NSPopUpButton(frame: .zero, pullsDown: false)
+    private let kubePop = NSPopUpButton(frame: .zero, pullsDown: false)
+    private let awsPop = NSPopUpButton(frame: .zero, pullsDown: false)
+    private var result: Go.cmdhistory.Result?
+    private var savedShown: [Go.cmdhistory.Entry] = []
+    private var since = 0
+    private var kube = ""
+    /// "account:…", "profile:…" or "region:…".
+    private var aws = ""
+    private var loading = false, again = false
     private let trash = ToolButton(symbol: "trash", tip: "Clear history") {}
     private let filter = NSSearchField()
     private let list = SideList()
@@ -39,13 +59,31 @@ final class HistoryView: NSView, SidePaneTab, NSSearchFieldDelegate {
         filter.sendsSearchStringImmediately = true
         filter.refusesFirstResponder = true
         addSubview(filter)
+        for pop in [timePop, kubePop, awsPop] {
+            pop.controlSize = .small
+            pop.font = .systemFont(ofSize: NSFont.smallSystemFontSize)
+            pop.target = self
+            pop.action = #selector(savedFilterChanged(_:))
+            pop.isHidden = true
+            addSubview(pop)
+        }
+        timePop.addItems(withTitles: ["Any time", "Today", "Last 7 days", "Last 30 days"])
+        NotificationCenter.default.addObserver(forName: SavedHistory.notification, object: nil, queue: .main) { [weak self] _ in
+            MainActor.assumeIsolated { if self?.saved == true, self?.window != nil { self?.loadSaved() } }
+        }
         list.onClick = { [weak self] id in
             // The second click of a double-click runs it instead.
-            guard NSApp.currentEvent?.clickCount ?? 1 == 1 else { return }
-            self?.entry(id).map { self?.insert($0) }
+            guard let self, NSApp.currentEvent?.clickCount ?? 1 == 1 else { return }
+            if saved { savedEntry(id).map { owner.activeTerminal?.insert($0.command) } } else { entry(id).map { insert($0) } }
         }
-        list.onDoubleClick = { [weak self] id in self?.entry(id).map { self?.runAgain($0) } }
-        list.menuProvider = { [weak self] ids in ids.first.flatMap { self?.entry($0) }.flatMap { self?.menu($0) } }
+        list.onDoubleClick = { [weak self] id in
+            guard let self else { return }
+            if saved { savedEntry(id).map { runAgain(command: $0.command) } } else { entry(id).map { runAgain($0) } }
+        }
+        list.menuProvider = { [weak self] ids in
+            guard let self, let id = ids.first else { return nil }
+            return saved ? savedEntry(id).map(savedMenu) : entry(id).map(menu)
+        }
         addSubview(list)
         records.observe(self) { $0.rebuild() }
         Redaction.shared.observe(self) { $0.rebuild() }
@@ -61,22 +99,40 @@ final class HistoryView: NSView, SidePaneTab, NSSearchFieldDelegate {
         scope.frame = NSRect(x: 8, y: 4, width: bounds.width - 46, height: 22)
         trash.frame = NSRect(x: bounds.width - 32, y: 3, width: 24, height: 24)
         filter.frame = NSRect(x: 8, y: 32, width: bounds.width - 16, height: 24)
-        list.frame = NSRect(x: 0, y: 62, width: bounds.width, height: max(0, bounds.height - 62))
-        note?.frame = NSRect(x: 0, y: 62, width: bounds.width, height: note?.height(for: bounds.width) ?? 0)
+        var top: CGFloat = 62
+        if saved {
+            let w = (bounds.width - 16 - 8) / 3
+            for (i, pop) in [timePop, kubePop, awsPop].enumerated() {
+                pop.frame = NSRect(x: 8 + CGFloat(i) * (w + 4), y: 60, width: w, height: 22)
+            }
+            top = 88
+        }
+        list.frame = NSRect(x: 0, y: top, width: bounds.width, height: max(0, bounds.height - top))
+        note?.frame = NSRect(x: 0, y: top, width: bounds.width, height: note?.height(for: bounds.width) ?? 0)
     }
 
     private var all: Bool { owner.sidebar.historyScope == "all" }
+    private var saved: Bool { owner.sidebar.historyScope == "saved" }
 
     func paneChanged() { rebuild() }
 
-    func debugSummary() -> String { "history: \(shown.count) shown" }
+    func debugSummary() -> String { saved ? "history saved: \(savedShown.count)" : "history: \(shown.count) shown" }
 
     func controlTextDidChange(_ obj: Notification) { rebuild() }
 
     @objc private func scopeChanged() {
-        owner.sidebar.historyScope = scope.selectedSegment == 1 ? "all" : "pane"
+        owner.sidebar.historyScope = ["pane", "all", "saved"][max(0, min(2, scope.selectedSegment))]
         owner.scheduleSave()
         rebuild()
+    }
+
+    @objc private func savedFilterChanged(_ pop: NSPopUpButton) {
+        switch pop {
+        case timePop: since = pop.indexOfSelectedItem
+        case kubePop: kube = pop.selectedItem?.representedObject as? String ?? ""
+        default: aws = pop.selectedItem?.representedObject as? String ?? ""
+        }
+        loadSaved()
     }
 
     private func key(_ e: History.Entry) -> String { "\(e.paneId):\(e.id):\(e.startedAt.timeIntervalSince1970)" }
@@ -88,7 +144,13 @@ final class HistoryView: NSView, SidePaneTab, NSSearchFieldDelegate {
     }
 
     private func rebuild() {
-        scope.selectedSegment = all ? 1 : 0
+        scope.selectedSegment = saved ? 2 : all ? 1 : 0
+        for pop in [timePop, kubePop, awsPop] { pop.isHidden = !saved }
+        filter.placeholderString = saved ? "Search saved commands" : "Filter commands"
+        if saved {
+            loadSaved()
+            return
+        }
         shown = source.filter { History.matches($0, filter.stringValue) }.reversed()
         trash.isEnabled = !(source.isEmpty && filter.stringValue.isEmpty)
         list.set([.init(title: nil, rows: shown.map(row))])
@@ -106,6 +168,161 @@ final class HistoryView: NSView, SidePaneTab, NSSearchFieldDelegate {
             addSubview(note!)
         }
         needsLayout = true
+    }
+
+    // MARK: Saved (#17)
+
+    private var query: Go.cmdhistory.Query {
+        var q = Go.cmdhistory.Query(text: filter.stringValue, limit: 500)
+        let cal = Calendar.current
+        switch since {
+        case 1: q.since = ISO8601DateFormatter().string(from: cal.startOfDay(for: Date()))
+        case 2: q.since = ISO8601DateFormatter().string(from: Date().addingTimeInterval(-7 * 86400))
+        case 3: q.since = ISO8601DateFormatter().string(from: Date().addingTimeInterval(-30 * 86400))
+        default: break
+        }
+        q.kubeContext = kube
+        let parts = aws.split(separator: ":", maxSplits: 1).map(String.init)
+        if parts.count == 2 {
+            let value = parts[1]
+            switch parts[0] {
+            case "account": q.awsAccount = value
+            case "profile": q.awsProfile = value
+            default: q.awsRegion = value
+            }
+        }
+        return q
+    }
+
+    /// Asks the backend; only while Saved shows (and once more if asked meanwhile).
+    private func loadSaved() {
+        guard !loading else { again = true; return }
+        loading = true
+        let q = query
+        Task { @MainActor in
+            let r = try? await Services.cmdhistory.Search(q)
+            loading = false
+            if again {
+                again = false
+                loadSaved()
+                return
+            }
+            guard saved else { return }
+            result = r
+            showSaved()
+        }
+    }
+
+    private func fillPops(_ r: Go.cmdhistory.Result) {
+        kubePop.removeAllItems()
+        kubePop.addItem(withTitle: "Any Kubernetes")
+        func item(_ title: String, _ value: String) -> NSMenuItem {
+            let i = NSMenuItem(title: title, action: nil, keyEquivalent: "")
+            i.representedObject = value
+            return i
+        }
+        for f in r.kubeContexts { kubePop.menu?.addItem(item("\(f.value) (\(f.count))", f.value)) }
+        kubePop.selectItem(at: max(0, kubePop.indexOfItem(withRepresentedObject: kube)))
+        awsPop.removeAllItems()
+        awsPop.addItem(withTitle: "Any AWS")
+        func section(_ title: String, _ kind: String, _ list: [Go.cmdhistory.Facet]) {
+            guard !list.isEmpty else { return }
+            awsPop.menu?.addItem(.separator())
+            awsPop.menu?.addItem(NSMenuItem.sectionHeader(title: title))
+            for f in list { awsPop.menu?.addItem(item("\(f.value) (\(f.count))", "\(kind):\(f.value)")) }
+        }
+        section("Accounts", "account", r.awsAccounts)
+        section("Profiles", "profile", r.awsProfiles)
+        section("Regions", "region", r.awsRegions)
+        awsPop.selectItem(at: max(0, awsPop.indexOfItem(withRepresentedObject: aws)))
+        timePop.selectItem(at: since)
+    }
+
+    private func showSaved() {
+        guard let r = result else { return }
+        fillPops(r)
+        savedShown = r.entries
+        trash.isEnabled = r.saving
+        list.set([.init(title: r.total > r.entries.count ? "Newest \(r.entries.count) of \(r.total)" : nil, rows: r.entries.map(savedRow))])
+        note?.removeFromSuperview()
+        note = nil
+        if r.entries.isEmpty {
+            if !r.saving {
+                note = paneNote("Saving is off", "history-days is 0 in config.toml, so commands aren't saved. Set it to the days to keep (90 by default).")
+            } else if !filter.stringValue.isEmpty || since != 0 || !kube.isEmpty || !aws.isEmpty {
+                note = paneNote(nil, "No saved commands match.")
+            } else {
+                note = paneNote("No saved commands yet", "Commands you run in any wtf shell are kept here for \(r.days) days, with the Kubernetes context and AWS account they ran under. Secrets are hidden before they're saved.")
+            }
+            addSubview(note!)
+        }
+        needsLayout = true
+    }
+
+    private func savedEntry(_ id: String) -> Go.cmdhistory.Entry? { savedShown.first { $0.id == id } }
+
+    private func savedRow(_ e: Go.cmdhistory.Entry) -> SideList.Row {
+        let cmd = Redaction.shared.text(e.command)
+        let cwd = WindowModel.prettyPath(e.cwd)
+        let at = ISO8601DateFormatter().date(from: e.startedAt) ?? Date()
+        var r = SideList.Row(id: e.id, symbol: e.exitCode == 0 ? "checkmark.circle.fill" : "xmark.circle.fill",
+                             tint: e.exitCode == 0 ? .systemGreen : .systemRed, title: cmd, mono: true,
+                             detail: "\(clockTime(at)) · \(Format.duration(ms: e.durationMs)) · \(cwd)",
+                             tip: "\(cmd)\nin \(cwd)\nstarted \(clockTime(at))")
+        if e.exitCode != 0 { r.pills.append(.init(text: "exit \(e.exitCode)", color: .systemRed)) }
+        if !e.kubeContext.isEmpty {
+            let ns = e.kubeNamespace.isEmpty ? "" : "/\(e.kubeNamespace)"
+            r.pills.append(.init(text: e.kubeContext + ns, color: .controlAccentColor, tip: "Kubernetes context \(e.kubeContext)\(e.kubeNamespace.isEmpty ? "" : ", namespace \(e.kubeNamespace)")"))
+        }
+        let awsText = [e.awsAccount.isEmpty ? e.awsProfile : e.awsAccount, e.awsRegion].filter { !$0.isEmpty }.joined(separator: " ")
+        if !awsText.isEmpty {
+            r.pills.append(.init(text: awsText, color: .systemOrange, tip: "AWS profile \(e.awsProfile)\(e.awsAccount.isEmpty ? "" : ", account \(e.awsAccount)")\(e.awsRegion.isEmpty ? "" : ", region \(e.awsRegion)")"))
+        }
+        return r
+    }
+
+    private func savedMenu(_ e: Go.cmdhistory.Entry) -> NSMenu {
+        let m = NSMenu()
+        m.autoenablesItems = false
+        func add(_ t: String, _ run: @escaping () -> Void) { m.addItem(ClosureMenuItem(title: t, keyEquivalent: "", action: run)) }
+        let o = owner
+        add("Run Again") { [weak self] in self?.runAgain(command: e.command) }
+        add("Insert at Prompt") { o.activeTerminal?.insert(e.command) }
+        m.addItem(.separator())
+        add("Copy Command") {
+            Clipboard.copy(Redaction.shared.text(e.command))
+            Toast.show("Copied command", in: o.rootView)
+        }
+        add("Copy Folder") {
+            Clipboard.copy(e.cwd)
+            Toast.show("Copied folder", in: o.rootView)
+        }
+        m.addItem(.separator())
+        add("Save as Snippet…") { SnippetEditor.show(.new(command: e.command), in: o) }
+        add("Forget This Command") {
+            Task { @MainActor in
+                try? await Services.cmdhistory.Forget(e.id)
+                SavedHistory.changed()
+            }
+        }
+        return m
+    }
+
+    private func forgetAllSaved() {
+        let o = owner
+        Confirm.show(in: owner.window, title: "Forget all saved commands?",
+                     message: "Removes every command wtf saved, from every shell, with its context. Each shell's own history (↑ and Ctrl-R) stays as it is.",
+                     items: [], button: "Forget All") {
+            Task { @MainActor in
+                do {
+                    try await Services.cmdhistory.ForgetAll()
+                    SavedHistory.changed()
+                    Toast.show("Forgot the saved commands", in: o.rootView)
+                } catch {
+                    Toast.show("Couldn't forget them: \(error.localizedDescription)", in: o.rootView)
+                }
+            }
+        }
     }
 
     private func row(_ e: History.Entry) -> SideList.Row {
@@ -134,12 +351,14 @@ final class HistoryView: NSView, SidePaneTab, NSSearchFieldDelegate {
         owner.activeTerminal?.insert(e.command)
     }
 
-    private func runAgain(_ e: History.Entry) {
+    private func runAgain(_ e: History.Entry) { runAgain(command: e.command) }
+
+    private func runAgain(command: String) {
         guard let p = owner.activePane, let term = owner.activeTerminal, p.isShell, !p.running else {
             Toast.show("The shell is busy — finish the running program first", in: owner.rootView)
             return
         }
-        term.run(e.command)
+        term.run(command)
     }
 
     private func menu(_ e: History.Entry) -> NSMenu {
@@ -173,6 +392,7 @@ final class HistoryView: NSView, SidePaneTab, NSSearchFieldDelegate {
     /// Clears the list, and the shells' own history for this session where
     /// the shell is idle at its prompt (a key binding, nothing typed shows).
     @objc private func clear() {
+        if saved { return forgetAllSaved() }
         let targets: [Pane] = all ? Array(owner.model.panes.values) : owner.activePane.map { [$0] } ?? []
         guard !targets.isEmpty else { return }
         let count = targets.reduce(0) { $0 + records.history.of($1.id).count }
@@ -180,13 +400,14 @@ final class HistoryView: NSView, SidePaneTab, NSSearchFieldDelegate {
         let busy = targets.filter { $0.integrated && !idle($0) }
         let o = owner
         Confirm.show(in: owner.window, title: targets.count > 1 ? "Clear command history for all panes?" : "Clear command history?",
-                     message: "Removes \(count) \(count == 1 ? "command" : "commands") from this list and from the shell's own history for this session (↑ and Ctrl-R). History from earlier sessions stays, and so do commands your shell already wrote to its history file.",
+                     message: "Removes \(count) \(count == 1 ? "command" : "commands") from this list and from the shell's own history for this session (↑ and Ctrl-R). It also goes from wtf’s saved history. History from earlier sessions stays, and so do commands your shell already wrote to its history file.",
                      items: busy.map { "\(o.label(pane: $0.id)): a program is running — only the list will be cleared" },
                      button: "Clear History") { [weak self] in
             guard let self else { return }
             var shells = 0
             for p in targets {
                 records.history.clear(p.id)
+                if let s = p.sessionId { Task { try? await Services.cmdhistory.ForgetSession(s); SavedHistory.changed() } }
                 if idle(p), let term = o.terminals[p.id] {
                     term.type("\u{18}\u{1d}")
                     shells += 1
