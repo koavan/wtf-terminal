@@ -275,6 +275,12 @@ func (p *Pane) contextMenu(x, y float64) {
 		item("Find…", p.showFind),
 		item("Clear", p.clearBuffer),
 		menuSection)
+	if ps := p.win.model.Panes[p.id]; ps != nil && !p.win.app.claude.isClaude(ps) {
+		items = append(items, item("Ask Claude", func() {
+			p.win.model.FocusPane(p.id)
+			p.win.askClaude()
+		}))
+	}
 	if p.win.aiEnabled() && !p.feed.alternate {
 		items = append(items, item("Command from Plain English…", p.win.toggleAskBar), item("Investigate (AI)…", p.win.showInvestigate))
 	}

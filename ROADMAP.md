@@ -507,8 +507,28 @@ Phases:
    the files (matcher, events, tools the commands name), run the hooks
    through sh as Claude Code does, and run `claude plugin validate` when
    it's installed; the Linux self-check `bridge` checks the app finds it.
-3. ☐ Claude pane: launch, attach to the target shell, busy / idle / needs-you
-   badge, notifications, the auto-mode setting.
+3. ☑ Claude pane (2026-11-03): **Ask Claude** (⌘I / Ctrl+Shift+I, palette,
+   Edit / window menu, right-click; Command from Plain English loses the
+   shortcut) splits the shell to the right and types
+   `claude --plugin-dir '<bundled plugin>'` (`bridge.ClaudeCommand`); the
+   new pane's session targets the shell it came from (`SetTarget`), kept
+   by session so it survives moving tabs between windows. Asking again from
+   that shell goes back to its Claude pane (and starts claude again if it
+   was quit); a Claude pane gets none of its own; closing it forgets the
+   target. Hooks → `bridge:status`: the bridge keeps each pane's state and
+   sends only changes; PostToolUse means busy again after an approval; a
+   Notification while idle (Claude Code's "waiting for input" reminder)
+   changes nothing. The tab shows working (accent sparkle / ✦), needs you
+   (orange bubble / !) or idle (grey); wtf notifies when it needs you or
+   finishes while you're elsewhere. `claude-auto-mode` (config.toml and
+   Settings → General, off by default) puts `WTF_CLAUDE_AUTO=1` before
+   claude, and `wtf-mcp hook` then leaves commands to Claude Code's own
+   permission mode. Self-checks `claude` on both (a stand-in claude given
+   by `WTF_CLAUDE_STANDIN`, honoured only under WTF_NATIVE_DEBUG=claude, so
+   a check never starts the real one) cover launch, target, hooks → badge,
+   asking again and closing. Manual page `ask-claude` (not `claude.md`:
+   on a case-insensitive disk Claude Code reads that as CLAUDE.md). Not
+   yet tried with real Claude Code (phase 6).
 4. ☐ Rewire #24–#27: Explain Failure, the command bar, Review Changes'
    summary and Investigate go through the Claude pane's slash commands.
 5. ☐ Remove the API-key providers: internal/ai providers, keys and presets,

@@ -8,6 +8,7 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"os"
 	"slices"
 
 	"github.com/dayanraj/wtf/internal/about"
@@ -115,6 +116,18 @@ func New(version, commit, buildDate, stateDir string) (*Backend, error) {
 	b.Review = review.NewService(b.Infra)
 	b.Investigate = investigate.NewService(b.AI, b.Infra)
 	b.Bridge = bridge.NewService(b.Infra)
+	b.Bridge.AutoMode = func() bool { return b.Config.Current().Config.ClaudeAutoMode }
+	// The Claude pane self-checks (WTF_NATIVE_DEBUG=claude) run a stand-in,
+	// never the user's real claude.
+	b.Bridge.Program = func() string {
+		if os.Getenv("WTF_NATIVE_DEBUG") == "claude" {
+			if p := os.Getenv("WTF_CLAUDE_STANDIN"); p != "" {
+				return p
+			}
+			return "/nonexistent/wtf-claude-standin"
+		}
+		return ""
+	}
 	b.Terminal.ExtraEnv = bridge.ShellEnv(b.Bridge)
 	return b, nil
 }

@@ -1054,11 +1054,12 @@ extension Go.config {
         public var clipboardClear: Double
         public var confirmPaste: Bool
         public var showUsage: Bool
+        public var claudeAutoMode: Bool
         public var aiDefault: String
         public var aiFast: String
         public var ai: Go.config.AIConfig
 
-        public init(theme: String = "", fontFamily: String = "", fontSize: Double = 0, lineHeight: Double = 0, cursorStyle: String = "", cursorBlink: Bool = false, scrollback: Int = 0, optionAsMeta: Bool = false, copyOnSelect: Bool = false, shell: String = "", shellIntegration: Bool = false, notifyAfter: Double = 0, unfocusedSplitDim: Double = 0, sidebarAutoRefresh: Bool = false, sidebarRefreshInterval: Double = 0, contextBadges: Bool = false, logHighlighting: Bool = false, redactSecrets: Bool = false, clipboardClear: Double = 0, confirmPaste: Bool = false, showUsage: Bool = false, aiDefault: String = "", aiFast: String = "", ai: Go.config.AIConfig = Go.config.AIConfig()) {
+        public init(theme: String = "", fontFamily: String = "", fontSize: Double = 0, lineHeight: Double = 0, cursorStyle: String = "", cursorBlink: Bool = false, scrollback: Int = 0, optionAsMeta: Bool = false, copyOnSelect: Bool = false, shell: String = "", shellIntegration: Bool = false, notifyAfter: Double = 0, unfocusedSplitDim: Double = 0, sidebarAutoRefresh: Bool = false, sidebarRefreshInterval: Double = 0, contextBadges: Bool = false, logHighlighting: Bool = false, redactSecrets: Bool = false, clipboardClear: Double = 0, confirmPaste: Bool = false, showUsage: Bool = false, claudeAutoMode: Bool = false, aiDefault: String = "", aiFast: String = "", ai: Go.config.AIConfig = Go.config.AIConfig()) {
             self.theme = theme
             self.fontFamily = fontFamily
             self.fontSize = fontSize
@@ -1080,6 +1081,7 @@ extension Go.config {
             self.clipboardClear = clipboardClear
             self.confirmPaste = confirmPaste
             self.showUsage = showUsage
+            self.claudeAutoMode = claudeAutoMode
             self.aiDefault = aiDefault
             self.aiFast = aiFast
             self.ai = ai
@@ -1107,6 +1109,7 @@ extension Go.config {
             case clipboardClear = "clipboardClear"
             case confirmPaste = "confirmPaste"
             case showUsage = "showUsage"
+            case claudeAutoMode = "claudeAutoMode"
             case aiDefault = "aiDefault"
             case aiFast = "aiFast"
             case ai = "ai"
@@ -1135,6 +1138,7 @@ extension Go.config {
             self.clipboardClear = (try? c.decodeIfPresent(Double.self, forKey: .clipboardClear)) ?? 0
             self.confirmPaste = (try? c.decodeIfPresent(Bool.self, forKey: .confirmPaste)) ?? false
             self.showUsage = (try? c.decodeIfPresent(Bool.self, forKey: .showUsage)) ?? false
+            self.claudeAutoMode = (try? c.decodeIfPresent(Bool.self, forKey: .claudeAutoMode)) ?? false
             self.aiDefault = (try? c.decodeIfPresent(String.self, forKey: .aiDefault)) ?? ""
             self.aiFast = (try? c.decodeIfPresent(String.self, forKey: .aiFast)) ?? ""
             self.ai = (try? c.decodeIfPresent(Go.config.AIConfig.self, forKey: .ai)) ?? Go.config.AIConfig()

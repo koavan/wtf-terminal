@@ -249,8 +249,9 @@ func (s *settings) loadThemeCSS() {
 		ok, fail = "#5bb98c", "#e5484d"
 	}
 	accent := uicore.Accent(th.Cursor, th.Background, th.Palette[:], dark)
-	fmt.Fprintf(&b, ".wtf-tab-status.ok { color: %s; } .wtf-tab-status.fail, .wtf-tab-status.recording { color: %s; } .wtf-tab-status.activity { color: %s; }\n",
+	fmt.Fprintf(&b, ".wtf-tab-status.ok { color: %s; } .wtf-tab-status.fail, .wtf-tab-status.recording { color: %s; } .wtf-tab-status.activity, .wtf-tab-status.claude-busy { color: %s; }\n",
 		ok, fail, accent.Hex())
+	b.WriteString(".wtf-tab-status.claude-waiting { color: #e8913a; font-weight: bold; } .wtf-tab-status.claude-idle { opacity: 0.6; }\n")
 	fmt.Fprintf(&b, ".wtf-dim { background-color: %s; }\n", th.Background)
 	// Git status, as the macOS app colors it.
 	gm, ga, gd := "#c98a00", "#188038", "#d93036"

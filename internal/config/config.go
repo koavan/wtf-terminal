@@ -42,6 +42,10 @@ type Config struct {
 
 	ShowUsage bool `toml:"show-usage" json:"showUsage"`
 
+	// Ask Claude: let Claude Code's own permission mode decide which
+	// commands run without asking, instead of wtf asking for every one.
+	ClaudeAutoMode bool `toml:"claude-auto-mode" json:"claudeAutoMode"`
+
 	// Which [ai.providers] entry answers: AIDefault for most features,
 	// AIFast for quick inline ones (AIDefault when empty).
 	AIDefault string   `toml:"ai-default" json:"aiDefault"`
@@ -179,6 +183,12 @@ const template = `# wtf settings. Changes apply as soon as you save (or switch b
 # Show wtf's own CPU and memory in the address bar. It's measured only
 # while shown (every 2 seconds, while the window is in front).
 # show-usage = false
+
+# Ask Claude (⌘I / Ctrl+Shift+I) runs Claude Code in a split beside your
+# shell. wtf makes Claude Code ask before every command it runs or types in
+# your shells, even in its auto mode or after "don't ask again". Set this to
+# let Claude Code's own permission mode decide instead.
+# claude-auto-mode = false
 
 # AI assistance works with any AI tool. Each [ai.providers.<name>] table is
 # one; ai-default answers most features and ai-fast the quick inline ones

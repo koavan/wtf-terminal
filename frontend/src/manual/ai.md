@@ -1,5 +1,7 @@
 # AI assistance
 
+To work with your own Claude Code instead, see [Ask Claude](#ask-claude) ({{mac:⌘I|other:Ctrl+Shift+I}}).
+
 wtf can send things you ask about to an AI and show its reply: you choose which AI. It works with any AI tool, set up in `config.toml`:
 
 | Kind | What it covers |
@@ -50,7 +52,7 @@ The reply streams in: the likely cause, then a fix command when one helps. **Typ
 
 ## Command from plain English
 
-Press {{mac:⌘I|other:Ctrl+Shift+I}}, or choose **Command from Plain English…** from the palette, {{mac:the Edit menu|other:the window menu}} or the terminal's right-click menu. Describe what you want ("delete evicted pods in all namespaces", "biggest files under this folder", "which process holds port 8080") and press Return.
+Choose **Command from Plain English…** from the palette, {{mac:the Edit menu|other:the window menu}} or the terminal's right-click menu. Describe what you want ("delete evicted pods in all namespaces", "biggest files under this folder", "which process holds port 8080") and press Return.
 
 The quick provider (`ai-fast`, else the default) gets your words with the focused shell's facts: folder, system and shell, its Kubernetes context and namespace, AWS profile and region, Google Cloud project, Terraform workspace, git branch, and which well-known tools are installed (looked up on the `PATH`, nothing is run). It answers with one command for that shell, written for your system's flavour of the tools, and a sentence about what it does. Names it would have to guess come back as `<placeholders>`.
 

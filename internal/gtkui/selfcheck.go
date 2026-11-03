@@ -94,6 +94,8 @@ func (a *App) selfCheck(w *Window) {
 		w.checkInvestigate()
 	case "bridge":
 		w.checkBridge()
+	case "claude":
+		w.checkClaude()
 	case "perf":
 		w.checkPerf()
 	default:

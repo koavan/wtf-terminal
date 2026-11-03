@@ -33,6 +33,8 @@ final class TabStripView: NSView, NSTextFieldDelegate {
     /// Whether the tab's input is broadcast, and whether it records.
     var broadcasting: (Int) -> Bool = { _ in false }
     var recording: (Int) -> Bool = { _ in false }
+    /// What Claude Code in the tab's Claude pane is doing, if it has one.
+    var claude: (Int) -> ClaudePane.State? = { _ in nil }
 
     private(set) var items: [Item] = []
     private var plusRect = NSRect.zero
@@ -248,6 +250,17 @@ final class TabStripView: NSView, NSTextFieldDelegate {
             NSColor.systemRed.setFill()
             NSBezierPath(ovalIn: NSRect(x: x, y: r.midY - 3.5, width: 7, height: 7)).fill()
             x += 11
+        }
+        // Claude Code: working (accent), needs you (orange), or idle.
+        if let st = claude(t.id) {
+            let symbol = st == .waiting ? "exclamationmark.bubble.fill" : "sparkles"
+            let tint: NSColor = st == .waiting ? .systemOrange : st == .busy ? accent : .secondaryLabelColor
+            let what = st == .waiting ? "Claude Code needs you" : st == .busy ? "Claude Code is working" : "Claude Code is idle"
+            if let img = NSImage(systemSymbolName: symbol, accessibilityDescription: what)?
+                .withSymbolConfiguration(.init(pointSize: 10, weight: .semibold)) {
+                draw(symbol: img, in: NSRect(x: x, y: r.midY - 6, width: 14, height: 12), tint: tint)
+                x += 17
+            }
         }
         guard renaming?.tab != t.id else { return }
         let showClose = active || hover == t.id

@@ -56,6 +56,7 @@ type App struct {
 	gtk      *adw.Application
 	build    Build
 	be       *backend.Backend
+	claude   *claudePanes
 	cancel   context.CancelFunc
 	events   *eventPump
 	settings *settings
@@ -74,7 +75,7 @@ type App struct {
 // Main runs the app and returns the exit status.
 func Main(build Build) int {
 	log.SetFlags(log.Ltime | log.Lmicroseconds)
-	a := &App{build: build, debug: os.Getenv("WTF_NATIVE_DEBUG"), savedNames: map[string]bool{}}
+	a := &App{build: build, debug: os.Getenv("WTF_NATIVE_DEBUG"), savedNames: map[string]bool{}, claude: newClaudePanes()}
 	a.home, _ = os.UserHomeDir()
 	flags := gio.ApplicationFlagsNone
 	if a.debug != "" {
@@ -137,6 +138,11 @@ func (a *App) startup() {
 	a.events.on(bridge.EventRequest, func(data any) {
 		if req, ok := data.(bridge.UIRequest); ok {
 			a.bridgeRequest(req)
+		}
+	})
+	a.events.on(bridge.EventStatus, func(data any) {
+		if st, ok := data.(bridge.Status); ok {
+			a.claudeStatus(st)
 		}
 	})
 	a.events.on(infra.EventChanged, func(any) {

@@ -10,6 +10,7 @@
     "UserPromptSubmit": [{"hooks": [{"type": "command", "command": "\"${WTF_MCP}\" hook || true"}]}],
     "Notification": [{"hooks": [{"type": "command", "command": "\"${WTF_MCP}\" hook || true"}]}],
     "Stop": [{"hooks": [{"type": "command", "command": "\"${WTF_MCP}\" hook || true"}]}],
+    "PostToolUse": [{"hooks": [{"type": "command", "command": "\"${WTF_MCP}\" hook || true"}]}],
     "SessionEnd": [{"hooks": [{"type": "command", "command": "\"${WTF_MCP}\" hook || true"}]}]
   }
 }

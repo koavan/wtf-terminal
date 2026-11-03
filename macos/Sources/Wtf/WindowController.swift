@@ -84,6 +84,7 @@ final class WindowController: NSWindowController, NSWindowDelegate, NSMenuItemVa
         strip.onToggleSidebar = { [weak self] in self?.toggleSidebar(nil) }
         strip.broadcasting = { Broadcast.shared.isBroadcasting(tab: $0, in: self) }
         strip.recording = { [unowned self] tab in model.tab(tab)?.root.leaves.contains { records.recording[$0] != nil } ?? false }
+        strip.claude = { [unowned self] tab in ClaudePane.state(tab: tab, in: self) }
         panes.onRatio = { [weak self] path, r in
             guard let self, let t = model.active else { return }
             model.setRatio(tab: t.id, path: path, r)
@@ -171,7 +172,10 @@ final class WindowController: NSWindowController, NSWindowDelegate, NSMenuItemVa
         for (id, term) in terminals where !live.contains(id) {
             terminals[id] = nil
             let moved = detached.remove(id) != nil
-            if !moved { term.close() }
+            if !moved {
+                term.close()
+                if let s = term.id { ClaudePane.closed(session: s) }
+            }
             recordsPaneGone(id, moved: moved)
             term.container.removeFromSuperview()
         }
@@ -289,6 +293,7 @@ final class WindowController: NSWindowController, NSWindowDelegate, NSMenuItemVa
             do {
                 let id = try await term.start(cwd: pane.initialCwd, identity: identity, command: command)
                 pane.sessionId = id
+                ClaudePane.started(pane)
                 if model.panes[pane.id] == nil { term.close() }
                 if let info = try? await Backend.call("terminal", "Info", [id], as: TerminalInfo.self) {
                     apply(info)
@@ -813,6 +818,8 @@ final class WindowController: NSWindowController, NSWindowDelegate, NSMenuItemVa
     }
 
     var rootView: NSView { root }
+    /// Redraws the tab strip (a badge changed).
+    func refreshStrip() { strip.refresh() }
 }
 
 /// The window's content: the tab strip over the panes.

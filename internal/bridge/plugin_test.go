@@ -199,7 +199,14 @@ func TestHook(t *testing.T) {
 		t.Errorf("without the bridge: %d %q", code, out)
 	}
 
-	for _, ev := range []string{"SessionStart", "UserPromptSubmit", "Notification", "Stop", "SessionEnd"} {
+	// claude-auto-mode: no decision, so Claude Code's own mode applies.
+	if out, code := run("PreToolUse", append(env, "WTF_CLAUDE_AUTO=1"), `{"hook_event_name":"PreToolUse","tool_name":"Bash"}`); code != 0 || out != "" {
+		t.Errorf("auto mode: %d %q", code, out)
+	}
+
+	// The second Notification comes while idle (Claude Code's "waiting for
+	// your input" reminder) and changes nothing; PostToolUse repeats busy.
+	for _, ev := range []string{"SessionStart", "UserPromptSubmit", "Notification", "PostToolUse", "PostToolUse", "Stop", "Notification", "SessionEnd"} {
 		if out, code := run(ev, env, `{"hook_event_name":"`+ev+`","message":"Claude needs your permission to use Bash"}`); code != 0 || out != "" {
 			t.Errorf("%s = %d %q", ev, code, out)
 		}
@@ -220,7 +227,7 @@ func TestHook(t *testing.T) {
 			}
 			states = append(states, st.State)
 		}
-		want := []string{StateIdle, StateBusy, StateWaiting, StateIdle, StateEnded}
+		want := []string{StateIdle, StateBusy, StateWaiting, StateBusy, StateIdle, StateEnded}
 		if slices.Equal(states, want) {
 			if got[2].Message != "Claude needs your permission to use Bash" {
 				t.Errorf("message = %q", got[2].Message)
@@ -242,5 +249,31 @@ func TestPluginValidates(t *testing.T) {
 	}
 	if out, err := exec.Command(claude, "plugin", "validate", pluginDir).CombinedOutput(); err != nil {
 		t.Fatalf("%v\n%s", err, out)
+	}
+}
+
+func TestClaudeCommand(t *testing.T) {
+	s := NewService(nil)
+	if _, err := s.ClaudeCommand(); err == nil {
+		t.Fatal("a command without the bridge running")
+	}
+	if err := s.startup(); err != nil {
+		t.Fatal(err)
+	}
+	defer s.shutdown()
+	s.helper, s.plugin = "/x/wtf-mcp", "/Applications/wtf.app/Contents/Resources/it's here"
+	auto := false
+	s.AutoMode = func() bool { return auto }
+	got, err := s.ClaudeCommand()
+	if want := `claude --plugin-dir '/Applications/wtf.app/Contents/Resources/it'\''s here'`; err != nil || got != want {
+		t.Fatalf("command = %q %v, want %q", got, err, want)
+	}
+	auto = true
+	if got, _ := s.ClaudeCommand(); !strings.HasPrefix(got, "WTF_CLAUDE_AUTO=1 claude --plugin-dir ") {
+		t.Fatalf("auto = %q", got)
+	}
+	s.plugin = ""
+	if _, err := s.ClaudeCommand(); err == nil {
+		t.Fatal("a command without the plugin")
 	}
 }

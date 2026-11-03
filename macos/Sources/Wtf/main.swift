@@ -51,6 +51,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         if env["WTF_NATIVE_DEBUG"] == "bridge" {
             await BridgeCheck.run(w, dir: env["WTF_NATIVE_SNAPSHOT_DIR"])
         }
+        if env["WTF_NATIVE_DEBUG"] == "claude" {
+            await ClaudeCheck.run(w)
+        }
         if env["WTF_NATIVE_DEBUG"] == "paste" {
             // Pastes two lines from a private pasteboard through the
             // responder chain, as ⌘V does, then quits.
@@ -523,7 +526,8 @@ func buildMenu() -> NSMenu {
         cmd("Pin Last Command Output", "term.pinOutput"),
         cmd("Explain Last Failed Command…", "ai.explain"),
         cmd("Review Last Command’s Changes…", "review.last"),
-        cmd("Command from Plain English…", "ai.ask", "i"),
+        cmd("Ask Claude", "claude.ask", "i"),
+        cmd("Command from Plain English…", "ai.ask"),
         cmd("Investigate (AI)…", "ai.investigate"),
         cmd("Clear Buffer", "term.clear", "k"),
     ])

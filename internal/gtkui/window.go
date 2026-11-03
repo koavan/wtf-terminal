@@ -201,6 +201,7 @@ func (w *Window) sync() {
 				delete(w.detached, id)
 			} else {
 				p.close()
+				w.app.claudeClosed(p.session)
 			}
 			w.recordsPaneGone(id, moved)
 			detachWidget(&p.root.Widget)
@@ -291,6 +292,7 @@ func (w *Window) startTerminal(ps *uicore.PaneState) {
 		return
 	}
 	ps.SessionID = p.session
+	w.claudeStarted(ps)
 }
 
 // runInPane runs a command in the focused shell when it's idle at a
@@ -550,6 +552,7 @@ func (w *Window) windowCommands() map[string]func() {
 		"term.pinOutput":      w.pinLastOutput,
 		"ai.explain":          w.explainLastFailure,
 		"ai.ask":              w.toggleAskBar,
+		"claude.ask":          w.askClaude,
 		"review.last":         w.reviewLastCommand,
 		"findings.scan":       w.runSecurityScan,
 		"usage.show":          w.showUsage,
@@ -674,7 +677,7 @@ func (w *Window) mainMenuButton() *gtk.MenuButton {
 		{"palette", "config.open", "config.file", "theme.pick", "themes.folder", "snippets.run", "workspace.open", "workspace.save", "findings.scan", "usage.show"},
 		{"sidebar.toggle", "sidebar.files", "sidebar.ssh", "sidebar.aws", "sidebar.kube", "sidebar.snippets", "sidebar.workspaces",
 			"sidebar.network", "sidebar.processes", "sidebar.history", "sidebar.pins", "sidebar.findings", "sidebar.share", "sidebar.generate"},
-		{"find", "term.copyOutput", "term.pinOutput", "ai.explain", "ai.ask", "ai.investigate", "review.last", "term.clear", "secrets.toggle"},
+		{"find", "term.copyOutput", "term.pinOutput", "claude.ask", "ai.explain", "ai.ask", "ai.investigate", "review.last", "term.clear", "secrets.toggle"},
 		{"record.toggle", "export.text", "export.markdown"},
 		{"font.bigger", "font.smaller", "font.reset"},
 		{"tab.overview", "tab.group", "broadcast.toggle", "pane.zoom", "pane.next", "pane.prev"},

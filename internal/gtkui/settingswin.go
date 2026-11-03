@@ -179,6 +179,28 @@ func (s *settingsWindow) generalPage() *adw.PreferencesPage {
 	themes.AddSuffix(button("Open Themes Folder", func() { s.w.win.ActivateAction("themes.folder", nil) }))
 	files.Add(themes)
 	page.Add(files)
+
+	claude := adw.NewPreferencesGroup()
+	claude.SetTitle("Ask Claude")
+	claude.SetDescription("Ask Claude (Ctrl+Shift+I) runs your own Claude Code in a split beside the shell, with wtf's tools for that shell. " +
+		"wtf makes Claude Code ask before every command it runs or types in your shells, even in its auto mode or after \u201cdon't ask again\u201d.")
+	auto := adw.NewSwitchRow()
+	auto.SetUseMarkup(false)
+	auto.SetTitle("Let Claude Code's own permission mode decide instead")
+	auto.SetSubtitle("claude-auto-mode; applies to Claude panes opened from now on")
+	auto.SetActive(s.w.app.settings.config().ClaudeAutoMode)
+	auto.Connect("notify::active", func() {
+		on := auto.Active()
+		if on == s.w.app.settings.config().ClaudeAutoMode {
+			return
+		}
+		if err := s.w.app.be.Config.SetClaudeAutoMode(on); err != nil {
+			auto.SetActive(!on)
+			s.w.toast("Couldn't change the setting: " + err.Error())
+		}
+	})
+	claude.Add(auto)
+	page.Add(claude)
 	return page
 }
 

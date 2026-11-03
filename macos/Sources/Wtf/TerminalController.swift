@@ -454,8 +454,15 @@ final class TerminalController: NSObject, @MainActor TerminalViewDelegate, Outpu
             item("Clear", key: "k") { [weak self] in self?.clearBuffer() },
             .separator(),
         ]
+        if let o = owner, let p = o.model.panes[paneId], !ClaudePane.isClaude(p) {
+            items.append(item("Ask Claude", key: "i") { [weak self] in
+                guard let self, let o = owner else { return }
+                o.model.focusPane(paneId)
+                ClaudePane.ask(in: o)
+            })
+        }
         if ExplainSheet.available, !view.getTerminal().isCurrentBufferAlternate {
-            items.append(item("Command from Plain English…", key: "i") { [weak self] in
+            items.append(item("Command from Plain English…") { [weak self] in
                 guard let o = self?.owner else { return }
                 AskBar.toggle(in: o)
             })

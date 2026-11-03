@@ -243,6 +243,25 @@ final class SettingsWindow: NSObject, NSWindowDelegate, NSToolbarDelegate {
         }
         themes.toolTip = "Add your own themes as files here"
         bar([file, themes, spacer()])
+        separator()
+        let claude = NSTextField(labelWithString: "Ask Claude")
+        claude.font = .systemFont(ofSize: 12.5, weight: .semibold)
+        content.addArrangedSubview(claude)
+        content.addArrangedSubview(label("Ask Claude (⌘I) runs your own Claude Code in a split beside the shell, with wtf’s tools for that shell. wtf makes Claude Code ask before every command it runs or types in your shells, even in its auto mode or after “don’t ask again”.", size: 12, color: .secondaryLabelColor))
+        let auto = NSButton(checkboxWithTitle: "Let Claude Code’s own permission mode decide instead (claude-auto-mode)", target: self, action: #selector(toggleClaudeAuto(_:)))
+        auto.state = Settings.shared.config?.claudeAutoMode == true ? .on : .off
+        auto.toolTip = "Applies to Claude panes opened from now on"
+        content.addArrangedSubview(auto)
+    }
+
+    @objc private func toggleClaudeAuto(_ sender: NSButton) {
+        let on = sender.state == .on
+        Task {
+            do { try await Services.config.SetClaudeAutoMode(on) } catch {
+                sender.state = on ? .off : .on
+                Toast.show("Couldn't change the setting: \(error.localizedDescription)", in: window.contentView)
+            }
+        }
     }
 
     // MARK: AI

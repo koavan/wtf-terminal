@@ -9,7 +9,9 @@
 // event on stdin. For PreToolUse it answers "ask" without asking the app,
 // so every command shows Claude Code's own prompt even if wtf is gone; the
 // other events tell the app whether Claude Code is busy, idle or waiting
-// for the user.
+// for the user. With WTF_CLAUDE_AUTO=1 (claude-auto-mode, set by the app
+// when it starts claude) PreToolUse answers nothing, so Claude Code's own
+// permission mode decides.
 package main
 
 import (
@@ -132,6 +134,10 @@ func hook(c client, in io.Reader, out io.Writer) int {
 		return 2
 	}
 	if ev.Event == "PreToolUse" {
+		// claude-auto-mode: Claude Code's own permission mode decides.
+		if os.Getenv("WTF_CLAUDE_AUTO") == "1" {
+			return 0
+		}
 		answer, _ := json.Marshal(map[string]any{"hookSpecificOutput": map[string]any{
 			"hookEventName": "PreToolUse", "permissionDecision": "ask", "permissionDecisionReason": askReason,
 		}})

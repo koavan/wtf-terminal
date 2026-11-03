@@ -30,6 +30,7 @@ import (
 	"os"
 	"path/filepath"
 	"strconv"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -92,9 +93,14 @@ type Status struct {
 }
 
 var hookStates = map[string]string{
-	"SessionStart": StateIdle, "Stop": StateIdle, "UserPromptSubmit": StateBusy,
+	"SessionStart": StateIdle, "Stop": StateIdle, "UserPromptSubmit": StateBusy, "PostToolUse": StateBusy,
 	"Notification": StateWaiting, "SessionEnd": StateEnded,
 }
+
+// EnvAuto, set on a Claude pane's claude when claude-auto-mode is on, makes
+// the plugin's PreToolUse hook leave commands to Claude Code's own
+// permission mode.
+const EnvAuto = "WTF_CLAUDE_AUTO"
 
 // Pane is what the UI knows about a shell.
 type Pane struct {
@@ -148,12 +154,20 @@ type Service struct {
 	seq     atomic.Uint64
 	mu      sync.Mutex
 	pending map[string]chan Reply
-	// Claude pane session → the shell it works on (phase 3 sets these).
+	// Claude pane session → the shell it works on.
 	targets map[string]string
+	// Claude pane session → its last state.
+	states map[string]string
+
+	// claude-auto-mode (nil: off).
+	AutoMode func() bool
+	// The claude to run (nil or "": claude from the shell's PATH); the
+	// self-checks give a stand-in.
+	Program func() string
 }
 
 func NewService(in *infra.Service) *Service {
-	s := &Service{infra: in, pending: map[string]chan Reply{}, targets: map[string]string{}}
+	s := &Service{infra: in, pending: map[string]chan Reply{}, targets: map[string]string{}, states: map[string]string{}}
 	// Next to the app (macOS: Contents/MacOS; a Linux dev build), or where
 	// the Linux packages put it (/usr/bin/wtf → /usr/lib/wtf/wtf-mcp).
 	if exe, err := os.Executable(); err == nil {
@@ -240,6 +254,7 @@ func (s *Service) SetTarget(session, target string) {
 	defer s.mu.Unlock()
 	if target == "" {
 		delete(s.targets, session)
+		delete(s.states, session)
 	} else {
 		s.targets[session] = target
 	}
@@ -253,6 +268,48 @@ func (s *Service) target(session string) string {
 	}
 	return session
 }
+
+// setState records a Claude pane's state from a hook, and says whether the
+// UI should hear of it: only changes. A Notification counts only while
+// Claude Code works (a permission prompt); one while it's idle is its
+// reminder that it's waiting for a prompt, which changes nothing.
+func (s *Service) setState(session, state string) bool {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	old := s.states[session]
+	if state == StateWaiting && old != StateBusy {
+		return false
+	}
+	if state == StateEnded {
+		delete(s.states, session)
+		return old != ""
+	}
+	s.states[session] = state
+	return old != state
+}
+
+// ClaudeCommand is the command line a Claude pane's shell runs: the user's
+// own claude with the bundled plugin.
+func (s *Service) ClaudeCommand() (string, error) {
+	switch {
+	case s.sock == "":
+		return "", errors.New("wtf's bridge for Claude Code isn't running")
+	case s.helper == "" || s.plugin == "":
+		return "", errors.New("this wtf was built without its Claude Code plugin (wtf-mcp and claude-plugin aren't next to the app)")
+	}
+	prog := "claude"
+	if s.Program != nil && s.Program() != "" {
+		prog = shellQuote(s.Program())
+	}
+	cmd := prog + " --plugin-dir " + shellQuote(s.plugin)
+	if s.AutoMode != nil && s.AutoMode() {
+		cmd = EnvAuto + "=1 " + cmd
+	}
+	return cmd, nil
+}
+
+// shellQuote single-quotes for bash, zsh and fish.
+func shellQuote(v string) string { return "'" + strings.ReplaceAll(v, "'", `'\''`) + "'" }
 
 // Reply answers a UIRequest. Late or unknown ones are dropped.
 func (s *Service) Reply(id string, r Reply) {
@@ -352,7 +409,9 @@ func (s *Service) do(ctx context.Context, req wire.Request) wire.Response {
 		if state == "" {
 			return wire.Response{Error: "unknown hook event " + strconv.Quote(req.Event)}
 		}
-		events.Emit(EventStatus, Status{Session: req.Pane, State: state, Message: req.Message})
+		if s.setState(req.Pane, state) {
+			events.Emit(EventStatus, Status{Session: req.Pane, State: state, Message: req.Message})
+		}
 		return wire.Response{}
 	}
 	return wire.Response{Error: "unknown op " + strconv.Quote(req.Op)}

@@ -92,6 +92,12 @@ func (s *Service) SetConfirmPaste(on bool) error {
 	return s.set("confirm-paste", strconv.FormatBool(on))
 }
 
+// SetClaudeAutoMode lets Claude Code's own permission mode decide which
+// commands in a Claude pane run without asking (off: wtf asks every time).
+func (s *Service) SetClaudeAutoMode(on bool) error {
+	return s.set("claude-auto-mode", strconv.FormatBool(on))
+}
+
 // SetShowUsage shows or hides wtf's CPU and memory in the address bar.
 func (s *Service) SetShowUsage(on bool) error {
 	return s.set("show-usage", strconv.FormatBool(on))

@@ -16,6 +16,7 @@ enum Services {
         static func ParseHeaders(_ a0: String) async throws -> [String: String] { try await Backend.call("config", "ParseHeaders", [a0], as: [String: String].self) }
         static func SaveAIProvider(_ a0: String, _ a1: String, _ a2: Go.config.AIProvider) async throws { try await Backend.run("config", "SaveAIProvider", [a0, a1, a2]) }
         static func SetAIProvider(_ a0: Bool, _ a1: String) async throws { try await Backend.run("config", "SetAIProvider", [a0, a1]) }
+        static func SetClaudeAutoMode(_ a0: Bool) async throws { try await Backend.run("config", "SetClaudeAutoMode", [a0]) }
         static func SetConfirmPaste(_ a0: Bool) async throws { try await Backend.run("config", "SetConfirmPaste", [a0]) }
         static func SetRedactSecrets(_ a0: Bool) async throws { try await Backend.run("config", "SetRedactSecrets", [a0]) }
         static func SetShowUsage(_ a0: Bool) async throws { try await Backend.run("config", "SetShowUsage", [a0]) }
@@ -216,6 +217,7 @@ enum Services {
     }
 
     enum bridge {
+        static func ClaudeCommand() async throws -> String { try await Backend.call("bridge", "ClaudeCommand", [], as: String.self) }
         static func Reply(_ a0: String, _ a1: Go.bridge.Reply) async throws { try await Backend.run("bridge", "Reply", [a0, a1]) }
         static func SetTarget(_ a0: String, _ a1: String) async throws { try await Backend.run("bridge", "SetTarget", [a0, a1]) }
     }

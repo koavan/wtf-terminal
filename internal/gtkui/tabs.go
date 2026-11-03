@@ -14,6 +14,7 @@ import (
 	"github.com/diamondburned/gotk4/pkg/gtk/v4"
 	"github.com/diamondburned/gotk4/pkg/pango"
 
+	"github.com/dayanraj/wtf/internal/bridge"
 	"github.com/dayanraj/wtf/internal/uicore"
 )
 
@@ -105,8 +106,8 @@ func (s *tabStrip) refresh() {
 		}
 		t := t
 		entries = append(entries, entry{tab: &t})
-		fmt.Fprintf(&shape, "t%d:%s:%v:%v:%v:%d:%v:%v|", t.ID, s.w.app.settings.text(m.Title(t)), t.ID == m.ActiveID(),
-			t.Activity, t.Finished, t.GroupID, s.w.isBroadcasting(t.ID), slices.ContainsFunc(t.Root.Leaves(), s.w.isRecording))
+		fmt.Fprintf(&shape, "t%d:%s:%v:%v:%v:%d:%v:%v:%s|", t.ID, s.w.app.settings.text(m.Title(t)), t.ID == m.ActiveID(),
+			t.Activity, t.Finished, t.GroupID, s.w.isBroadcasting(t.ID), slices.ContainsFunc(t.Root.Leaves(), s.w.isRecording), s.w.claudeState(t))
 	}
 	fmt.Fprintf(&shape, "%v", dark)
 	if shape.String() == s.shape {
@@ -160,6 +161,16 @@ func (s *tabStrip) item(t uicore.Tab) *gtk.Box {
 		rec := statusLabel("●", "recording")
 		rec.SetTooltipText("Recording")
 		box.Append(rec)
+	}
+	// Claude Code: working, needs you, or idle.
+	if st := s.w.claudeState(t); st != "" {
+		text, tip := "✦", map[string]string{bridge.StateBusy: "Claude Code is working", bridge.StateWaiting: "Claude Code needs you", bridge.StateIdle: "Claude Code is idle"}[st]
+		if st == bridge.StateWaiting {
+			text = "!"
+		}
+		l := statusLabel(text, "claude-"+st)
+		l.SetTooltipText(tip)
+		box.Append(l)
 	}
 	if s.w.isBroadcasting(t.ID) {
 		icon := gtk.NewImageFromIconName("send-to-symbolic")

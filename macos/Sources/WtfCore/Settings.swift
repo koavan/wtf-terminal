@@ -25,6 +25,8 @@ public struct Config: Decodable, Equatable, Sendable {
     public var clipboardClear: Double
     public var confirmPaste: Bool
     public var logHighlighting: Bool
+    /// claude-auto-mode (older backends lack it).
+    public var claudeAutoMode: Bool?
     /// ai-default, ai-fast and the [ai.providers] tables: names only matter
     /// here (the palette's per-provider commands); AI Providers asks the
     /// backend for the rest.
