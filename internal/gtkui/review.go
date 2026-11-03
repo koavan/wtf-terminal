@@ -7,35 +7,30 @@ import (
 
 	"github.com/diamondburned/gotk4/pkg/gtk/v4"
 
-	"github.com/dayanraj/wtf/internal/ai"
 	"github.com/dayanraj/wtf/internal/review"
 )
 
 // Change reviewer (#26): what a terraform plan, kubectl diff or helm diff
 // (a command block or a saved plan file) will do, parsed by
-// internal/review and listed as facts. With an AI set up, it then writes a
-// plain-English summary of those facts. Nothing is applied. Like the macOS
-// app's ReviewSheet.
+// internal/review and listed as facts. Summarize with Claude asks the
+// Claude pane (/wtf:review) for a plain-English summary. Nothing is
+// applied. Like the macOS app's ReviewSheet.
 
 // reviewDialog is one review. Main loop only.
 type reviewDialog struct {
-	w       *Window
-	s       *toolsSheet
-	sub     *gtk.Label
-	facts   *gtk.TextView
-	summary *gtk.TextView // nil without an AI
-	status  *gtk.Label
-	sent    *gtk.Button
-	copy    *gtk.Button
+	w         *Window
+	s         *toolsSheet
+	sub       *gtk.Label
+	facts     *gtk.TextView
+	status    *gtk.Label
+	copy      *gtk.Button
+	summarize *gtk.Button
 
-	env    map[string]string
-	cwd    string
+	// The shell it's about, and what /wtf:review gets.
+	pane   int
+	block  int
+	file   string
 	review *review.Review
-	call   *aiCall
-	req    ai.Request
-	ready  bool
-	reply  string
-	done   *ai.Done
 	closed bool
 }
 
@@ -54,9 +49,7 @@ func (w *Window) reviewBlock(p *Pane, id int) {
 		shown = append(shown[:59], '…')
 	}
 	d := w.newReview("Review: " + w.app.settings.text(string(shown)))
-	if ps := w.model.Panes[p.id]; ps != nil {
-		d.env, d.cwd = ps.Env, ps.Cwd
-	}
+	d.pane, d.block = p.id, id
 	svc, text := w.app.be.Review, b.Text
 	go func() {
 		r := svc.Parse(text, out)
@@ -68,11 +61,13 @@ func (w *Window) reviewBlock(p *Pane, id int) {
 func (w *Window) reviewFile(path string) {
 	name := path[strings.LastIndex(path, "/")+1:]
 	d := w.newReview("Review: " + name)
+	var env map[string]string
 	if ps := w.model.ActivePane(); ps != nil {
-		d.env, d.cwd = ps.Env, ps.Cwd
+		d.pane, env = ps.ID, ps.Env
 	}
+	d.file = path
 	d.status.SetText("Reading the plan…")
-	svc, env := w.app.be.Review, d.env
+	svc := w.app.be.Review
 	go func() {
 		r, err := svc.ParseFile(path, env)
 		onMainAsync(func() { d.show(r, err) })
@@ -98,33 +93,19 @@ func (w *Window) newReview(title string) *reviewDialog {
 	reviewShown = d
 	d.sub = d.s.label("Reading…", "dim-label", "wtf-sheet-sub")
 	d.s.body.Append(d.sub)
-	d.facts = d.textBox(200, true)
-	if w.aiEnabled() {
-		h := d.s.label("Summary", "heading")
-		d.s.body.Append(h)
-		d.summary = d.textBox(200, false)
-	} else {
-		d.s.body.Append(d.s.label("Set up an AI provider in Settings (Ctrl+,) for a plain-English summary of these changes.", "dim-label", "wtf-sheet-sub"))
-	}
+	d.facts = d.textBox(240, true)
 	d.status = d.s.label("", "dim-label", "wtf-sheet-sub")
 	d.s.body.Append(d.status)
-	d.sent = d.s.button("What's Sent", func() {
-		if d.ready {
-			w.previewAI(&d.s.win.Window, d.req)
-		}
-	})
-	d.sent.SetSensitive(false)
-	d.sent.SetVisible(d.summary != nil)
 	d.copy = d.s.button("Copy", d.copyAll)
 	d.copy.SetSensitive(false)
 	closeBtn := d.s.button("Close", d.s.close)
-	d.s.buttons([]*gtk.Button{d.sent, d.copy}, []*gtk.Button{closeBtn}, nil)
+	d.summarize = d.s.button("Summarize with Claude", d.askClaude)
+	d.summarize.AddCSSClass("suggested-action")
+	d.summarize.SetSensitive(false)
+	d.s.buttons([]*gtk.Button{d.copy}, []*gtk.Button{closeBtn, d.summarize}, nil)
 	closeBtn.GrabFocus()
 	d.s.win.ConnectCloseRequest(func() bool {
 		d.closed = true
-		if d.call != nil {
-			d.call.cancel()
-		}
 		if reviewShown == d {
 			reviewShown = nil
 		}
@@ -182,69 +163,17 @@ func (d *reviewDialog) show(r review.Review, err error) {
 	}
 	d.facts.Buffer().SetText(d.w.app.settings.text(text))
 	d.copy.SetSensitive(true)
-	if d.summary != nil && len(r.Lines) > 0 {
-		d.summarize(r)
-	}
+	d.summarize.SetSensitive(len(r.Lines) > 0)
 }
 
-func (d *reviewDialog) summarize(r review.Review) {
-	d.status.SetText("Asking for a summary…  Close stops it.")
-	svc := d.w.app.be.Review
-	ask := review.Ask{Review: r, Env: d.env, Cwd: d.cwd}
-	go func() {
-		req, err := svc.Request(ask)
-		onMainAsync(func() {
-			if d.closed {
-				return
-			}
-			if err != nil {
-				d.status.SetText(err.Error())
-				return
-			}
-			d.req, d.ready = req, true
-			d.sent.SetSensitive(true)
-			d.call = d.w.askAI(&d.s.win.Window, req, func(chunk string) {
-				d.reply += chunk
-				d.setSummary(d.reply)
-			}, d.finish)
-		})
-	}()
-}
-
-func (d *reviewDialog) setSummary(text string) {
-	buf := d.summary.Buffer()
-	buf.SetText(d.w.app.settings.text(text))
-	d.summary.ScrollToIter(buf.EndIter(), 0, false, 0, 1)
-}
-
-func (d *reviewDialog) finish(done ai.Done) {
-	d.call = nil
-	d.done = &done
-	if d.closed {
-		return
+// askClaude closes the dialog and asks the shell's Claude pane.
+func (d *reviewDialog) askClaude() {
+	w, pane, block, file := d.w, d.pane, d.block, d.file
+	d.s.close()
+	if _, ok := w.model.Panes[pane]; ok {
+		w.model.FocusPane(pane)
 	}
-	switch {
-	case done.Cancelled && d.reply == "":
-		d.status.SetText("No summary asked for.")
-	case done.Cancelled:
-		d.status.SetText("Stopped.")
-	case done.Error != "":
-		d.status.SetText("The AI couldn't answer: " + done.Error)
-		d.status.AddCSSClass("error")
-	default:
-		d.reply = done.Text
-		d.setSummary(strings.TrimSpace(done.Text))
-		d.summary.ScrollToIter(d.summary.Buffer().StartIter(), 0, false, 0, 0)
-		d.status.SetText(aiSummary(done))
-	}
-}
-
-func (d *reviewDialog) summaryText() string {
-	if d.summary == nil {
-		return ""
-	}
-	buf := d.summary.Buffer()
-	return buf.Text(buf.StartIter(), buf.EndIter(), false)
+	w.claudeReview(block, file)
 }
 
 func (d *reviewDialog) copyAll() {
@@ -252,9 +181,6 @@ func (d *reviewDialog) copyAll() {
 		return
 	}
 	text := d.review.Tool + ": " + d.review.CountText + "\n" + strings.Join(d.review.Lines, "\n")
-	if s := d.summaryText(); s != "" {
-		text += "\n\n" + s
-	}
 	d.s.win.Clipboard().SetText(d.w.app.settings.text(text))
 	d.w.toast("Copied the review")
 }

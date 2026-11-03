@@ -24,11 +24,11 @@ Click a command's ✓/✗ mark, or right-click in its output. The command's bloc
 - **Select Output** — selects it in the terminal.
 - **Pin Output** — keeps a copy in the side pane's Pinned tab while you work on; a running command's pin follows it. See [Pinned output](#pins).
 - **Review Changes…** — for `terraform`/`tofu`/`terragrunt` plan, `kubectl diff` and `helm diff`: what it will create, change, replace and destroy, and a plain-English summary when an AI is set up. See [AI assistance](#ai).
-- **Explain Failure…** — for a command that failed, when an AI is set up: why it likely failed and a command to fix it, typed at the prompt but not run. See [AI assistance](#ai).
+- **Explain Failure… (Claude)** — for a command that failed: the shell's Claude pane says why it likely failed and can type a fix at the prompt, never run. See [Ask Claude](#ask-claude).
 - **Run Again** — types it at the prompt and runs it (when the shell is at its prompt), in this pane only.
 - **Save as Snippet…** — keep it, with blanks to fill in next time. See [Snippets and runbooks](#snippets).
 
-Right-clicking a timestamp, address, resource or file:line puts its actions first, and a line holding JSON offers **Pretty-print JSON** — see [Logs in the output](#logs). Right-clicking also offers **Command from Plain English…** when an AI is set up (see [AI assistance](#ai)), **Hide Secrets** and **Start Recording…** (see [Share & Record](#share)), and **Copy** (with a selection), **Paste**, **Select All**, **Find…** and **Clear**. {{cmd:term.copyOutput}} still copies the last command's output from the keyboard.
+Right-clicking a timestamp, address, resource or file:line puts its actions first, and a line holding JSON offers **Pretty-print JSON** — see [Logs in the output](#logs). Right-clicking also offers **Ask Claude**, **Command from Plain English…** and **Investigate…** (see [Ask Claude](#ask-claude)), **Hide Secrets** and **Start Recording…** (see [Share & Record](#share)), and **Copy** (with a selection), **Paste**, **Select All**, **Find…** and **Clear**. {{cmd:term.copyOutput}} still copies the last command's output from the keyboard.
 
 Output that has scrolled out of the scrollback (`scrollback` in [Settings](#settings)) can't be copied any more; the command itself still can.
 

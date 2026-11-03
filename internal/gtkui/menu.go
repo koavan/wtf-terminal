@@ -218,8 +218,8 @@ func (p *Pane) blockItems(id int) []*menuItem {
 	if !b.Running() && b.HasOutput && review.Reviewable(b.Text) {
 		items = append(items, menuSection, item("Review Changes…", func() { p.win.reviewBlock(p, id) }))
 	}
-	if b.ExitCode != nil && *b.ExitCode != 0 && p.win.aiEnabled() {
-		items = append(items, menuSection, item("Explain Failure…", func() { p.win.explainBlock(p, id) }))
+	if b.ExitCode != nil && *b.ExitCode != 0 {
+		items = append(items, menuSection, item("Explain Failure… (Claude)", func() { p.win.explainBlock(p, id) }))
 	}
 	if b.Text != "" && !b.Running() {
 		items = append(items, menuSection, item("Run Again", func() { p.runAgain(b.Text) }))
@@ -276,13 +276,11 @@ func (p *Pane) contextMenu(x, y float64) {
 		item("Clear", p.clearBuffer),
 		menuSection)
 	if ps := p.win.model.Panes[p.id]; ps != nil && !p.win.app.claude.isClaude(ps) {
-		items = append(items, item("Ask Claude", func() {
-			p.win.model.FocusPane(p.id)
-			p.win.askClaude()
-		}))
-	}
-	if p.win.aiEnabled() && !p.feed.alternate {
-		items = append(items, item("Command from Plain English…", p.win.toggleAskBar), item("Investigate (AI)…", p.win.showInvestigate))
+		on := func(f func()) func() { return func() { p.win.model.FocusPane(p.id); f() } }
+		items = append(items, item("Ask Claude", on(p.win.askClaude)))
+		if !p.feed.alternate {
+			items = append(items, item("Command from Plain English…", on(p.win.claudeCommand)), item("Investigate…", on(p.win.claudeInvestigate)))
+		}
 	}
 	items = append(items,
 		item(hide, p.toggleSecrets),

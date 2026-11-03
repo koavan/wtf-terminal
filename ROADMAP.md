@@ -529,11 +529,24 @@ Phases:
    asking again and closing. Manual page `ask-claude` (not `claude.md`:
    on a case-insensitive disk Claude Code reads that as CLAUDE.md). Not
    yet tried with real Claude Code (phase 6).
-4. ☐ Rewire #24–#27: Explain Failure, the command bar, Review Changes'
-   summary and Investigate go through the Claude pane's slash commands.
+4. ☑ Rewire #24–#27 (2026-11-03): Explain Failure (block menu, Explain
+   Last Failed Command) types `/wtf:explain block N` with Enter; Command
+   from Plain English and Investigate type `/wtf:cmd ` / `/wtf:investigate `
+   for you to finish; a review's **Summarize with Claude** (the parsed
+   facts stay, without AI) types `/wtf:review block N` or `… plan file
+   <path>`. Each opens the shell's Claude pane when needed, and types only
+   when Claude Code is idle (after SessionStart, so never into its trust
+   question; queued while it works). Their dialogs went too: the Explain
+   sheet, the command bar, the Investigate side tab (an old session's
+   Investigate tab opens Files) and Review's AI summary, with the
+   explain/investigate self-checks; the `claude` self-check covers the
+   new paths on both platforms. Seen there: a Claude pane split from a
+   crowded tab can be very narrow.
 5. ☐ Remove the API-key providers: internal/ai providers, keys and presets,
-   Settings → AI, the first-send preview, the #24–#27 dialogs and the
-   Investigate tab's agent loop. Old `[ai.*]` tables are ignored with a note.
+   Settings → AI, the first-send preview, internal/explain, suggest and
+   investigate's request builders and agent loop (keep the allowlist and
+   fact builders the bridge uses), the `ai` self-check. Old `[ai.*]`
+   tables are ignored with a note.
 6. ☐ Self-checks (a Linux check that drives `wtf-mcp` the way Claude Code
    does) and the user's hands-on test with real Claude Code.
 7. ☐ Manual and roadmap: the AI pages rewritten; #28–#31 become plugin

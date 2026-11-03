@@ -88,10 +88,6 @@ func (a *App) selfCheck(w *Window) {
 		w.checkAPI()
 	case "ai":
 		w.checkAI()
-	case "explain":
-		w.checkExplain()
-	case "investigate":
-		w.checkInvestigate()
 	case "bridge":
 		w.checkBridge()
 	case "claude":

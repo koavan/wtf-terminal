@@ -28,7 +28,7 @@ Ask Claude again from the same shell and you go back to its Claude pane. If you 
 
 Secrets are hidden (as **Hide Secrets** does) in everything these tools return. Claude Code's own tools, such as reading files or its own Bash, aren't filtered by wtf.
 
-Slash commands do the common jobs:
+Slash commands do the common jobs. wtf's own menus type them for you: **Explain Failure…**, **Command from Plain English…**, **Investigate…** and a review's **Summarize with Claude** open the shell's Claude pane if needed and type the command once Claude Code is ready for a prompt (never while it starts or works).
 
 - `/wtf:explain`: why the last command failed, and one command that fixes it.
 - `/wtf:cmd <what you want>`: one command for this shell, typed at the prompt.

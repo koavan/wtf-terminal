@@ -3,17 +3,21 @@
 package gtkui
 
 import (
+	"fmt"
 	"os"
+	"slices"
 	"strings"
 	"time"
 
 	"github.com/dayanraj/wtf/internal/bridge"
+	"github.com/dayanraj/wtf/internal/uicore"
 )
 
 // standInClaude plays Claude Code in a Claude pane: it notes how it was
 // started, runs the plugin's hooks the way Claude Code does, and asks the
-// plugin's MCP server for the target's recent commands. Files in dir mark
-// each step; the check creates "go" and "quit" to move it on.
+// plugin's MCP server for the target's recent commands, then takes prompts
+// line by line. Files in dir mark each step; the check creates "go" and
+// "release" to move it on.
 const standInClaude = `#!/bin/sh
 d=%DIR%
 echo "$*" > $d/args
@@ -29,7 +33,15 @@ touch $d/waiting
 while [ ! -e $d/go ]; do sleep 0.1; done
 h '{"hook_event_name":"Stop"}'
 touch $d/idle
-while [ ! -e $d/quit ]; do sleep 0.1; done
+# Prompts, as Claude Code takes them: each is busy, then idle; "hold" stays
+# busy until the check creates "release"; "quit" ends it.
+while IFS= read -r line; do
+	echo "$line" >> $d/typed
+	[ "$line" = quit ] && break
+	h '{"hook_event_name":"UserPromptSubmit"}'
+	case $line in *hold) while [ ! -e $d/release ]; do sleep 0.1; done ;; esac
+	h '{"hook_event_name":"Stop"}'
+done
 h '{"hook_event_name":"SessionEnd"}'
 `
 
@@ -126,7 +138,67 @@ func (w *Window) checkClaude() {
 	onMain(func() { count = len(w.model.Panes) })
 	check(count == panes, "a Claude pane doesn't get its own Claude pane (%d panes)", count)
 
-	_ = os.WriteFile(dir+"/quit", nil, 0o644)
+	// #24–#27 through the Claude pane: what each one types there.
+	typed := func(line string) bool { return slices.Contains(strings.Split(read("typed"), "\n"), line) }
+	target.write("ls /nonexistent-wtf\r")
+	var failed int
+	check(waitUntil(5*time.Second, func() bool {
+		id, ok := target.tracker.LastFinished()
+		b, _ := target.tracker.Info(id)
+		failed = id
+		return ok && b.Text == "ls /nonexistent-wtf" && b.ExitCode != nil && *b.ExitCode != 0
+	}), "a command fails in the shell")
+	var labels []string
+	onMain(func() {
+		for _, it := range target.blockItems(failed) {
+			if it != nil {
+				labels = append(labels, it.label)
+			}
+		}
+	})
+	check(slices.Contains(labels, "Explain Failure… (Claude)"), "its block menu offers Explain Failure: %q", labels)
+	onMain(func() { w.explainBlock(target, failed) })
+	explain := fmt.Sprintf("/wtf:explain block %d", failed)
+	check(waitUntil(5*time.Second, func() bool { return typed(explain) }), "Explain Failure types %q in the Claude pane, with Enter (got %q)", explain, read("typed"))
+	check(waitUntil(5*time.Second, func() bool { return state() == bridge.StateIdle }), "and Claude Code is idle again")
+
+	onMain(func() { w.model.FocusPane(target.id); w.claudeCommand() })
+	time.Sleep(500 * time.Millisecond)
+	var screen string
+	onMain(func() {
+		top, _ := claude.top()
+		for r := top; r < top+claude.term.Rows(); r++ {
+			screen += claude.term.Row(r) + "\n"
+		}
+	})
+	check(strings.Contains(screen, "/wtf:cmd") && !strings.Contains(read("typed"), "/wtf:cmd"),
+		"Command from Plain English types /wtf:cmd for you to finish, without Enter")
+	claude.write("hold\r")
+	check(waitUntil(5*time.Second, func() bool { return typed("/wtf:cmd hold") && state() == bridge.StateBusy }), "you finish it: busy (%q)", state())
+
+	// While it works, a review waits for its next prompt.
+	onMain(func() { w.model.FocusPane(target.id); w.reviewFile("/src/internal/review/testdata/plan.json") })
+	check(waitUntil(5*time.Second, func() bool { return reviewShown != nil && reviewShown.review != nil && reviewShown.summarize.Sensitive() }),
+		"a plan file's review offers Summarize with Claude")
+	onMain(func() { reviewShown.summarize.Activate() })
+	review := "/wtf:review plan file /src/internal/review/testdata/plan.json"
+	time.Sleep(700 * time.Millisecond)
+	check(!typed(review) && reviewShown == nil, "the dialog closes, and nothing is typed while Claude Code works")
+	_ = os.WriteFile(dir+"/release", nil, 0o644)
+	check(waitUntil(5*time.Second, func() bool { return typed(review) }), "then it's typed: %q", read("typed"))
+	check(waitUntil(5*time.Second, func() bool { return state() == bridge.StateIdle }), "and Claude Code is idle again")
+
+	onMain(func() { w.model.FocusPane(target.id); w.claudeInvestigate() })
+	time.Sleep(500 * time.Millisecond)
+	screen = ""
+	onMain(func() {
+		top, _ := claude.top()
+		for r := top; r < top+claude.term.Rows(); r++ {
+			screen += claude.term.Row(r) + "\n"
+		}
+	})
+	check(strings.Contains(screen, "/wtf:investigate"), "Investigate types /wtf:investigate for you to finish")
+	claude.write(uicore.ClearLine + "quit\r")
 	check(waitUntil(10*time.Second, func() bool { ps := w.model.Panes[claude.id]; return ps != nil && !ps.Running }), "claude exits")
 	onMain(func() { w.model.ClosePane(claude.id) })
 	check(waitUntil(5*time.Second, func() bool { return len(a.claude.targets) == 0 }), "closing the Claude pane forgets it")

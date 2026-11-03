@@ -17,7 +17,6 @@
 | [Share & Record](#share) | {{key:sidebar.share}} | Hide Secrets, recording, and saving a terminal's output |
 | [Generate](#generate) | {{key:sidebar.generate}} | new SSH keys and passwords, from a form |
 | [Findings](#findings) | {{key:sidebar.findings}} | security scanners' results (SARIF) for the shell's repository, and running a scan |
-| [Investigate](#ai) | palette: Investigate (AI)… | ask the AI why something is broken; it runs read-only commands in the focused shell (shown only with an AI provider set up) |
 
 Hover an icon for the tab's name and shortcut. Pressing a tab's shortcut again closes the pane. Drag its right edge to resize it; double-click the edge for the default width. The **?** at the bottom of the icons opens this manual at the page for the tab you're on. The wrench above it opens [Command-line tools](#tools): which of kubectl, the AWS CLI, git and OpenSSH the tabs can use, and installing a missing one.
 

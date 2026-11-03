@@ -3,7 +3,11 @@
 package gtkui
 
 import (
+	"fmt"
 	"slices"
+	"time"
+
+	coreglib "github.com/diamondburned/gotk4/pkg/core/glib"
 
 	"github.com/dayanraj/wtf/internal/bridge"
 	"github.com/dayanraj/wtf/internal/uicore"
@@ -23,10 +27,22 @@ type claudePanes struct {
 	states map[string]string
 	// Claude panes split but not started yet → their target.
 	pending map[*uicore.PaneState]string
+	// What to type in a Claude pane once Claude Code is ready for a
+	// prompt, by session; for a pane not started yet, by pane.
+	queued          map[string]claudeMessage
+	pendingMessages map[*uicore.PaneState]claudeMessage
+}
+
+// claudeMessage is a `/wtf:` command for a Claude pane, with Enter or for
+// you to finish.
+type claudeMessage struct {
+	text  string
+	enter bool
 }
 
 func newClaudePanes() *claudePanes {
-	return &claudePanes{targets: map[string]string{}, states: map[string]string{}, pending: map[*uicore.PaneState]string{}}
+	return &claudePanes{targets: map[string]string{}, states: map[string]string{}, pending: map[*uicore.PaneState]string{},
+		queued: map[string]claudeMessage{}, pendingMessages: map[*uicore.PaneState]claudeMessage{}}
 }
 
 func (c *claudePanes) isClaude(ps *uicore.PaneState) bool {
@@ -57,7 +73,12 @@ func (w *Window) claudeState(t uicore.Tab) string {
 
 // askClaude opens the Claude pane for the focused shell, or goes to the one
 // it has.
-func (w *Window) askClaude() {
+func (w *Window) askClaude() { w.askClaudeTo(claudeMessage{}) }
+
+// askClaudeTo is askClaude, then types m there once Claude Code is ready.
+// Nothing is typed while it starts (its folder-trust question comes first)
+// or works: it waits for its next prompt.
+func (w *Window) askClaudeTo(m claudeMessage) {
 	c := w.app.claude
 	src := w.model.ActivePane()
 	if src == nil || src.Kind != uicore.PaneTerminal || src.SessionID == "" {
@@ -65,7 +86,11 @@ func (w *Window) askClaude() {
 		return
 	}
 	if c.isClaude(src) {
-		w.toast("This is a Claude pane: its tools work on the shell it was opened from")
+		if m.text != "" {
+			w.app.claudeDeliver(m, src.SessionID, w)
+		} else {
+			w.toast("This is a Claude pane: its tools work on the shell it was opened from")
+		}
 		return
 	}
 	command, err := w.app.be.Bridge.ClaudeCommand()
@@ -89,7 +114,11 @@ func (w *Window) askClaude() {
 		cw.model.FocusPane(cp.ID)
 		cw.win.Present()
 		if p := cw.panes[cp.ID]; p != nil && !cp.Busy() {
+			delete(c.states, cs)
 			p.write(uicore.ClearLine + command + "\r")
+		}
+		if m.text != "" {
+			w.app.claudeDeliver(m, cs, cw)
 		}
 		return
 	}
@@ -98,11 +127,51 @@ func (w *Window) askClaude() {
 		return
 	}
 	if ps := w.model.Panes[id]; ps != nil {
+		if m.text != "" {
+			c.pendingMessages[ps] = m
+		}
 		if ps.SessionID != "" {
 			c.started(w, ps, src.SessionID)
 		} else {
 			c.pending[ps] = src.SessionID
 		}
+	}
+}
+
+// claudeDeliver types m in Claude pane session now if Claude Code waits for
+// a prompt, else when it next does (a newer message replaces it).
+func (a *App) claudeDeliver(m claudeMessage, session string, w *Window) {
+	c := a.claude
+	switch c.states[session] {
+	case bridge.StateIdle:
+		a.claudeType(m, session)
+		return
+	case bridge.StateBusy, bridge.StateWaiting:
+		w.toast("Claude Code is busy: wtf types this when it's done")
+	}
+	c.queued[session] = m
+}
+
+func (a *App) claudeType(m claudeMessage, session string) {
+	w := a.windowOf(session)
+	if w == nil {
+		return
+	}
+	ps := w.model.PaneBySession(session)
+	p := w.panes[ps.ID]
+	if p == nil {
+		return
+	}
+	p.write(m.text)
+	if m.enter {
+		// Apart from the text, so it isn't taken as part of a paste.
+		coreglib.TimeoutAdd(uint(200*time.Millisecond/time.Millisecond), func() bool {
+			p.write("\r")
+			return false
+		})
+	}
+	if t, ok := w.model.TabOf(ps.ID); ok && t.ID == w.model.ActiveID() {
+		w.model.FocusPane(ps.ID)
 	}
 }
 
@@ -118,6 +187,10 @@ func (w *Window) claudeStarted(ps *uicore.PaneState) {
 
 func (c *claudePanes) started(w *Window, ps *uicore.PaneState, target string) {
 	c.targets[ps.SessionID] = target
+	if m, ok := c.pendingMessages[ps]; ok {
+		delete(c.pendingMessages, ps)
+		c.queued[ps.SessionID] = m
+	}
 	w.app.be.Bridge.SetTarget(ps.SessionID, target)
 	w.strip.refresh()
 }
@@ -130,6 +203,7 @@ func (a *App) claudeClosed(session string) {
 	}
 	delete(c.targets, session)
 	delete(c.states, session)
+	delete(c.queued, session)
 	a.be.Bridge.SetTarget(session, "")
 }
 
@@ -149,6 +223,10 @@ func (a *App) claudeStatus(st bridge.Status) {
 		c.states[st.Session] = st.State
 	}
 	w.strip.refresh()
+	if m, ok := c.queued[st.Session]; ok && st.State == bridge.StateIdle {
+		delete(c.queued, st.Session)
+		a.claudeType(m, st.Session)
+	}
 	ps := w.model.PaneBySession(st.Session)
 	t, ok := w.model.TabOf(ps.ID)
 	if !ok || w.win.IsActive() && t.ID == w.model.ActiveID() && slices.Contains(t.Root.Leaves(), ps.ID) {
@@ -166,4 +244,24 @@ func (a *App) claudeStatus(st bridge.Status) {
 	}
 	notify := a.be.Notify
 	go func() { _ = notify.Notify(head, title, body) }()
+}
+
+// #25–#27 through the Claude pane's slash commands (claude-plugin/commands).
+
+// claudeCommand: a command from plain English, `/wtf:cmd ` for you to finish.
+func (w *Window) claudeCommand() { w.askClaudeTo(claudeMessage{text: "/wtf:cmd "}) }
+
+// claudeInvestigate: `/wtf:investigate ` for you to say what's wrong.
+func (w *Window) claudeInvestigate() { w.askClaudeTo(claudeMessage{text: "/wtf:investigate "}) }
+
+// claudeReview: a summary of a change preview, block id or a saved plan file.
+func (w *Window) claudeReview(block int, file string) {
+	text := "/wtf:review"
+	switch {
+	case file != "":
+		text += " plan file " + uicore.ShellQuote(file)
+	case block > 0:
+		text += fmt.Sprintf(" block %d", block)
+	}
+	w.askClaudeTo(claudeMessage{text: text, enter: true})
 }

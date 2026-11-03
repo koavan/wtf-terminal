@@ -3,6 +3,7 @@
 package gtkui
 
 import (
+	"strings"
 	"time"
 
 	coreglib "github.com/diamondburned/gotk4/pkg/core/glib"
@@ -143,4 +144,34 @@ func (a *App) bridgeRun(req bridge.UIRequest, p *Pane, reply func(bridge.Reply),
 		})
 		return false
 	})
+}
+
+type typeResult int
+
+const (
+	typed typeResult = iota
+	shellBusy
+	copiedInstead
+)
+
+// typeAtPrompt types a suggested command at the pane's prompt without
+// Enter: Ctrl-U first, then the text (a multi-line one bracketed). A
+// multi-line one is copied instead when the shell would run each line;
+// nothing is typed while a program runs.
+func (p *Pane) typeAtPrompt(text string) typeResult {
+	ps := p.win.model.Panes[p.id]
+	if ps == nil || !ps.IsShell || ps.Running {
+		return shellBusy
+	}
+	if strings.Contains(text, "\n") {
+		if !p.feed.bracketed {
+			p.term.Clipboard().SetText(text)
+			return copiedInstead
+		}
+		text = "\x1b[200~" + text + "\x1b[201~"
+	}
+	// One write, so nothing lands between clearing the line and the text.
+	p.write(uicore.ClearLine + text)
+	p.term.GrabFocus()
+	return typed
 }

@@ -551,7 +551,8 @@ func (w *Window) windowCommands() map[string]func() {
 		"help.shortcuts":      w.showShortcuts,
 		"term.pinOutput":      w.pinLastOutput,
 		"ai.explain":          w.explainLastFailure,
-		"ai.ask":              w.toggleAskBar,
+		"ai.ask":              w.claudeCommand,
+		"ai.investigate":      w.claudeInvestigate,
 		"claude.ask":          w.askClaude,
 		"review.last":         w.reviewLastCommand,
 		"findings.scan":       w.runSecurityScan,
@@ -603,8 +604,6 @@ func (w *Window) windowCommands() map[string]func() {
 		tab := t.tab
 		cmds[t.cmd] = func() { w.showSidebar(tab) }
 	}
-	// Opens the tab and focuses the question (only with an AI set up).
-	cmds["ai.investigate"] = w.showInvestigate
 	return cmds
 }
 

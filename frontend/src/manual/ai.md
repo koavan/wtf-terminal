@@ -38,28 +38,15 @@ Each provider's row shows its model, where requests go, whether it has a key, an
 
 **Test** sends a tiny request ("Reply with the single word OK") and shows the reply, how long it took, and the tokens or cost when the provider reports them. Errors show as the provider gave them: a wrong key, an unknown model, a tool that isn't logged in.
 
-## Explain a failed command
+## Explain, commands from plain English, investigations
 
-Right-click a failed command (or click its ✗ mark) → **Explain Failure…**, or **Explain Last Failed Command…** in the palette and {{mac:the Edit menu|other:the window menu}} for the focused pane's last command. The default provider gets the facts wtf already has:
+These go through [Ask Claude](#ask-claude): your own Claude Code in a split beside the shell, not the providers on this page.
 
-- the command, its exit code (with what the shell means by 126, 127 and the signal codes above 128) and how long it ran;
-- the end of its output: the last 150 lines;
-- the folder (your home folder as `~`), the system and shell;
-- the shell's Kubernetes context and namespace, AWS profile, region and account, Google Cloud project, Terraform workspace and git branch, as the address bar shows them;
-- the versions of well-known tools the command ran (`kubectl`, `aws`, `terraform`, `helm`, `docker`, `git`, `node`, `python3`…), asked from the shell's `PATH` and folder. Only tools on that list are asked; any other program is never run.
+- **Explain Failure… (Claude)**: right-click a failed command (or click its ✗ mark), or **Explain Last Failed Command…** in the palette and {{mac:the Edit menu|other:the window menu}}. The shell's Claude pane gets `/wtf:explain block N`: Claude reads that command and its output through wtf's tools, says why it likely failed, and can type a fix at your prompt for you to run.
+- **Command from Plain English…**: from the palette, {{mac:the Edit menu|other:the window menu}} or the terminal's right-click menu. The Claude pane gets `/wtf:cmd ` for you to finish ("delete evicted pods in all namespaces"); Claude types one command at the shell's prompt, without pressing Enter.
+- **Investigate…**: from the palette, the menus or the right-click menu. The Claude pane gets `/wtf:investigate ` for you to say what's wrong ("why is checkout-api crashlooping in staging?"). Claude looks with read-only commands from wtf's list, each shown in the shell as a normal command block, and asks you before every one.
 
-The reply streams in: the likely cause, then a fix command when one helps. **Type Fix at Prompt** puts it at the shell's prompt without pressing Enter, so you read, edit and run it yourself. **Copy** copies the explanation and the fix; **What's Sent** shows exactly what went to the provider; **Close** stops a reply still coming in.
-
-## Command from plain English
-
-Choose **Command from Plain English…** from the palette, {{mac:the Edit menu|other:the window menu}} or the terminal's right-click menu. Describe what you want ("delete evicted pods in all namespaces", "biggest files under this folder", "which process holds port 8080") and press Return.
-
-The quick provider (`ai-fast`, else the default) gets your words with the focused shell's facts: folder, system and shell, its Kubernetes context and namespace, AWS profile and region, Google Cloud project, Terraform workspace, git branch, and which well-known tools are installed (looked up on the `PATH`, nothing is run). It answers with one command for that shell, written for your system's flavour of the tools, and a sentence about what it does. Names it would have to guess come back as `<placeholders>`.
-
-- **Return** again (or **Insert at Prompt**) types the command at the prompt without pressing Enter: read it, edit it, run it.
-- Change the words and press **Return** to ask again.
-- **Explain Flags** asks what each part does: every program, subcommand, flag and argument, one per line.
-- **What's Sent** shows exactly what went to the provider. **Esc** stops a reply, or closes the bar.
+The Claude pane opens if the shell doesn't have one yet. Text is typed only once Claude Code is ready for a prompt: never while it starts (its first question in a new folder is whether you trust it) or while it works.
 
 ## Review infrastructure changes
 
@@ -74,30 +61,7 @@ wtf reads the output itself, without AI, and lists every change as a fact:
 
 The counts at the top are wtf's; Terraform's own line ("Plan: 2 to add, 1 to change, 2 to destroy") is shown under them, counting a replacement as one add and one destroy.
 
-With an AI set up, the default provider then gets these facts, the shell's context and the start of the output, and writes a plain-English summary: what applying it will do, why each replacement and destruction happens, and what each access change grants or removes. Values a plan file marks sensitive aren't sent. Without an AI, you still get the facts.
-
-## Investigate an incident
-
-Ask why something is broken ("why is checkout-api crashlooping in staging?") and let the AI find out. Open the **Investigate** tab in the side pane (the stethoscope{{mac:|other: / search}} icon, shown once an AI is set up), **Investigate (AI)…** in the palette, or right-click the terminal. Type the question and press Return.
-
-The default provider gets your question, the focused shell's facts (folder, Kubernetes context and namespace, AWS profile and region, installed tools) and the last three commands you ran in it, with the end of their output. When those already answer the question (a command that just failed), it answers without running anything; so it does for a general question ("is it possible to back up Route 53?", "how do I…"); for a single failed command, **Explain Failure…** is quicker. Otherwise it works step by step.
-
-**Nothing runs without you.** Each command it wants is first checked by wtf against a read-only list, then shown in the tab with why it wants it, marked *waiting for you*. **Run** types it into **that shell**, where it shows as a normal command block, uses exactly your shell's credentials, and lands in its history; **Skip** declines it, and the AI carries on without it (it's told not to ask for it again). Return in the terminal never approves a command: only a click on **Run** does. The tab lists every step: click one to scroll the terminal to it. When it has enough evidence it writes a **finding** that cites the steps ([1], [2]…), and what to do next.
-
-What it may run:
-
-- `kubectl` get, describe, logs, events, top, explain, api-resources, version, cluster-info, auth can-i, rollout status/history
-- `helm` history, status, list, get notes/metadata, show chart
-- `aws` describe-\*, list-\*, get-\*, sts get-caller-identity, s3 ls, logs filter-log-events/tail
-- `gcloud` … list / describe; `docker` ps, images, inspect, logs, stats, top; `dig`, `host`, `nslookup`; `curl -I`; `ping`
-
-Everything else is refused, and the tab shows the refusal and why. So are flags that would switch context or credentials (`--context`, `--kubeconfig`, `--profile`, `--as`), never end (`-f`, `--watch`, `--follow`), or print secret values (`kubectl get secret -o yaml`, `helm get values`, `get-secret-value`, `--with-decryption`). wtf adds what keeps a command finite: `--tail=200` for logs, `--no-cli-pager` for aws, `--max-time 10` for curl, `-c 3` for ping. The AI names a program and its arguments, never shell text: wtf quotes each argument itself, so nothing it writes can become a pipe, redirect or second command.
-
-- **Limits**: at most 12 commands and 250,000 tokens per investigation; then it gives its finding from what it has. A command still running after 60 seconds gets Ctrl-C.
-- **Stop** ends it at any time, also while a command waits for you. The shell is in use while a command you approved runs: don't type in it meanwhile.
-- **A fix is never run.** When the finding suggests one (a rollback, a restart, a scale), **Type Fix at Prompt** puts it at the shell's prompt for you to read and run.
-- It needs a provider that can call tools: the Claude API or an OpenAI-compatible endpoint (most local models served by Ollama or LM Studio can, if the model supports tools). Command-line AI tools can't, and the tab says so.
-- Output goes through Hide Secrets' redaction before it's sent, like everything else; the first request to a provider shows what will be sent.
+**Summarize with Claude** closes the review and asks the shell's Claude pane (`/wtf:review`): Claude reads the same facts through wtf's tools and writes a plain-English summary of what applying it will do, why each replacement and destruction happens, and what each access change grants or removes. See [Ask Claude](#ask-claude).
 
 ## In config.toml
 
@@ -131,7 +95,7 @@ command = ["codex", "exec", "-"]
 - **`command` providers** get the text on their standard input. wtf runs them in a new, empty folder that's deleted afterwards, so a coding agent finds no project to work on. Beyond that, the tool's own settings apply: what it sends, where, and what it may do.
 - **On this computer**: an `openai` provider at `localhost` sends nothing off the machine.
 
-AI never runs a command that changes anything. Commands it suggests are typed into your shell for you to read, edit and run; the investigator asks before each read-only command it wants to run.
+AI never runs a command that changes anything. Commands it suggests are typed into your shell for you to read, edit and run.
 
 ## Cost
 

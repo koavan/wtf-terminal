@@ -48,7 +48,13 @@ enum ClaudeCheck {
         while [ ! -e "$d/go" ]; do sleep 0.1; done
         h '{"hook_event_name":"Stop"}'
         touch "$d/idle"
-        while [ ! -e "$d/quit" ]; do sleep 0.1; done
+        while IFS= read -r line; do
+            echo "$line" >> "$d/typed"
+            [ "$line" = quit ] && break
+            h '{"hook_event_name":"UserPromptSubmit"}'
+            case $line in *hold) while [ ! -e "$d/release" ]; do sleep 0.1; done ;; esac
+            h '{"hook_event_name":"Stop"}'
+        done
         h '{"hook_event_name":"SessionEnd"}'
 
         """
@@ -66,7 +72,7 @@ enum ClaudeCheck {
         }
         let dir = (standIn as NSString).deletingLastPathComponent
         let fm = FileManager.default
-        for f in ["args", "pre", "mcp.out", "mcp.err", "waiting", "go", "idle", "quit"] { try? fm.removeItem(atPath: "\(dir)/\(f)") }
+        for f in ["args", "pre", "mcp.out", "mcp.err", "waiting", "go", "idle", "typed", "release"] { try? fm.removeItem(atPath: "\(dir)/\(f)") }
         try? fm.createDirectory(atPath: dir, withIntermediateDirectories: true)
         try? script(dir).write(toFile: standIn, atomically: true, encoding: .utf8)
         try? fm.setAttributes([.posixPermissions: 0o755], ofItemAtPath: standIn)
@@ -116,7 +122,48 @@ enum ClaudeCheck {
         try? await Task.sleep(for: .milliseconds(500))
         check(m.panes.count == panes, "a Claude pane doesn't get its own Claude pane (\(m.panes.count) panes)")
 
-        fm.createFile(atPath: "\(dir)/quit", contents: nil)
+        // #24–#27 through the Claude pane: what each one types there.
+        func typed(_ line: String) -> Bool { read("typed").split(separator: "\n").contains { $0 == line } }
+        func screen() -> String {
+            guard let t = w.terminals[claudeId]?.view.getTerminal() else { return "" }
+            // Rows joined: a narrow pane wraps the line.
+            return (0..<t.rows).map { t.getLine(row: $0)?.translateToString(trimRight: true) ?? "" }.joined()
+        }
+        target.type("ls /nonexistent-wtf\r")
+        check(await waitUntil(10) {
+            guard let id = target.lastFinishedBlock, let b = target.block(id) else { return false }
+            return b.text == "ls /nonexistent-wtf" && (b.exitCode ?? 0) != 0
+        }, "a command fails in the shell")
+        let failed = target.lastFinishedBlock ?? 0
+        m.focusPane(targetId)
+        w.explainLastFailure()
+        let explain = "/wtf:explain block \(failed)"
+        check(await waitUntil(5) { typed(explain) }, "Explain Last Failed Command types \(explain.debugDescription) in the Claude pane, with Enter (got \(read("typed").debugDescription))")
+        check(await waitUntil(5) { state() == .idle }, "and Claude Code is idle again")
+
+        m.focusPane(targetId)
+        ClaudePane.command(in: w)
+        try? await Task.sleep(for: .milliseconds(500))
+        check(screen().contains("/wtf:cmd") && !read("typed").contains("/wtf:cmd"), "Command from Plain English types /wtf:cmd for you to finish, without Enter")
+        w.terminals[claudeId]?.type("hold\r")
+        check(await waitUntil(5) { typed("/wtf:cmd hold") && state() == .busy }, "you finish it: busy")
+
+        // While it works, a review waits for its next prompt.
+        let plan = "/tmp/wtf-check-plan.json"
+        m.focusPane(targetId)
+        ClaudePane.review(file: plan, in: w)
+        let review = "/wtf:review plan file \(plan)"
+        try? await Task.sleep(for: .milliseconds(700))
+        check(!typed(review), "nothing is typed while Claude Code works")
+        fm.createFile(atPath: "\(dir)/release", contents: nil)
+        check(await waitUntil(5) { typed(review) }, "then the review is typed: \(read("typed").debugDescription)")
+        check(await waitUntil(5) { state() == .idle }, "and Claude Code is idle again")
+
+        m.focusPane(targetId)
+        ClaudePane.investigate(in: w)
+        try? await Task.sleep(for: .milliseconds(500))
+        check(screen().contains("/wtf:investigate"), "Investigate types /wtf:investigate for you to finish")
+        w.terminals[claudeId]?.type(Shell.clearLine + "quit\r")
         check(await waitUntil(10) { m.panes[claudeId]?.running == false }, "claude exits")
         m.closePane(claudeId)
         check(await waitUntil(5) { !ClaudePane.isClaude(claudePane) && ClaudePane.target(of: claudePane) == nil }, "closing the Claude pane forgets it")

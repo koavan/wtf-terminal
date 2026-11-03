@@ -3,8 +3,8 @@ import WtfCore
 
 /// Change reviewer (#26): what a terraform plan, kubectl diff or helm diff
 /// (a command block or a saved plan file) will do, parsed by Go's review
-/// service and listed as facts. With an AI set up, it then writes a
-/// plain-English summary of those facts. Nothing is applied.
+/// service and listed as facts. Summarize with Claude asks the Claude pane
+/// (/wtf:review) for a plain-English summary. Nothing is applied.
 @MainActor
 final class ReviewSheet {
     private static var open: [ReviewSheet] = []
@@ -12,23 +12,20 @@ final class ReviewSheet {
     private weak var owner: WindowController?
     private let sheet: FormSheet
     private let facts: NSTextView
-    private let summary: NSTextView?
     private let status: NSTextField
     private var review: Go.review.Review?
-    private var env: [String: String] = [:]
-    private var cwd = ""
-    private var request: AIRequest?
-    private var aiRequest: Go.ai.Request?
-    private var reply = ""
+    /// The shell it's about, and what /wtf:review gets.
+    private var paneId: Int?
+    private var block: Int?
+    private var file: String?
 
     /// Reviews block id of a pane's terminal.
     static func show(block id: Int, in term: TerminalController, owner w: WindowController) {
         guard let b = term.block(id) else { return }
-        let pane = w.model.panes[term.paneId]
         let shown = Redaction.shared.text(b.text.count > 60 ? String(b.text.prefix(59)) + "…" : b.text)
         let s = ReviewSheet(title: "Review: \(shown)", owner: w)
-        s.env = pane?.env ?? [:]
-        s.cwd = pane?.cwd ?? ""
+        s.paneId = term.paneId
+        s.block = id
         let output = term.blockOutput(id) ?? ""
         s.load { try await Services.review.Parse(b.text, output) }
     }
@@ -36,9 +33,9 @@ final class ReviewSheet {
     /// Reviews a saved plan file.
     static func show(file path: String, owner w: WindowController) {
         let s = ReviewSheet(title: "Review: \((path as NSString).lastPathComponent)", owner: w)
-        s.env = w.activePane?.env ?? [:]
-        s.cwd = w.activePane?.cwd ?? ""
-        let env = s.env
+        s.paneId = w.model.active?.focusedPaneId
+        s.file = path
+        let env = w.activePane?.env ?? [:]
         s.status.stringValue = "Reading the plan…"
         s.load { try await Services.review.ParseFile(path, env) }
     }
@@ -46,25 +43,14 @@ final class ReviewSheet {
     private init(title: String, owner w: WindowController) {
         owner = w
         sheet = FormSheet(title: title, subtitle: "Reading…", width: 680)
-        facts = Self.textBox(in: sheet, height: 200, mono: true)
-        if ExplainSheet.available {
-            let l = NSTextField(labelWithString: "Summary")
-            l.font = .systemFont(ofSize: 12, weight: .medium)
-            sheet.add(l)
-            summary = Self.textBox(in: sheet, height: 200, mono: false)
-        } else {
-            summary = nil
-            sheet.add(sheet.note("Set up an AI provider in Settings (⌘,) for a plain-English summary of these changes."))
-        }
+        facts = Self.textBox(in: sheet, height: 240, mono: true)
         status = sheet.note("")
         sheet.add(status)
-        sheet.buttons([], cancel: "Close", left: [
-            ("What’s Sent", { [weak self] in self?.showSent() }),
+        sheet.buttons([("Summarize with Claude", true, { [weak self] in self?.summarize() })], cancel: "Close", left: [
             ("Copy", { [weak self] in self?.copy() }),
         ])
-        sheet.button("What’s Sent")?.isEnabled = false
+        sheet.button("Summarize with Claude")?.isEnabled = false
         sheet.button("Copy")?.isEnabled = false
-        sheet.button("What’s Sent")?.isHidden = summary == nil
         sheet.onClose = { [weak self] in self?.closed() }
         sheet.present(in: w.window)
         Self.open.append(self)
@@ -100,6 +86,7 @@ final class ReviewSheet {
 
     private func show(_ r: Go.review.Review) {
         review = r
+        status.stringValue = ""
         guard !r.tool.isEmpty else {
             sheet.setSubtitle("")
             facts.string = "This output isn’t terraform plan, kubectl diff or helm diff output, so there’s nothing to review."
@@ -110,63 +97,25 @@ final class ReviewSheet {
         sheet.setSubtitle(sub)
         facts.string = Redaction.shared.text(r.noChanges && r.lines.isEmpty ? "No changes." : r.lines.joined(separator: "\n"))
         sheet.button("Copy")?.isEnabled = true
-        if summary != nil, !r.lines.isEmpty { summarize(r) }
+        sheet.button("Summarize with Claude")?.isEnabled = !r.lines.isEmpty
     }
 
-    private func summarize(_ r: Go.review.Review) {
-        status.stringValue = "Asking for a summary…  Close stops it."
-        Task {
-            do {
-                let req = try await Services.review.Request(Go.review.Ask(review: r, env: env, cwd: cwd))
-                guard Self.open.contains(where: { $0 === self }) else { return }
-                aiRequest = req
-                sheet.button("What’s Sent")?.isEnabled = true
-                let a = AIRequest(req)
-                request = a
-                a.onChunk = { [weak self] chunk in
-                    guard let self else { return }
-                    reply += chunk
-                    summary?.string = Redaction.shared.text(reply)
-                    summary?.scrollToEndOfDocument(nil)
-                }
-                a.onDone = { [weak self] d in self?.done(d) }
-                a.start(in: sheet.panel)
-            } catch {
-                status.stringValue = error.localizedDescription
-            }
-        }
-    }
-
-    private func done(_ d: AIDone) {
-        request = nil
-        if d.cancelled {
-            status.stringValue = reply.isEmpty ? "No summary asked for." : "Stopped."
-        } else if !d.error.isEmpty {
-            status.stringValue = "The AI couldn’t answer: \(d.error)"
-            status.textColor = .systemRed
-        } else {
-            reply = d.text
-            summary?.string = Redaction.shared.text(d.text.trimmingCharacters(in: .whitespacesAndNewlines))
-            summary?.scrollToBeginningOfDocument(nil)
-            status.stringValue = d.summary
-        }
+    /// Closes the sheet and asks the shell's Claude pane.
+    private func summarize() {
+        guard let w = owner else { return }
+        if let id = paneId, w.model.panes[id] != nil { w.model.focusPane(id) }
+        let block = block, file = file
+        sheet.close()
+        ClaudePane.review(block: block, file: file, in: w)
     }
 
     private func copy() {
         guard let r = review else { return }
-        var text = "\(r.tool): \(r.countText)\n" + r.lines.joined(separator: "\n")
-        if let s = summary?.string, !s.isEmpty { text += "\n\n" + s }
-        Clipboard.copy(Redaction.shared.text(text))
+        Clipboard.copy(Redaction.shared.text("\(r.tool): \(r.countText)\n" + r.lines.joined(separator: "\n")))
         Toast.show("Copied the review", in: sheet.panel.contentView)
     }
 
-    private func showSent() {
-        guard let r = aiRequest else { return }
-        AIRequest.showPreview(r, in: sheet.panel)
-    }
-
     private func closed() {
-        request?.cancel()
         Self.open.removeAll { $0 === self }
     }
 }

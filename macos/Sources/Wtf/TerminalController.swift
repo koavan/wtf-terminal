@@ -422,11 +422,12 @@ final class TerminalController: NSObject, @MainActor TerminalViewDelegate, Outpu
                 ReviewSheet.show(block: id, in: self, owner: o)
             })
         }
-        if let code = b.exitCode, code != 0, ExplainSheet.available {
+        if let code = b.exitCode, code != 0 {
             items.append(.separator())
-            items.append(item("Explain Failure…") { [weak self] in
+            items.append(item("Explain Failure… (Claude)") { [weak self] in
                 guard let self, let o = owner else { return }
-                ExplainSheet.show(block: id, in: self, owner: o)
+                o.model.focusPane(paneId)
+                ClaudePane.explain(block: id, in: o)
             })
         }
         if !b.text.isEmpty, !b.running {
@@ -461,12 +462,17 @@ final class TerminalController: NSObject, @MainActor TerminalViewDelegate, Outpu
                 ClaudePane.ask(in: o)
             })
         }
-        if ExplainSheet.available, !view.getTerminal().isCurrentBufferAlternate {
+        if let o = owner, let p = o.model.panes[paneId], !ClaudePane.isClaude(p), !view.getTerminal().isCurrentBufferAlternate {
             items.append(item("Command from Plain English…") { [weak self] in
-                guard let o = self?.owner else { return }
-                AskBar.toggle(in: o)
+                guard let self, let o = owner else { return }
+                o.model.focusPane(paneId)
+                ClaudePane.command(in: o)
             })
-            items.append(item("Investigate (AI)…") { [weak self] in self?.owner?.showInvestigate() })
+            items.append(item("Investigate…") { [weak self] in
+                guard let self, let o = owner else { return }
+                o.model.focusPane(paneId)
+                ClaudePane.investigate(in: o)
+            })
         }
         items += [
             item(Redaction.shared.on ? "Show Secrets" : "Hide Secrets", key: "r", mods: [.command, .option]) {
