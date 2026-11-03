@@ -23,16 +23,18 @@ Ask Claude again from the same shell and you go back to its Claude pane. If you 
 | `pane_context` | Reads the shell's folder, system, Kubernetes context and namespace, AWS profile and region, Google Cloud project, Terraform workspace, git branch, and which well-known tools are installed. These come from files; nothing asks a cloud. |
 | `recent_commands` | Reads the last commands you ran in the shell, with exit codes and the end of their output. |
 | `review_changes` | Reads a `terraform plan`, `kubectl diff` or `helm diff` you ran, or a saved plan file, and lists each change as facts. |
+| `log_patterns` | Groups a command's log output (`kubectl logs`, `docker logs`, `journalctl`…, also while it runs) into patterns: lines that differ only in numbers, ids, addresses, durations, times and quoted values count as one, each with its count, level, first and last time seen; errors and warnings first, with a timeline of them. |
 | `run_readonly` | Runs one command from a fixed read-only list (`kubectl get`, `aws … describe`, `dig` and the like) in the shell, as a normal command block you can see, and returns its output. Anything else is refused. |
 | `type_at_prompt` | Types a command at the shell's prompt without pressing Enter, so you read, edit and run it yourself. |
 
 Secrets are hidden (as **Hide Secrets** does) in everything these tools return. Claude Code's own tools, such as reading files or its own Bash, aren't filtered by wtf.
 
-Slash commands do the common jobs. wtf's own menus type them for you: **Explain Failure…**, **Command from Plain English…**, **Investigate…** and a review's **Summarize with Claude** open the shell's Claude pane if needed and type the command once Claude Code is ready for a prompt (never while it starts or works).
+Slash commands do the common jobs. wtf's own menus type them for you: **Explain Failure…**, **Summarize Logs…** (a command's right-click menu, when it has 10 lines or more, or the palette), **Command from Plain English…**, **Investigate…** and a review's **Summarize with Claude** open the shell's Claude pane if needed and type the command once Claude Code is ready for a prompt (never while it starts or works).
 
 - `/wtf:explain`: why the last command failed, and one command that fixes it.
 - `/wtf:cmd <what you want>`: one command for this shell, typed at the prompt.
 - `/wtf:review`: a plain-English summary of the latest change preview.
+- `/wtf:logs`: a summary of a command's logs: the patterns that matter, how often and when.
 - `/wtf:investigate <what's wrong>`: an investigation with read-only commands, each approved by you.
 
 ## Approving commands

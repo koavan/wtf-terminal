@@ -552,32 +552,60 @@ Phases:
    `ai-default`, `ai-fast` and `[ai.*]` load with one note instead of
    "unknown setting" errors; keys saved under "wtf AI" stay in the
    keychain/keyring for the user to remove (the manual says how).
-6. ☐ Self-checks (a Linux check that drives `wtf-mcp` the way Claude Code
-   does) and the user's hands-on test with real Claude Code.
-7. ☐ Manual and roadmap: the AI pages rewritten; #28–#31 become plugin
-   tools and slash commands.
+6. ☐ Self-checks and hands-on: the `claude` and `bridge` self-checks on
+   both platforms (done) drive wtf-mcp and a stand-in claude the way
+   Claude Code does; still to do: the user's hands-on test with real
+   Claude Code, and Linux on a real desktop.
+7. ☑ Manual and roadmap (2026-11-03): the Ask Claude page, the AI page
+   rewritten around it (with upgrading from providers), privacy and
+   settings updated; #28–#31 below redone as plugin tools and slash
+   commands.
 
-### 28. Log summarizer ☐
+Since #32, each of these is a tool on the wtf plugin's MCP server (Go, in
+`internal/bridge`, redacted like the rest) and a `/wtf:` slash command,
+with a clickable home in wtf that types the command in the shell's Claude
+pane. wtf does the deterministic part (parsing, grouping, reading files it
+already knows); Claude writes the prose.
 
-On a logs pane or a selection: group repeated errors into patterns with
-counts, first/last seen, and a short timeline.
+### 28. Log summarizer ☑
+
+`log_patterns`: a command block's output (default: the latest of the last
+20 with at least 10 lines, also one still running, e.g. `kubectl logs -f`)
+grouped into patterns by `internal/logsum`: timestamps (wtf's own log
+scanner finds them), UUIDs, IPs, pod suffixes, hex ids, durations, quoted
+values and numbers become placeholders; each pattern has its count, log
+level (as wtf colours it), first and last time seen, and one example line.
+Errors and warnings first, then by count; a timeline of error and warning
+lines whose step (1 min … 1 day) keeps it to 30 rows. `/wtf:logs [block]`
+has Claude summarize it. Homes: a block's menu → **Summarize Logs…
+(Claude)** (10 lines or more) and the palette. Built 2026-11-03.
 
 ### 29. Session to runbook or postmortem ☐
 
-From a recording or a range of command blocks: a parameterized runbook saved
-to Snippets, or a postmortem draft (timeline of commands, output and
-decisions).
+`session_commands`: a range of command blocks (ids, or the last N) with
+start time, folder, exit code, duration and the start and end of each
+output. `/wtf:runbook` turns them into a parameterized runbook and opens
+wtf's own snippet editor prefilled (`open_snippet_editor`; nothing is saved
+until the user clicks Save). `/wtf:postmortem` drafts a timeline of
+commands, output and decisions. Needs each block's start time from the UIs.
+Home: History tab and a block's menu.
 
 ### 30. Findings triage ☐
 
-For a SARIF finding in the Findings tab: what it means, whether the code path
-looks reachable, and a proposed patch shown as a diff (applied only on
-confirm).
+`findings`: the SARIF results the Findings tab shows for a folder (rule,
+severity, file:line, message, snippet), read by `internal/findings`.
+`/wtf:triage [rule or file]` asks Claude what one means, whether the code
+path looks reachable, and for a patch as a diff; it's applied only through
+Claude Code's own edit tools. Open question: whether wtf-launched sessions
+should also force "ask" on Edit/Write, as they do on Bash. Home: a
+finding's menu → **Triage with Claude**.
 
 ### 31. Ask your history ☐
 
-Natural-language search over context-tagged history ("the command I used to
-rotate the RDS cert last month"). Depends on #17.
+`search_history`: the History tab's commands (folder, exit code, time) and,
+once #17 records it, each one's Kubernetes/AWS context. `/wtf:history
+<question>` ("the command I used to rotate the RDS cert last month").
+Depends on #17.
 
 ## Also built
 

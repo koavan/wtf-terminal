@@ -162,6 +162,29 @@ func (w *Window) checkClaude() {
 	check(waitUntil(5*time.Second, func() bool { return typed(explain) }), "Explain Failure types %q in the Claude pane, with Enter (got %q)", explain, read("typed"))
 	check(waitUntil(5*time.Second, func() bool { return state() == bridge.StateIdle }), "and Claude Code is idle again")
 
+	// Summarize Logs: a command with enough lines offers it.
+	target.write("seq 12\r")
+	var seqID int
+	check(waitUntil(5*time.Second, func() bool {
+		id, ok := target.tracker.LastFinished()
+		b, _ := target.tracker.Info(id)
+		seqID = id
+		return ok && b.Text == "seq 12"
+	}), "the shell ran seq 12")
+	labels = nil
+	onMain(func() {
+		for _, it := range target.blockItems(seqID) {
+			if it != nil {
+				labels = append(labels, it.label)
+			}
+		}
+	})
+	check(slices.Contains(labels, "Summarize Logs… (Claude)"), "its block menu offers Summarize Logs: %q", labels)
+	onMain(func() { w.model.FocusPane(target.id); w.claudeLogs(seqID) })
+	logs := fmt.Sprintf("/wtf:logs block %d", seqID)
+	check(waitUntil(5*time.Second, func() bool { return typed(logs) }), "it types %q, with Enter", logs)
+	check(waitUntil(5*time.Second, func() bool { return state() == bridge.StateIdle }), "and Claude Code is idle again")
+
 	onMain(func() { w.model.FocusPane(target.id); w.claudeCommand() })
 	time.Sleep(500 * time.Millisecond)
 	var screen string

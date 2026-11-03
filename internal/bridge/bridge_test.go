@@ -157,6 +157,23 @@ func TestTools(t *testing.T) {
 		t.Errorf("review_changes of kubectl get = %+v", r)
 	}
 
+	// log_patterns: the latest block with enough lines; secrets redacted.
+	r = call(t, s, "s1", tok, "log_patterns", map[string]any{})
+	if r.IsError || !strings.Contains(r.Text, "[block 1] $ terraform plan") || !strings.Contains(r.Text, "patterns (numbers, ids") {
+		t.Errorf("log_patterns = %+v", r)
+	}
+	f.blocks = append(f.blocks, Block{ID: 3, Command: "kubectl logs api", ExitCode: -1,
+		Output: strings.Repeat("2026-11-03T10:00:01Z ERROR token="+secret+" rejected for 10.0.0.1\n", 12)})
+	r = call(t, s, "s1", tok, "log_patterns", map[string]any{})
+	if r.IsError || !strings.Contains(r.Text, "[block 3] $ kubectl logs api") || !strings.Contains(r.Text, "still running") ||
+		!strings.Contains(r.Text, "1. ×12 [error]") || strings.Contains(r.Text, secret) {
+		t.Errorf("log_patterns of a running block = %+v", r)
+	}
+	if r = call(t, s, "s1", tok, "log_patterns", map[string]any{"block_id": 99}); !r.IsError {
+		t.Errorf("log_patterns of a missing block = %+v", r)
+	}
+	f.blocks = f.blocks[:2]
+
 	// Refused by the allowlist: nothing reaches the shell.
 	r = call(t, s, "s1", tok, "run_readonly", map[string]any{"argv": []string{"kubectl", "delete", "pod", "x"}})
 	if !r.IsError || !strings.Contains(r.Text, "refused") || len(f.ran) != 0 {

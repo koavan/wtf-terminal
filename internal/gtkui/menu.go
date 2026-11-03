@@ -218,6 +218,9 @@ func (p *Pane) blockItems(id int) []*menuItem {
 	if !b.Running() && b.HasOutput && review.Reviewable(b.Text) {
 		items = append(items, menuSection, item("Review Changes…", func() { p.win.reviewBlock(p, id) }))
 	}
+	if out, _ := p.tracker.Output(id); b.HasOutput && len(strings.FieldsFunc(out, func(r rune) bool { return r == '\n' })) >= 10 {
+		items = append(items, menuSection, item("Summarize Logs… (Claude)", func() { p.win.model.FocusPane(p.id); p.win.claudeLogs(id) }))
+	}
 	if b.ExitCode != nil && *b.ExitCode != 0 {
 		items = append(items, menuSection, item("Explain Failure… (Claude)", func() { p.win.explainBlock(p, id) }))
 	}

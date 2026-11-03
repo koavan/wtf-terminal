@@ -97,7 +97,7 @@ func TestPluginFiles(t *testing.T) {
 			t.Errorf("%s doesn't ask", name)
 		}
 	}
-	for _, name := range []string{toolPrefix + "pane_context", toolPrefix + "recent_commands", toolPrefix + "review_changes", "Read", "Grep"} {
+	for _, name := range []string{toolPrefix + "pane_context", toolPrefix + "recent_commands", toolPrefix + "review_changes", toolPrefix + "log_patterns", "Read", "Grep"} {
 		if re.MatchString(name) {
 			t.Errorf("%s asks", name)
 		}
@@ -128,7 +128,7 @@ func TestPluginFiles(t *testing.T) {
 		}
 	}
 	slices.Sort(seen)
-	if !slices.Equal(seen, []string{"cmd", "explain", "investigate", "review"}) {
+	if !slices.Equal(seen, []string{"cmd", "explain", "investigate", "logs", "review"}) {
 		t.Errorf("commands = %v", seen)
 	}
 }

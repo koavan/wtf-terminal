@@ -254,6 +254,16 @@ func (w *Window) claudeCommand() { w.askClaudeTo(claudeMessage{text: "/wtf:cmd "
 // claudeInvestigate: `/wtf:investigate ` for you to say what's wrong.
 func (w *Window) claudeInvestigate() { w.askClaudeTo(claudeMessage{text: "/wtf:investigate "}) }
 
+// claudeLogs: a summary of a command's logs (#28), block id or the latest
+// one with enough output (0).
+func (w *Window) claudeLogs(block int) {
+	text := "/wtf:logs"
+	if block > 0 {
+		text += fmt.Sprintf(" block %d", block)
+	}
+	w.askClaudeTo(claudeMessage{text: text, enter: true})
+}
+
 // claudeReview: a summary of a change preview, block id or a saved plan file.
 func (w *Window) claudeReview(block int, file string) {
 	text := "/wtf:review"

@@ -182,6 +182,12 @@ extension ClaudePane {
     /// An investigation: `/wtf:investigate ` for you to say what's wrong.
     static func investigate(in w: WindowController) { ask(in: w, send: Message(text: "/wtf:investigate ", enter: false)) }
 
+    /// A summary of a command's logs (#28): block `id`, or the latest one
+    /// with enough output.
+    static func logs(block id: Int? = nil, in w: WindowController) {
+        ask(in: w, send: Message(text: "/wtf:logs" + (id.map { " block \($0)" } ?? ""), enter: true))
+    }
+
     /// A summary of a change preview: block `id`, or a saved plan file.
     static func review(block id: Int? = nil, file: String? = nil, in w: WindowController) {
         let what = file.map { " plan file \(Shell.quote($0))" } ?? id.map { " block \($0)" } ?? ""

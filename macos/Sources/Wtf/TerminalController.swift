@@ -422,6 +422,14 @@ final class TerminalController: NSObject, @MainActor TerminalViewDelegate, Outpu
                 ReviewSheet.show(block: id, in: self, owner: o)
             })
         }
+        if b.hasOutput, (blockOutput(id) ?? "").split(separator: "\n", omittingEmptySubsequences: true).count >= 10 {
+            items.append(.separator())
+            items.append(item("Summarize Logs… (Claude)") { [weak self] in
+                guard let self, let o = owner else { return }
+                o.model.focusPane(paneId)
+                ClaudePane.logs(block: id, in: o)
+            })
+        }
         if let code = b.exitCode, code != 0 {
             items.append(.separator())
             items.append(item("Explain Failure… (Claude)") { [weak self] in

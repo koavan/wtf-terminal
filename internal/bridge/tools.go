@@ -5,10 +5,12 @@ import (
 	"encoding/json"
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/dayanraj/wtf/internal/bridge/wire"
 	"github.com/dayanraj/wtf/internal/explain"
 	"github.com/dayanraj/wtf/internal/investigate"
+	"github.com/dayanraj/wtf/internal/logsum"
 	"github.com/dayanraj/wtf/internal/review"
 	"github.com/dayanraj/wtf/internal/uicore"
 )
@@ -25,6 +27,12 @@ const (
 	recentBytes   = 4000
 	// review_changes looks this far back for a preview.
 	reviewLookback = 20
+	// log_patterns looks this far back, takes the latest block with at
+	// least logMinLines lines without a block_id, and lists this many
+	// patterns.
+	logLookback = 20
+	logMinLines = 10
+	logPatterns = 40
 )
 
 // Tools are what the plugin's MCP server offers. Every result is passed
@@ -52,6 +60,15 @@ var Tools = []wire.Tool{
 		InputSchema: json.RawMessage(`{"type":"object","properties":{` +
 			`"block_id":{"type":"integer","description":"A command block id from recent_commands."},` +
 			`"plan_file":{"type":"string","description":"A saved plan file, relative to the shell's folder or absolute."}},"additionalProperties":false}`),
+	},
+	{
+		Name: "log_patterns",
+		Description: "Groups a command's log output in the user's wtf shell (kubectl logs, docker logs, journalctl, a log file…) into patterns: " +
+			"lines that differ only in numbers, ids, addresses, durations, times and quoted values count as one. Each pattern has its count, " +
+			"log level, first and last time seen and an example line; errors and warnings come first, and a timeline counts them over time. " +
+			"Without block_id it reads the latest command with at least 10 lines of output, also one still running. Use it to summarize logs " +
+			"instead of reading every line.",
+		InputSchema: json.RawMessage(`{"type":"object","properties":{"block_id":{"type":"integer","description":"A command block id from recent_commands."}},"additionalProperties":false}`),
 	},
 	{
 		Name: "run_readonly",
@@ -94,6 +111,13 @@ func (s *Service) call(ctx context.Context, session, tool string, raw json.RawMe
 		}
 		if err = json.Unmarshal(raw, &a); err == nil {
 			text, err = s.reviewChanges(ctx, session, a.BlockID, a.PlanFile)
+		}
+	case "log_patterns":
+		var a struct {
+			BlockID *int `json:"block_id"`
+		}
+		if err = json.Unmarshal(raw, &a); err == nil {
+			text, err = s.logPatterns(ctx, session, a.BlockID)
 		}
 	case "run_readonly":
 		var a struct {
@@ -240,6 +264,32 @@ func (s *Service) reviewChanges(ctx context.Context, session string, id *int, pl
 		return "", fmt.Errorf("that isn't the output of a terraform plan, kubectl diff or helm diff")
 	}
 	return review.Facts(r) + "\nExcerpt of the output:\n" + r.Excerpt + "\n", nil
+}
+
+func (s *Service) logPatterns(ctx context.Context, session string, id *int) (string, error) {
+	list, err := s.blocks(ctx, session, logLookback)
+	if err != nil {
+		return "", err
+	}
+	lines := func(b *Block) int { return strings.Count(strings.TrimRight(b.Output, "\n"), "\n") + 1 }
+	var found *Block
+	for i := len(list) - 1; i >= 0; i-- {
+		bl := &list[i]
+		if id != nil && bl.ID == *id || id == nil && strings.TrimSpace(bl.Output) != "" && lines(bl) >= logMinLines {
+			found = bl
+			break
+		}
+	}
+	switch {
+	case found == nil && id != nil:
+		return "", fmt.Errorf("no block %d among the last %d commands", *id, logLookback)
+	case found == nil:
+		return "", fmt.Errorf("none of the last %d commands has %d or more lines of output: give block_id", logLookback, logMinLines)
+	case strings.TrimSpace(found.Output) == "":
+		return "", fmt.Errorf("the output of `%s` has left the scrollback", strings.TrimSpace(found.Command))
+	}
+	sum := logsum.Summarize(found.Output, time.Now(), time.Local)
+	return fmt.Sprintf("[block %d] $ %s\n%s\n\n%s", found.ID, strings.TrimSpace(found.Command), exitLine(*found), sum.Text(logPatterns)), nil
 }
 
 func (s *Service) runReadonly(ctx context.Context, session string, argv []string) (string, error) {
