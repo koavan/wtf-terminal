@@ -13,7 +13,7 @@ import (
 	wtfwindows "github.com/dayanraj/wtf/internal/windows"
 )
 
-const version = "1.3.0"
+const version = "1.4.0"
 
 // Set by the build (see build/*/Taskfile.yml): the git commit and the date.
 var (

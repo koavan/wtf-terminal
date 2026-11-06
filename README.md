@@ -126,6 +126,7 @@ Every command is also in the command palette.
 | Broadcast input (group, or split panes) | ⌥⌘B | Ctrl+Shift+Alt+B |
 | Run Snippet… | ⌘⇧R | Ctrl+Shift+Alt+R |
 | Ask Claude (Claude Code beside the shell) | ⌘I | Ctrl+Shift+I |
+| Agents tab / Go to Agent… / Next agent needing you | ⌘⇧M / ⌥⌘A / ⌥⌘N | Ctrl+Alt+M / Ctrl+Alt+Shift+M / Ctrl+Alt+Shift+N |
 | Next / previous tab | ⌘⇧] / ⌘⇧[, Ctrl+Tab | Ctrl+PgDn / Ctrl+PgUp, Ctrl+Tab |
 | Go to tab 1–8 / last | ⌘1–⌘8 / ⌘9 | Alt+1–8 / Alt+9 |
 | Move tab | ⌘⇧← / ⌘⇧→ | Ctrl+Shift+PgUp / PgDn |
@@ -533,6 +534,20 @@ Summarize Logs (`/wtf:logs`), Runbook from Here (`/wtf:runbook`, opening
 wtf's snippet editor filled in), Postmortem Draft (`/wtf:postmortem`),
 Triage with Claude on a finding (`/wtf:triage`) and Ask Your History
 (`/wtf:history`). Code: `claude-plugin/`, `cmd/wtf-mcp`, `internal/bridge`.
+
+## Agents
+
+The **Agents** tab (⌘⇧M / Ctrl+Alt+M, first in the side pane) lists every
+Claude Code running in wtf's shells, in every window: needs you, done
+(finished while you looked elsewhere), working or idle, with its tab,
+folder, last prompt or what it asks, and how long. Click one to go there;
+**Go to Agent…** (⌥⌘A) and **Next Agent Needing You** (⌥⌘N) do it from the
+keyboard. Tab badges and notifications cover every one, and the Dock icon
+counts the ones that need you. State comes from Claude Code's hooks, never
+from reading the screen: Ask Claude panes report through the plugin, and a
+`claude` you type yourself runs with `--settings` pointing at wtf's status
+hooks (bash and zsh; that run only, nothing in `~/.claude`; `agent-status =
+false` turns it off).
 
 ## Resource usage
 
