@@ -4,6 +4,7 @@
 
 | Tab | Shortcut | What it's for |
 |---|---|---|
+| [Agents](#agents) | {{key:sidebar.agents}} | every Claude Code in your shells: needs you, done, working or idle |
 | [Files](#files) | {{key:sidebar.files}} | the focused shell's folder |
 | [SSH](#ssh-hosts) | {{key:sidebar.ssh}} | hosts, keys, [git identities](#git-identities), tunnels |
 | [AWS Profiles](#aws) | {{key:sidebar.aws}} | AWS CLI profiles |

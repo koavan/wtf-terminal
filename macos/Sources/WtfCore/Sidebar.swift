@@ -4,7 +4,7 @@
 import Foundation
 
 public enum SidebarTab: String, CaseIterable, Sendable {
-    case files, ssh, aws, kube, snippets, workspaces, network, processes, history, pins, findings, share, generate, investigate
+    case files, ssh, aws, kube, snippets, workspaces, network, processes, history, pins, findings, share, generate, investigate, agents
 }
 
 public struct SidebarState: Equatable, Sendable {

@@ -27,6 +27,8 @@ public struct Config: Decodable, Equatable, Sendable {
     public var logHighlighting: Bool
     /// claude-auto-mode (older backends lack it).
     public var claudeAutoMode: Bool?
+    /// agent-status (older backends lack it).
+    public var agentStatus: Bool?
 }
 
 public struct Theme: Decodable, Equatable, Sendable {

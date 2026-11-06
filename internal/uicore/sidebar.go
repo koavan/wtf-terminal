@@ -32,13 +32,15 @@ const (
 	SidebarGenerate   SidebarTab = "generate"
 	// The incident investigator (#27); shown only with an AI provider.
 	SidebarInvestigate SidebarTab = "investigate"
+	// Every Claude Code in wtf's shells (#33).
+	SidebarAgents SidebarTab = "agents"
 )
 
 // SidebarTabs lists every tab, in order.
 var SidebarTabs = []SidebarTab{
 	SidebarFiles, SidebarSSH, SidebarAWS, SidebarKube, SidebarSnippets, SidebarWorkspaces,
 	SidebarNetwork, SidebarProcesses, SidebarHistory, SidebarPins, SidebarFindings, SidebarShare, SidebarGenerate,
-	SidebarInvestigate,
+	SidebarInvestigate, SidebarAgents,
 }
 
 const (

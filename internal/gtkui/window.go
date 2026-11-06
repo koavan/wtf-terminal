@@ -131,6 +131,7 @@ func newWindow(a *App, name string) *Window {
 		a.be.Active.SetFocused(w.name, w.win.IsActive())
 		if w.win.IsActive() {
 			w.focusActive()
+			w.agentsSeen()
 		}
 	})
 	w.win.ConnectCloseRequest(func() bool {
@@ -250,6 +251,7 @@ func (w *Window) sync() {
 			delete(w.infra, id)
 		}
 	}
+	w.agentsSeen()
 	w.address.refresh()
 	w.strip.refresh()
 	w.updateTitle()
@@ -606,6 +608,8 @@ func (w *Window) windowCommands() map[string]func() {
 		"export.text":     func() { w.saveOutputAsText(nil) },
 		"export.markdown": func() { w.saveTranscript(nil) },
 		"tab.overview":    w.toggleOverview,
+		"agents.pick":     func() { w.togglePalette(paletteAgents) },
+		"agents.next":     w.nextAgent,
 		"workspace.open":  func() { w.togglePalette(paletteWorkspaces) },
 		"sidebar.toggle":  w.toggleSidebar,
 		"theme.pick":      func() { w.togglePalette(paletteThemes) },
@@ -687,12 +691,12 @@ func (w *Window) mainMenuButton() *gtk.MenuButton {
 		{"tab.new", "tab.newApi", "window.new", "pane.splitRight", "pane.splitDown", "tab.duplicate", "tab.toNewWindow"},
 		{"tab.reopen", "pane.close", "tab.close", "window.close"},
 		{"palette", "config.open", "config.file", "theme.pick", "themes.folder", "snippets.run", "workspace.open", "workspace.save", "findings.scan", "usage.show"},
-		{"sidebar.toggle", "sidebar.files", "sidebar.ssh", "sidebar.aws", "sidebar.kube", "sidebar.snippets", "sidebar.workspaces",
+		{"sidebar.toggle", "sidebar.agents", "sidebar.files", "sidebar.ssh", "sidebar.aws", "sidebar.kube", "sidebar.snippets", "sidebar.workspaces",
 			"sidebar.network", "sidebar.processes", "sidebar.history", "sidebar.pins", "sidebar.findings", "sidebar.share", "sidebar.generate"},
 		{"find", "term.copyOutput", "term.pinOutput", "claude.ask", "ai.explain", "ai.ask", "ai.investigate", "ai.logs", "ai.runbook", "ai.postmortem", "ai.history", "review.last", "term.clear", "secrets.toggle"},
 		{"record.toggle", "export.text", "export.markdown"},
 		{"font.bigger", "font.smaller", "font.reset"},
-		{"tab.overview", "tab.group", "broadcast.toggle", "pane.zoom", "pane.next", "pane.prev"},
+		{"tab.overview", "agents.pick", "agents.next", "tab.group", "broadcast.toggle", "pane.zoom", "pane.next", "pane.prev"},
 		{"help.manual", "help.shortcuts", "tools.show", "app.about"},
 		{"app.quit"},
 	}

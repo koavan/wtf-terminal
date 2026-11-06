@@ -4,7 +4,6 @@ package gtkui
 
 import (
 	"fmt"
-	"slices"
 	"time"
 
 	coreglib "github.com/diamondburned/gotk4/pkg/core/glib"
@@ -15,10 +14,11 @@ import (
 
 // Ask Claude (#32): a split beside a shell running the user's own Claude
 // Code with wtf's plugin, whose tools work on that shell (its target). The
-// plugin's hooks report what Claude Code is doing (bridge:status): the tab
-// shows it, and wtf notifies when it needs you or finishes while you're
-// looking elsewhere. Kept by backend session, so it survives a tab moving
-// to another window. As macos/Sources/Wtf/ClaudePane.swift.
+// plugin's hooks report what Claude Code is doing (bridge:status), which
+// says when it's ready for a prompt; the badges and notifications are the
+// agent list's (agents.go, for every Claude Code). Kept by backend session,
+// so it survives a tab moving to another window. As
+// macos/Sources/Wtf/ClaudePane.swift.
 type claudePanes struct {
 	// Claude pane session → the shell session it works on.
 	targets map[string]string
@@ -49,27 +49,8 @@ func (c *claudePanes) isClaude(ps *uicore.PaneState) bool {
 	return ps != nil && ps.SessionID != "" && c.targets[ps.SessionID] != ""
 }
 
-// state is the tab's badge: what a Claude pane in it is doing ("" for none).
-func (w *Window) claudeState(t uicore.Tab) string {
-	c, found := w.app.claude, ""
-	for _, id := range t.Root.Leaves() {
-		ps := w.model.Panes[id]
-		if !c.isClaude(ps) {
-			continue
-		}
-		st := c.states[ps.SessionID]
-		if st == "" {
-			st = bridge.StateIdle
-		}
-		if st == bridge.StateWaiting {
-			return st
-		}
-		if found == "" || st == bridge.StateBusy {
-			found = st
-		}
-	}
-	return found
-}
+// claudeState is the tab's badge (the agent list's): "" for none.
+func (w *Window) claudeState(t uicore.Tab) string { return w.agentTabState(t.Root.Leaves()) }
 
 // askClaude opens the Claude pane for the focused shell, or goes to the one
 // it has.
@@ -207,43 +188,22 @@ func (a *App) claudeClosed(session string) {
 	a.be.Bridge.SetTarget(session, "")
 }
 
+// claudeStatus types what was queued for a Claude pane once Claude Code
+// is ready for a prompt.
 func (a *App) claudeStatus(st bridge.Status) {
 	c := a.claude
 	if c.targets[st.Session] == "" {
 		return
 	}
-	w := a.windowOf(st.Session)
-	if w == nil {
-		return
-	}
-	old := c.states[st.Session]
 	if st.State == bridge.StateEnded {
 		delete(c.states, st.Session)
 	} else {
 		c.states[st.Session] = st.State
 	}
-	w.strip.refresh()
 	if m, ok := c.queued[st.Session]; ok && st.State == bridge.StateIdle {
 		delete(c.queued, st.Session)
 		a.claudeType(m, st.Session)
 	}
-	ps := w.model.PaneBySession(st.Session)
-	t, ok := w.model.TabOf(ps.ID)
-	if !ok || w.win.IsActive() && t.ID == w.model.ActiveID() && slices.Contains(t.Root.Leaves(), ps.ID) {
-		return
-	}
-	title := w.app.settings.text(w.model.Title(t))
-	var head, body string
-	switch {
-	case st.State == bridge.StateWaiting:
-		head, body = "Claude Code needs you", w.app.settings.text(st.Message)
-	case st.State == bridge.StateIdle && old == bridge.StateBusy:
-		head = "Claude Code finished"
-	default:
-		return
-	}
-	notify := a.be.Notify
-	go func() { _ = notify.Notify(head, title, body) }()
 }
 
 // #25–#27 through the Claude pane's slash commands (claude-plugin/commands).

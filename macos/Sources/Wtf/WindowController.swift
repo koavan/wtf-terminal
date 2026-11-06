@@ -84,7 +84,7 @@ final class WindowController: NSWindowController, NSWindowDelegate, NSMenuItemVa
         strip.onToggleSidebar = { [weak self] in self?.toggleSidebar(nil) }
         strip.broadcasting = { Broadcast.shared.isBroadcasting(tab: $0, in: self) }
         strip.recording = { [unowned self] tab in model.tab(tab)?.root.leaves.contains { records.recording[$0] != nil } ?? false }
-        strip.claude = { [unowned self] tab in ClaudePane.state(tab: tab, in: self) }
+        strip.claude = { [unowned self] tab in Agents.state(tab: tab, in: self) }
         panes.onRatio = { [weak self] path, r in
             guard let self, let t = model.active else { return }
             model.setRatio(tab: t.id, path: path, r)
@@ -197,6 +197,7 @@ final class WindowController: NSWindowController, NSWindowDelegate, NSMenuItemVa
             panes.show(t.root, focused: t.focusedPaneId, zoomed: t.zoomedPaneId, views: views)
             for id in t.root.leaves { terminals[id]?.scheduleTints() }
         }
+        Agents.seen(in: self)
         strip.refresh()
         Broadcast.shared.prune(in: self)
         refreshBars()
@@ -565,6 +566,7 @@ final class WindowController: NSWindowController, NSWindowDelegate, NSMenuItemVa
     func windowDidBecomeKey(_ note: Notification) {
         Backend.setFocused(window: name, focused: true)
         focusActive()
+        Agents.seen(in: self)
     }
 
     func windowDidResignKey(_ note: Notification) { Backend.setFocused(window: name, focused: false) }

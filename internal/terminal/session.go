@@ -229,6 +229,9 @@ type Info struct {
 	Process string `json:"process"`
 	Cwd     string `json:"cwd"`
 	IsShell bool   `json:"isShell"`
+	// The session's own shell process is in front (not just one with its
+	// name, like a bash script the shell runs): it's at its prompt.
+	AtShell bool `json:"-"`
 }
 
 func (s *Session) info() (Info, error) {
@@ -249,5 +252,6 @@ func (s *Session) info() (Info, error) {
 		Process: name,
 		Cwd:     processCwd(pid),
 		IsShell: name == s.Shell,
+		AtShell: name == s.Shell && s.cmd != nil && s.cmd.Process != nil && pid == s.cmd.Process.Pid,
 	}, nil
 }

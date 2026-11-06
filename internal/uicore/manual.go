@@ -34,7 +34,7 @@ var ManualTopics = []ManualTopic{
 	{"Basics", "find", "Find"}, {"Basics", "context-badges", "Address bar and context badges"},
 	{"Basics", "broadcast", "Broadcast input"}, {"Basics", "snippets", "Snippets and runbooks"},
 	{"Basics", "workspaces", "Workspaces"}, {"Basics", "api", "API requests"},
-	{"Side pane", "side-pane", "The side pane"}, {"Side pane", "files", "Files"}, {"Side pane", "network", "Network"},
+	{"Side pane", "side-pane", "The side pane"}, {"Side pane", "agents", "Agents: every Claude Code"}, {"Side pane", "files", "Files"}, {"Side pane", "network", "Network"},
 	{"Side pane", "processes", "Processes"}, {"Side pane", "history", "History"}, {"Side pane", "pins", "Pinned output"},
 	{"Side pane", "share", "Share & Record"}, {"Side pane", "generate", "Generate: SSH keys and passwords"},
 	{"Side pane", "findings", "Findings: security scans"},
@@ -64,7 +64,7 @@ var ManualSidebarTopic = map[SidebarTab]string{
 	SidebarFiles: "files", SidebarSSH: "ssh-hosts", SidebarAWS: "aws", SidebarKube: "kubernetes", SidebarSnippets: "snippets",
 	SidebarWorkspaces: "workspaces", SidebarNetwork: "network", SidebarProcesses: "processes", SidebarHistory: "history",
 	SidebarPins: "pins", SidebarShare: "share", SidebarGenerate: "generate", SidebarFindings: "findings",
-	SidebarInvestigate: "ai",
+	SidebarInvestigate: "ai", SidebarAgents: "agents",
 }
 
 // ManualHelpTopic is help for what's in front: the side pane's tab (and

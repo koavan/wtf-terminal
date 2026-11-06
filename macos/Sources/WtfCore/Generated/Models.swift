@@ -623,6 +623,46 @@ extension Go.bridge {
     }
 }
 
+extension Go.bridge {
+    /// bridge.Status
+    public struct Status: Codable, Equatable, Sendable {
+        public var session: String
+        public var state: String
+        public var message: String
+        public var prompt: String
+        public var since: Int
+        public var unseen: Bool
+
+        public init(session: String = "", state: String = "", message: String = "", prompt: String = "", since: Int = 0, unseen: Bool = false) {
+            self.session = session
+            self.state = state
+            self.message = message
+            self.prompt = prompt
+            self.since = since
+            self.unseen = unseen
+        }
+
+        enum CodingKeys: String, CodingKey {
+            case session = "session"
+            case state = "state"
+            case message = "message"
+            case prompt = "prompt"
+            case since = "since"
+            case unseen = "unseen"
+        }
+
+        public init(from decoder: Decoder) throws {
+            let c = try decoder.container(keyedBy: CodingKeys.self)
+            self.session = (try? c.decodeIfPresent(String.self, forKey: .session)) ?? ""
+            self.state = (try? c.decodeIfPresent(String.self, forKey: .state)) ?? ""
+            self.message = (try? c.decodeIfPresent(String.self, forKey: .message)) ?? ""
+            self.prompt = (try? c.decodeIfPresent(String.self, forKey: .prompt)) ?? ""
+            self.since = (try? c.decodeIfPresent(Int.self, forKey: .since)) ?? 0
+            self.unseen = (try? c.decodeIfPresent(Bool.self, forKey: .unseen)) ?? false
+        }
+    }
+}
+
 extension Go.certs {
     /// certs.Cert
     public struct Cert: Codable, Equatable, Sendable {
@@ -1013,8 +1053,9 @@ extension Go.config {
         public var showUsage: Bool
         public var historyDays: Int
         public var claudeAutoMode: Bool
+        public var agentStatus: Bool
 
-        public init(theme: String = "", fontFamily: String = "", fontSize: Double = 0, lineHeight: Double = 0, cursorStyle: String = "", cursorBlink: Bool = false, scrollback: Int = 0, optionAsMeta: Bool = false, copyOnSelect: Bool = false, shell: String = "", shellIntegration: Bool = false, notifyAfter: Double = 0, unfocusedSplitDim: Double = 0, sidebarAutoRefresh: Bool = false, sidebarRefreshInterval: Double = 0, contextBadges: Bool = false, logHighlighting: Bool = false, redactSecrets: Bool = false, clipboardClear: Double = 0, confirmPaste: Bool = false, showUsage: Bool = false, historyDays: Int = 0, claudeAutoMode: Bool = false) {
+        public init(theme: String = "", fontFamily: String = "", fontSize: Double = 0, lineHeight: Double = 0, cursorStyle: String = "", cursorBlink: Bool = false, scrollback: Int = 0, optionAsMeta: Bool = false, copyOnSelect: Bool = false, shell: String = "", shellIntegration: Bool = false, notifyAfter: Double = 0, unfocusedSplitDim: Double = 0, sidebarAutoRefresh: Bool = false, sidebarRefreshInterval: Double = 0, contextBadges: Bool = false, logHighlighting: Bool = false, redactSecrets: Bool = false, clipboardClear: Double = 0, confirmPaste: Bool = false, showUsage: Bool = false, historyDays: Int = 0, claudeAutoMode: Bool = false, agentStatus: Bool = false) {
             self.theme = theme
             self.fontFamily = fontFamily
             self.fontSize = fontSize
@@ -1038,6 +1079,7 @@ extension Go.config {
             self.showUsage = showUsage
             self.historyDays = historyDays
             self.claudeAutoMode = claudeAutoMode
+            self.agentStatus = agentStatus
         }
 
         enum CodingKeys: String, CodingKey {
@@ -1064,6 +1106,7 @@ extension Go.config {
             case showUsage = "showUsage"
             case historyDays = "historyDays"
             case claudeAutoMode = "claudeAutoMode"
+            case agentStatus = "agentStatus"
         }
 
         public init(from decoder: Decoder) throws {
@@ -1091,6 +1134,7 @@ extension Go.config {
             self.showUsage = (try? c.decodeIfPresent(Bool.self, forKey: .showUsage)) ?? false
             self.historyDays = (try? c.decodeIfPresent(Int.self, forKey: .historyDays)) ?? 0
             self.claudeAutoMode = (try? c.decodeIfPresent(Bool.self, forKey: .claudeAutoMode)) ?? false
+            self.agentStatus = (try? c.decodeIfPresent(Bool.self, forKey: .agentStatus)) ?? false
         }
     }
 }

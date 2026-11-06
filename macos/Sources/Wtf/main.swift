@@ -540,6 +540,7 @@ func buildMenu() -> NSMenu {
     _ = submenu("View", [
         cmd("Command Palette…", "palette", "p", [.command, .shift]),
         cmd("Toggle Sidebar", "sidebar.toggle", "b"),
+        cmd("Show Agents", "sidebar.agents", "m", [.command, .shift]),
         cmd("Show Files", "sidebar.files", "e", [.command, .shift]),
         cmd("Show SSH Hosts", "sidebar.ssh", "s", [.command, .shift]),
         cmd("Show AWS Profiles", "sidebar.aws", "u", [.command, .shift]),
@@ -567,6 +568,8 @@ func buildMenu() -> NSMenu {
     ])
     _ = submenu("Tab", [
         cmd("Show All Tabs", "tab.overview", "\\", [.command, .shift]),
+        cmd("Go to Agent…", "agents.pick", "a", [.command, .option]),
+        cmd("Next Agent Needing You", "agents.next", "n", [.command, .option]),
         .separator(),
         cmd("Show Next Tab", "tab.next", "]", [.command, .shift]),
         cmd("Show Previous Tab", "tab.prev", "[", [.command, .shift]),

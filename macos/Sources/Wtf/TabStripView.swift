@@ -34,7 +34,7 @@ final class TabStripView: NSView, NSTextFieldDelegate {
     var broadcasting: (Int) -> Bool = { _ in false }
     var recording: (Int) -> Bool = { _ in false }
     /// What Claude Code in the tab's Claude pane is doing, if it has one.
-    var claude: (Int) -> ClaudePane.State? = { _ in nil }
+    var claude: (Int) -> AgentState? = { _ in nil }
 
     private(set) var items: [Item] = []
     private var plusRect = NSRect.zero
@@ -251,11 +251,17 @@ final class TabStripView: NSView, NSTextFieldDelegate {
             NSBezierPath(ovalIn: NSRect(x: x, y: r.midY - 3.5, width: 7, height: 7)).fill()
             x += 11
         }
-        // Claude Code: working (accent), needs you (orange), or idle.
+        // Claude Code: needs you (orange), working (accent), done (green,
+        // until you look), or idle.
         if let st = claude(t.id) {
-            let symbol = st == .waiting ? "exclamationmark.bubble.fill" : "sparkles"
-            let tint: NSColor = st == .waiting ? .systemOrange : st == .busy ? accent : .secondaryLabelColor
-            let what = st == .waiting ? "Claude Code needs you" : st == .busy ? "Claude Code is working" : "Claude Code is idle"
+            let symbol = st == .waiting ? "exclamationmark.bubble.fill" : st == .done ? "checkmark.circle.fill" : "sparkles"
+            let tint: NSColor = switch st {
+            case .waiting: .systemOrange
+            case .busy: accent
+            case .done: .systemGreen
+            case .idle: .secondaryLabelColor
+            }
+            let what = "Claude Code: " + st.label.lowercased()
             if let img = NSImage(systemSymbolName: symbol, accessibilityDescription: what)?
                 .withSymbolConfiguration(.init(pointSize: 10, weight: .semibold)) {
                 draw(symbol: img, in: NSRect(x: x, y: r.midY - 6, width: 14, height: 12), tint: tint)

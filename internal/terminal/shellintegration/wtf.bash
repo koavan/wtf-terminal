@@ -111,6 +111,28 @@ if [ -n "$WTF_SHELL_INTEGRATION" ] && [ -z "$__wtf_loaded" ]; then
   }
   builtin bind -x '"\C-x\C-]": __wtf_clear_history' 2>/dev/null
 
+  # agent-status (the Agents tab): claude runs with wtf's status hooks
+  # (WTF_AGENT_SETTINGS, a Claude Code settings file with only hooks), for
+  # this run only: nothing is written to ~/.claude. Left alone when the
+  # command line has its own --settings, or --plugin-dir (Ask Claude's
+  # panes report through wtf's plugin), and when your startup files define
+  # a claude function (an alias wins anyway).
+  if [ -n "$WTF_AGENT_SETTINGS" ] && ! declare -F claude >/dev/null; then
+    claude() {
+      local a
+      if [ -r "$WTF_AGENT_SETTINGS" ]; then
+        for a in "$@"; do
+          case $a in
+            --settings|--settings=*|--plugin-dir|--plugin-dir=*) command claude "$@"; return ;;
+          esac
+        done
+        command claude --settings "$WTF_AGENT_SETTINGS" "$@"
+      else
+        command claude "$@"
+      fi
+    }
+  fi
+
   PROMPT_COMMAND="__wtf_prompt_start${PROMPT_COMMAND:+; $PROMPT_COMMAND}; __wtf_prompt_end"
   trap '__wtf_preexec' DEBUG
 

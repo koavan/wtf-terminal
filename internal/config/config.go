@@ -49,6 +49,10 @@ type Config struct {
 	// commands and file edits go without asking, instead of wtf asking for
 	// every one.
 	ClaudeAutoMode bool `toml:"claude-auto-mode" json:"claudeAutoMode"`
+
+	// Agents tab (#33): wtf's shell integration runs a claude you start
+	// yourself with hooks that report what it's doing.
+	AgentStatus bool `toml:"agent-status" json:"agentStatus"`
 }
 
 func Defaults() Config {
@@ -75,6 +79,8 @@ func Defaults() Config {
 		ConfirmPaste:   true,
 
 		HistoryDays: 90,
+
+		AgentStatus: true,
 	}
 }
 
@@ -172,6 +178,13 @@ const template = `# wtf settings. Changes apply as soon as you save (or switch b
 # "don't ask again". Set this to let Claude Code's own permission mode
 # decide instead.
 # claude-auto-mode = false
+
+# The Agents tab shows what every Claude Code in your shells is doing
+# (working, needs you, done, idle). For a claude you start yourself, wtf's
+# shell integration adds hooks that report its state, for that run only:
+# nothing is written to ~/.claude. false leaves claude alone (only Ask
+# Claude panes are then listed). Applies to new panes.
+# agent-status = true
 `
 
 // Dir is $XDG_CONFIG_HOME/wtf, or ~/.config/wtf, on every platform.

@@ -252,6 +252,9 @@ func (s *settings) loadThemeCSS() {
 	fmt.Fprintf(&b, ".wtf-tab-status.ok { color: %s; } .wtf-tab-status.fail, .wtf-tab-status.recording { color: %s; } .wtf-tab-status.activity, .wtf-tab-status.claude-busy { color: %s; }\n",
 		ok, fail, accent.Hex())
 	b.WriteString(".wtf-tab-status.claude-waiting { color: #e8913a; font-weight: bold; } .wtf-tab-status.claude-idle { opacity: 0.6; }\n")
+	// The Agents tab (#33).
+	fmt.Fprintf(&b, ".wtf-tab-status.claude-done { color: %[1]s; } .agent-done { background: %[1]s; } .agent-busy { background: %[2]s; }\n", ok, accent.Hex())
+	b.WriteString(".agent-waiting { background: #e8913a; } .agent-idle { background: alpha(currentColor, 0.35); } .agent-alert { color: #e8913a; }\n")
 	fmt.Fprintf(&b, ".wtf-dim { background-color: %s; }\n", th.Background)
 	// Git status, as the macOS app colors it.
 	gm, ga, gd := "#c98a00", "#188038", "#d93036"

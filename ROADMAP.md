@@ -642,6 +642,51 @@ contexts as facts when the shell now points elsewhere). Homes: the palette
 (Ask Your History…) and a button in History's Saved view. Built
 2026-11-03.
 
+## Tier 7 — agents
+
+### 33. Agents tab ☐
+
+Like herdr's agent sidebar: every coding agent running in wtf's shells, with
+whether it's working or waiting for you, so you don't poll tabs. State
+comes from the agent's own hooks, never from reading the screen.
+
+Phases:
+
+0. ☐ Hands-on with real Claude Code: hooks from `--settings` add to the
+   user's own (`~/.claude`) hooks rather than replacing them, and the hook
+   input carries `prompt` (UserPromptSubmit) and `message` (Notification).
+   (`claude --help`, 2.1.319: "additional settings".)
+1. ☑ Status for any `claude` (2026-11-06): `claude-plugin/status-settings.json`
+   holds only the status hooks (no PreToolUse: your own claude keeps its
+   permission mode; no tools or commands). Every shell gets
+   `WTF_AGENT_SETTINGS` while `agent-status` is on (default; config.toml and
+   Settings → General); the bash/zsh integration defines `claude` as
+   `command claude --settings "$WTF_AGENT_SETTINGS" "$@"`, left alone with
+   its own `--settings`/`--plugin-dir` or a user's alias or function. The
+   bridge keeps an agent per session (`Status`: state, redacted message and
+   first line of the prompt, since, unseen = done until its pane is seen),
+   `Agents()`, `Seen`, `Forget`; the terminal service forgets one when its
+   shell exits or is back at its prompt (a killed claude). Go tests:
+   registry, settings file, env, the shell wrapper in bash and zsh.
+2. ☑ Both UIs: badges for every Claude Code (needs you ! / bubble, done ✓,
+   working ✦, idle), notifications for any of them while you look
+   elsewhere, Seen when its pane is in front; macOS Dock badge counts the
+   ones that need you. Ask Claude's own state map only queues its `/wtf:`
+   messages now.
+3. ☑ Agents side tab (first in the rail; ⌘⇧M / Ctrl+Alt+M): rows most urgent
+   first with tab, folder, prompt or what it asks, time in state; click goes
+   there; a 30 s redraw only while shown.
+4. ☑ Go to Agent… (⌥⌘A / Ctrl+Alt+Shift+M, the palette in an agents mode)
+   and Next Agent Needing You (⌥⌘N / Ctrl+Alt+Shift+N).
+5. ☐ Manual page `agents` (done), self-checks (done 2026-11-06: `claude` on
+   both types a stand-in in a new tab; passing on macOS and Linux), hands-on.
+   The macOS check found a session "back at its prompt" was judged by the
+   process name, so a bash script run from bash (the user's shell) counted
+   as the shell: now the shell's own pid must be in front (`Info.AtShell`).
+
+Later: Codex (its `notify` hook), and agents that report through OSC
+9/777/7501.
+
 ## Also built
 
 - Resource usage (2026-10-13): wtf's own CPU and memory in the address bar

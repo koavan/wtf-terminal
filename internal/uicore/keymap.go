@@ -83,6 +83,7 @@ var Commands = func() []Command {
 
 		cmd("palette", "Command Palette…", "Ctrl+Shift+P"),
 		cmd("sidebar.toggle", "Toggle Sidebar", "Ctrl+Shift+B"),
+		cmd("sidebar.agents", "Show Agents", "Ctrl+Alt+M"),
 		cmd("sidebar.files", "Show Files", "Ctrl+Alt+E"),
 		cmd("sidebar.ssh", "Show SSH Hosts", "Ctrl+Alt+S"),
 		cmd("sidebar.aws", "Show AWS Profiles", "Ctrl+Alt+U"),
@@ -105,6 +106,8 @@ var Commands = func() []Command {
 		cmd("font.reset", "Actual Size", "Ctrl+0"),
 
 		cmd("tab.overview", "Show All Tabs", "Ctrl+Bar"),
+		cmd("agents.pick", "Go to Agent…", "Ctrl+Alt+Shift+M"),
+		cmd("agents.next", "Next Agent Needing You", "Ctrl+Alt+Shift+N"),
 		cmd("tab.next", "Show Next Tab", "Ctrl+PageDown"),
 		cmd("tab.prev", "Show Previous Tab", "Ctrl+PageUp"),
 		cmd("tab.moveRight", "Move Tab Right", "Ctrl+Shift+PageDown"),

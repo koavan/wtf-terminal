@@ -18,7 +18,7 @@ public enum Manual {
         ("Basics", "find", "Find"), ("Basics", "context-badges", "Address bar and context badges"),
         ("Basics", "broadcast", "Broadcast input"), ("Basics", "snippets", "Snippets and runbooks"),
         ("Basics", "workspaces", "Workspaces"), ("Basics", "api", "API requests"),
-        ("Side pane", "side-pane", "The side pane"), ("Side pane", "files", "Files"), ("Side pane", "network", "Network"),
+        ("Side pane", "side-pane", "The side pane"), ("Side pane", "agents", "Agents: every Claude Code"), ("Side pane", "files", "Files"), ("Side pane", "network", "Network"),
         ("Side pane", "processes", "Processes"), ("Side pane", "history", "History"), ("Side pane", "pins", "Pinned output"),
         ("Side pane", "share", "Share & Record"), ("Side pane", "generate", "Generate: SSH keys and passwords"),
         ("Side pane", "findings", "Findings: security scans"),
@@ -37,7 +37,7 @@ public enum Manual {
     public static let sidebarTopic: [SidebarTab: String] = [
         .files: "files", .ssh: "ssh-hosts", .aws: "aws", .kube: "kubernetes", .snippets: "snippets", .workspaces: "workspaces",
         .network: "network", .processes: "processes", .history: "history", .pins: "pins", .share: "share",
-        .generate: "generate", .findings: "findings", .investigate: "ai",
+        .generate: "generate", .findings: "findings", .investigate: "ai", .agents: "agents",
     ]
 
     /// Help for what's in front: the side pane's tab (and section), or the welcome page.

@@ -30,6 +30,7 @@ final class WindowManager {
         }
         BridgeRequests.listen()
         ClaudePane.listen()
+        Agents.listen()
         Backend.on("infra:changed", String.self) { [weak self] _ in self?.windows.forEach { $0.refreshContexts() } }
         Settings.shared.observe(self) { m in
             // Badges turned on or off.

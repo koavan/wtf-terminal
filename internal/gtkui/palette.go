@@ -25,6 +25,7 @@ const (
 	paletteThemes
 	paletteWorkspaces
 	paletteSnippets
+	paletteAgents
 )
 
 type paletteEntry struct {
@@ -77,6 +78,8 @@ func (p *palette) build() {
 		p.entry.SetPlaceholderText("Search workspaces…")
 	case paletteSnippets:
 		p.entry.SetPlaceholderText("Search snippets…")
+	case paletteAgents:
+		p.entry.SetPlaceholderText("Search agents: needs you, done, working, idle, or a tab, folder or prompt…")
 	default:
 		p.entry.SetPlaceholderText("Search commands, tabs and workspaces…")
 	}
@@ -152,6 +155,9 @@ func (p *palette) load() {
 		return
 	case paletteSnippets:
 		p.entries = w.snippetEntries(true)
+		return
+	case paletteAgents:
+		p.entries = w.agentEntries()
 		return
 	}
 	cmds := w.windowCommands()

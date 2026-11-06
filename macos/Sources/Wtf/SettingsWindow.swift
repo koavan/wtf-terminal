@@ -210,6 +210,20 @@ final class SettingsWindow: NSObject, NSWindowDelegate, NSToolbarDelegate {
         auto.state = Settings.shared.config?.claudeAutoMode == true ? .on : .off
         auto.toolTip = "Applies to Claude panes opened from now on"
         content.addArrangedSubview(auto)
+        let agents = NSButton(checkboxWithTitle: "Show every claude you start in the Agents tab (agent-status)", target: self, action: #selector(toggleAgentStatus(_:)))
+        agents.state = Settings.shared.config?.agentStatus == false ? .off : .on
+        agents.toolTip = "wtf's shell integration adds hooks that report what claude is doing, for that run only; nothing is written to ~/.claude. Applies to new panes"
+        content.addArrangedSubview(agents)
+    }
+
+    @objc private func toggleAgentStatus(_ sender: NSButton) {
+        let on = sender.state == .on
+        Task {
+            do { try await Services.config.SetAgentStatus(on) } catch {
+                sender.state = on ? .off : .on
+                Toast.show("Couldn't change the setting: \(error.localizedDescription)", in: window.contentView)
+            }
+        }
     }
 
     @objc private func toggleClaudeAuto(_ sender: NSButton) {

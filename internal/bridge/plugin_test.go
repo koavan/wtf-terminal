@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"errors"
+	"maps"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -207,7 +208,7 @@ func TestHook(t *testing.T) {
 	// The second Notification comes while idle (Claude Code's "waiting for
 	// your input" reminder) and changes nothing; PostToolUse repeats busy.
 	for _, ev := range []string{"SessionStart", "UserPromptSubmit", "Notification", "PostToolUse", "PostToolUse", "Stop", "Notification", "SessionEnd"} {
-		if out, code := run(ev, env, `{"hook_event_name":"`+ev+`","message":"Claude needs your permission to use Bash"}`); code != 0 || out != "" {
+		if out, code := run(ev, env, `{"hook_event_name":"`+ev+`","message":"Claude needs your permission to use Bash","prompt":"tidy the logs"}`); code != 0 || out != "" {
 			t.Errorf("%s = %d %q", ev, code, out)
 		}
 	}
@@ -231,6 +232,9 @@ func TestHook(t *testing.T) {
 		if slices.Equal(states, want) {
 			if got[2].Message != "Claude needs your permission to use Bash" {
 				t.Errorf("message = %q", got[2].Message)
+			}
+			if got[1].Prompt != "tidy the logs" {
+				t.Errorf("prompt = %q", got[1].Prompt)
 			}
 			break
 		}
@@ -275,5 +279,48 @@ func TestClaudeCommand(t *testing.T) {
 	s.plugin = ""
 	if _, err := s.ClaudeCommand(); err == nil {
 		t.Fatal("a command without the plugin")
+	}
+}
+
+// status-settings.json (agent-status) has the plugin's status hooks and
+// nothing else: no PreToolUse (your own claude keeps its permission mode),
+// no permissions, MCP servers or other settings.
+func TestStatusSettings(t *testing.T) {
+	data, err := os.ReadFile(filepath.Join(pluginDir, StatusSettingsFile))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var top map[string]json.RawMessage
+	if err := json.Unmarshal(data, &top); err != nil {
+		t.Fatal(err)
+	}
+	if len(top) != 1 || top["hooks"] == nil {
+		t.Fatalf("keys = %v, want only hooks", slices.Collect(maps.Keys(top)))
+	}
+	var status, plugin hookFile
+	readJSON(t, StatusSettingsFile, &status)
+	readJSON(t, "hooks/hooks.json", &plugin)
+	var got, want []string
+	for ev := range status.Hooks {
+		got = append(got, ev)
+	}
+	for ev := range plugin.Hooks {
+		if ev != "PreToolUse" {
+			want = append(want, ev)
+		}
+	}
+	slices.Sort(got)
+	slices.Sort(want)
+	if !slices.Equal(got, want) {
+		t.Fatalf("events = %v, want %v", got, want)
+	}
+	for ev, groups := range status.Hooks {
+		if len(groups) != 1 || len(groups[0].Hooks) != 1 || groups[0].Matcher != "" {
+			t.Fatalf("%s: %+v", ev, groups)
+		}
+		// Never fails claude: a status wtf misses changes nothing.
+		if h := groups[0].Hooks[0]; h.Type != "command" || h.Command != `"${WTF_MCP}" hook || true` {
+			t.Errorf("%s: %+v", ev, h)
+		}
 	}
 }

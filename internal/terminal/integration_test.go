@@ -2,11 +2,11 @@ package terminal
 
 import (
 	"bytes"
-	"regexp"
 	"context"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"testing"
 	"time"
@@ -280,5 +280,68 @@ func TestHistoryListsCommandsWithoutClear(t *testing.T) {
 				t.Fatalf("history doesn't list the earlier command: %q", historyLines(out))
 			}
 		})
+	}
+}
+
+// agent-status: claude gets wtf's status hooks through --settings, except
+// with its own --settings or --plugin-dir, or a user's own claude function.
+// A stand-in claude in HOME; the shell exits before running anything if
+// another claude would run (macOS's /etc/zprofile reorders PATH, so PATH is
+// set in .zshrc).
+func TestClaudeWrapper(t *testing.T) {
+	fake := "#!/bin/sh\necho \"ARGS:$*\"\n"
+	for _, tc := range []struct {
+		shell, rc string
+		own       bool
+	}{
+		{"bash", ".bash_profile", false},
+		{"zsh", ".zshrc", false},
+		{"bash", ".bash_profile", true},
+		{"zsh", ".zshrc", true},
+	} {
+		for _, set := range []bool{true, false} {
+			name := tc.shell
+			if tc.own {
+				name += "/own"
+			}
+			if !set {
+				name += "/off"
+			}
+			t.Run(name, func(t *testing.T) {
+				rc := "PATH=$HOME:$PATH\n"
+				if tc.own {
+					rc += "claude() { echo MINE; }\n"
+				}
+				home := map[string]string{tc.rc: rc, "s.json": "{}", "claude": fake}
+				if set {
+					// Exported before the integration loads, as wtf does.
+					home[".zshenv"] = "export WTF_AGENT_SETTINGS=$HOME/s.json\n"
+					home[".bash_profile"] = "export WTF_AGENT_SETTINGS=$HOME/s.json\n" + home[".bash_profile"]
+				}
+				input := "chmod +x ~/claude; [ \"$(/usr/bin/which claude)\" = \"$HOME/claude\" ] || exit; " +
+					"claude a b; claude --plugin-dir p x; claude --settings=y z; echo DONE_$((1+1))\n"
+				out, homeDir, _ := runIntegratedHome(t, tc.shell, home, input, "DONE_2")
+				var want []string
+				switch {
+				case tc.own:
+					want = []string{"MINE", "MINE", "MINE"}
+				case set:
+					want = []string{"ARGS:--settings " + homeDir + "/s.json a b", "ARGS:--plugin-dir p x", "ARGS:--settings=y z"}
+				default:
+					want = []string{"ARGS:a b", "ARGS:--plugin-dir p x", "ARGS:--settings=y z"}
+				}
+				var got []string
+				osc := regexp.MustCompile(`\x1b\][^\x07]*\x07`)
+				for _, line := range strings.Split(strings.ReplaceAll(out, "\r", ""), "\n") {
+					line = osc.ReplaceAllString(line, "")
+					if strings.HasPrefix(line, "ARGS:") || line == "MINE" {
+						got = append(got, line)
+					}
+				}
+				if strings.Join(got, "|") != strings.Join(want, "|") {
+					t.Errorf("got %q, want %q", got, want)
+				}
+			})
+		}
 	}
 }

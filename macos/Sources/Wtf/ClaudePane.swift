@@ -1,9 +1,9 @@
 // Ask Claude (#32): a split beside a shell running the user's own Claude
 // Code with wtf's plugin, whose tools work on that shell (its target). The
-// plugin's hooks report what Claude Code is doing (bridge:status): the tab
-// shows it, and wtf notifies when it needs you or finishes while you're
-// looking elsewhere. Kept by backend session, so it survives a tab moving
-// to another window.
+// plugin's hooks report what Claude Code is doing (bridge:status), which
+// says when it's ready for a prompt; the badges and notifications are
+// Agents' (for every Claude Code). Kept by backend session, so it survives
+// a tab moving to another window.
 import AppKit
 import WtfCore
 
@@ -15,7 +15,7 @@ private struct BridgeStatus: Decodable {
 
 @MainActor
 enum ClaudePane {
-    enum State: String { case idle, busy, waiting }
+    typealias State = AgentState
 
     /// Claude pane session → the shell session it works on.
     private static var targets: [String: String] = [:]
@@ -50,18 +50,8 @@ enum ClaudePane {
     /// The shell session a Claude pane works on.
     static func target(of p: Pane) -> String? { p.sessionId.flatMap { targets[$0] } }
 
-    /// The badge for a tab: the state of a Claude pane in it.
-    static func state(tab: Int, in w: WindowController) -> State? {
-        guard let leaves = w.model.tab(tab)?.root.leaves else { return nil }
-        var found: State?
-        for id in leaves {
-            guard let s = w.model.panes[id]?.sessionId, targets[s] != nil else { continue }
-            let st = states[s] ?? .idle
-            if st == .waiting { return .waiting }
-            if found == nil || st == .busy { found = st }
-        }
-        return found
-    }
+    /// The badge for a tab (Agents').
+    static func state(tab: Int, in w: WindowController) -> State? { Agents.state(tab: tab, in: w) }
 
     /// Opens the Claude pane for the focused shell, or goes to the one it
     /// has; then types `send` there once Claude Code is ready. Nothing is
@@ -147,25 +137,12 @@ enum ClaudePane {
         Task { try? await Services.bridge.SetTarget(session, "") }
     }
 
+    /// Types what was queued for a Claude pane once Claude Code is ready.
     private static func apply(_ st: BridgeStatus) {
-        guard targets[st.session] != nil, let (w, p) = find(st.session) else { return }
-        let old = states[st.session]
+        guard targets[st.session] != nil else { return }
         let new = State(rawValue: st.state)
         states[st.session] = new
-        w.refreshStrip()
         if new == .idle, let m = queued.removeValue(forKey: st.session) { type(m, st.session) }
-        let visible = w.model.active?.root.leaves.contains(p.id) == true && w.window?.isKeyWindow == true && NSApp.isActive
-        guard !visible, let tab = w.model.tabOf(pane: p.id) else { return }
-        let title = w.model.title(tab)
-        switch new {
-        case .waiting:
-            let body = Redaction.shared.text(st.message ?? "")
-            Task { try? await Backend.run("notify", "Notify", ["Claude Code needs you", title, body]) }
-        case .idle where old == .busy:
-            Task { try? await Backend.run("notify", "Notify", ["Claude Code finished", title, ""]) }
-        default:
-            break
-        }
     }
 }
 

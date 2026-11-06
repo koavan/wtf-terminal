@@ -132,7 +132,10 @@ func New(version, commit, buildDate, stateDir string) (*Backend, error) {
 		}
 		return ""
 	}
+	b.Bridge.AgentStatus = func() bool { return b.Config.Current().Config.AgentStatus }
 	b.Terminal.ExtraEnv = bridge.ShellEnv(b.Bridge)
+	b.Terminal.OnExit = b.Bridge.Forget
+	b.Terminal.OnAtShell = b.Bridge.Forget
 	return b, nil
 }
 

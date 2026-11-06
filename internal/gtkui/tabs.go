@@ -162,11 +162,14 @@ func (s *tabStrip) item(t uicore.Tab) *gtk.Box {
 		rec.SetTooltipText("Recording")
 		box.Append(rec)
 	}
-	// Claude Code: working, needs you, or idle.
+	// Claude Code: needs you, done (until you look), working, or idle.
 	if st := s.w.claudeState(t); st != "" {
-		text, tip := "✦", map[string]string{bridge.StateBusy: "Claude Code is working", bridge.StateWaiting: "Claude Code needs you", bridge.StateIdle: "Claude Code is idle"}[st]
-		if st == bridge.StateWaiting {
+		text, tip := "✦", "Claude Code: "+strings.ToLower(agentLabel(st))
+		switch st {
+		case bridge.StateWaiting:
 			text = "!"
+		case agentDone:
+			text = "✓"
 		}
 		l := statusLabel(text, "claude-"+st)
 		l.SetTooltipText(tip)

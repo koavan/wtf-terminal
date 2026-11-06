@@ -57,8 +57,9 @@ The tab with a Claude pane shows what Claude Code is doing:
 
 - {{mac:a sparkle|other:✦}} in the accent colour: working;
 - {{mac:an orange speech bubble|other:an orange !}}: it needs you, usually to approve a command;
+- {{mac:a green check|other:a green ✓}}: done, finished while you were looking elsewhere (until you look);
 - {{mac:a grey sparkle|other:a grey ✦}}: waiting for your next prompt.
 
-When it needs you or finishes and you're looking at something else (another tab, another app), wtf shows a notification.
+When it needs you or finishes and you're looking at something else (another tab, another app), wtf shows a notification. The same goes for a `claude` you start yourself in any tab, and the [Agents](#agents) tab lists them all.
 
 Closing the Claude pane ends Claude Code and forgets the target.

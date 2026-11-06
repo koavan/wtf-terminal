@@ -10,6 +10,7 @@ enum Services {
         static func Current() async throws -> Go.config.Resolved { try await Backend.call("config", "Current", [], as: Go.config.Resolved.self) }
         static func OpenConfigFile() async throws { try await Backend.run("config", "OpenConfigFile", []) }
         static func OpenThemesFolder() async throws { try await Backend.run("config", "OpenThemesFolder", []) }
+        static func SetAgentStatus(_ a0: Bool) async throws { try await Backend.run("config", "SetAgentStatus", [a0]) }
         static func SetClaudeAutoMode(_ a0: Bool) async throws { try await Backend.run("config", "SetClaudeAutoMode", [a0]) }
         static func SetConfirmPaste(_ a0: Bool) async throws { try await Backend.run("config", "SetConfirmPaste", [a0]) }
         static func SetRedactSecrets(_ a0: Bool) async throws { try await Backend.run("config", "SetRedactSecrets", [a0]) }
@@ -179,8 +180,11 @@ enum Services {
     }
 
     enum bridge {
+        static func Agents() async throws -> [Go.bridge.Status] { try await Backend.call("bridge", "Agents", [], as: [Go.bridge.Status].self) }
         static func ClaudeCommand() async throws -> String { try await Backend.call("bridge", "ClaudeCommand", [], as: String.self) }
+        static func Forget(_ a0: String) async throws { try await Backend.run("bridge", "Forget", [a0]) }
         static func Reply(_ a0: String, _ a1: Go.bridge.Reply) async throws { try await Backend.run("bridge", "Reply", [a0, a1]) }
+        static func Seen(_ a0: String) async throws { try await Backend.run("bridge", "Seen", [a0]) }
         static func SetTarget(_ a0: String, _ a1: String) async throws { try await Backend.run("bridge", "SetTarget", [a0, a1]) }
     }
 

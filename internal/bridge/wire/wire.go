@@ -15,6 +15,9 @@ const (
 	EnvBridge = "WTF_BRIDGE"
 	EnvToken  = "WTF_BRIDGE_TOKEN"
 	EnvMCP    = "WTF_MCP"
+	// The status-only Claude Code settings (agent-status): wtf's shell
+	// integration runs claude with --settings "$WTF_AGENT_SETTINGS".
+	EnvAgentSettings = "WTF_AGENT_SETTINGS"
 )
 
 // Request is what the helper sends.
@@ -26,9 +29,11 @@ type Request struct {
 	Op   string          `json:"op"`
 	Tool string          `json:"tool,omitempty"`
 	Args json.RawMessage `json:"args,omitempty"`
-	// hook: Claude Code's hook_event_name, and a Notification's message.
+	// hook: Claude Code's hook_event_name, a Notification's message and a
+	// UserPromptSubmit's prompt.
 	Event   string `json:"event,omitempty"`
 	Message string `json:"message,omitempty"`
+	Prompt  string `json:"prompt,omitempty"`
 }
 
 // Response is the app's answer.

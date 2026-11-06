@@ -62,6 +62,10 @@ type Service struct {
 
 	// More variables for a new session's shell, by its id (the bridge's).
 	ExtraEnv func(id string) []string
+	// Called when a session's shell exits, and when a session is seen back
+	// at its shell (the bridge forgets the Claude Code that ran there).
+	OnExit    func(id string)
+	OnAtShell func(id string)
 
 	// Set while quitting: shells killed by shutdown must not be reported as
 	// exits, or the frontend would close their tabs and save an empty session.
@@ -189,6 +193,9 @@ func (s *Service) Create(window string, cols, rows int, cwd string) (string, err
 		delete(s.sessions, id)
 		delete(s.lastInfo, id)
 		s.mu.Unlock()
+		if s.OnExit != nil {
+			s.OnExit(id)
+		}
 		if !s.shuttingDown.Load() {
 			events.Emit(EventExit, ExitEvent{ID: id, Code: sess.ExitCode()})
 		}
@@ -367,6 +374,9 @@ func (s *Service) pollInfo(ctx context.Context) {
 			s.mu.Unlock()
 			if changed {
 				events.Emit(EventInfo, info)
+				if info.AtShell && s.OnAtShell != nil {
+					s.OnAtShell(info.ID)
+				}
 			}
 		}
 	}

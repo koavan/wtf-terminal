@@ -33,6 +33,7 @@ import shellIntegration from './shell-integration.md?raw';
 import shortcuts from './shortcuts.md?raw';
 import snippetsPage from './snippets.md?raw';
 import sideP from './side-pane.md?raw';
+import agentsPage from './agents.md?raw';
 import sshFiles from './ssh-files.md?raw';
 import sshHostKeys from './ssh-host-keys.md?raw';
 import sshHosts from './ssh-hosts.md?raw';
@@ -69,6 +70,7 @@ export const TOPICS: Topic[] = [
   t('Basics', 'workspaces', 'Workspaces', workspaces),
   t('Basics', 'api', 'API requests', apiPage),
   t('Side pane', 'side-pane', 'The side pane', sideP),
+  t('Side pane', 'agents', 'Agents: every Claude Code', agentsPage),
   t('Side pane', 'files', 'Files', files),
   t('Side pane', 'network', 'Network', network),
   t('Side pane', 'processes', 'Processes', processes),

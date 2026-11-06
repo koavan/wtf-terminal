@@ -109,7 +109,11 @@ enum ClaudeCheck {
         let out = read("mcp.out")
         check(out.contains("echo hello-claude-target") && !out.contains("plugin-dir"),
               "recent_commands reads the target, not the Claude pane: \(String(out.prefix(160)).debugDescription) (stderr \(read("mcp.err").debugDescription))")
-        func state() -> ClaudePane.State? { m.tabOf(pane: claudeId).flatMap { ClaudePane.state(tab: $0.id, in: w) } }
+        // Done (finished, not looked at yet) when the window isn't in front.
+        func state() -> ClaudePane.State? {
+            let st = m.tabOf(pane: claudeId).flatMap { ClaudePane.state(tab: $0.id, in: w) }
+            return st == .done ? .idle : st
+        }
         check(await waitUntil(5) { state() == .waiting }, "the tab shows Claude Code needs you: \(String(describing: state()))")
         fm.createFile(atPath: "\(dir)/go", contents: nil)
         check(await waitUntil(5) { exists("idle") && state() == .idle }, "then idle: \(String(describing: state()))")
@@ -169,5 +173,90 @@ enum ClaudeCheck {
         m.closePane(claudeId)
         check(await waitUntil(5) { !ClaudePane.isClaude(claudePane) && ClaudePane.target(of: claudePane) == nil }, "closing the Claude pane forgets it")
         check(m.tabOf(pane: targetId).flatMap { ClaudePane.state(tab: $0.id, in: w) } == nil, "and the tab's badge goes")
+        await agents(w)
+    }
+
+    /// A claude you start yourself in an ordinary tab, as selfcheck_claude.go's
+    /// standInAgent: wtf's shell integration runs it with --settings
+    /// (agent-status); it quits without SessionEnd, as a killed claude.
+    private static func agentScript(_ dir: String) -> String {
+        let d = Shell.quote(dir)
+        return """
+        #!/bin/sh
+        d=\(d)
+        echo "$*" > "$d/args"
+        [ "$1" = --settings ] && grep -q 'WTF_MCP' "$2" && touch "$d/settings"
+        h() { printf '%s' "$1" | "$WTF_MCP" hook; }
+        h '{"hook_event_name":"SessionStart"}'
+        h '{"hook_event_name":"UserPromptSubmit","prompt":"fix the flaky deploy test\\nand more"}'
+        h '{"hook_event_name":"Notification","message":"Claude needs your permission to use Bash"}'
+        touch "$d/waiting"
+        while [ ! -e "$d/go" ]; do sleep 0.1; done
+        h '{"hook_event_name":"PostToolUse"}'
+        h '{"hook_event_name":"Stop"}'
+        touch "$d/done"
+        while [ ! -e "$d/quit" ]; do sleep 0.1; done
+
+        """
+    }
+
+    /// The Agents tab (#33) with a claude typed in a new tab.
+    private static func agents(_ w: WindowController) async {
+        let fm = FileManager.default
+        let dir = NSTemporaryDirectory() + "wtf-agents-check"
+        try? fm.removeItem(atPath: dir)
+        try? fm.createDirectory(atPath: dir, withIntermediateDirectories: true)
+        try? agentScript(dir).write(toFile: "\(dir)/claude", atomically: true, encoding: .utf8)
+        try? fm.setAttributes([.posixPermissions: 0o755], ofItemAtPath: "\(dir)/claude")
+        func exists(_ f: String) -> Bool { fm.fileExists(atPath: "\(dir)/\(f)") }
+        func read(_ f: String) -> String { ((try? String(contentsOfFile: "\(dir)/\(f)", encoding: .utf8)) ?? "").trimmingCharacters(in: .whitespacesAndNewlines) }
+
+        let m = w.model
+        m.open()
+        var id = 0
+        check(await waitUntil(20) {
+            id = m.active?.focusedPaneId ?? 0
+            return m.panes[id]?.integrated == true && m.panes[id]?.running == false
+        }, "a new tab with shell integration")
+        guard let term = w.terminals[id], let session = m.panes[id]?.sessionId else { return }
+        // Only ever the stand-in: never the user's real claude.
+        let q = Shell.quote(dir)
+        term.type("export PATH=\(q):$PATH; [ \"$(/usr/bin/which claude)\" = \(q)/claude ] && claude --resume x\r")
+        check(await waitUntil(15) { exists("waiting") }, "claude starts and its hooks run")
+        check(exists("settings") && read("args").hasSuffix("/claude-plugin/status-settings.json --resume x"),
+              "the shell runs it with wtf's status hooks: \(read("args").debugDescription)")
+        func badge() -> AgentState? { m.tabOf(pane: id).flatMap { Agents.state(tab: $0.id, in: w) } }
+        check(await waitUntil(5) { badge() == .waiting }, "its tab shows it needs you: \(String(describing: badge()))")
+        let ag = Agents.all[session]
+        check(ag?.message == "Claude needs your permission to use Bash" && ag?.prompt == "fix the flaky deploy test",
+              "with what it asks and the prompt: \(String(describing: ag))")
+        check(NSApp.dockTile.badgeLabel == "1", "the Dock icon counts it: \(NSApp.dockTile.badgeLabel ?? "none")")
+
+        // A toggle: a restored session may already show it.
+        if !(w.sidebar.open && w.sidebar.tab == .agents) { w.showSidebar(.agents) }
+        var summary = ""
+        // The side pane makes the tab on its next update.
+        check(await waitUntil(5) { summary = w.sidePane?.debugSummary() ?? ""; return summary == "agents: \(session) waiting" },
+              "the Agents tab lists it: \(summary.debugDescription)")
+
+        fm.createFile(atPath: "\(dir)/go", contents: nil)
+        check(await waitUntil(5) { exists("done") && (badge() == .done || badge() == .idle) }, "then done: \(String(describing: badge()))")
+        check(NSApp.dockTile.badgeLabel == nil, "and the Dock badge goes")
+        Task { try? await Services.bridge.Seen(session) }
+        check(await waitUntil(5) { badge() == .idle }, "and idle once seen: \(String(describing: badge()))")
+
+        m.open()
+        var otherId = id
+        check(await waitUntil(5) { otherId = m.active?.focusedPaneId ?? id; return otherId != id }, "another tab")
+        Agents.go(to: session)
+        check(await waitUntil(5) { m.active?.focusedPaneId == id }, "a row's click goes to its tab")
+        // The check's profile keeps its session: leave no tabs behind.
+        m.closePane(otherId)
+
+        // Its pane closes without a SessionEnd: it's forgotten.
+        m.closePane(id)
+        check(await waitUntil(5) { Agents.all.isEmpty }, "closing its pane forgets it: \(Agents.all.count)")
+        fm.createFile(atPath: "\(dir)/quit", contents: nil)
+        check(await waitUntil(5) { (w.sidePane?.debugSummary() ?? "") == "agents: " }, "and the Agents tab is empty: \((w.sidePane?.debugSummary() ?? "none").debugDescription)")
     }
 }

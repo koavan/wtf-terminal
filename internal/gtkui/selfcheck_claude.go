@@ -107,10 +107,14 @@ func (w *Window) checkClaude() {
 	out := read("mcp.out")
 	check(strings.Contains(out, "echo hello-claude-target") && !strings.Contains(out, "plugin-dir"),
 		"recent_commands reads the target, not the Claude pane: %.200q (stderr %q)", out, read("mcp.err"))
-	// On the main loop (waitUntil's conditions are).
+	// On the main loop (waitUntil's conditions are). Done (finished, not
+	// looked at) counts as idle: the window may not be in front.
 	state := func() string {
 		if t, ok := w.model.TabOf(claude.id); ok {
-			return w.claudeState(t)
+			if st := w.claudeState(t); st != agentDone {
+				return st
+			}
+			return bridge.StateIdle
 		}
 		return ""
 	}
@@ -255,5 +259,104 @@ func (w *Window) checkClaude() {
 		}
 	})
 	check(badge == "", "and the tab's badge goes: %q", badge)
+	w.checkAgents()
 	w.finish()
+}
+
+// standInAgent plays a claude you start yourself in an ordinary tab: wtf's
+// shell integration runs it with --settings (agent-status), and it reports
+// through those hooks. It quits without SessionEnd, as a killed claude.
+const standInAgent = `#!/bin/sh
+d=%DIR%
+echo "$*" > $d/args
+[ "$1" = --settings ] && grep -q 'WTF_MCP' "$2" && touch $d/settings
+h() { printf '%s' "$1" | "$WTF_MCP" hook; }
+h '{"hook_event_name":"SessionStart"}'
+h '{"hook_event_name":"UserPromptSubmit","prompt":"fix the flaky deploy test\nand more"}'
+h '{"hook_event_name":"Notification","message":"Claude needs your permission to use Bash"}'
+touch $d/waiting
+while [ ! -e $d/go ]; do sleep 0.1; done
+h '{"hook_event_name":"PostToolUse"}'
+h '{"hook_event_name":"Stop"}'
+touch $d/done
+while [ ! -e $d/quit ]; do sleep 0.1; done
+`
+
+// checkAgents: the Agents tab (#33) with a claude typed in a new tab.
+func (w *Window) checkAgents() {
+	a := w.app
+	dir := "/tmp/agbin"
+	_ = os.RemoveAll(dir)
+	_ = os.MkdirAll(dir, 0o755)
+	_ = os.WriteFile(dir+"/claude", []byte(strings.ReplaceAll(standInAgent, "%DIR%", dir)), 0o755)
+	exists := func(name string) bool { _, err := os.Stat(dir + "/" + name); return err == nil }
+	read := func(name string) string { b, _ := os.ReadFile(dir + "/" + name); return strings.TrimSpace(string(b)) }
+
+	onMain(func() { w.model.Open(uicore.OpenOptions{}) })
+	var p *Pane
+	check(waitUntil(5*time.Second, func() bool { p = w.active(); return p != nil && len(p.tracker.Blocks(0, 1<<30)) > 0 }), "a new tab with shell integration")
+	if p == nil {
+		return
+	}
+	var session string
+	onMain(func() { session = w.model.Panes[p.id].SessionID })
+	// Only ever the stand-in.
+	p.write("export PATH=" + dir + ":$PATH; [ \"$(which claude)\" = " + dir + "/claude ] && claude --resume x\r")
+	check(waitUntil(10*time.Second, func() bool { return exists("waiting") }), "claude starts and its hooks run")
+	check(exists("settings") && strings.HasSuffix(read("args"), "/claude-plugin/"+bridge.StatusSettingsFile+" --resume x"),
+		"the shell runs it with wtf's status hooks: %q", read("args"))
+
+	badge := func() string {
+		if t, ok := w.model.TabOf(p.id); ok {
+			return w.claudeState(t)
+		}
+		return ""
+	}
+	var st string
+	check(waitUntil(5*time.Second, func() bool { st = badge(); return st == bridge.StateWaiting }), "its tab shows it needs you: %q", st)
+	var ag bridge.Status
+	onMain(func() { ag = a.agents.all[session] })
+	check(ag.Message == "Claude needs your permission to use Bash" && ag.Prompt == "fix the flaky deploy test", "with what it asks and the prompt: %+v", ag)
+
+	// The Agents tab lists it, and the picker.
+	onMain(func() { w.showSidebar(uicore.SidebarAgents) })
+	var ids []string
+	onMain(func() {
+		if t, ok := w.sidePane().(*agentsTab); ok {
+			ids = slices.DeleteFunc(slices.Clone(t.list.ids), func(s string) bool { return s == "" })
+		}
+	})
+	check(slices.Equal(ids, []string{session}), "the Agents tab lists it: %q", ids)
+	w.shot("agents-tab")
+	var entries []paletteEntry
+	onMain(func() { entries = w.agentEntries() })
+	check(len(entries) == 1 && strings.HasSuffix(entries[0].label, "needs you"), "Go to Agent… lists it: %+v", entries)
+
+	// Finished: done while not looked at, idle once seen.
+	_ = os.WriteFile(dir+"/go", nil, 0o644)
+	check(waitUntil(5*time.Second, func() bool { st = badge(); return exists("done") && (st == agentDone || st == bridge.StateIdle) }), "then done: %q", st)
+	go a.be.Bridge.Seen(session)
+	check(waitUntil(5*time.Second, func() bool { return badge() == bridge.StateIdle }), "and idle once seen: %q", badge())
+
+	// From another tab, Next Agent Needing You has nothing to go to.
+	onMain(func() { w.model.Open(uicore.OpenOptions{}) })
+	var other *Pane
+	check(waitUntil(5*time.Second, func() bool { other = w.active(); return other != nil && other != p }), "another tab")
+	onMain(func() { w.app.goToAgent(session) })
+	check(waitUntil(5*time.Second, func() bool { return w.active() == p }), "a row's click goes to its tab")
+	if other != nil {
+		onMain(func() { w.model.ClosePane(other.id) })
+	}
+
+	// Its pane closes without a SessionEnd: it's forgotten.
+	onMain(func() { w.model.ClosePane(p.id) })
+	check(waitUntil(5*time.Second, func() bool { return len(a.agents.all) == 0 }), "closing its pane forgets it: %d", len(a.agents.all))
+	_ = os.WriteFile(dir+"/quit", nil, 0o644)
+	ids = []string{"x"}
+	onMain(func() {
+		if t, ok := w.sidePane().(*agentsTab); ok {
+			ids = slices.DeleteFunc(slices.Clone(t.list.ids), func(s string) bool { return s == "" })
+		}
+	})
+	check(len(ids) == 0, "and the Agents tab is empty: %q", ids)
 }

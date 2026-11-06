@@ -98,6 +98,11 @@ func (s *Service) SetClaudeAutoMode(on bool) error {
 	return s.set("claude-auto-mode", strconv.FormatBool(on))
 }
 
+// SetAgentStatus turns agent-status on or off (new panes).
+func (s *Service) SetAgentStatus(on bool) error {
+	return s.set("agent-status", strconv.FormatBool(on))
+}
+
 // SetShowUsage shows or hides wtf's CPU and memory in the address bar.
 func (s *Service) SetShowUsage(on bool) error {
 	return s.set("show-usage", strconv.FormatBool(on))

@@ -33,6 +33,7 @@ final class Sidebar: NSView {
 
     /// The tabs the native app has so far (M4); the rest come with M5.
     static let tabs: [TabInfo] = [
+        TabInfo(tab: .agents, label: "Agents", symbol: "sparkles.rectangle.stack", key: "⌘⇧M") { AgentsView(window: $0) },
         TabInfo(tab: .files, label: "Files", symbol: "folder", key: "⌘⇧E") { FilesView(window: $0) },
         TabInfo(tab: .ssh, label: "SSH Hosts", symbol: "server.rack", key: "⌘⇧S") { SshView(window: $0) },
         TabInfo(tab: .aws, label: "AWS Profiles", symbol: "cloud", key: "⌘⇧U") { AwsView(window: $0) },

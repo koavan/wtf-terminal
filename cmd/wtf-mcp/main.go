@@ -124,6 +124,7 @@ func hook(c client, in io.Reader, out io.Writer) int {
 	var ev struct {
 		Event   string `json:"hook_event_name"`
 		Message string `json:"message"`
+		Prompt  string `json:"prompt"`
 	}
 	data, err := io.ReadAll(io.LimitReader(in, 1<<20))
 	if err == nil {
@@ -152,7 +153,7 @@ func hook(c client, in io.Reader, out io.Writer) int {
 	// Best effort: a status the app misses changes nothing.
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 	defer cancel()
-	if _, err := c.do(ctx, wire.Request{Op: "hook", Event: ev.Event, Message: ev.Message}); err != nil {
+	if _, err := c.do(ctx, wire.Request{Op: "hook", Event: ev.Event, Message: ev.Message, Prompt: ev.Prompt}); err != nil {
 		log.Print(err)
 	}
 	return 0

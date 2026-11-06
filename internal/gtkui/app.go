@@ -57,6 +57,7 @@ type App struct {
 	build    Build
 	be       *backend.Backend
 	claude   *claudePanes
+	agents   *agentList
 	cancel   context.CancelFunc
 	events   *eventPump
 	settings *settings
@@ -75,7 +76,7 @@ type App struct {
 // Main runs the app and returns the exit status.
 func Main(build Build) int {
 	log.SetFlags(log.Ltime | log.Lmicroseconds)
-	a := &App{build: build, debug: os.Getenv("WTF_NATIVE_DEBUG"), savedNames: map[string]bool{}, claude: newClaudePanes()}
+	a := &App{build: build, debug: os.Getenv("WTF_NATIVE_DEBUG"), savedNames: map[string]bool{}, claude: newClaudePanes(), agents: newAgentList()}
 	a.home, _ = os.UserHomeDir()
 	flags := gio.ApplicationFlagsNone
 	if a.debug != "" {
@@ -142,6 +143,7 @@ func (a *App) startup() {
 	})
 	a.events.on(bridge.EventStatus, func(data any) {
 		if st, ok := data.(bridge.Status); ok {
+			a.agentStatus(st)
 			a.claudeStatus(st)
 		}
 	})

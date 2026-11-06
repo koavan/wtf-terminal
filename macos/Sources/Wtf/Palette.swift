@@ -6,10 +6,10 @@ import WtfCore
 /// Like Palette.svelte. One per window.
 @MainActor
 final class Palette: NSView, NSTextFieldDelegate {
-    enum Mode: Equatable { case commands, themes, workspaces, snippets }
+    enum Mode: Equatable { case commands, themes, workspaces, snippets, agents }
 
     struct Entry {
-        enum Section: Int { case commands, tabs, groups, workspaces, snippets, themes }
+        enum Section: Int { case commands, tabs, groups, workspaces, snippets, themes, agents }
         let section: Section
         let label: String
         var detail = ""
@@ -70,6 +70,7 @@ final class Palette: NSView, NSTextFieldDelegate {
         case .themes: "Search themes…"
         case .workspaces: "Search workspaces…"
         case .snippets: "Search snippets…"
+        case .agents: "Search agents: needs you, done, working, idle, or a tab, folder or prompt…"
         }
         field.font = .systemFont(ofSize: 15)
         field.isBordered = false
@@ -135,6 +136,11 @@ final class Palette: NSView, NSTextFieldDelegate {
         case .snippets:
             entries = []
             loadSnippets(trailing: true)
+        case .agents:
+            entries = agentEntries()
+            if entries.isEmpty {
+                entries = [Entry(section: .agents, label: "No Claude Code running", detail: "Start claude in any tab, or Ask Claude (⌘I)") {}]
+            }
         case .themes:
             entries = []
             Task {
@@ -213,6 +219,20 @@ final class Palette: NSView, NSTextFieldDelegate {
         }
     }
 
+    /// Every Claude Code, most urgent first (Agents tab order).
+    private func agentEntries() -> [Entry] {
+        Agents.sorted().map { st in
+            let state = Agents.state(st)
+            let place = Agents.find(st.session)
+            let title = place.flatMap { w, p in w.model.tabOf(pane: p.id).map { w.model.title($0) } } ?? st.session
+            let cwd = place.map { WindowModel.prettyPath($0.1.cwd) } ?? ""
+            let what = state == .waiting && !st.message.isEmpty ? st.message : st.prompt
+            let detail = [state.label, cwd, Redaction.shared.text(what)].filter { !$0.isEmpty }.joined(separator: " · ")
+            return Entry(section: .agents, label: Redaction.shared.text(title) + " — " + state.label.lowercased(), detail: detail,
+                         hint: Agents.age(since: st.since), dot: Agents.color(state)) { Agents.go(to: st.session) }
+        }
+    }
+
     private func commandEntries() -> [Entry] {
         Commands.all.filter { $0.id != "palette" && $0.available(owner) }.map { c in
             Entry(section: .commands, label: c.label, hint: c.key, symbol: "command") { [owner] in c.run(owner) }
@@ -264,9 +284,9 @@ final class Palette: NSView, NSTextFieldDelegate {
     private func refilter() {
         let q = field.stringValue
         if q.trimmingCharacters(in: .whitespaces).isEmpty {
-            let order: [Entry.Section: Int] = [.commands: 0, .tabs: 1, .groups: 2, .workspaces: 3, .snippets: 4, .themes: 5]
+            let order: [Entry.Section: Int] = [.commands: 0, .tabs: 1, .groups: 2, .workspaces: 3, .snippets: 4, .themes: 5, .agents: 6]
             rows = entries.enumerated().sorted {
-                mode == .themes ? $0.offset < $1.offset
+                mode == .themes || mode == .agents ? $0.offset < $1.offset
                     : (order[$0.element.section]!, $0.offset) < (order[$1.element.section]!, $1.offset)
             }.map { ($0.element, nil) }
         } else {
@@ -344,6 +364,7 @@ final class Palette: NSView, NSTextFieldDelegate {
                 case .workspaces: "Workspaces"
                 case .snippets: "Snippets"
                 case .themes: "Themes"
+                case .agents: "Agents"
                 }
             }
             last = r.entry.section

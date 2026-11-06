@@ -18,6 +18,25 @@ if [[ -o interactive && -n "$WTF_SHELL_INTEGRATION" && -z "$__wtf_loaded" ]]; th
   typeset -g __wtf_loaded=1
   typeset -gi __wtf_running=0
 
+  # agent-status (the Agents tab): claude reports what it's doing through
+  # wtf's status hooks, added for this run only (see wtf.bash). Defined
+  # before .zshrc, so a claude alias or function there wins.
+  if [[ -n $WTF_AGENT_SETTINGS ]]; then
+    claude() {
+      local a
+      if [[ -r $WTF_AGENT_SETTINGS ]]; then
+        for a in "$@"; do
+          case $a in
+            --settings|--settings=*|--plugin-dir|--plugin-dir=*) command claude "$@"; return ;;
+          esac
+        done
+        command claude --settings "$WTF_AGENT_SETTINGS" "$@"
+      else
+        command claude "$@"
+      fi
+    }
+  fi
+
   # Semantic prompt marks (OSC 133), the command line (OSC 633;E) and the
   # cloud/cluster variables (OSC 633;P;WtfEnv); see wtf.bash for the protocol.
   # wtf's "clear history" sends Ctrl-X Ctrl-]: it removes the commands run

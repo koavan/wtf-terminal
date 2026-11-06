@@ -29,6 +29,7 @@ import (
 	"net"
 	"os"
 	"path/filepath"
+	"slices"
 	"strconv"
 	"strings"
 	"sync"
@@ -40,13 +41,15 @@ import (
 	"github.com/dayanraj/wtf/internal/events"
 	"github.com/dayanraj/wtf/internal/infra"
 	"github.com/dayanraj/wtf/internal/snippets"
+	"github.com/dayanraj/wtf/internal/uicore"
 )
 
 const (
 	// EventRequest asks the UI about a shell; it answers with Reply.
 	EventRequest = "bridge:request"
 	// EventStatus tells the UI what Claude Code in a shell is doing, from
-	// the plugin's hooks (payload Status).
+	// the plugin's hooks or agent-status's (payload Status). State "ended"
+	// means it's gone: quit, or its shell closed or back at its prompt.
 	EventStatus = "bridge:status"
 
 	maxRequest = 1 << 20
@@ -90,14 +93,26 @@ const (
 	StateEnded   = "ended"   // SessionEnd
 )
 
-// Status is EventStatus's payload.
+// Status is EventStatus's payload: one Claude Code session, for the tab
+// badges and the Agents tab (#33).
 type Status struct {
 	// The session of the shell Claude Code runs in.
 	Session string `json:"session"`
 	State   string `json:"state"`
-	// Notification's text ("Claude needs your permission to use Bash").
+	// While waiting: the Notification's text ("Claude needs your
+	// permission to use Bash"), redacted.
 	Message string `json:"message"`
+	// The last prompt's first line, redacted and shortened.
+	Prompt string `json:"prompt"`
+	// When it entered State (Unix milliseconds).
+	Since int64 `json:"since"`
+	// It finished (busy → idle) and its pane hasn't been seen since: the
+	// UIs call Seen when it is.
+	Unseen bool `json:"unseen"`
 }
+
+// maxPrompt is how much of a prompt the Agents tab shows.
+const maxPrompt = 160
 
 var hookStates = map[string]string{
 	"SessionStart": StateIdle, "Stop": StateIdle, "UserPromptSubmit": StateBusy, "PostToolUse": StateBusy,
@@ -165,8 +180,14 @@ type Service struct {
 	pending map[string]chan Reply
 	// Claude pane session → the shell it works on.
 	targets map[string]string
-	// Claude pane session → its last state.
-	states map[string]string
+	// Session → the Claude Code running in it (from its hooks).
+	agents map[string]*Status
+	// The status-only settings for claude (claude-plugin/status-settings.json);
+	// "" without the plugin.
+	statusSettings string
+
+	// agent-status (nil: on): new shells get WTF_AGENT_SETTINGS.
+	AgentStatus func() bool
 
 	// claude-auto-mode (nil: off).
 	AutoMode func() bool
@@ -178,7 +199,7 @@ type Service struct {
 }
 
 func NewService(in *infra.Service) *Service {
-	s := &Service{infra: in, pending: map[string]chan Reply{}, targets: map[string]string{}, states: map[string]string{}}
+	s := &Service{infra: in, pending: map[string]chan Reply{}, targets: map[string]string{}, agents: map[string]*Status{}}
 	// Next to the app (macOS: Contents/MacOS; a Linux dev build), or where
 	// the Linux packages put it (/usr/bin/wtf → /usr/lib/wtf/wtf-mcp).
 	if exe, err := os.Executable(); err == nil {
@@ -191,8 +212,18 @@ func NewService(in *infra.Service) *Service {
 		}
 		s.plugin = findPlugin(dir)
 	}
+	if s.plugin != "" {
+		if fi, err := os.Stat(filepath.Join(s.plugin, StatusSettingsFile)); err == nil && fi.Mode().IsRegular() {
+			s.statusSettings = filepath.Join(s.plugin, StatusSettingsFile)
+		}
+	}
 	return s
 }
+
+// StatusSettingsFile, in the plugin's folder, is the Claude Code settings
+// wtf's shell integration adds to a claude you start yourself: only the
+// hooks that report its state, no tools, commands or permission rules.
+const StatusSettingsFile = "status-settings.json"
 
 // findPlugin looks for the plugin next to the app (a Linux dev build), in
 // the macOS bundle's Resources, or where the Linux packages put it
@@ -249,6 +280,9 @@ func (s *Service) shellEnv(session string) []string {
 	env := []string{wire.EnvPane + "=" + session, wire.EnvBridge + "=" + s.sock, wire.EnvToken + "=" + s.token(session)}
 	if s.helper != "" {
 		env = append(env, wire.EnvMCP+"="+s.helper)
+		if s.statusSettings != "" && (s.AgentStatus == nil || s.AgentStatus()) {
+			env = append(env, wire.EnvAgentSettings+"="+s.statusSettings)
+		}
 	}
 	return env
 }
@@ -265,7 +299,6 @@ func (s *Service) SetTarget(session, target string) {
 	defer s.mu.Unlock()
 	if target == "" {
 		delete(s.targets, session)
-		delete(s.states, session)
 	} else {
 		s.targets[session] = target
 	}
@@ -280,23 +313,98 @@ func (s *Service) target(session string) string {
 	return session
 }
 
-// setState records a Claude pane's state from a hook, and says whether the
-// UI should hear of it: only changes. A Notification counts only while
+// setState records a session's Claude Code state from a hook, and returns
+// what the UI should hear: only changes. A Notification counts only while
 // Claude Code works (a permission prompt); one while it's idle is its
 // reminder that it's waiting for a prompt, which changes nothing.
-func (s *Service) setState(session, state string) bool {
+func (s *Service) setState(session, state, message, prompt string) (Status, bool) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	old := s.states[session]
-	if state == StateWaiting && old != StateBusy {
-		return false
+	a := s.agents[session]
+	if state == StateWaiting && (a == nil || a.State != StateBusy) {
+		return Status{}, false
 	}
 	if state == StateEnded {
-		delete(s.states, session)
-		return old != ""
+		if a == nil {
+			return Status{}, false
+		}
+		delete(s.agents, session)
+		return Status{Session: session, State: StateEnded, Since: time.Now().UnixMilli()}, true
 	}
-	s.states[session] = state
-	return old != state
+	if a == nil {
+		a = &Status{Session: session}
+		s.agents[session] = a
+	}
+	old := *a
+	if a.State != state {
+		a.Since = time.Now().UnixMilli()
+	}
+	switch state {
+	case StateWaiting:
+		a.Message = uicore.Redact(strings.TrimSpace(message))
+	case StateBusy:
+		a.Message, a.Unseen = "", false
+		if p := shortPrompt(prompt); p != "" {
+			a.Prompt = p
+		}
+	case StateIdle:
+		a.Message = ""
+		// Finished: done until its pane is seen.
+		if a.State == StateBusy || a.State == StateWaiting {
+			a.Unseen = true
+		}
+	}
+	a.State = state
+	return *a, *a != old
+}
+
+// shortPrompt is a prompt's first non-empty line, redacted and shortened.
+func shortPrompt(p string) string {
+	for _, line := range strings.Split(p, "\n") {
+		if line = strings.Join(strings.Fields(line), " "); line != "" {
+			line = uicore.Redact(line)
+			if r := []rune(line); len(r) > maxPrompt {
+				line = string(r[:maxPrompt-1]) + "…"
+			}
+			return line
+		}
+	}
+	return ""
+}
+
+// Agents lists the Claude Code sessions wtf knows of, for the Agents tab.
+func (s *Service) Agents() []Status {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	out := make([]Status, 0, len(s.agents))
+	for _, a := range s.agents {
+		out = append(out, *a)
+	}
+	slices.SortFunc(out, func(a, b Status) int { return strings.Compare(a.Session, b.Session) })
+	return out
+}
+
+// Seen says session's pane is in front: a finished Claude Code there is no
+// longer "done", just idle.
+func (s *Service) Seen(session string) {
+	s.mu.Lock()
+	a := s.agents[session]
+	if a == nil || !a.Unseen {
+		s.mu.Unlock()
+		return
+	}
+	a.Unseen = false
+	st := *a
+	s.mu.Unlock()
+	events.Emit(EventStatus, st)
+}
+
+// Forget drops session's Claude Code: its shell closed, or is back at its
+// prompt (a claude killed before its SessionEnd hook).
+func (s *Service) Forget(session string) {
+	if st, ok := s.setState(session, StateEnded, "", ""); ok {
+		events.Emit(EventStatus, st)
+	}
 }
 
 // ClaudeCommand is the command line a Claude pane's shell runs: the user's
@@ -420,8 +528,8 @@ func (s *Service) do(ctx context.Context, req wire.Request) wire.Response {
 		if state == "" {
 			return wire.Response{Error: "unknown hook event " + strconv.Quote(req.Event)}
 		}
-		if s.setState(req.Pane, state) {
-			events.Emit(EventStatus, Status{Session: req.Pane, State: state, Message: req.Message})
+		if st, ok := s.setState(req.Pane, state, req.Message, req.Prompt); ok {
+			events.Emit(EventStatus, st)
 		}
 		return wire.Response{}
 	}

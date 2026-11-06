@@ -141,6 +141,22 @@ func (s *settingsWindow) generalPage() *adw.PreferencesPage {
 		}
 	})
 	claude.Add(auto)
+	agents := adw.NewSwitchRow()
+	agents.SetUseMarkup(false)
+	agents.SetTitle("Show every claude you start in the Agents tab")
+	agents.SetSubtitle("agent-status; wtf's shell integration adds hooks that report what it's doing, for that run only (nothing is written to ~/.claude); applies to new panes")
+	agents.SetActive(s.w.app.settings.config().AgentStatus)
+	agents.Connect("notify::active", func() {
+		on := agents.Active()
+		if on == s.w.app.settings.config().AgentStatus {
+			return
+		}
+		if err := s.w.app.be.Config.SetAgentStatus(on); err != nil {
+			agents.SetActive(!on)
+			s.w.toast("Couldn't change the setting: " + err.Error())
+		}
+	})
+	claude.Add(agents)
 	page.Add(claude)
 	return page
 }

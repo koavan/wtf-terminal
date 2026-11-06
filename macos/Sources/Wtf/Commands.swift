@@ -65,6 +65,9 @@ enum Commands {
             }
         },
         Command("sidebar.toggle", "Toggle Sidebar", "⌘B") { $0.toggleSidebar(nil) },
+        Command("sidebar.agents", "Show Agents (Claude Code in Every Tab)", "⌘⇧M") { $0.showSidebar(.agents) },
+        Command("agents.pick", "Go to Agent…", "⌥⌘A") { Palette.toggle(.agents, in: $0) },
+        Command("agents.next", "Next Agent Needing You", "⌥⌘N") { Agents.next(from: $0) },
         Command("sidebar.files", "Show Files", "⌘⇧E") { $0.showSidebar(.files) },
         Command("sidebar.ssh", "Show SSH Hosts", "⌘⇧S") { $0.showSidebar(.ssh) },
         Command("sidebar.aws", "Show AWS Profiles", "⌘⇧U") { $0.showSidebar(.aws) },

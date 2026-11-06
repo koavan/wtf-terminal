@@ -385,3 +385,143 @@ func TestSearchHistory(t *testing.T) {
 		t.Errorf("limit = %+v", r)
 	}
 }
+
+// TestAgents: the registry behind the Agents tab and the tab badges.
+func TestAgents(t *testing.T) {
+	f := newFake(t)
+	s := f.s
+	hook := func(pane, event, message, prompt string) {
+		t.Helper()
+		r := s.do(context.Background(), wire.Request{V: wire.Version, Pane: pane, Token: s.token(pane), Op: "hook", Event: event, Message: message, Prompt: prompt})
+		if r.Error != "" {
+			t.Fatal(r.Error)
+		}
+	}
+	last := func() Status {
+		t.Helper()
+		f.mu.Lock()
+		defer f.mu.Unlock()
+		if len(f.status) == 0 {
+			t.Fatal("no status")
+		}
+		return f.status[len(f.status)-1]
+	}
+	count := func() int {
+		f.mu.Lock()
+		defer f.mu.Unlock()
+		return len(f.status)
+	}
+
+	// A Notification before it works (its idle reminder) adds nothing.
+	hook("s2", "Notification", "Claude is waiting for your input", "")
+	if count() != 0 || len(s.Agents()) != 0 {
+		t.Fatalf("idle reminder made an agent: %v", s.Agents())
+	}
+	hook("s2", "SessionStart", "", "")
+	if st := last(); st.State != StateIdle || st.Unseen || st.Since == 0 {
+		t.Fatalf("start = %+v", st)
+	}
+	// The prompt: first line, redacted, shortened.
+	secret := "AKIA" + "IOSFODNN7EXAMPLE"
+	hook("s2", "UserPromptSubmit", "", "\n  fix the   deploy with "+secret+"\nmore lines")
+	st := last()
+	if st.State != StateBusy || strings.Contains(st.Prompt, secret) || !strings.HasPrefix(st.Prompt, "fix the deploy with ") || strings.Contains(st.Prompt, "more") {
+		t.Fatalf("busy = %+v", st)
+	}
+	hook("s2", "UserPromptSubmit", "", strings.Repeat("x", 500))
+	if p := []rune(last().Prompt); len(p) != maxPrompt || p[len(p)-1] != '…' {
+		t.Fatalf("long prompt = %d runes", len(p))
+	}
+	n := count()
+	hook("s2", "PostToolUse", "", "")
+	if count() != n {
+		t.Fatal("PostToolUse while busy sent a change")
+	}
+	hook("s2", "Notification", "Claude needs your permission to use Bash", "")
+	if st := last(); st.State != StateWaiting || st.Message != "Claude needs your permission to use Bash" {
+		t.Fatalf("waiting = %+v", st)
+	}
+	hook("s2", "PostToolUse", "", "")
+	if st := last(); st.State != StateBusy || st.Message != "" || st.Prompt == "" {
+		t.Fatalf("approved = %+v", st)
+	}
+	// Finished: done until seen.
+	hook("s2", "Stop", "", "")
+	if st := last(); st.State != StateIdle || !st.Unseen {
+		t.Fatalf("done = %+v", st)
+	}
+	if a := s.Agents(); len(a) != 1 || !a[0].Unseen || a[0].Session != "s2" {
+		t.Fatalf("agents = %+v", a)
+	}
+	s.Seen("s2")
+	if st := last(); st.State != StateIdle || st.Unseen {
+		t.Fatalf("seen = %+v", st)
+	}
+	n = count()
+	s.Seen("s2")
+	s.Seen("s7")
+	if count() != n {
+		t.Fatal("Seen without a change sent one")
+	}
+	// A new prompt clears done; another session is listed apart.
+	hook("s3", "SessionStart", "", "")
+	hook("s3", "UserPromptSubmit", "", "hello")
+	hook("s3", "Stop", "", "")
+	hook("s3", "UserPromptSubmit", "", "again")
+	if st := last(); st.Unseen || st.Prompt != "again" {
+		t.Fatalf("new prompt = %+v", st)
+	}
+	if a := s.Agents(); len(a) != 2 || a[0].Session != "s2" || a[1].Session != "s3" {
+		t.Fatalf("agents = %+v", a)
+	}
+	// Forget (shell closed or back at its prompt) and SessionEnd end it once.
+	s.Forget("s3")
+	if st := last(); st.Session != "s3" || st.State != StateEnded {
+		t.Fatalf("forget = %+v", st)
+	}
+	n = count()
+	s.Forget("s3")
+	hook("s3", "SessionEnd", "", "")
+	if count() != n {
+		t.Fatal("ended twice")
+	}
+	hook("s2", "SessionEnd", "", "")
+	if len(s.Agents()) != 0 {
+		t.Fatalf("agents = %+v", s.Agents())
+	}
+}
+
+// New shells get WTF_AGENT_SETTINGS while agent-status is on and the
+// plugin has its settings file.
+func TestAgentSettingsEnv(t *testing.T) {
+	s := NewService(nil)
+	if err := s.startup(); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(s.shutdown)
+	s.helper, s.statusSettings = "/x/wtf-mcp", "/x/claude-plugin/"+StatusSettingsFile
+	has := func() bool {
+		for _, kv := range s.shellEnv("s1") {
+			if kv == wire.EnvAgentSettings+"="+s.statusSettings {
+				return true
+			}
+		}
+		return false
+	}
+	if !has() {
+		t.Error("missing by default")
+	}
+	on := false
+	s.AgentStatus = func() bool { return on }
+	if has() {
+		t.Error("set while off")
+	}
+	on = true
+	if !has() {
+		t.Error("missing while on")
+	}
+	s.statusSettings = ""
+	if has() {
+		t.Error("set without the file")
+	}
+}
