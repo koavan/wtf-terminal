@@ -687,6 +687,38 @@ Phases:
 Later: Codex (its `notify` hook), and agents that report through OSC
 9/777/7501.
 
+### 34. Background agents ☐
+
+Close a tab running Claude Code and it can keep running; the Agents tab
+manages it. Decided with the user (2026-11-06): it lives while wtf runs (not
+after quitting); closing asks Keep Running in Background / End (Don't ask
+again → `agent-close` ask/background/end); manage = open, end, start, peek,
+reply.
+
+Built 2026-11-06:
+
+- A background window, never shown or saved: parking moves the agent's pane
+  there the way tabs move between windows (new `DetachPane` in both models),
+  so output, hooks, badges and notifications carry on. Spike: a never-shown
+  window takes output as fast as a hidden tab (Linux, 200k lines in 0.4 s).
+- Closing a tab, pane or window with agents asks first (`confirmIfBusy`);
+  the last window you can see, with agents in it or in the background, quits
+  instead (wtf asks, listing them). The last tab parked keeps a fresh tab.
+- Agents tab: a Background section; per agent Open in Tab, Peek and Reply…
+  (screen with Hide Secrets, updated every second; text + Return, Return,
+  Esc, only on your click), End…; Start Claude Code… (folder, first prompt,
+  in a tab or in the background). A background agent that quits closes its
+  shell.
+- Fixed on the way: macOS adopting a tab ran sync first, which started a new
+  shell for the moved pane and took over its session (moving tabs between
+  windows had this too); Linux moving a window's last tab could hang its
+  shells up (CloseWindow before Adopt).
+- Self-checks `background` on both (stand-in claude, guarded so no other
+  claude can run): park, not shown, Agents tab, peek, reply, open, end,
+  start in background. Passing on macOS and Linux.
+
+Still to do: hands-on with real Claude Code.
+
 ## Also built
 
 - Resource usage (2026-10-13): wtf's own CPU and memory in the address bar

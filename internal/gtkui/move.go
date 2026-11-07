@@ -22,6 +22,9 @@ func (w *Window) detach(id int) *movingTab {
 	for _, leaf := range t.Root.Leaves() {
 		if p := w.panes[leaf]; p != nil && p.session != "" {
 			moving.panes[p.session] = p
+			// On its way: if this was the window's last tab, the window
+			// closing (CloseWindow) mustn't hang it up.
+			_ = w.app.be.Terminal.Adopt(p.session, "moving")
 			// It's the other window's now: this one doesn't hang it up.
 			delete(w.panes, leaf)
 			w.recordsPaneGone(leaf, true)

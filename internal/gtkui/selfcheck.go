@@ -90,6 +90,8 @@ func (a *App) selfCheck(w *Window) {
 		w.checkBridge()
 	case "claude":
 		w.checkClaude()
+	case "background":
+		w.checkBackground()
 	case "history":
 		w.checkHistory()
 	case "perf":

@@ -53,6 +53,10 @@ type Config struct {
 	// Agents tab (#33): wtf's shell integration runs a claude you start
 	// yourself with hooks that report what it's doing.
 	AgentStatus bool `toml:"agent-status" json:"agentStatus"`
+
+	// Closing a tab or pane running Claude Code (#34): "ask", "background"
+	// (keep it running in the background window) or "end".
+	AgentClose string `toml:"agent-close" json:"agentClose"`
 }
 
 func Defaults() Config {
@@ -81,6 +85,7 @@ func Defaults() Config {
 		HistoryDays: 90,
 
 		AgentStatus: true,
+		AgentClose:  "ask",
 	}
 }
 
@@ -185,6 +190,11 @@ const template = `# wtf settings. Changes apply as soon as you save (or switch b
 # nothing is written to ~/.claude. false leaves claude alone (only Ask
 # Claude panes are then listed). Applies to new panes.
 # agent-status = true
+
+# Closing a tab or pane running Claude Code: "ask" (keep it running in the
+# background, or end it), "background" (always keep it running; the Agents
+# tab opens it again) or "end". Background agents end when wtf quits.
+# agent-close = "ask"
 `
 
 // Dir is $XDG_CONFIG_HOME/wtf, or ~/.config/wtf, on every platform.
@@ -243,6 +253,12 @@ func validate(c Config, problems []string) (Config, []string, error) {
 	if c.LineHeight < 1 || c.LineHeight > 3 {
 		bad("line-height", c.LineHeight, "must be between 1 and 3")
 		c.LineHeight = d.LineHeight
+	}
+	switch c.AgentClose {
+	case "ask", "background", "end":
+	default:
+		bad("agent-close", c.AgentClose, `must be "ask", "background" or "end"`)
+		c.AgentClose = d.AgentClose
 	}
 	switch c.CursorStyle {
 	case "bar", "block", "underline":

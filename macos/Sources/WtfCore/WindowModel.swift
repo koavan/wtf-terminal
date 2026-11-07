@@ -574,6 +574,23 @@ public final class WindowModel {
         return SavedTab.Payload(kind: "tab", tab: saved, group: g.map { .init(name: $0.name, color: $0.color.rawValue) })
     }
 
+    /// Takes one pane out of its tab, as a one-pane tab with its live shell,
+    /// for another window to adopt (parking an agent in the background
+    /// window, #34). A tab's only pane takes the whole tab, without its
+    /// group. As uicore's DetachPane.
+    public func detachPane(_ id: Int, buffers: (Pane) -> String) -> SavedTab.Payload? {
+        guard let t = tabOf(pane: id), panes[id] != nil else { return nil }
+        if t.root.leaves.count == 1 {
+            guard var payload = detach(t.id, buffers: buffers) else { return nil }
+            payload.group = nil
+            payload.tab.groupId = nil
+            return payload
+        }
+        let saved = save(Tab(id: 0, root: .pane(id), focusedPaneId: id), live: true, buffers: buffers)
+        closePane(id)
+        return SavedTab.Payload(kind: "tab", tab: saved, group: nil)
+    }
+
     /// Takes in a tab another window detached. False for a malformed payload.
     @discardableResult
     public func adopt(_ payload: SavedTab.Payload) -> Bool {

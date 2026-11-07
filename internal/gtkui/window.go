@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"slices"
 	"strings"
 	"time"
 
@@ -15,8 +16,8 @@ import (
 	"github.com/diamondburned/gotk4/pkg/glib/v2"
 	"github.com/diamondburned/gotk4/pkg/gtk/v4"
 
-	"github.com/dayanraj/wtf/internal/infra"
 	"github.com/dayanraj/wtf/internal/cmdhistory"
+	"github.com/dayanraj/wtf/internal/infra"
 	"github.com/dayanraj/wtf/internal/uicore"
 )
 
@@ -62,6 +63,9 @@ type Window struct {
 	pages map[int]*tabPage
 	// Panes whose shells went to another window: not hung up when they go.
 	detached map[int]bool
+	// The background window (#34): never shown or saved; its tabs are
+	// agents kept running after their tab closed.
+	background bool
 
 	saveTimer  coreglib.SourceHandle
 	lastSaved  string
@@ -142,6 +146,12 @@ func newWindow(a *App, name string) *Window {
 		for id := range w.model.Panes {
 			ids = append(ids, id)
 		}
+		// The last window you can see, with agents in it or in the
+		// background: closing it is quitting (wtf asks about them).
+		if !w.background && len(a.visibleWindows()) == 1 && (a.backgroundCount() > 0 || len(w.agentPanes(ids)) > 0) {
+			a.quit()
+			return true
+		}
 		w.confirmIfBusy(ids, "Close this window?", "Close Window", false, w.closeForGood)
 		return true
 	})
@@ -155,6 +165,8 @@ func (w *Window) bootstrap(start windowStart) {
 	switch {
 	case start.tab != nil:
 		w.adopt(start.tab)
+	case start.open != nil:
+		w.model.Open(*start.open)
 	case start.plan != nil && w.model.OpenPlan(*start.plan) != 0:
 		// A workspace opened in this new window.
 	case start.session != nil && w.model.Restore(*start.session):
@@ -610,6 +622,7 @@ func (w *Window) windowCommands() map[string]func() {
 		"tab.overview":    w.toggleOverview,
 		"agents.pick":     func() { w.togglePalette(paletteAgents) },
 		"agents.next":     w.nextAgent,
+		"agents.start":    w.startAgent,
 		"workspace.open":  func() { w.togglePalette(paletteWorkspaces) },
 		"sidebar.toggle":  w.toggleSidebar,
 		"theme.pick":      func() { w.togglePalette(paletteThemes) },
@@ -696,7 +709,7 @@ func (w *Window) mainMenuButton() *gtk.MenuButton {
 		{"find", "term.copyOutput", "term.pinOutput", "claude.ask", "ai.explain", "ai.ask", "ai.investigate", "ai.logs", "ai.runbook", "ai.postmortem", "ai.history", "review.last", "term.clear", "secrets.toggle"},
 		{"record.toggle", "export.text", "export.markdown"},
 		{"font.bigger", "font.smaller", "font.reset"},
-		{"tab.overview", "agents.pick", "agents.next", "tab.group", "broadcast.toggle", "pane.zoom", "pane.next", "pane.prev"},
+		{"tab.overview", "agents.pick", "agents.next", "agents.start", "tab.group", "broadcast.toggle", "pane.zoom", "pane.next", "pane.prev"},
 		{"help.manual", "help.shortcuts", "tools.show", "app.about"},
 		{"app.quit"},
 	}
@@ -762,7 +775,7 @@ func (w *Window) scheduleSave() {
 
 // saveNow writes the session if it changed; it waits for it when quitting.
 func (w *Window) saveNow(wait bool) {
-	if w.closing || len(w.model.Tabs()) == 0 {
+	if w.closing || w.background || len(w.model.Tabs()) == 0 {
 		return
 	}
 	data := w.sessionJSON()
@@ -787,6 +800,30 @@ func (w *Window) saveNow(wait bool) {
 // confirmIfBusy asks first when programs would be ended; runs action once
 // it's fine.
 func (w *Window) confirmIfBusy(paneIDs []int, title, button string, quitting bool, action func()) {
+	// Claude Code among them (#34): keep it running in the background, or
+	// end it with the rest.
+	if !quitting && !w.background {
+		if agents := w.agentPanes(paneIDs); len(agents) > 0 {
+			w.askAgentClose(agents, func(keep bool) {
+				var rest []int
+				for _, id := range paneIDs {
+					if !slices.Contains(agents, id) {
+						rest = append(rest, id)
+					}
+				}
+				if keep {
+					w.park(agents)
+				}
+				w.confirmBusy(rest, title, button, quitting, action)
+			})
+			return
+		}
+	}
+	w.confirmBusy(paneIDs, title, button, quitting, action)
+}
+
+// confirmBusy asks before closing panes running a program.
+func (w *Window) confirmBusy(paneIDs []int, title, button string, quitting bool, action func()) {
 	var busy []*uicore.PaneState
 	for _, id := range paneIDs {
 		if ps := w.model.Panes[id]; ps != nil && ps.Busy() {
@@ -873,8 +910,10 @@ func (w *Window) closeForGood() {
 	}
 	w.address.usage.stop()
 	w.unobserve()
-	name, store := w.name, w.app.be.Store
-	go func() { _ = store.Forget(name) }()
+	if !w.background {
+		name, store := w.name, w.app.be.Store
+		go func() { _ = store.Forget(name) }()
+	}
 	w.app.windowClosed(w)
 	w.win.Destroy()
 }

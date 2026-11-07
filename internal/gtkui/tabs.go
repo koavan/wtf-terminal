@@ -421,7 +421,7 @@ func (w *Window) tabMenu(id int) []*menuItem {
 		moves = append(moves, item("Move to New Window", func() { w.moveToNewWindow(id) }))
 	}
 	for _, other := range w.app.windows {
-		if other != w {
+		if other != w && !other.background {
 			o := other
 			moves = append(moves, item("Move to “"+o.win.Title()+"”", func() { w.moveTab(id, o, 0) }))
 		}

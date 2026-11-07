@@ -167,6 +167,12 @@ func (a *App) agentStatus(st bridge.Status) {
 	for _, f := range l.observers {
 		f()
 	}
+	// A background agent that quit leaves only its shell: close it.
+	if w != nil && w.background && st.State == bridge.StateEnded {
+		if ps := w.model.PaneBySession(st.Session); ps != nil {
+			w.model.ClosePane(ps.ID)
+		}
+	}
 	if w == nil || st.State == bridge.StateEnded {
 		return
 	}
@@ -202,11 +208,18 @@ func (a *App) agentStatus(st bridge.Status) {
 	go func() { _ = notify.Notify(head, title, body) }()
 }
 
-// goToAgent shows an agent's window, tab and pane.
+// goToAgent shows an agent's window, tab and pane; a background one comes
+// back into a tab first.
 func (a *App) goToAgent(session string) {
 	w := a.windowOf(session)
 	if w == nil {
 		return
+	}
+	if w.background {
+		a.openAgent(session)
+		if w = a.windowOf(session); w == nil {
+			return
+		}
 	}
 	ps := w.model.PaneBySession(session)
 	if ps == nil {

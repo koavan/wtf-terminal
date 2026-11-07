@@ -20,6 +20,9 @@ final class WindowController: NSWindowController, NSWindowDelegate, NSMenuItemVa
     private(set) var apis: [Int: ApiController] = [:]
     /// Panes whose shells went to another window: not hung up when they leave.
     private var detached = Set<Int>()
+    /// The background window (#34): never shown or saved; its tabs are
+    /// agents kept running after their tab closed.
+    var background = false
     /// Commands run, pins, recordings: in memory for this window.
     let records = WindowRecords()
     private var recTimer: Timer?
@@ -100,8 +103,11 @@ final class WindowController: NSWindowController, NSWindowDelegate, NSMenuItemVa
 
     /// Opens what the window starts with: a saved session, a tab from
     /// another window, or one fresh tab.
-    func bootstrap(session: SavedSession?, tab: (payload: SavedTab.Payload, terminals: [String: TerminalController])?, plan: Plan? = nil) {
-        if let tab {
+    func bootstrap(session: SavedSession?, tab: (payload: SavedTab.Payload, terminals: [String: TerminalController])?, plan: Plan? = nil,
+                   keepTabs: Bool = false) {
+        if keepTabs, !model.tabs.isEmpty {
+            // Opened by the caller (Start in Background).
+        } else if let tab {
             adopt(tab.payload, terminals: tab.terminals)
         } else if let plan, model.open(plan: plan) != nil {
             // A workspace opened in this new window.
@@ -184,8 +190,10 @@ final class WindowController: NSWindowController, NSWindowDelegate, NSMenuItemVa
             api.close()
             api.container.removeFromSuperview()
         }
+        // A pane with a session but no terminal yet is being adopted (its
+        // terminal comes with it, after this): no new shell for it.
         for (id, pane) in model.panes where terminals[id] == nil && apis[id] == nil {
-            if pane.kind == .api { startApi(pane) } else { startTerminal(pane) }
+            if pane.kind == .api { startApi(pane) } else if pane.sessionId == nil { startTerminal(pane) }
         }
 
         if let t = model.active {
@@ -474,7 +482,7 @@ final class WindowController: NSWindowController, NSWindowDelegate, NSMenuItemVa
 
     /// Saves 400ms after the last change, and only what changed.
     func scheduleSave() {
-        guard !closing else { return }
+        guard !closing, !background else { return }
         saveTimer?.invalidate()
         saveTimer = Timer.scheduledTimer(withTimeInterval: 0.4, repeats: false) { [weak self] _ in
             MainActor.assumeIsolated { self?.saveNow() }
@@ -482,7 +490,7 @@ final class WindowController: NSWindowController, NSWindowDelegate, NSMenuItemVa
     }
 
     func saveNow() {
-        guard !closing else { return }
+        guard !closing, !background else { return }
         let json = sessionJSON()
         guard json != lastSaved, !model.tabs.isEmpty else { return }
         lastSaved = json
@@ -496,6 +504,22 @@ final class WindowController: NSWindowController, NSWindowDelegate, NSMenuItemVa
 
     /// Asks first when programs would be ended; runs `action` once it's fine.
     func confirmIfBusy(_ paneIds: [Int], title: String, button: String, quitting: Bool = false, _ action: @escaping () -> Void) {
+        // Claude Code among them (#34): keep it running in the background, or
+        // end it with the rest.
+        let agents = quitting || background ? [] : agentPanes(paneIds)
+        guard agents.isEmpty else {
+            askAgentClose(agents) { [weak self] keep in
+                guard let self else { return }
+                if keep { park(agents) }
+                confirmBusy(paneIds.filter { !agents.contains($0) }, title: title, button: button, quitting: quitting, action)
+            }
+            return
+        }
+        confirmBusy(paneIds, title: title, button: button, quitting: quitting, action)
+    }
+
+    /// Asks before closing panes running a program.
+    private func confirmBusy(_ paneIds: [Int], title: String, button: String, quitting: Bool, _ action: @escaping () -> Void) {
         let busy = paneIds.compactMap { model.panes[$0] }.filter(\.busy)
         guard !busy.isEmpty, let window else { return action() }
         let alert = NSAlert()
@@ -532,6 +556,13 @@ final class WindowController: NSWindowController, NSWindowDelegate, NSMenuItemVa
 
     func windowShouldClose(_ sender: NSWindow) -> Bool {
         if closing || WindowManager.shared.quitting { return true }
+        // The last window you can see, with agents in it or in the
+        // background: closing it is quitting (wtf asks about them).
+        let wm = WindowManager.shared
+        if !background, wm.visibleWindows.count == 1, wm.backgroundCount > 0 || !agentPanes(Array(model.panes.keys)).isEmpty {
+            NSApp.terminate(nil)
+            return false
+        }
         confirmIfBusy(Array(model.panes.keys), title: "Close this window?", button: "Close Window") { [weak self] in
             self?.closeForGood()
         }
@@ -547,8 +578,10 @@ final class WindowController: NSWindowController, NSWindowDelegate, NSMenuItemVa
         terminals.removeAll()
         apis.values.forEach { $0.close() }
         apis.removeAll()
-        let name = name
-        Task { try? await Backend.run("session", "Forget", [name]) }
+        if !background {
+            let name = name
+            Task { try? await Backend.run("session", "Forget", [name]) }
+        }
         window?.close()
         WindowManager.shared.closed(self)
     }
@@ -557,7 +590,7 @@ final class WindowController: NSWindowController, NSWindowDelegate, NSMenuItemVa
     func quitting() {
         saveTimer?.invalidate()
         let json = sessionJSON()
-        if json != lastSaved, !model.tabs.isEmpty {
+        if !background, json != lastSaved, !model.tabs.isEmpty {
             do { try Backend.runNow("state", "SaveWindow", [name, json]) } catch { NSLog("saving \(name): \(error)") }
         }
         closing = true
@@ -603,7 +636,17 @@ final class WindowController: NSWindowController, NSWindowDelegate, NSMenuItemVa
             syncRecording(pane: id)
         }
         sync()
-        window?.makeKeyAndOrderFront(nil)
+        if !background { window?.makeKeyAndOrderFront(nil) }
+    }
+
+    /// A pane leaving for another window: not hung up when it goes.
+    func markDetached(_ id: Int) { detached.insert(id) }
+
+    /// A tab to a window of its own (the background window's, when no
+    /// window shows).
+    func moveToOwnWindow(_ id: Int) {
+        guard let (payload, moving) = detach(id) else { return }
+        WindowManager.shared.open(tab: (payload, moving), at: nil)
     }
 
     func moveToNewWindow(_ id: Int, at point: NSPoint? = nil) {
@@ -704,7 +747,7 @@ final class WindowController: NSWindowController, NSWindowDelegate, NSMenuItemVa
         }
         m.addItem(.separator())
         add("Duplicate") { [weak self] in self?.model.openNextTo(id, duplicate: true) }
-        let otherWindows = WindowManager.shared.windows.filter { $0 !== self }
+        let otherWindows = WindowManager.shared.visibleWindows.filter { $0 !== self }
         if model.tabs.count > 1 || !otherWindows.isEmpty { m.addItem(.separator()) }
         if model.tabs.count > 1 {
             add("Move to New Window") { [weak self] in self?.moveToNewWindow(id) }

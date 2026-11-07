@@ -14,6 +14,19 @@ final class WindowManager {
     private var savedNames = Set<String>()
     /// Quitting was confirmed: windows close without asking and keep their sessions.
     private(set) var quitting = false
+    /// The background window (#34), while agents run there: never shown or
+    /// saved (Background.swift).
+    private(set) var background: WindowController?
+
+    /// Makes the background window; `setup` gives it its first tab.
+    func openBackground(_ setup: (WindowController) -> Void) {
+        let w = WindowController(name: "background")
+        w.background = true
+        w.window?.isExcludedFromWindowsMenu = true
+        windows.append(w)
+        background = w
+        setup(w)
+    }
 
     struct SavedWindow: Decodable {
         let name: String
@@ -66,7 +79,7 @@ final class WindowManager {
         w.bootstrap(session: session, tab: tab.map { (payload: $0.0, terminals: $0.1) }, plan: plan)
         if let point, let win = w.window {
             win.setFrameTopLeftPoint(point)
-        } else if let last = windows.dropLast().last?.window {
+        } else if let last = visibleWindows.dropLast().last?.window {
             w.window?.setFrameTopLeftPoint(w.window!.cascadeTopLeft(from: NSPoint(x: last.frame.minX, y: last.frame.maxY)))
         } else {
             w.window?.center()
@@ -100,6 +113,7 @@ final class WindowManager {
 
     func closed(_ w: WindowController) {
         windows.removeAll { $0 === w }
+        if background === w { background = nil }
         savedNames.remove(w.name)
     }
 

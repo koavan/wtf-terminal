@@ -214,6 +214,23 @@ final class SettingsWindow: NSObject, NSWindowDelegate, NSToolbarDelegate {
         agents.state = Settings.shared.config?.agentStatus == false ? .off : .on
         agents.toolTip = "wtf's shell integration adds hooks that report what claude is doing, for that run only; nothing is written to ~/.claude. Applies to new panes"
         content.addArrangedSubview(agents)
+        let closing = NSPopUpButton()
+        closing.addItems(withTitles: ["Ask", "Keep running in background", "End it"])
+        closing.selectItem(at: ["ask", "background", "end"].firstIndex(of: Settings.shared.config?.agentClose ?? "ask") ?? 0)
+        closing.target = self
+        closing.action = #selector(changeAgentClose(_:))
+        closing.toolTip = "agent-close; background keeps it running (the Agents tab opens it again) until wtf quits"
+        let closingRow = NSStackView(views: [NSTextField(labelWithString: "Closing a tab running Claude Code:"), closing])
+        content.addArrangedSubview(closingRow)
+    }
+
+    @objc private func changeAgentClose(_ sender: NSPopUpButton) {
+        let mode = ["ask", "background", "end"][max(0, sender.indexOfSelectedItem)]
+        Task {
+            do { try await Services.config.SetAgentClose(mode) } catch {
+                Toast.show("Couldn't change the setting: \(error.localizedDescription)", in: window.contentView)
+            }
+        }
     }
 
     @objc private func toggleAgentStatus(_ sender: NSButton) {

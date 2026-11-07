@@ -108,6 +108,7 @@ var Commands = func() []Command {
 		cmd("tab.overview", "Show All Tabs", "Ctrl+Bar"),
 		cmd("agents.pick", "Go to Agent…", "Ctrl+Alt+Shift+M"),
 		cmd("agents.next", "Next Agent Needing You", "Ctrl+Alt+Shift+N"),
+		cmd("agents.start", "Start Claude Code…", ""),
 		cmd("tab.next", "Show Next Tab", "Ctrl+PageDown"),
 		cmd("tab.prev", "Show Previous Tab", "Ctrl+PageUp"),
 		cmd("tab.moveRight", "Move Tab Right", "Ctrl+Shift+PageDown"),

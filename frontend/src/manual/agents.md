@@ -15,6 +15,27 @@ Each row shows:
 
 The most urgent come first: needs you, then done, working and idle. Click a row to go to that window, tab and pane; right-click for **Copy Folder Path**.
 
+## Keep agents running after you close their tab
+
+Close a tab or pane running Claude Code and wtf asks:
+
+- **Keep Running in Background**: it keeps working where you can't see it, with its shell and scrollback. The Agents tab lists it under **Background**, with its badge and notifications as before.
+- **End Claude Code**: it ends with the tab, as before.
+
+Tick **Don't ask again** to always do the same; **Settings** ({{mac:⌘,|other:Ctrl+,}}) → **General** → **Closing a tab running Claude Code**, or `agent-close` (`ask`, `background` or `end`) in `config.toml`, changes it back. Closing a whole window asks once for all its agents.
+
+Background agents run while wtf does: quitting wtf ends them (it asks first, listing them). Closing the last window you can see, with agents in it or in the background, is quitting.
+
+For each agent, in the Agents tab (the eye button, or right-click):
+
+- **Open in Tab** (or click the row): back into a tab of the window in front, scrollback and all.
+- **Peek and Reply…**: its screen as it is now (secrets hidden), updated every second, and a box to answer it: what you type is sent with {{mac:Return|other:Enter}}; **{{mac:Return|other:Enter}}** and **Esc** send just that key, for Claude Code's own prompts (Return accepts what its prompt has selected, Esc cancels). You see the screen and choose; wtf never answers for you.
+- **End Claude Code…**: ends it and its shell, after asking.
+
+## Start an agent
+
+{{cmd:agents.start}} (also the **+** in the Agents tab): pick a folder, give a first prompt if you like, and **Start in a Tab** or **Start in Background**. It runs `claude` (with your prompt) in a new shell there, with the status hooks above.
+
 ## Without opening the side pane
 
 - {{cmd:agents.pick}} lists the same rows in the command palette. Type to filter: `needs`, `done`, `working`, `idle`, or part of a tab title, folder or prompt.

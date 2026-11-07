@@ -17,7 +17,7 @@ run() { # name, then the command
 }
 
 run "uicore tests" go test ./internal/uicore/
-for c in app snapshot view terminal tabs restore sidebar panes viewers api bridge claude history marks signals; do
+for c in app snapshot view terminal tabs restore sidebar panes viewers api bridge claude background history marks signals; do
 	run "self-check $c" env WTF_NATIVE_DEBUG=$c timeout 60 $bin
 done
 

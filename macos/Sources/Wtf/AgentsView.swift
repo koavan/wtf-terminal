@@ -17,6 +17,7 @@ final class AgentsView: NSView, SidePaneTab {
         owner = window
         super.init(frame: .zero)
         addSubview(header)
+        header.tool("plus", "Start Claude Code…") { [weak window] in window?.startAgent() }
         header.tool("questionmark.circle", "How the Agents tab works") { ManualWindow.show("agents") }
         let doc = FlippedView()
         doc.addSubview(form)
@@ -63,7 +64,9 @@ final class AgentsView: NSView, SidePaneTab {
     func paneChanged() { rebuild() }
 
     func debugSummary() -> String {
-        "agents: " + Agents.sorted().map { "\($0.session) \(Agents.state($0).rawValue)" }.joined(separator: ", ")
+        "agents: " + Agents.sorted().map {
+            "\($0.session) \(Agents.state($0).rawValue)" + (Agents.find($0.session)?.0.background == true ? " background" : "")
+        }.joined(separator: ", ")
     }
 
     private func rebuild() {
@@ -78,8 +81,17 @@ final class AgentsView: NSView, SidePaneTab {
                 form.add(form.note("Start claude in any tab, or Ask Claude (⌘I). Each one shows here: needs you, working, done or idle, with its last prompt. A click goes to it."))
             }
         }
-        for st in list {
+        let parked = list.filter { Agents.find($0.session)?.0.background == true }
+        for st in list where !parked.contains(st) {
             form.add(AgentRow(st, owner: owner))
+        }
+        if !parked.isEmpty {
+            let h = NSTextField(labelWithString: "BACKGROUND")
+            h.font = .systemFont(ofSize: 10.5, weight: .bold)
+            h.textColor = .secondaryLabelColor
+            h.toolTip = "Running after their tab closed; they end when wtf quits"
+            form.add(h, full: false)
+            for st in parked { form.add(AgentRow(st, owner: owner)) }
         }
         if !list.isEmpty {
             form.add(form.note("Go to Agent… ⌥⌘A · Next Agent Needing You ⌥⌘N"))
@@ -156,10 +168,16 @@ private final class AgentRow: NSView {
             what.widthAnchor.constraint(lessThanOrEqualTo: stack.widthAnchor, constant: -16),
         ])
         if let d = lines.dropFirst(2).first { d.widthAnchor.constraint(equalTo: stack.widthAnchor, constant: -16).isActive = true }
+        let peek = NSButton(image: NSImage(systemSymbolName: "eye", accessibilityDescription: "Peek and reply")!, target: nil, action: nil)
+        peek.isBordered = false
+        peek.toolTip = "Peek and reply"
+        peek.target = self
+        peek.action = #selector(peekClicked)
+        top.addArrangedSubview(peek)
         if owner.model.active.flatMap({ owner.model.focusedPane($0) })?.sessionId == st.session {
             layer?.backgroundColor = NSColor.selectedContentBackgroundColor.withAlphaComponent(0.18).cgColor
         }
-        toolTip = "Go to this Claude Code"
+        toolTip = place?.0.background == true ? "Open it in a tab" : "Go to this Claude Code"
         setAccessibilityRole(.button)
         setAccessibilityLabel("\(title): Claude Code \(state.label.lowercased())")
     }
@@ -168,15 +186,21 @@ private final class AgentRow: NSView {
 
     override func mouseDown(with event: NSEvent) { Agents.go(to: session) }
 
+    @objc private func peekClicked() { Background.peek(session) }
+
     override func menu(for event: NSEvent) -> NSMenu? {
         let m = NSMenu()
-        m.addItem(ClosureMenuItem(title: "Go to Claude Code", keyEquivalent: "") { [session] in Agents.go(to: session) })
+        let parked = Agents.find(session)?.0.background == true
+        m.addItem(ClosureMenuItem(title: parked ? "Open in Tab" : "Go to Claude Code", keyEquivalent: "") { [session] in Agents.go(to: session) })
+        m.addItem(ClosureMenuItem(title: "Peek and Reply…", keyEquivalent: "") { [session] in Background.peek(session) })
         if let (_, p) = Agents.find(session), !p.cwd.isEmpty {
             m.addItem(ClosureMenuItem(title: "Copy Folder Path", keyEquivalent: "") {
                 NSPasteboard.general.clearContents()
                 NSPasteboard.general.setString(p.cwd, forType: .string)
             })
         }
+        m.addItem(.separator())
+        m.addItem(ClosureMenuItem(title: "End Claude Code…", keyEquivalent: "") { [session, weak owner] in Background.end(session, from: owner?.window) })
         return m
     }
 }

@@ -58,6 +58,8 @@ type App struct {
 	be       *backend.Backend
 	claude   *claudePanes
 	agents   *agentList
+	// The background window (#34), while agents run there.
+	background *Window
 	cancel   context.CancelFunc
 	events   *eventPump
 	settings *settings
@@ -252,6 +254,8 @@ type windowStart struct {
 	session *uicore.SavedSession
 	tab     *movingTab
 	plan    *uicore.Plan
+	// A new tab with these options (Start Agent in the background).
+	open *uicore.OpenOptions
 }
 
 // openWindowWith opens a new window, named the next free w<i>.
@@ -311,6 +315,9 @@ func (a *App) windowClosed(w *Window) {
 			break
 		}
 	}
+	if w == a.background {
+		a.background = nil
+	}
 	delete(a.savedNames, w.name)
 	a.be.Active.Forget(w.name)
 	a.be.Terminal.CloseWindow(w.name)
@@ -356,15 +363,17 @@ func (a *App) quitNow() {
 	a.gtk.Quit()
 }
 
-// front is the window in front, or the first one.
+// front is the window in front, or the first one you can see (never the
+// background window; nil when none shows).
 func (a *App) front() *Window {
-	for _, w := range a.windows {
+	visible := a.visibleWindows()
+	for _, w := range visible {
 		if w.win.IsActive() {
 			return w
 		}
 	}
-	if len(a.windows) > 0 {
-		return a.windows[0]
+	if len(visible) > 0 {
+		return visible[0]
 	}
 	return nil
 }

@@ -6,6 +6,7 @@ import (
 	"github.com/diamondburned/gotk4-adwaita/pkg/adw"
 	"github.com/diamondburned/gotk4/pkg/gdk/v4"
 	"github.com/diamondburned/gotk4/pkg/gtk/v4"
+	"slices"
 
 	"github.com/dayanraj/wtf/internal/config"
 )
@@ -157,6 +158,23 @@ func (s *settingsWindow) generalPage() *adw.PreferencesPage {
 		}
 	})
 	claude.Add(agents)
+	modes := []string{"ask", "background", "end"}
+	closing := adw.NewComboRow()
+	closing.SetUseMarkup(false)
+	closing.SetTitle("Closing a tab running Claude Code")
+	closing.SetSubtitle("agent-close; background keeps it running (the Agents tab opens it again) until wtf quits")
+	closing.SetModel(gtk.NewStringList([]string{"Ask", "Keep running in background", "End it"}))
+	closing.SetSelected(uint(max(0, slices.Index(modes, s.w.app.settings.config().AgentClose))))
+	closing.Connect("notify::selected", func() {
+		i := int(closing.Selected())
+		if i < 0 || i >= len(modes) || modes[i] == s.w.app.settings.config().AgentClose {
+			return
+		}
+		if err := s.w.app.be.Config.SetAgentClose(modes[i]); err != nil {
+			s.w.toast("Couldn't change the setting: " + err.Error())
+		}
+	})
+	claude.Add(closing)
 	page.Add(claude)
 	return page
 }

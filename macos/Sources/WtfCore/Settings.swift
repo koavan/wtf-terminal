@@ -29,6 +29,8 @@ public struct Config: Decodable, Equatable, Sendable {
     public var claudeAutoMode: Bool?
     /// agent-status (older backends lack it).
     public var agentStatus: Bool?
+    /// agent-close: "ask", "background" or "end" (older backends lack it).
+    public var agentClose: String?
 }
 
 public struct Theme: Decodable, Equatable, Sendable {

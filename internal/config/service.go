@@ -103,6 +103,17 @@ func (s *Service) SetAgentStatus(on bool) error {
 	return s.set("agent-status", strconv.FormatBool(on))
 }
 
+// SetAgentClose sets what closing a pane running Claude Code does: "ask",
+// "background" or "end".
+func (s *Service) SetAgentClose(mode string) error {
+	switch mode {
+	case "ask", "background", "end":
+	default:
+		return fmt.Errorf("agent-close must be ask, background or end, not %q", mode)
+	}
+	return s.set("agent-close", fmt.Sprintf("%q", mode))
+}
+
 // SetShowUsage shows or hides wtf's CPU and memory in the address bar.
 func (s *Service) SetShowUsage(on bool) error {
 	return s.set("show-usage", strconv.FormatBool(on))

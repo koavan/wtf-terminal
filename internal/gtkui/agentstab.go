@@ -34,19 +34,26 @@ type agentsTab struct {
 func newAgentsTab(w *Window) *agentsTab {
 	t := &agentsTab{w: w}
 	t.header = newPaneHeader("Agents")
+	t.header.tool("list-add-symbolic", "Start Claude Code…", w.startAgent)
 	t.header.tool("help-about-symbolic", "How the Agents tab works", func() { w.app.showManual("agents") })
 	t.list = newSideList(false)
 	t.list.onClick = func(id string) { w.app.goToAgent(id) }
 	t.list.onActivate = func(id string) { w.app.goToAgent(id) }
 	t.list.onMenu = func(ids []string, x, y float64) {
 		session := ids[0]
-		items := []*menuItem{{label: "Go to Claude Code", run: func() { w.app.goToAgent(session) }}}
+		open := "Go to Claude Code"
+		if aw := w.app.windowOf(session); aw != nil && aw.background {
+			open = "Open in Tab"
+		}
+		items := []*menuItem{{label: open, run: func() { w.app.goToAgent(session) }},
+			{label: "Peek and Reply…", run: func() { w.app.peekAgent(session, &w.win.Window) }}}
 		if aw := w.app.windowOf(session); aw != nil {
 			if ps := aw.model.PaneBySession(session); ps != nil && ps.Cwd != "" {
 				cwd := ps.Cwd
 				items = append(items, &menuItem{label: "Copy Folder Path", run: func() { w.win.Clipboard().SetText(cwd) }})
 			}
 		}
+		items = append(items, menuSection, &menuItem{label: "End Claude Code…", run: func() { w.app.endAgent(session, &w.win.Window) }})
 		t.list.menu.show(x, y, items, nil)
 	}
 	t.root = gtk.NewBox(gtk.OrientationVertical, 4)
@@ -84,7 +91,7 @@ func (t *agentsTab) rebuild() {
 	if ps := t.w.model.ActivePane(); ps != nil {
 		focused = ps.SessionID
 	}
-	var rows []sideRow
+	var rows, parked []sideRow
 	for _, st := range a.agents.sorted() {
 		state := agentState(st)
 		title, cwd := a.agentPlace(st.Session)
@@ -100,10 +107,17 @@ func (t *agentsTab) rebuild() {
 		} else if st.Prompt != "" {
 			r.alert, r.alertClass = a.settings.text(st.Prompt), "dim-label"
 		}
+		session := st.Session
+		r.button, r.buttonTip, r.buttonRun = "view-reveal-symbolic", "Peek and reply", func() { a.peekAgent(session, &t.w.win.Window) }
+		if aw := a.windowOf(st.Session); aw != nil && aw.background {
+			r.tip = "Open it in a tab"
+			parked = append(parked, r)
+			continue
+		}
 		rows = append(rows, r)
 	}
 	sec := sideSection{rows: rows, always: true}
-	if len(rows) == 0 {
+	if len(rows)+len(parked) == 0 {
 		if !a.settings.config().AgentStatus {
 			sec.empty = "No Claude Code running. Only Ask Claude panes are listed: agent-status is off (Settings → General), so a claude you start yourself doesn't report what it's doing."
 		} else {
@@ -112,7 +126,11 @@ func (t *agentsTab) rebuild() {
 	} else {
 		sec.title = strings.TrimSpace("Go to Agent… " + keyOf("agents.pick") + " · Next Needing You " + keyOf("agents.next"))
 	}
-	t.list.set([]sideSection{sec})
+	sections := []sideSection{sec}
+	if len(parked) > 0 {
+		sections = append(sections, sideSection{title: "Background", tip: "Running after their tab closed; they end when wtf quits", rows: parked, always: true})
+	}
+	t.list.set(sections)
 }
 
 // keyOf is a command's shortcut as shown ("" without one).

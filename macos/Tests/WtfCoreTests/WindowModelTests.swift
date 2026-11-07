@@ -436,6 +436,34 @@ private func json(_ text: String) -> SavedSession { try! JSONDecoder().decode(Sa
     checkInvariants(s.w)
 }
 
+/// #34: one pane of a split leaves for the background window with its shell.
+@Test func detachesOnePaneWithItsSession() {
+    let s = Setup()
+    let t = s.open(2)
+    s.w.activate(t[1])
+    s.w.activePane!.sessionId = "s1"
+    let left = s.w.activePane!.id
+    s.w.split(.row)
+    let right = s.w.activePane!.id
+    s.w.activePane!.sessionId = "s2"
+    let payload = s.w.detachPane(right) { _ in "buf" }!
+    #expect(payload.tab.root?.sessionId == "s2" && payload.tab.root?.dir == nil && payload.group == nil)
+    #expect(s.w.tab(t[1])?.root.leaves == [left] && s.w.panes[right] == nil && s.emptied == 0)
+    checkInvariants(s.w)
+    let o = Setup()
+    o.open(1)
+    #expect(o.w.adopt(payload) && o.w.activePane?.sessionId == "s2")
+
+    // The only pane: the whole tab, out of its group.
+    let g = s.w.createGroup(t[1])!
+    s.w.setGroup(g, name: "api")
+    let whole = s.w.detachPane(left) { _ in "" }!
+    #expect(whole.group == nil && whole.tab.groupId == nil && whole.tab.root?.sessionId == "s1")
+    #expect(s.ids == [t[0]] && s.w.groups.isEmpty)
+    checkInvariants(s.w)
+    #expect(s.w.detachPane(9999) { _ in "" } == nil)
+}
+
 @Test func detachingTheLastTabEmptiesTheWindow() {
     let s = Setup()
     _ = s.w.detach(s.open(1)[0]) { _ in "" }

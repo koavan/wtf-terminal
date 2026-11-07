@@ -860,3 +860,46 @@ func TestPaneTitles(t *testing.T) {
 		t.Errorf("osc = %q", got)
 	}
 }
+
+// #34: one pane of a split leaves for the background window with its shell;
+// the tab keeps the others. A tab's only pane takes the tab, without its group.
+func TestDetachesOnePaneWithItsSession(t *testing.T) {
+	s := newSetup()
+	ts := s.open(2)
+	s.w.Activate(ts[1])
+	s.w.ActivePane().SessionID = "s1"
+	left := s.w.ActivePane().ID
+	s.w.Split(SplitRow, nil, "")
+	right := s.w.ActivePane().ID
+	s.w.ActivePane().SessionID = "s2"
+	payload, ok := s.w.DetachPane(right, func(p *PaneState) string { return "buf" })
+	if !ok || payload.Tab.Root.SessionID == nil || *payload.Tab.Root.SessionID != "s2" || payload.Tab.Root.Dir != nil {
+		t.Fatalf("payload = %+v", payload)
+	}
+	tab, _ := s.w.Tab(ts[1])
+	if leaves := tab.Root.Leaves(); !slices.Equal(leaves, []int{left}) || s.w.Panes[right] != nil || s.emptied != 0 {
+		t.Errorf("leaves = %v, right pane = %v", leaves, s.w.Panes[right])
+	}
+	checkInvariants(t, s.w, "")
+
+	o := newSetup()
+	o.open(1)
+	if !o.w.Adopt(payload) || o.w.ActivePane().SessionID != "s2" {
+		t.Fatalf("adopted %+v", o.w.ActivePane())
+	}
+
+	// The only pane: the whole tab, out of its group.
+	g := s.w.CreateGroup(ts[1])
+	s.w.SetGroup(g, ptr("api"), nil)
+	payload, ok = s.w.DetachPane(left, nil)
+	if !ok || payload.Group != nil || payload.Tab.GroupID != nil || *payload.Tab.Root.SessionID != "s1" {
+		t.Fatalf("payload = %+v", payload)
+	}
+	if !slices.Equal(s.ids(), []int{ts[0]}) || len(s.w.Groups()) != 0 {
+		t.Errorf("ids = %v, groups = %d", s.ids(), len(s.w.Groups()))
+	}
+	checkInvariants(t, s.w, "")
+	if _, ok := s.w.DetachPane(9999, nil); ok {
+		t.Error("detached a pane that isn't there")
+	}
+}

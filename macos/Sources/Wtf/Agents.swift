@@ -86,8 +86,10 @@ enum Agents {
         w.model.active?.root.leaves.contains(p.id) == true && w.window?.isKeyWindow == true && NSApp.isActive
     }
 
-    /// Goes to an agent's window, tab and pane.
+    /// Goes to an agent's window, tab and pane; a background one comes back
+    /// into a tab first.
     static func go(to session: String) {
+        if find(session)?.0.background == true { Background.open(session) }
         guard let (w, p) = find(session) else { return }
         if let tab = w.model.tabOf(pane: p.id) { w.model.activate(tab.id) }
         w.model.focusPane(p.id)
@@ -110,6 +112,8 @@ enum Agents {
         if st.state == "ended" { all[st.session] = nil } else { all[st.session] = st }
         let place = find(st.session)
         place?.0.refreshStrip()
+        // A background agent that quit leaves only its shell: close it.
+        if st.state == "ended", let (w, p) = place, w.background { w.model.closePane(p.id) }
         updateDock()
         observers.removeAll { $0.owner() == nil }
         observers.forEach { $0.f() }
