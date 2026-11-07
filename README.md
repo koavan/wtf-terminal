@@ -549,6 +549,14 @@ from reading the screen: Ask Claude panes report through the plugin, and a
 hooks (bash and zsh; that run only, nothing in `~/.claude`; `agent-status =
 false` turns it off).
 
+Closing a tab running Claude Code asks whether to keep it running in the
+background (`agent-close`: ask, background or end). Background agents keep
+working, unseen, while wtf runs; the Agents tab opens one again in a tab,
+peeks at its screen and sends a reply you type (or Return / Esc for its
+prompts), or ends it. **Start Claude Code…** starts one in a folder, with a
+first prompt, in a tab or in the background. Quitting wtf ends them, after
+asking.
+
 ## Resource usage
 
 wtf can show its own CPU and memory in the address bar (`show-usage`, or
