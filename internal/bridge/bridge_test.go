@@ -7,6 +7,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"slices"
+	"strconv"
 	"strings"
 	"sync"
 	"testing"
@@ -523,5 +524,117 @@ func TestAgentSettingsEnv(t *testing.T) {
 	s.statusSettings = ""
 	if has() {
 		t.Error("set without the file")
+	}
+}
+
+// Sub-agents, in the order Claude Code sends their hooks: a background
+// one's Agent call names it before SubagentStart; one in front is named
+// when it's done. Their tool events don't change their parent's state.
+func TestSubagents(t *testing.T) {
+	f := newFake(t)
+	s := f.s
+	hook := func(req wire.Request) {
+		t.Helper()
+		req.V, req.Pane, req.Token, req.Op = wire.Version, "s1", s.token("s1"), "hook"
+		if r := s.do(context.Background(), req); r.Error != "" {
+			t.Fatal(r.Error)
+		}
+	}
+	last := func() Status {
+		t.Helper()
+		f.mu.Lock()
+		defer f.mu.Unlock()
+		return f.status[len(f.status)-1]
+	}
+	hook(wire.Request{Event: "SessionStart"})
+	hook(wire.Request{Event: "UserPromptSubmit", Prompt: "look around"})
+	// Background: the Agent call, then SubagentStart.
+	hook(wire.Request{Event: "PostToolUse", Tool: "Agent", Spawned: "a1", Input: &wire.ToolInput{Description: "Find the endpoints", SubagentType: "Explore"}})
+	hook(wire.Request{Event: "SubagentStart", AgentID: "a1", AgentType: "Explore"})
+	st := last()
+	if st.State != StateBusy || len(st.Subagents) != 1 {
+		t.Fatalf("started = %+v", st)
+	}
+	if sa := st.Subagents[0]; sa.ID != "a1" || sa.Type != "Explore" || sa.Task != "Find the endpoints" || !sa.Running || sa.Since == 0 {
+		t.Fatalf("sub-agent = %+v", sa)
+	}
+	// The parent stops; its sub-agent works on, and its steps show.
+	hook(wire.Request{Event: "Stop"})
+	secret := "AKIA" + "IOSFODNN7EXAMPLE"
+	hook(wire.Request{Event: "PostToolUse", AgentID: "a1", AgentType: "Explore", Tool: "Bash", Input: &wire.ToolInput{Command: "\n  aws s3 ls --key " + secret + "\nmore"}})
+	st = last()
+	if st.State != StateIdle || !st.Unseen {
+		t.Fatalf("a sub-agent's step changed its parent: %+v", st)
+	}
+	if d := st.Subagents[0].Doing; !strings.HasPrefix(d, "Bash: aws s3 ls --key ") || strings.Contains(d, secret) || strings.Contains(d, "more") {
+		t.Fatalf("doing = %q", d)
+	}
+	hook(wire.Request{Event: "PostToolUse", AgentID: "a1", AgentType: "Explore", Tool: "Read", Input: &wire.ToolInput{FilePath: "/src/bridge.go"}})
+	if d := last().Subagents[0].Doing; d != "Read bridge.go" {
+		t.Fatalf("doing = %q", d)
+	}
+	hook(wire.Request{Event: "SubagentStop", AgentID: "a1", AgentType: "Explore", Message: "\nFound 3 endpoints.\nDetails…"})
+	if sa := last().Subagents[0]; sa.Running || sa.Doing != "" || sa.Result != "Found 3 endpoints." || sa.Ended == 0 {
+		t.Fatalf("stopped = %+v", sa)
+	}
+
+	// In front: SubagentStart first, named by its Agent call when done.
+	hook(wire.Request{Event: "UserPromptSubmit", Prompt: "again"})
+	if st := last(); len(st.Subagents) != 0 {
+		t.Fatalf("a new prompt kept finished sub-agents: %+v", st.Subagents)
+	}
+	hook(wire.Request{Event: "SubagentStart", AgentID: "a2", AgentType: "Plan"})
+	hook(wire.Request{Event: "PostToolUse", AgentID: "a2", AgentType: "Plan", Tool: "mcp__plugin_wtf_wtf__pane_context", Input: &wire.ToolInput{}})
+	if sa := last().Subagents[0]; sa.Task != "" || sa.Type != "Plan" || sa.Doing != "pane_context" {
+		t.Fatalf("front = %+v", sa)
+	}
+	hook(wire.Request{Event: "PostToolUse", AgentID: "a2", AgentType: "Plan", Tool: "SubagentHandback", Input: &wire.ToolInput{Message: "Plan ready."}})
+	hook(wire.Request{Event: "SubagentStop", AgentID: "a2", AgentType: "Plan"})
+	hook(wire.Request{Event: "PostToolUse", Tool: "Agent", Spawned: "a2", Input: &wire.ToolInput{Description: "Plan it"}})
+	if sa := last().Subagents[0]; sa.Running || sa.Task != "Plan it" || sa.Result != "Plan ready." {
+		t.Fatalf("front done = %+v", sa)
+	}
+
+	// Claude Code's own agents (no type) and unknown stops are ignored.
+	n := len(f.status)
+	hook(wire.Request{Event: "SubagentStop", AgentID: "x"})
+	hook(wire.Request{Event: "SubagentStop", AgentID: "y", AgentType: "Explore"})
+	hook(wire.Request{Event: "SubagentStart", AgentID: "z"})
+	if len(f.status) != n || len(s.Agents()[0].Subagents) != 1 {
+		t.Fatalf("ignored events changed it: %+v", s.Agents())
+	}
+
+	// At most maxSubagents: the oldest finished go first.
+	for i := range maxSubagents + 3 {
+		hook(wire.Request{Event: "SubagentStart", AgentID: "r" + strconv.Itoa(i), AgentType: "Explore"})
+	}
+	subs := s.Agents()[0].Subagents
+	if len(subs) != maxSubagents || subs[0].ID != "r3" {
+		t.Fatalf("kept %d, first %s", len(subs), subs[0].ID)
+	}
+	// Agents() hands out copies.
+	subs[0].ID = "changed"
+	if s.Agents()[0].Subagents[0].ID == "changed" {
+		t.Fatal("Agents shares its sub-agents")
+	}
+}
+
+func TestStep(t *testing.T) {
+	for _, c := range []struct {
+		tool string
+		in   wire.ToolInput
+		want string
+	}{
+		{"Grep", wire.ToolInput{Pattern: "TODO", Path: "/src"}, "Grep TODO"},
+		{"Glob", wire.ToolInput{Pattern: "**/*.go"}, "Glob **/*.go"},
+		{"WebFetch", wire.ToolInput{URL: "https://code.claude.com/docs/en/hooks"}, "WebFetch code.claude.com"},
+		{"WebSearch", wire.ToolInput{Query: "gotk4 listview"}, "WebSearch gotk4 listview"},
+		{"LS", wire.ToolInput{Path: "/src/internal"}, "LS internal"},
+		{"TodoWrite", wire.ToolInput{}, "TodoWrite"},
+		{"Bash", wire.ToolInput{Command: strings.Repeat("y", 300)}, "Bash: " + strings.Repeat("y", maxStep-7) + "…"},
+	} {
+		if got := step(c.tool, &c.in); got != c.want {
+			t.Errorf("%s %+v = %q, want %q", c.tool, c.in, got, c.want)
+		}
 	}
 }

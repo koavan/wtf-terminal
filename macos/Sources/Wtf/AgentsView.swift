@@ -66,6 +66,7 @@ final class AgentsView: NSView, SidePaneTab {
     func debugSummary() -> String {
         "agents: " + Agents.sorted().map {
             "\($0.session) \(Agents.state($0).rawValue)" + (Agents.find($0.session)?.0.background == true ? " background" : "")
+                + ($0.subagents.isEmpty ? "" : " subagents=\($0.subagents.count)" + (Agents.subagentsShown.contains($0.session) ? " shown" : ""))
         }.joined(separator: ", ")
     }
 
@@ -144,6 +145,8 @@ private final class AgentRow: NSView {
         what.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
 
         var lines: [NSView] = [top, what]
+        // Full width (less the insets).
+        var wide: [NSView] = []
         let detail = state == .waiting && !st.message.isEmpty ? st.message : st.prompt
         if !detail.isEmpty {
             let d = NSTextField(wrappingLabelWithString: Redaction.shared.text(detail))
@@ -153,6 +156,18 @@ private final class AgentRow: NSView {
             d.lineBreakMode = .byTruncatingTail
             d.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
             lines.append(d)
+            wide.append(d)
+        }
+        if !st.subagents.isEmpty {
+            let open = Agents.subagentsShown.contains(st.session)
+            lines.append(Self.subagentToggle(st, open: open, target: self, action: #selector(toggleClicked)))
+            if open {
+                for sa in st.subagents {
+                    let line = SubagentLine(sa)
+                    lines.append(line)
+                    wide.append(line)
+                }
+            }
         }
         let stack = NSStackView(views: lines)
         stack.orientation = .vertical
@@ -167,7 +182,7 @@ private final class AgentRow: NSView {
             top.widthAnchor.constraint(equalTo: stack.widthAnchor, constant: -16),
             what.widthAnchor.constraint(lessThanOrEqualTo: stack.widthAnchor, constant: -16),
         ])
-        if let d = lines.dropFirst(2).first { d.widthAnchor.constraint(equalTo: stack.widthAnchor, constant: -16).isActive = true }
+        for v in wide { v.widthAnchor.constraint(equalTo: stack.widthAnchor, constant: -16).isActive = true }
         let peek = NSButton(image: NSImage(systemSymbolName: "eye", accessibilityDescription: "Peek and reply")!, target: nil, action: nil)
         peek.isBordered = false
         peek.toolTip = "Peek and reply"
@@ -188,11 +203,39 @@ private final class AgentRow: NSView {
 
     @objc private func peekClicked() { Background.peek(session) }
 
+    @objc private func toggleClicked() { Agents.toggleSubagents(session) }
+
+    /// "▸ 3 sub-agents · 1 working": shows or hides them.
+    private static func subagentToggle(_ st: Go.bridge.Status, open: Bool, target: AnyObject, action: Selector) -> NSButton {
+        let n = st.subagents.count
+        let running = st.subagents.filter(\.running).count
+        var title = "\(n) sub-agent" + (n == 1 ? "" : "s")
+        if running > 0 { title += " · \(running) working" }
+        let b = NSButton(title: title, target: target, action: action)
+        b.isBordered = false
+        b.image = NSImage(systemSymbolName: open ? "chevron.down" : "chevron.right", accessibilityDescription: nil)
+        b.symbolConfiguration = .init(pointSize: 8, weight: .semibold)
+        b.imagePosition = .imageLeading
+        b.contentTintColor = .secondaryLabelColor
+        b.attributedTitle = NSAttributedString(string: title, attributes: [
+            .font: NSFont.systemFont(ofSize: 10.5), .foregroundColor: NSColor.secondaryLabelColor,
+        ])
+        b.toolTip = open ? "Hide sub-agents" : "Show the sub-agents it started and what they're doing"
+        b.setAccessibilityLabel((open ? "Hide " : "Show ") + title)
+        return b
+    }
+
     override func menu(for event: NSEvent) -> NSMenu? {
         let m = NSMenu()
         let parked = Agents.find(session)?.0.background == true
         m.addItem(ClosureMenuItem(title: parked ? "Open in Tab" : "Go to Claude Code", keyEquivalent: "") { [session] in Agents.go(to: session) })
         m.addItem(ClosureMenuItem(title: "Peek and Reply…", keyEquivalent: "") { [session] in Background.peek(session) })
+        if Agents.all[session]?.subagents.isEmpty == false {
+            let shown = Agents.subagentsShown.contains(session)
+            m.addItem(ClosureMenuItem(title: shown ? "Hide Sub-agents" : "Show Sub-agents", keyEquivalent: "") { [session] in
+                Agents.toggleSubagents(session)
+            })
+        }
         if let (_, p) = Agents.find(session), !p.cwd.isEmpty {
             m.addItem(ClosureMenuItem(title: "Copy Folder Path", keyEquivalent: "") {
                 NSPasteboard.general.clearContents()
@@ -203,6 +246,62 @@ private final class AgentRow: NSView {
         m.addItem(ClosureMenuItem(title: "End Claude Code…", keyEquivalent: "") { [session, weak owner] in Background.end(session, from: owner?.window) })
         return m
     }
+}
+
+/// One sub-agent under its agent: its type and task, then what it's doing
+/// (its latest step) or, once done, its report's first line.
+@MainActor
+private final class SubagentLine: NSView {
+    init(_ sa: Go.bridge.Subagent) {
+        super.init(frame: .zero)
+        let dot = NSView()
+        dot.wantsLayer = true
+        dot.layer?.cornerRadius = 3
+        dot.layer?.backgroundColor = Agents.color(sa.running ? .busy : .idle).cgColor
+        dot.translatesAutoresizingMaskIntoConstraints = false
+        NSLayoutConstraint.activate([dot.widthAnchor.constraint(equalToConstant: 6), dot.heightAnchor.constraint(equalToConstant: 6)])
+
+        let kind = NSTextField(labelWithString: sa.type.isEmpty ? "Sub-agent" : sa.type)
+        kind.font = .systemFont(ofSize: 11, weight: .medium)
+        kind.setContentCompressionResistancePriority(.defaultHigh, for: .horizontal)
+        let task = NSTextField(labelWithString: Redaction.shared.text(sa.task))
+        task.font = .systemFont(ofSize: 11)
+        task.lineBreakMode = .byTruncatingTail
+        task.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
+        task.setContentHuggingPriority(.init(1), for: .horizontal)
+        let age = NSTextField(labelWithString: Agents.age(since: sa.running ? sa.since : sa.ended))
+        age.font = .systemFont(ofSize: 10.5)
+        age.textColor = .secondaryLabelColor
+        age.setContentCompressionResistancePriority(.required, for: .horizontal)
+        let top = NSStackView(views: [dot, kind, task, age])
+        top.spacing = 5
+
+        let what = sa.running ? (sa.doing.isEmpty ? "Working" : sa.doing) : (sa.result.isEmpty ? "Done" : "Done · " + sa.result)
+        let detail = NSTextField(labelWithString: Redaction.shared.text(what))
+        detail.font = .systemFont(ofSize: 10.5)
+        detail.textColor = .secondaryLabelColor
+        detail.lineBreakMode = .byTruncatingTail
+        detail.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
+
+        let stack = NSStackView(views: [top, detail])
+        stack.orientation = .vertical
+        stack.alignment = .leading
+        stack.spacing = 1
+        stack.edgeInsets = NSEdgeInsets(top: 2, left: 12, bottom: 2, right: 0)
+        stack.translatesAutoresizingMaskIntoConstraints = false
+        addSubview(stack)
+        NSLayoutConstraint.activate([
+            stack.leadingAnchor.constraint(equalTo: leadingAnchor), stack.trailingAnchor.constraint(equalTo: trailingAnchor),
+            stack.topAnchor.constraint(equalTo: topAnchor), stack.bottomAnchor.constraint(equalTo: bottomAnchor),
+            top.widthAnchor.constraint(equalTo: stack.widthAnchor, constant: -12),
+            detail.widthAnchor.constraint(lessThanOrEqualTo: stack.widthAnchor, constant: -23),
+        ])
+        toolTip = Redaction.shared.text([sa.type, sa.task, sa.running ? sa.doing : sa.result].filter { !$0.isEmpty }.joined(separator: "\n"))
+        setAccessibilityElement(true)
+        setAccessibilityLabel("Sub-agent \(sa.type) \(sa.running ? "working" : "done"): \(Redaction.shared.text(sa.task))")
+    }
+
+    required init?(coder: NSCoder) { fatalError() }
 }
 
 extension Agents {

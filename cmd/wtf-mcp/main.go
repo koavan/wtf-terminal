@@ -125,6 +125,13 @@ func hook(c client, in io.Reader, out io.Writer) int {
 		Event   string `json:"hook_event_name"`
 		Message string `json:"message"`
 		Prompt  string `json:"prompt"`
+		// Sub-agents (SubagentStart/Stop, and tool events from inside one).
+		AgentID   string          `json:"agent_id"`
+		AgentType string          `json:"agent_type"`
+		Last      string          `json:"last_assistant_message"`
+		Tool      string          `json:"tool_name"`
+		Input     *wire.ToolInput `json:"tool_input"`
+		Response  json.RawMessage `json:"tool_response"`
 	}
 	data, err := io.ReadAll(io.LimitReader(in, 1<<20))
 	if err == nil {
@@ -153,7 +160,21 @@ func hook(c client, in io.Reader, out io.Writer) int {
 	// Best effort: a status the app misses changes nothing.
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 	defer cancel()
-	if _, err := c.do(ctx, wire.Request{Op: "hook", Event: ev.Event, Message: ev.Message, Prompt: ev.Prompt}); err != nil {
+	req := wire.Request{Op: "hook", Event: ev.Event, Message: ev.Message, Prompt: ev.Prompt,
+		AgentID: ev.AgentID, AgentType: ev.AgentType, Tool: ev.Tool, Input: ev.Input}
+	if ev.Event == "SubagentStop" && req.Message == "" {
+		req.Message = ev.Last
+	}
+	// An Agent call's response names the sub-agent it started.
+	if ev.Tool == "Agent" || ev.Tool == "Task" {
+		var r struct {
+			AgentID string `json:"agentId"`
+		}
+		if json.Unmarshal(ev.Response, &r) == nil {
+			req.Spawned = r.AgentID
+		}
+	}
+	if _, err := c.do(ctx, req); err != nil {
 		log.Print(err)
 	}
 	return 0

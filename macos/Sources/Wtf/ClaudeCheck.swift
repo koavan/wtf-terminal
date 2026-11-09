@@ -193,8 +193,13 @@ enum ClaudeCheck {
         touch "$d/waiting"
         while [ ! -e "$d/go" ]; do sleep 0.1; done
         h '{"hook_event_name":"PostToolUse"}'
+        h '{"hook_event_name":"PostToolUse","tool_name":"Agent","tool_input":{"description":"Find the flaky test","subagent_type":"Explore"},"tool_response":{"status":"async_launched","agentId":"a1"}}'
+        h '{"hook_event_name":"SubagentStart","agent_id":"a1","agent_type":"Explore"}'
+        h '{"hook_event_name":"PostToolUse","agent_id":"a1","agent_type":"Explore","tool_name":"Read","tool_input":{"file_path":"/src/deploy_test.go"}}'
         h '{"hook_event_name":"Stop"}'
         touch "$d/done"
+        while [ ! -e "$d/substop" ]; do sleep 0.1; done
+        h '{"hook_event_name":"SubagentStop","agent_id":"a1","agent_type":"Explore","last_assistant_message":"It is TestDeploy."}'
         while [ ! -e "$d/quit" ]; do sleep 0.1; done
 
         """
@@ -244,6 +249,23 @@ enum ClaudeCheck {
         check(NSApp.dockTile.badgeLabel == nil, "and the Dock badge goes")
         Task { try? await Services.bridge.Seen(session) }
         check(await waitUntil(5) { badge() == .idle }, "and idle once seen: \(String(describing: badge()))")
+
+        // Its sub-agent (#35): folded under it, shown on a click, with its
+        // task and latest step, then its result; its steps leave it idle.
+        let sub = Agents.all[session]?.subagents.first
+        check(Agents.all[session]?.subagents.count == 1 && sub?.type == "Explore" && sub?.task == "Find the flaky test"
+              && sub?.doing == "Read deploy_test.go" && sub?.running == true, "its sub-agent, with its task and step: \(String(describing: sub))")
+        check(badge() == .idle, "a sub-agent's step leaves it idle: \(String(describing: badge()))")
+        check(await waitUntil(5) { summary = w.sidePane?.debugSummary() ?? ""; return summary == "agents: \(session) idle subagents=1" },
+              "the sub-agents are folded away: \(summary.debugDescription)")
+        Agents.toggleSubagents(session)
+        check(await waitUntil(5) { summary = w.sidePane?.debugSummary() ?? ""; return summary == "agents: \(session) idle subagents=1 shown" },
+              "a click shows them: \(summary.debugDescription)")
+        fm.createFile(atPath: "\(dir)/substop", contents: nil)
+        check(await waitUntil(5) { Agents.all[session]?.subagents.first.map { !$0.running && $0.result == "It is TestDeploy." } == true },
+              "then done, with its result: \(String(describing: Agents.all[session]?.subagents.first))")
+        Agents.toggleSubagents(session)
+        check(!Agents.subagentsShown.contains(session), "another click hides them")
 
         m.open()
         var otherId = id

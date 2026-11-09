@@ -26,7 +26,8 @@ type Request struct {
 	Pane  string `json:"pane"`
 	Token string `json:"token"`
 	// "list", "call" or "hook".
-	Op   string          `json:"op"`
+	Op string `json:"op"`
+	// call: the MCP tool; hook: the tool a tool event is about.
 	Tool string          `json:"tool,omitempty"`
 	Args json.RawMessage `json:"args,omitempty"`
 	// hook: Claude Code's hook_event_name, a Notification's message and a
@@ -34,6 +35,29 @@ type Request struct {
 	Event   string `json:"event,omitempty"`
 	Message string `json:"message,omitempty"`
 	Prompt  string `json:"prompt,omitempty"`
+	// Sub-agents: the sub-agent a tool event or SubagentStart/Stop is
+	// about (Claude Code's agent_id and agent_type; "" for the main
+	// conversation), the few tool_input fields wtf shows (Tool is the
+	// tool's name), and the agentId an Agent tool call's response names.
+	AgentID   string     `json:"agentId,omitempty"`
+	AgentType string     `json:"agentType,omitempty"`
+	Input     *ToolInput `json:"input,omitempty"`
+	Spawned   string     `json:"spawned,omitempty"`
+}
+
+// ToolInput is what wtf shows of a tool call's input: an Agent call's
+// description and subagent_type, and what a step works on.
+type ToolInput struct {
+	Description  string `json:"description,omitempty"`
+	SubagentType string `json:"subagent_type,omitempty"`
+	Command      string `json:"command,omitempty"`
+	FilePath     string `json:"file_path,omitempty"`
+	Path         string `json:"path,omitempty"`
+	Pattern      string `json:"pattern,omitempty"`
+	URL          string `json:"url,omitempty"`
+	Query        string `json:"query,omitempty"`
+	// SubagentHandback: a sub-agent's final report.
+	Message string `json:"message,omitempty"`
 }
 
 // Response is the app's answer.

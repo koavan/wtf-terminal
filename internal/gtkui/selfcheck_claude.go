@@ -277,8 +277,15 @@ h '{"hook_event_name":"Notification","message":"Claude needs your permission to 
 touch $d/waiting
 while [ ! -e $d/go ]; do sleep 0.1; done
 h '{"hook_event_name":"PostToolUse"}'
+# A background sub-agent: the Agent call names it, then its own hooks.
+h '{"hook_event_name":"PostToolUse","tool_name":"Agent","tool_input":{"description":"Find the flaky test","subagent_type":"Explore"},"tool_response":{"status":"async_launched","agentId":"a1"}}'
+h '{"hook_event_name":"SubagentStart","agent_id":"a1","agent_type":"Explore"}'
+h '{"hook_event_name":"PostToolUse","agent_id":"a1","agent_type":"Explore","tool_name":"Read","tool_input":{"file_path":"/src/deploy_test.go"}}'
 h '{"hook_event_name":"Stop"}'
 touch $d/done
+while [ ! -e $d/substop ]; do sleep 0.1; done
+h '{"hook_event_name":"SubagentStop","agent_id":"a1","agent_type":"Explore","last_assistant_message":"It is TestDeploy."}'
+touch $d/substopped
 while [ ! -e $d/quit ]; do sleep 0.1; done
 `
 
@@ -337,6 +344,44 @@ func (w *Window) checkAgents() {
 	check(waitUntil(5*time.Second, func() bool { st = badge(); return exists("done") && (st == agentDone || st == bridge.StateIdle) }), "then done: %q", st)
 	go a.be.Bridge.Seen(session)
 	check(waitUntil(5*time.Second, func() bool { return badge() == bridge.StateIdle }), "and idle once seen: %q", badge())
+
+	// Its sub-agent: collapsed under it, shown on a click, with its task
+	// and latest step, then its result; its steps leave it idle.
+	tabIDs := func() (ids []string) {
+		onMain(func() {
+			if t, ok := w.sidePane().(*agentsTab); ok {
+				ids = slices.DeleteFunc(slices.Clone(t.list.ids), func(s string) bool { return s == "" })
+			}
+		})
+		return ids
+	}
+	var subs []bridge.Subagent
+	onMain(func() { subs = a.agents.all[session].Subagents })
+	check(len(subs) == 1 && subs[0].Type == "Explore" && subs[0].Task == "Find the flaky test" && subs[0].Doing == "Read deploy_test.go" && subs[0].Running,
+		"its sub-agent, with its task and step: %+v", subs)
+	check(badge() == bridge.StateIdle, "a sub-agent's step leaves it idle: %q", badge())
+	ids = tabIDs()
+	check(slices.Equal(ids, []string{session, "subs:" + session}), "the sub-agents are collapsed: %q", ids)
+	onMain(func() {
+		if t, ok := w.sidePane().(*agentsTab); ok {
+			t.activate("subs:" + session)
+		}
+	})
+	ids = tabIDs()
+	check(slices.Equal(ids, []string{session, "subs:" + session, "sub:" + session + ":a1"}), "a click shows them: %q", ids)
+	w.shot("agents-subagents")
+	_ = os.WriteFile(dir+"/substop", nil, 0o644)
+	check(waitUntil(5*time.Second, func() bool {
+		onMain(func() { subs = a.agents.all[session].Subagents })
+		return len(subs) == 1 && !subs[0].Running && subs[0].Result == "It is TestDeploy."
+	}), "then done, with its result: %+v", subs)
+	onMain(func() {
+		if t, ok := w.sidePane().(*agentsTab); ok {
+			t.activate("subs:" + session)
+		}
+	})
+	ids = tabIDs()
+	check(slices.Equal(ids, []string{session, "subs:" + session}), "another click hides them: %q", ids)
 
 	// From another tab, Next Agent Needing You has nothing to go to.
 	onMain(func() { w.model.Open(uicore.OpenOptions{}) })

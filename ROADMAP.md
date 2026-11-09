@@ -719,6 +719,28 @@ Built 2026-11-06:
 
 Still to do: hands-on with real Claude Code.
 
+### 35. Sub-agents in the Agents tab ☐
+
+See the sub-agents an agent spins up and what they do, folded away by
+default (asked 2026-11-09): a small "▸ 3 sub-agents · 1 working" toggle under
+the agent opens them.
+
+Built 2026-11-09:
+
+- From hooks only: SubagentStart/SubagentStop added to the plugin's hooks and
+  status-settings.json (still no PreToolUse); the Agent call's PostToolUse
+  names the sub-agent (`agentId` in its response) with its description; tool
+  events from inside a sub-agent carry `agent_id` and become its latest step
+  ("Read deploy_test.go") instead of changing the parent's state. Payloads
+  checked against Claude Code 2.1.321 (a background Explore sub-agent).
+- bridge.Status gains `subagents` (type, task, step, result, running,
+  started/ended; at most 20, finished ones cleared by the next prompt).
+- Both UIs: the toggle and the sub-agent rows (shown state remembered while
+  wtf runs), right-click Show/Hide Sub-agents. Self-check `claude` covers
+  it, passing on macOS and Linux.
+
+Still to do: hands-on with real Claude Code.
+
 ## Also built
 
 - Resource usage (2026-10-13): wtf's own CPU and memory in the address bar

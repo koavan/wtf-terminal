@@ -73,6 +73,20 @@ enum Agents {
         observers.append(({ [weak owner] in owner }, f))
     }
 
+    /// The agents whose sub-agents the Agents tab shows (collapsed by
+    /// default; remembered while wtf runs).
+    private(set) static var subagentsShown: Set<String> = []
+
+    static func toggleSubagents(_ session: String) {
+        if subagentsShown.remove(session) == nil { subagentsShown.insert(session) }
+        notify()
+    }
+
+    private static func notify() {
+        observers.removeAll { $0.owner() == nil }
+        observers.forEach { $0.f() }
+    }
+
     static func find(_ session: String) -> (WindowController, Pane)? {
         for w in WindowManager.shared.windows {
             if let p = w.model.pane(session: session) { return (w, p) }
@@ -109,14 +123,18 @@ enum Agents {
 
     private static func apply(_ st: Go.bridge.Status) {
         let old = all[st.session].map(state)
-        if st.state == "ended" { all[st.session] = nil } else { all[st.session] = st }
+        if st.state == "ended" {
+            all[st.session] = nil
+            subagentsShown.remove(st.session)
+        } else {
+            all[st.session] = st
+        }
         let place = find(st.session)
         place?.0.refreshStrip()
         // A background agent that quit leaves only its shell: close it.
         if st.state == "ended", let (w, p) = place, w.background { w.model.closePane(p.id) }
         updateDock()
-        observers.removeAll { $0.owner() == nil }
-        observers.forEach { $0.f() }
+        notify()
         guard st.state != "ended", let (w, p) = place else { return }
         let now = state(st)
         if visible(p, in: w) {

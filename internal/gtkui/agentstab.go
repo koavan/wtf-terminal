@@ -3,6 +3,8 @@
 package gtkui
 
 import (
+	"fmt"
+	"slices"
 	"strings"
 
 	coreglib "github.com/diamondburned/gotk4/pkg/core/glib"
@@ -37,16 +39,23 @@ func newAgentsTab(w *Window) *agentsTab {
 	t.header.tool("list-add-symbolic", "Start Claude Code…", w.startAgent)
 	t.header.tool("help-about-symbolic", "How the Agents tab works", func() { w.app.showManual("agents") })
 	t.list = newSideList(false)
-	t.list.onClick = func(id string) { w.app.goToAgent(id) }
-	t.list.onActivate = func(id string) { w.app.goToAgent(id) }
+	t.list.onClick = t.activate
+	t.list.onActivate = t.activate
 	t.list.onMenu = func(ids []string, x, y float64) {
-		session := ids[0]
+		session, _ := agentRowSession(ids[0])
 		open := "Go to Claude Code"
 		if aw := w.app.windowOf(session); aw != nil && aw.background {
 			open = "Open in Tab"
 		}
 		items := []*menuItem{{label: open, run: func() { w.app.goToAgent(session) }},
 			{label: "Peek and Reply…", run: func() { w.app.peekAgent(session, &w.win.Window) }}}
+		if len(w.app.agents.all[session].Subagents) > 0 {
+			label := "Show Sub-agents"
+			if w.app.agents.subagentsShown[session] {
+				label = "Hide Sub-agents"
+			}
+			items = append(items, &menuItem{label: label, run: func() { w.app.agents.toggleSubagents(session) }})
+		}
 		if aw := w.app.windowOf(session); aw != nil {
 			if ps := aw.model.PaneBySession(session); ps != nil && ps.Cwd != "" {
 				cwd := ps.Cwd
@@ -69,6 +78,88 @@ func newAgentsTab(w *Window) *agentsTab {
 	})
 	t.rebuild()
 	return t
+}
+
+// Row ids: an agent's session; its sub-agents' toggle "subs:<session>";
+// a sub-agent "sub:<session>:<id>".
+func agentRowSession(id string) (session string, toggle bool) {
+	if s, ok := strings.CutPrefix(id, "subs:"); ok {
+		return s, true
+	}
+	if s, ok := strings.CutPrefix(id, "sub:"); ok {
+		s, _, _ = strings.Cut(s, ":")
+		return s, false
+	}
+	return id, false
+}
+
+// activate: a click on an agent or one of its sub-agents goes to it; on
+// the toggle, shows or hides its sub-agents.
+func (t *agentsTab) activate(id string) {
+	if session, toggle := agentRowSession(id); toggle {
+		t.w.app.agents.toggleSubagents(session)
+	} else {
+		t.w.app.goToAgent(session)
+	}
+}
+
+// subagentRows: "▸ 3 sub-agents · 1 working", and when it's open each
+// sub-agent with what it's doing, or its report's first line once done.
+func (t *agentsTab) subagentRows(st bridge.Status) []sideRow {
+	n := len(st.Subagents)
+	if n == 0 {
+		return nil
+	}
+	a := t.w.app
+	open := a.agents.subagentsShown[st.Session]
+	running := 0
+	for _, sa := range st.Subagents {
+		if sa.Running {
+			running++
+		}
+	}
+	title := fmt.Sprintf("%d sub-agent", n)
+	if n != 1 {
+		title += "s"
+	}
+	if running > 0 {
+		title += fmt.Sprintf(" · %d working", running)
+	}
+	toggle := sideRow{id: "subs:" + st.Session, icon: "pan-end-symbolic", title: title, titleClass: "dim-label", depth: 1,
+		tip: "Show the sub-agents it started and what they're doing"}
+	if open {
+		toggle.icon, toggle.tip = "pan-down-symbolic", "Hide sub-agents"
+	}
+	rows := []sideRow{toggle}
+	if !open {
+		return rows
+	}
+	for _, sa := range st.Subagents {
+		kind := sa.Type
+		if kind == "" {
+			kind = "Sub-agent"
+		}
+		r := sideRow{id: "sub:" + st.Session + ":" + sa.ID, dot: "agent-idle", title: kind, depth: 2,
+			pills: []sidePill{{text: agentAge(sa.Ended), tip: "Done then"}}}
+		if sa.Task != "" {
+			r.title += " · " + a.settings.text(sa.Task)
+		}
+		switch {
+		case sa.Running:
+			r.dot, r.detail = "agent-busy", "Working"
+			if sa.Doing != "" {
+				r.detail = a.settings.text(sa.Doing)
+			}
+			r.pills = []sidePill{{text: agentAge(sa.Since), tip: "Started then"}}
+		case sa.Result != "":
+			r.detail = "Done · " + a.settings.text(sa.Result)
+		default:
+			r.detail = "Done"
+		}
+		r.tip = strings.Join(slices.DeleteFunc([]string{kind, a.settings.text(sa.Task), r.detail}, func(s string) bool { return s == "" }), "\n")
+		rows = append(rows, r)
+	}
+	return rows
 }
 
 func (t *agentsTab) widget() gtk.Widgetter { return t.root }
@@ -109,15 +200,16 @@ func (t *agentsTab) rebuild() {
 		}
 		session := st.Session
 		r.button, r.buttonTip, r.buttonRun = "view-reveal-symbolic", "Peek and reply", func() { a.peekAgent(session, &t.w.win.Window) }
+		subs := t.subagentRows(st)
 		if aw := a.windowOf(st.Session); aw != nil && aw.background {
 			r.tip = "Open it in a tab"
-			parked = append(parked, r)
+			parked = append(append(parked, r), subs...)
 			continue
 		}
-		rows = append(rows, r)
+		rows = append(append(rows, r), subs...)
 	}
 	sec := sideSection{rows: rows, always: true}
-	if len(rows)+len(parked) == 0 {
+	if len(a.agents.all) == 0 {
 		if !a.settings.config().AgentStatus {
 			sec.empty = "No Claude Code running. Only Ask Claude panes are listed: agent-status is off (Settings → General), so a claude you start yourself doesn't report what it's doing."
 		} else {

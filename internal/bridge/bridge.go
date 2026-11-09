@@ -109,6 +109,9 @@ type Status struct {
 	// It finished (busy → idle) and its pane hasn't been seen since: the
 	// UIs call Seen when it is.
 	Unseen bool `json:"unseen"`
+	// The sub-agents it started, oldest first: the running ones and those
+	// done since its last prompt.
+	Subagents []Subagent `json:"subagents"`
 }
 
 // maxPrompt is how much of a prompt the Agents tab shows.
@@ -317,7 +320,8 @@ func (s *Service) target(session string) string {
 // what the UI should hear: only changes. A Notification counts only while
 // Claude Code works (a permission prompt); one while it's idle is its
 // reminder that it's waiting for a prompt, which changes nothing.
-func (s *Service) setState(session, state, message, prompt string) (Status, bool) {
+// A new prompt (newPrompt) forgets the sub-agents that are done.
+func (s *Service) setState(session, state, message, prompt string, newPrompt bool) (Status, bool) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	a := s.agents[session]
@@ -335,7 +339,10 @@ func (s *Service) setState(session, state, message, prompt string) (Status, bool
 		a = &Status{Session: session}
 		s.agents[session] = a
 	}
-	old := *a
+	old := a.clone()
+	if newPrompt {
+		a.dropFinished()
+	}
 	if a.State != state {
 		a.Since = time.Now().UnixMilli()
 	}
@@ -355,16 +362,20 @@ func (s *Service) setState(session, state, message, prompt string) (Status, bool
 		}
 	}
 	a.State = state
-	return *a, *a != old
+	return a.clone(), !a.equal(old)
 }
 
 // shortPrompt is a prompt's first non-empty line, redacted and shortened.
-func shortPrompt(p string) string {
+func shortPrompt(p string) string { return shortLine(p, maxPrompt) }
+
+// shortLine is s's first non-empty line, spaces squeezed, redacted and
+// at most max runes.
+func shortLine(p string, max int) string {
 	for _, line := range strings.Split(p, "\n") {
 		if line = strings.Join(strings.Fields(line), " "); line != "" {
 			line = uicore.Redact(line)
-			if r := []rune(line); len(r) > maxPrompt {
-				line = string(r[:maxPrompt-1]) + "…"
+			if r := []rune(line); len(r) > max {
+				line = string(r[:max-1]) + "…"
 			}
 			return line
 		}
@@ -378,7 +389,7 @@ func (s *Service) Agents() []Status {
 	defer s.mu.Unlock()
 	out := make([]Status, 0, len(s.agents))
 	for _, a := range s.agents {
-		out = append(out, *a)
+		out = append(out, a.clone())
 	}
 	slices.SortFunc(out, func(a, b Status) int { return strings.Compare(a.Session, b.Session) })
 	return out
@@ -394,7 +405,7 @@ func (s *Service) Seen(session string) {
 		return
 	}
 	a.Unseen = false
-	st := *a
+	st := a.clone()
 	s.mu.Unlock()
 	events.Emit(EventStatus, st)
 }
@@ -402,7 +413,7 @@ func (s *Service) Seen(session string) {
 // Forget drops session's Claude Code: its shell closed, or is back at its
 // prompt (a claude killed before its SessionEnd hook).
 func (s *Service) Forget(session string) {
-	if st, ok := s.setState(session, StateEnded, "", ""); ok {
+	if st, ok := s.setState(session, StateEnded, "", "", false); ok {
 		events.Emit(EventStatus, st)
 	}
 }
@@ -524,11 +535,25 @@ func (s *Service) do(ctx context.Context, req wire.Request) wire.Response {
 		}
 		return wire.Response{Text: text}
 	case "hook":
+		// From inside a sub-agent, or about one: its parent's state stays.
+		if req.AgentID != "" || subagentEvents[req.Event] {
+			if st, ok := s.subagentHook(req.Pane, req); ok {
+				events.Emit(EventStatus, st)
+			}
+			return wire.Response{}
+		}
 		state := hookStates[req.Event]
 		if state == "" {
 			return wire.Response{Error: "unknown hook event " + strconv.Quote(req.Event)}
 		}
-		if st, ok := s.setState(req.Pane, state, req.Message, req.Prompt); ok {
+		st, ok := s.setState(req.Pane, state, req.Message, req.Prompt, req.Event == "UserPromptSubmit")
+		// An Agent call: the sub-agent it started (named in its response).
+		if req.Spawned != "" {
+			if st2, ok2 := s.subagentHook(req.Pane, req); ok2 {
+				st, ok = st2, true
+			}
+		}
+		if ok {
 			events.Emit(EventStatus, st)
 		}
 		return wire.Response{}

@@ -64,7 +64,7 @@ func TestPluginFiles(t *testing.T) {
 	var hooks hookFile
 	readJSON(t, "hooks/hooks.json", &hooks)
 	for event, groups := range hooks.Hooks {
-		if event != "PreToolUse" && hookStates[event] == "" {
+		if event != "PreToolUse" && hookStates[event] == "" && !subagentEvents[event] {
 			t.Errorf("hook %s: the bridge doesn't know it", event)
 		}
 		for _, g := range groups {
@@ -80,7 +80,12 @@ func TestPluginFiles(t *testing.T) {
 			}
 		}
 	}
-	for event := range hookStates {
+	for event := range maps.Keys(hookStates) {
+		if _, ok := hooks.Hooks[event]; !ok {
+			t.Errorf("no %s hook", event)
+		}
+	}
+	for event := range subagentEvents {
 		if _, ok := hooks.Hooks[event]; !ok {
 			t.Errorf("no %s hook", event)
 		}
@@ -242,6 +247,46 @@ func TestHook(t *testing.T) {
 			t.Fatalf("states = %v, want %v", states, want)
 		}
 		time.Sleep(20 * time.Millisecond)
+	}
+}
+
+// TestHookSubagents feeds the helper the hook payloads Claude Code 2.1
+// sent for a background Explore sub-agent (paths shortened).
+func TestHookSubagents(t *testing.T) {
+	if testing.Short() {
+		t.Skip("builds wtf-mcp")
+	}
+	f := newFake(t)
+	bin := filepath.Join(t.TempDir(), "wtf-mcp")
+	if out, err := exec.Command("go", "build", "-o", bin, "../../cmd/wtf-mcp").CombinedOutput(); err != nil {
+		t.Fatalf("build: %v\n%s", err, out)
+	}
+	var hooks hookFile
+	readJSON(t, StatusSettingsFile, &hooks)
+	env := append(append(os.Environ(), f.s.shellEnv("s1")...), "WTF_MCP="+bin)
+	for _, ev := range []string{
+		`{"hook_event_name":"UserPromptSubmit","prompt":"read a.txt"}`,
+		`{"hook_event_name":"PostToolUse","tool_name":"Agent","tool_input":{"description":"Read a.txt","prompt":"Read the file a.txt and report it.","subagent_type":"Explore"},"tool_response":{"isAsync":true,"status":"async_launched","agentId":"aac03e4bdb4890928","description":"Read a.txt"},"tool_use_id":"toolu_1"}`,
+		`{"agent_id":"aac03e4bdb4890928","agent_type":"Explore","hook_event_name":"SubagentStart"}`,
+		`{"agent_id":"aac03e4bdb4890928","agent_type":"Explore","hook_event_name":"PostToolUse","tool_name":"Read","tool_input":{"file_path":"/tmp/work/a.txt"},"tool_response":{"type":"text","file":{"content":"hello\n"}},"tool_use_id":"toolu_2"}`,
+	} {
+		var e struct {
+			Event string `json:"hook_event_name"`
+		}
+		json.Unmarshal([]byte(ev), &e)
+		cmd := exec.Command("sh", "-c", hooks.Hooks[e.Event][0].Hooks[0].Command)
+		cmd.Env, cmd.Stdin = env, strings.NewReader(ev)
+		if out, err := cmd.CombinedOutput(); err != nil || len(out) != 0 {
+			t.Fatalf("%s: %v %q", e.Event, err, out)
+		}
+	}
+	a := f.s.Agents()
+	if len(a) != 1 || len(a[0].Subagents) != 1 {
+		t.Fatalf("agents = %+v", a)
+	}
+	want := Subagent{ID: "aac03e4bdb4890928", Type: "Explore", Task: "Read a.txt", Doing: "Read a.txt", Running: true, Since: a[0].Subagents[0].Since}
+	if a[0].State != StateBusy || a[0].Subagents[0] != want {
+		t.Fatalf("got %+v, want %+v", a[0], want)
 	}
 }
 

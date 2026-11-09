@@ -29,10 +29,25 @@ type agentList struct {
 	// Called after every change (the Agents tab while it shows).
 	observers map[int]func()
 	nextObs   int
+	// The agents whose sub-agents the Agents tab shows (collapsed by
+	// default; remembered while wtf runs).
+	subagentsShown map[string]bool
 }
 
 func newAgentList() *agentList {
-	return &agentList{all: map[string]bridge.Status{}, observers: map[int]func(){}}
+	return &agentList{all: map[string]bridge.Status{}, observers: map[int]func(){}, subagentsShown: map[string]bool{}}
+}
+
+// toggleSubagents shows or hides an agent's sub-agents in the Agents tab.
+func (l *agentList) toggleSubagents(session string) {
+	if l.subagentsShown[session] {
+		delete(l.subagentsShown, session)
+	} else {
+		l.subagentsShown[session] = true
+	}
+	for _, f := range l.observers {
+		f()
+	}
 }
 
 // observe calls f after every change until the returned stop is called.
@@ -157,6 +172,7 @@ func (a *App) agentStatus(st bridge.Status) {
 	old, had := l.all[st.Session]
 	if st.State == bridge.StateEnded {
 		delete(l.all, st.Session)
+		delete(l.subagentsShown, st.Session)
 	} else {
 		l.all[st.Session] = st
 	}

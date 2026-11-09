@@ -11,6 +11,8 @@
     "Notification": [{"hooks": [{"type": "command", "command": "\"${WTF_MCP}\" hook || true"}]}],
     "Stop": [{"hooks": [{"type": "command", "command": "\"${WTF_MCP}\" hook || true"}]}],
     "PostToolUse": [{"hooks": [{"type": "command", "command": "\"${WTF_MCP}\" hook || true"}]}],
+    "SubagentStart": [{"hooks": [{"type": "command", "command": "\"${WTF_MCP}\" hook || true"}]}],
+    "SubagentStop": [{"hooks": [{"type": "command", "command": "\"${WTF_MCP}\" hook || true"}]}],
     "SessionEnd": [{"hooks": [{"type": "command", "command": "\"${WTF_MCP}\" hook || true"}]}]
   }
 }

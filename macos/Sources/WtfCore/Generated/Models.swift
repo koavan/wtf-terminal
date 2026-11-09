@@ -632,14 +632,16 @@ extension Go.bridge {
         public var prompt: String
         public var since: Int
         public var unseen: Bool
+        public var subagents: [Go.bridge.Subagent]
 
-        public init(session: String = "", state: String = "", message: String = "", prompt: String = "", since: Int = 0, unseen: Bool = false) {
+        public init(session: String = "", state: String = "", message: String = "", prompt: String = "", since: Int = 0, unseen: Bool = false, subagents: [Go.bridge.Subagent] = []) {
             self.session = session
             self.state = state
             self.message = message
             self.prompt = prompt
             self.since = since
             self.unseen = unseen
+            self.subagents = subagents
         }
 
         enum CodingKeys: String, CodingKey {
@@ -649,6 +651,7 @@ extension Go.bridge {
             case prompt = "prompt"
             case since = "since"
             case unseen = "unseen"
+            case subagents = "subagents"
         }
 
         public init(from decoder: Decoder) throws {
@@ -659,6 +662,55 @@ extension Go.bridge {
             self.prompt = (try? c.decodeIfPresent(String.self, forKey: .prompt)) ?? ""
             self.since = (try? c.decodeIfPresent(Int.self, forKey: .since)) ?? 0
             self.unseen = (try? c.decodeIfPresent(Bool.self, forKey: .unseen)) ?? false
+            self.subagents = (try? c.decodeIfPresent([Go.bridge.Subagent].self, forKey: .subagents)) ?? []
+        }
+    }
+}
+
+extension Go.bridge {
+    /// bridge.Subagent
+    public struct Subagent: Codable, Equatable, Sendable {
+        public var id: String
+        public var type: String
+        public var task: String
+        public var doing: String
+        public var result: String
+        public var running: Bool
+        public var since: Int
+        public var ended: Int
+
+        public init(id: String = "", type: String = "", task: String = "", doing: String = "", result: String = "", running: Bool = false, since: Int = 0, ended: Int = 0) {
+            self.id = id
+            self.type = type
+            self.task = task
+            self.doing = doing
+            self.result = result
+            self.running = running
+            self.since = since
+            self.ended = ended
+        }
+
+        enum CodingKeys: String, CodingKey {
+            case id = "id"
+            case type = "type"
+            case task = "task"
+            case doing = "doing"
+            case result = "result"
+            case running = "running"
+            case since = "since"
+            case ended = "ended"
+        }
+
+        public init(from decoder: Decoder) throws {
+            let c = try decoder.container(keyedBy: CodingKeys.self)
+            self.id = (try? c.decodeIfPresent(String.self, forKey: .id)) ?? ""
+            self.type = (try? c.decodeIfPresent(String.self, forKey: .type)) ?? ""
+            self.task = (try? c.decodeIfPresent(String.self, forKey: .task)) ?? ""
+            self.doing = (try? c.decodeIfPresent(String.self, forKey: .doing)) ?? ""
+            self.result = (try? c.decodeIfPresent(String.self, forKey: .result)) ?? ""
+            self.running = (try? c.decodeIfPresent(Bool.self, forKey: .running)) ?? false
+            self.since = (try? c.decodeIfPresent(Int.self, forKey: .since)) ?? 0
+            self.ended = (try? c.decodeIfPresent(Int.self, forKey: .ended)) ?? 0
         }
     }
 }

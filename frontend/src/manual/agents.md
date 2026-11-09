@@ -15,6 +15,19 @@ Each row shows:
 
 The most urgent come first: needs you, then done, working and idle. Click a row to go to that window, tab and pane; right-click for **Copy Folder Path**.
 
+## Sub-agents
+
+When Claude Code hands work to sub-agents (its Agent tool: Explore, Plan, general-purpose or your own), its row gets a small line such as **▸ 3 sub-agents · 1 working**. They're hidden until you click it; click again (or right-click the agent → **Hide Sub-agents**) to fold them away. wtf remembers which ones you opened while it runs.
+
+Each sub-agent shows:
+
+- its type and what it was asked to do (the task's short description);
+- while it works (accent dot): its latest step, such as `Read deploy_test.go`, `Grep TODO` or `Bash: go test ./...`;
+- once it's done (grey dot): the first line of its report;
+- how long ago it started, or finished.
+
+Secrets are hidden in all of it. A sub-agent's steps don't change its agent's state: one working in the background leaves the agent idle or done. Finished sub-agents are cleared when you send the agent its next prompt; running ones stay. Click a sub-agent to go to its agent.
+
 ## Keep agents running after you close their tab
 
 Close a tab or pane running Claude Code and wtf asks:
@@ -46,7 +59,7 @@ For each agent, in the Agents tab (the eye button, or right-click):
 
 ## How wtf knows
 
-Claude Code reports what it's doing through hooks: small commands it runs when you send a prompt, when it needs your approval, when it finishes and when it quits. wtf never reads the screen to guess.
+Claude Code reports what it's doing through hooks: small commands it runs when you send a prompt, when it needs your approval, when it finishes, when it starts or finishes a sub-agent, after each tool call and when it quits. wtf never reads the screen to guess.
 
 - **Ask Claude** panes ({{key:claude.ask}}) report through wtf's plugin. See [Ask Claude](#ask-claude).
 - **A `claude` you type yourself**: wtf's [shell integration](#shell-integration) (bash and zsh) runs it as `claude --settings <wtf's status hooks>`. Those settings hold only the hooks that report its state: no tools, no slash commands, and no permission rules, so your own claude asks you exactly what it asked before. They apply to that run only; nothing is written to `~/.claude`, and your own settings and hooks still apply.
