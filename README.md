@@ -557,6 +557,12 @@ prompts), or ends it. **Start Claude Code…** starts one in a folder, with a
 first prompt, in a tab or in the background. Quitting wtf ends them, after
 asking.
 
+Sub-agents an agent starts (Claude Code's Agent tool) sit folded under it:
+a small "▸ 3 sub-agents · 1 working" line opens them, each with its type and
+task, its latest step while it works ("Read deploy_test.go") or its report's
+first line once done. They come from Claude Code's SubagentStart/Stop and
+tool hooks; a sub-agent's steps don't change its agent's state.
+
 ## Resource usage
 
 wtf can show its own CPU and memory in the address bar (`show-usage`, or
