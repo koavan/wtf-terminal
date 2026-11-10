@@ -27,6 +27,9 @@ linux/package.sh arm64 amd64     # .deb and .rpm in bin/gtk/packages
 linux/package/test-install.sh amd64   # installs them on clean Ubuntu, Debian, Fedora
 ```
 
+If a distribution's mirror is slow, `UBUNTU_MIRROR=http://mirrors.mit.edu/ubuntu/`
+or `DEBIAN_MIRROR=…` points `test-install.sh` at another one.
+
 ## Run
 
 ```sh
