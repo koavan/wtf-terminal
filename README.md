@@ -563,6 +563,12 @@ task, its latest step while it works ("Read deploy_test.go") or its report's
 first line once done. They come from Claude Code's SubagentStart/Stop and
 tool hooks; a sub-agent's steps don't change its agent's state.
 
+Agents are listed in the order they started, so rows don't move; double-click
+one (or Rename…) to give it a name, shown in the list, the picker and its
+notifications. A short sound plays with an agent's notification, one for
+needs you and one for finished (`agent-sound`), and tabs running Claude Code
+join their window's **agents** tab group (`agent-group`).
+
 ## Resource usage
 
 wtf can show its own CPU and memory in the address bar (`show-usage`, or
