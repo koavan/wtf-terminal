@@ -638,3 +638,75 @@ func TestStep(t *testing.T) {
 		}
 	}
 }
+
+// Names you give agents, and the order they're listed in.
+func TestAgentNames(t *testing.T) {
+	f := newFake(t)
+	s := f.s
+	hook := func(pane, event string) {
+		t.Helper()
+		if r := s.do(context.Background(), wire.Request{V: wire.Version, Pane: pane, Token: s.token(pane), Op: "hook", Event: event}); r.Error != "" {
+			t.Fatal(r.Error)
+		}
+	}
+	last := func() Status {
+		t.Helper()
+		f.mu.Lock()
+		defer f.mu.Unlock()
+		return f.status[len(f.status)-1]
+	}
+	hook("s1", "SessionStart")
+	started := last().Started
+	if started == 0 || last().Name != "" {
+		t.Fatalf("new agent = %+v", last())
+	}
+	// Started doesn't move with its state.
+	time.Sleep(5 * time.Millisecond)
+	hook("s1", "UserPromptSubmit")
+	hook("s1", "Stop")
+	if st := last(); st.Started != started || st.Since == started {
+		t.Fatalf("after work = %+v (started %d)", st, started)
+	}
+
+	// Spaces squeezed, at most maxName runes; a change is sent once.
+	s.Rename("s1", "  deploy \t fixer ")
+	if st := last(); st.Name != "deploy fixer" || st.Started != started {
+		t.Fatalf("renamed = %+v", st)
+	}
+	n := len(f.status)
+	s.Rename("s1", "deploy fixer")
+	if len(f.status) != n {
+		t.Fatal("the same name sent a change")
+	}
+	s.Rename("s1", strings.Repeat("é", 100))
+	if r := []rune(last().Name); len(r) != maxName {
+		t.Fatalf("long name = %d runes", len(r))
+	}
+	s.Rename("s1", "deploy fixer")
+
+	// Its claude quits: a new one in the same shell gets the name back.
+	s.Forget("s1")
+	hook("s1", "SessionStart")
+	if st := last(); st.Name != "deploy fixer" || st.Started <= started {
+		t.Fatalf("restarted = %+v", st)
+	}
+	// Naming a shell with no agent yet: its first claude gets it.
+	s.Rename("s2", "reviewer")
+	hook("s2", "SessionStart")
+	if st := last(); st.Session != "s2" || st.Name != "reviewer" {
+		t.Fatalf("named first = %+v", st)
+	}
+	// Cleared, and forgotten with its shell.
+	s.Rename("s2", " ")
+	if st := last(); st.Name != "" {
+		t.Fatalf("cleared = %+v", st)
+	}
+	s.ShellClosed("s1")
+	if len(s.Agents()) != 1 {
+		t.Fatalf("agents = %+v", s.Agents())
+	}
+	hook("s1", "SessionStart")
+	if st := last(); st.Name != "" {
+		t.Fatalf("a new shell kept the name: %+v", st)
+	}
+}

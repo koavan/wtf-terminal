@@ -3,12 +3,14 @@
 package gtkui
 
 import (
+	"slices"
+
 	"github.com/diamondburned/gotk4-adwaita/pkg/adw"
 	"github.com/diamondburned/gotk4/pkg/gdk/v4"
 	"github.com/diamondburned/gotk4/pkg/gtk/v4"
-	"slices"
 
 	"github.com/dayanraj/wtf/internal/config"
+	"github.com/dayanraj/wtf/internal/notify"
 )
 
 // The Settings window: General (theme, config.toml, the themes folder, Ask
@@ -158,6 +160,43 @@ func (s *settingsWindow) generalPage() *adw.PreferencesPage {
 		}
 	})
 	claude.Add(agents)
+	sound := adw.NewSwitchRow()
+	sound.SetUseMarkup(false)
+	sound.SetTitle("Play a sound when an agent needs you or finishes")
+	sound.SetSubtitle("agent-sound; with its notification, a different sound for each (your desktop's sound theme)")
+	sound.SetActive(s.w.app.settings.config().AgentSound)
+	sound.Connect("notify::active", func() {
+		on := sound.Active()
+		if on == s.w.app.settings.config().AgentSound {
+			return
+		}
+		if err := s.w.app.be.Config.SetAgentSound(on); err != nil {
+			sound.SetActive(!on)
+			s.w.toast("Couldn't change the setting: " + err.Error())
+			return
+		}
+		// Turned on: what it sounds like.
+		if on {
+			s.w.app.be.Notify.PlaySound(notify.SoundAttention)
+		}
+	})
+	claude.Add(sound)
+	group := adw.NewSwitchRow()
+	group.SetUseMarkup(false)
+	group.SetTitle("Group tabs running Claude Code under “agents”")
+	group.SetSubtitle("agent-group; a tab joins its window's agents tab group when Claude Code starts in it, and leaves when it ends")
+	group.SetActive(s.w.app.settings.config().AgentGroup)
+	group.Connect("notify::active", func() {
+		on := group.Active()
+		if on == s.w.app.settings.config().AgentGroup {
+			return
+		}
+		if err := s.w.app.be.Config.SetAgentGroup(on); err != nil {
+			group.SetActive(!on)
+			s.w.toast("Couldn't change the setting: " + err.Error())
+		}
+	})
+	claude.Add(group)
 	modes := []string{"ask", "background", "end"}
 	closing := adw.NewComboRow()
 	closing.SetUseMarkup(false)

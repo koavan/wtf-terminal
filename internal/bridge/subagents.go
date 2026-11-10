@@ -44,7 +44,8 @@ var subagentEvents = map[string]bool{"SubagentStart": true, "SubagentStop": true
 // equal: Status has a slice, so it isn't comparable with ==.
 func (a Status) equal(b Status) bool {
 	return a.Session == b.Session && a.State == b.State && a.Message == b.Message && a.Prompt == b.Prompt &&
-		a.Since == b.Since && a.Unseen == b.Unseen && slices.Equal(a.Subagents, b.Subagents)
+		a.Since == b.Since && a.Unseen == b.Unseen && a.Name == b.Name && a.Started == b.Started &&
+		slices.Equal(a.Subagents, b.Subagents)
 }
 
 func (a Status) clone() Status {
@@ -73,8 +74,8 @@ func (s *Service) subagentHook(session string, req wire.Request) (Status, bool) 
 		return Status{}, false
 	}
 	if a == nil {
-		a = &Status{Session: session, State: StateBusy, Since: time.Now().UnixMilli()}
-		s.agents[session] = a
+		a = s.newAgent(session)
+		a.State = StateBusy
 	}
 	old := a.clone()
 	i := a.subagent(id)

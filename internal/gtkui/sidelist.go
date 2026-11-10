@@ -69,11 +69,13 @@ type sideList struct {
 	ids    []string // per list row; "" for headings and notes
 	toggle map[int]func()
 
-	onActivate  func(id string)
-	onClick     func(id string)
-	onMenu      func(ids []string, x, y float64)
-	onSelection func(ids []string)
-	onDrop      func(id, path string)
+	onActivate func(id string)
+	onClick    func(id string)
+	// A double-click on a row (after its onClick).
+	onDoubleClick func(id string)
+	onMenu        func(ids []string, x, y float64)
+	onSelection   func(ids []string)
+	onDrop        func(id, path string)
 	// dragData is the path a row's drag carries ("" for none).
 	dragData func(id string) string
 	menu     *menuPopover
@@ -128,6 +130,8 @@ func newSideList(multiple bool) *sideList {
 			}
 			if id := l.idAt(i); id != "" && n == 1 && l.onClick != nil {
 				l.onClick(id)
+			} else if id != "" && n == 2 && l.onDoubleClick != nil {
+				l.onDoubleClick(id)
 			}
 		case gdk.BUTTON_SECONDARY:
 			id := l.idAt(i)

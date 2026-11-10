@@ -321,6 +321,17 @@ func (w *Window) checkAgents() {
 	}
 	var st string
 	check(waitUntil(5*time.Second, func() bool { st = badge(); return st == bridge.StateWaiting }), "its tab shows it needs you: %q", st)
+	// agent-group: its tab joined the window's "agents" group.
+	inAgents := func() (in bool) {
+		onMain(func() {
+			if t, ok := w.model.TabOf(p.id); ok {
+				g := w.model.GroupNamed(agentGroupName)
+				in = g != 0 && t.GroupID == g
+			}
+		})
+		return in
+	}
+	check(inAgents(), "its tab joins the agents group")
 	var ag bridge.Status
 	onMain(func() { ag = a.agents.all[session] })
 	check(ag.Message == "Claude needs your permission to use Bash" && ag.Prompt == "fix the flaky deploy test", "with what it asks and the prompt: %+v", ag)
@@ -383,6 +394,17 @@ func (w *Window) checkAgents() {
 	ids = tabIDs()
 	check(slices.Equal(ids, []string{session, "subs:" + session}), "another click hides them: %q", ids)
 
+	// A name you give it: the Agents tab and the picker show it.
+	go a.be.Bridge.Rename(session, "deploy fixer")
+	check(waitUntil(5*time.Second, func() bool {
+		var title string
+		onMain(func() { title, _ = a.agentTitle(a.agents.all[session]) })
+		return title == "deploy fixer"
+	}), "Rename… names it")
+	onMain(func() { entries = w.agentEntries() })
+	check(len(entries) == 1 && strings.HasPrefix(entries[0].label, "deploy fixer — "), "Go to Agent… shows its name: %+v", entries)
+	w.shot("agents-named")
+
 	// From another tab, Next Agent Needing You has nothing to go to.
 	onMain(func() { w.model.Open(uicore.OpenOptions{}) })
 	var other *Pane
@@ -393,7 +415,15 @@ func (w *Window) checkAgents() {
 		onMain(func() { w.model.ClosePane(other.id) })
 	}
 
-	// Its pane closes without a SessionEnd: it's forgotten.
+	// Claude Code ends (its shell is back at its prompt): the tab leaves
+	// the agents group, which goes with its last tab.
+	go a.be.Bridge.Forget(session)
+	check(waitUntil(5*time.Second, func() bool { return !inAgents() }), "when it ends, its tab leaves the agents group")
+	var groups int
+	onMain(func() { groups = len(w.model.Groups()) })
+	check(groups == 0, "and the empty group goes: %d groups", groups)
+
+	// Its pane closes: nothing's left of it.
 	onMain(func() { w.model.ClosePane(p.id) })
 	check(waitUntil(5*time.Second, func() bool { return len(a.agents.all) == 0 }), "closing its pane forgets it: %d", len(a.agents.all))
 	_ = os.WriteFile(dir+"/quit", nil, 0o644)

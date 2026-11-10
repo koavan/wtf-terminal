@@ -125,6 +125,33 @@ func TestCreatesGroupsWithTheFirstUnusedColour(t *testing.T) {
 	checkInvariants(t, s.w, "")
 }
 
+// agent-group: the first tab makes the "agents" group, the next join it;
+// a tab in another group moves over.
+func TestJoinNamedGroupMakesItOnceThenJoinsIt(t *testing.T) {
+	s := newSetup()
+	ts := s.open(4)
+	other := s.w.CreateGroup(ts[3])
+	s.w.JoinNamedGroup(ts[0], "agents")
+	g := s.w.GroupNamed("agents")
+	if g == 0 || g == other || s.groupOf(ts[0]) != g {
+		t.Fatalf("agents group = %d, tab in %d", g, s.groupOf(ts[0]))
+	}
+	s.w.JoinNamedGroup(ts[2], "agents")
+	s.w.JoinNamedGroup(ts[3], "agents")
+	if len(s.w.Groups()) != 1 || s.groupOf(ts[2]) != g || s.groupOf(ts[3]) != g {
+		t.Fatalf("groups = %+v", s.w.Groups())
+	}
+	if got := s.ids(); !slices.Equal(got, []int{ts[0], ts[2], ts[3], ts[1]}) {
+		t.Errorf("order = %v", got)
+	}
+	// Joining again changes nothing.
+	s.w.JoinNamedGroup(ts[0], "agents")
+	if got := s.ids(); !slices.Equal(got, []int{ts[0], ts[2], ts[3], ts[1]}) {
+		t.Errorf("order after joining again = %v", got)
+	}
+	checkInvariants(t, s.w, "")
+}
+
 func TestAddingToAGroupMovesTheTabNextToItsMembers(t *testing.T) {
 	s := newSetup()
 	ts := s.open(3)

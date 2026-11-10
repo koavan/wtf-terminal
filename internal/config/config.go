@@ -57,6 +57,14 @@ type Config struct {
 	// Closing a tab or pane running Claude Code (#34): "ask", "background"
 	// (keep it running in the background window) or "end".
 	AgentClose string `toml:"agent-close" json:"agentClose"`
+
+	// A short sound with an agent's notification (needs you, finished):
+	// one for each, so you can tell them apart by ear.
+	AgentSound bool `toml:"agent-sound" json:"agentSound"`
+
+	// A tab running Claude Code joins its window's "agents" tab group
+	// (made when needed), and leaves it when Claude Code ends.
+	AgentGroup bool `toml:"agent-group" json:"agentGroup"`
 }
 
 func Defaults() Config {
@@ -86,6 +94,8 @@ func Defaults() Config {
 
 		AgentStatus: true,
 		AgentClose:  "ask",
+		AgentSound:  true,
+		AgentGroup:  true,
 	}
 }
 
@@ -195,6 +205,15 @@ const template = `# wtf settings. Changes apply as soon as you save (or switch b
 # background, or end it), "background" (always keep it running; the Agents
 # tab opens it again) or "end". Background agents end when wtf quits.
 # agent-close = "ask"
+
+# A short sound with the notification when a Claude Code agent needs you or
+# finishes while you're looking elsewhere (a different one for each).
+# agent-sound = true
+
+# A tab running Claude Code joins its window's "agents" tab group (made when
+# needed) and leaves it when Claude Code ends. Background agents aren't in a
+# window's tabs, so they're left out.
+# agent-group = true
 `
 
 // Dir is $XDG_CONFIG_HOME/wtf, or ~/.config/wtf, on every platform.

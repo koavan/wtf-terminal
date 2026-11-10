@@ -792,6 +792,28 @@ func (w *WindowModel) AddToGroup(id, g int) {
 	w.changed()
 }
 
+// GroupNamed is the first group called name (0 for none).
+func (w *WindowModel) GroupNamed(name string) int {
+	for _, g := range w.groups {
+		if g.Name == name {
+			return g.ID
+		}
+	}
+	return 0
+}
+
+// JoinNamedGroup puts a tab in the group called name (agent-group's
+// "agents"), making that group, in the next colour, when there's none.
+func (w *WindowModel) JoinNamedGroup(id int, name string) {
+	if g := w.GroupNamed(name); g != 0 {
+		w.AddToGroup(id, g)
+		return
+	}
+	if g := w.CreateGroup(id); g != 0 {
+		w.SetGroup(g, &name, nil)
+	}
+}
+
 func (w *WindowModel) RemoveFromGroup(id int) {
 	t, ok := w.Tab(id)
 	if !ok || t.GroupID == 0 {

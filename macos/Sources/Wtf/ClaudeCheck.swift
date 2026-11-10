@@ -232,6 +232,12 @@ enum ClaudeCheck {
               "the shell runs it with wtf's status hooks: \(read("args").debugDescription)")
         func badge() -> AgentState? { m.tabOf(pane: id).flatMap { Agents.state(tab: $0.id, in: w) } }
         check(await waitUntil(5) { badge() == .waiting }, "its tab shows it needs you: \(String(describing: badge()))")
+        // agent-group: its tab joined the window's "agents" group.
+        func inAgents() -> Bool {
+            guard let t = m.tabOf(pane: id), let g = m.groupNamed(Agents.groupName) else { return false }
+            return t.groupId == g
+        }
+        check(inAgents(), "its tab joins the agents group")
         let ag = Agents.all[session]
         check(ag?.message == "Claude needs your permission to use Bash" && ag?.prompt == "fix the flaky deploy test",
               "with what it asks and the prompt: \(String(describing: ag))")
@@ -267,6 +273,10 @@ enum ClaudeCheck {
         Agents.toggleSubagents(session)
         check(!Agents.subagentsShown.contains(session), "another click hides them")
 
+        // A name you give it: the Agents tab and the picker show it.
+        Task { try? await Services.bridge.Rename(session, "deploy fixer") }
+        check(await waitUntil(5) { Agents.all[session].map(Agents.title) == "deploy fixer" }, "Rename… names it")
+
         m.open()
         var otherId = id
         check(await waitUntil(5) { otherId = m.active?.focusedPaneId ?? id; return otherId != id }, "another tab")
@@ -275,7 +285,13 @@ enum ClaudeCheck {
         // The check's profile keeps its session: leave no tabs behind.
         m.closePane(otherId)
 
-        // Its pane closes without a SessionEnd: it's forgotten.
+        // Claude Code ends (its shell is back at its prompt): the tab leaves
+        // the agents group, which goes with its last tab.
+        Task { try? await Services.bridge.Forget(session) }
+        check(await waitUntil(5) { !inAgents() }, "when it ends, its tab leaves the agents group")
+        check(m.groupNamed(Agents.groupName) == nil, "and the empty group goes")
+
+        // Its pane closes: nothing's left of it.
         m.closePane(id)
         check(await waitUntil(5) { Agents.all.isEmpty }, "closing its pane forgets it: \(Agents.all.count)")
         fm.createFile(atPath: "\(dir)/quit", contents: nil)

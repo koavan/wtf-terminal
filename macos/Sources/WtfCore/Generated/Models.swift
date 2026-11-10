@@ -633,8 +633,10 @@ extension Go.bridge {
         public var since: Int
         public var unseen: Bool
         public var subagents: [Go.bridge.Subagent]
+        public var name: String
+        public var started: Int
 
-        public init(session: String = "", state: String = "", message: String = "", prompt: String = "", since: Int = 0, unseen: Bool = false, subagents: [Go.bridge.Subagent] = []) {
+        public init(session: String = "", state: String = "", message: String = "", prompt: String = "", since: Int = 0, unseen: Bool = false, subagents: [Go.bridge.Subagent] = [], name: String = "", started: Int = 0) {
             self.session = session
             self.state = state
             self.message = message
@@ -642,6 +644,8 @@ extension Go.bridge {
             self.since = since
             self.unseen = unseen
             self.subagents = subagents
+            self.name = name
+            self.started = started
         }
 
         enum CodingKeys: String, CodingKey {
@@ -652,6 +656,8 @@ extension Go.bridge {
             case since = "since"
             case unseen = "unseen"
             case subagents = "subagents"
+            case name = "name"
+            case started = "started"
         }
 
         public init(from decoder: Decoder) throws {
@@ -663,6 +669,8 @@ extension Go.bridge {
             self.since = (try? c.decodeIfPresent(Int.self, forKey: .since)) ?? 0
             self.unseen = (try? c.decodeIfPresent(Bool.self, forKey: .unseen)) ?? false
             self.subagents = (try? c.decodeIfPresent([Go.bridge.Subagent].self, forKey: .subagents)) ?? []
+            self.name = (try? c.decodeIfPresent(String.self, forKey: .name)) ?? ""
+            self.started = (try? c.decodeIfPresent(Int.self, forKey: .started)) ?? 0
         }
     }
 }
@@ -1107,8 +1115,10 @@ extension Go.config {
         public var claudeAutoMode: Bool
         public var agentStatus: Bool
         public var agentClose: String
+        public var agentSound: Bool
+        public var agentGroup: Bool
 
-        public init(theme: String = "", fontFamily: String = "", fontSize: Double = 0, lineHeight: Double = 0, cursorStyle: String = "", cursorBlink: Bool = false, scrollback: Int = 0, optionAsMeta: Bool = false, copyOnSelect: Bool = false, shell: String = "", shellIntegration: Bool = false, notifyAfter: Double = 0, unfocusedSplitDim: Double = 0, sidebarAutoRefresh: Bool = false, sidebarRefreshInterval: Double = 0, contextBadges: Bool = false, logHighlighting: Bool = false, redactSecrets: Bool = false, clipboardClear: Double = 0, confirmPaste: Bool = false, showUsage: Bool = false, historyDays: Int = 0, claudeAutoMode: Bool = false, agentStatus: Bool = false, agentClose: String = "") {
+        public init(theme: String = "", fontFamily: String = "", fontSize: Double = 0, lineHeight: Double = 0, cursorStyle: String = "", cursorBlink: Bool = false, scrollback: Int = 0, optionAsMeta: Bool = false, copyOnSelect: Bool = false, shell: String = "", shellIntegration: Bool = false, notifyAfter: Double = 0, unfocusedSplitDim: Double = 0, sidebarAutoRefresh: Bool = false, sidebarRefreshInterval: Double = 0, contextBadges: Bool = false, logHighlighting: Bool = false, redactSecrets: Bool = false, clipboardClear: Double = 0, confirmPaste: Bool = false, showUsage: Bool = false, historyDays: Int = 0, claudeAutoMode: Bool = false, agentStatus: Bool = false, agentClose: String = "", agentSound: Bool = false, agentGroup: Bool = false) {
             self.theme = theme
             self.fontFamily = fontFamily
             self.fontSize = fontSize
@@ -1134,6 +1144,8 @@ extension Go.config {
             self.claudeAutoMode = claudeAutoMode
             self.agentStatus = agentStatus
             self.agentClose = agentClose
+            self.agentSound = agentSound
+            self.agentGroup = agentGroup
         }
 
         enum CodingKeys: String, CodingKey {
@@ -1162,6 +1174,8 @@ extension Go.config {
             case claudeAutoMode = "claudeAutoMode"
             case agentStatus = "agentStatus"
             case agentClose = "agentClose"
+            case agentSound = "agentSound"
+            case agentGroup = "agentGroup"
         }
 
         public init(from decoder: Decoder) throws {
@@ -1191,6 +1205,8 @@ extension Go.config {
             self.claudeAutoMode = (try? c.decodeIfPresent(Bool.self, forKey: .claudeAutoMode)) ?? false
             self.agentStatus = (try? c.decodeIfPresent(Bool.self, forKey: .agentStatus)) ?? false
             self.agentClose = (try? c.decodeIfPresent(String.self, forKey: .agentClose)) ?? ""
+            self.agentSound = (try? c.decodeIfPresent(Bool.self, forKey: .agentSound)) ?? false
+            self.agentGroup = (try? c.decodeIfPresent(Bool.self, forKey: .agentGroup)) ?? false
         }
     }
 }

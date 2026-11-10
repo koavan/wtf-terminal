@@ -68,6 +68,58 @@ enum Agents {
         }
     }
 
+    /// The agents in the order wtf first heard of them, for the Agents tab:
+    /// a row stays where it is whatever its state.
+    static func listed() -> [Go.bridge.Status] {
+        all.values.sorted { $0.started != $1.started ? $0.started < $1.started : $0.session < $1.session }
+    }
+
+    /// The tab an agent runs in, as titled.
+    static func tabTitle(_ session: String) -> String? {
+        find(session).flatMap { w, p in w.model.tabOf(pane: p.id).map { w.model.title($0) } }
+    }
+
+    /// What an agent is called: the name you gave it, or its tab's title.
+    static func title(_ st: Go.bridge.Status) -> String {
+        st.name.isEmpty ? Redaction.shared.text(tabTitle(st.session) ?? st.session) : st.name
+    }
+
+    /// Rename…: a name for the agent, shown in the Agents tab, the picker
+    /// and its notifications. It stays with its shell.
+    static func rename(_ session: String, in window: NSWindow?) {
+        guard let st = all[session] else { return }
+        let s = FormSheet(title: "Rename Agent",
+                          subtitle: "Shown in the Agents tab, Go to Agent… and its notifications. It stays with this shell: a claude you start there again gets it too. Leave it empty to use the tab’s title.")
+        let field = s.text(st.name, placeholder: Redaction.shared.text(tabTitle(session) ?? ""))
+        s.field("Name", field)
+        s.buttons([("Rename", true, { [weak s] in
+            let name = field.stringValue
+            Task { try? await Services.bridge.Rename(session, name) }
+            s?.close()
+        })])
+        s.present(in: window, focus: field)
+    }
+
+    /// agent-group: the tab group agents' tabs join.
+    static let groupName = "agents"
+
+    /// agent-group: an agent's tab joins its window's "agents" group (made
+    /// when needed). Not in the background window, whose tabs aren't shown.
+    static func autoGroup(_ session: String) {
+        guard Settings.shared.config?.agentGroup != false, let (w, p) = find(session), !w.background,
+              let t = w.model.tabOf(pane: p.id), t.groupId == nil || t.groupId != w.model.groupNamed(groupName) else { return }
+        w.model.joinNamedGroup(t.id, groupName)
+    }
+
+    /// Its Claude Code ended: the tab leaves the "agents" group, unless
+    /// another agent runs in one of its panes.
+    private static func autoUngroup(_ pane: Int, in w: WindowController) {
+        guard Settings.shared.config?.agentGroup != false, let t = w.model.tabOf(pane: pane),
+              let g = t.groupId, g == w.model.groupNamed(groupName) else { return }
+        let others = t.root.leaves.contains { id in id != pane && w.model.panes[id]?.sessionId.flatMap { all[$0] } != nil }
+        if !others { w.model.removeFromGroup(t.id) }
+    }
+
     /// Calls `f` after every change while `owner` lives.
     static func observe(_ owner: AnyObject, _ f: @escaping () -> Void) {
         observers.append(({ [weak owner] in owner }, f))
@@ -130,6 +182,13 @@ enum Agents {
             all[st.session] = st
         }
         let place = find(st.session)
+        if let (w, p) = place, !w.background {
+            if old == nil, st.state != "ended" {
+                autoGroup(st.session)
+            } else if st.state == "ended" {
+                autoUngroup(p.id, in: w)
+            }
+        }
         place?.0.refreshStrip()
         // A background agent that quit leaves only its shell: close it.
         if st.state == "ended", let (w, p) = place, w.background { w.model.closePane(p.id) }
@@ -142,16 +201,36 @@ enum Agents {
             return
         }
         guard now != old, let tab = w.model.tabOf(pane: p.id) else { return }
-        let title = w.model.title(tab)
+        let title = st.name.isEmpty ? w.model.title(tab) : st.name
         switch now {
         case .waiting:
             let body = Redaction.shared.text(st.message)
             Task { try? await Backend.run("notify", "Notify", ["Claude Code needs you", title, body]) }
+            playSound(.attention)
         case .done:
             Task { try? await Backend.run("notify", "Notify", ["Claude Code finished", title, Redaction.shared.text(st.prompt)]) }
+            playSound(.complete)
         default:
             break
         }
+    }
+
+    /// agent-sound: a short system sound with an agent's notification, one
+    /// for each kind. Played here, not by the notification, so it doesn't
+    /// depend on wtf's notification permission.
+    enum Sound: String {
+        case attention = "Glass" // needs you
+        case complete = "Pop" // finished
+    }
+
+    private static var lastSound = Date.distantPast
+
+    /// Agents that change together make one sound.
+    static func playSound(_ s: Sound, preview: Bool = false) {
+        guard preview || Settings.shared.config?.agentSound != false else { return }
+        guard preview || Date().timeIntervalSince(lastSound) > 1.5 else { return }
+        lastSound = Date()
+        NSSound(named: NSSound.Name(s.rawValue))?.play()
     }
 
     private static func updateDock() {

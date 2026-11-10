@@ -20,7 +20,9 @@ func init() {
 }
 
 // agentsTab is the Agents tab (#33): every Claude Code in wtf's shells,
-// across windows, most urgent first. A click goes to it. Event-driven (the
+// across windows, in the order they started (rows don't move), by the name
+// you gave them or their tab's title. A click goes to it; a double-click
+// renames it. Event-driven (the
 // agent list's changes); the only timer redraws "4m" every 30s, and only
 // while the tab exists. As macos/Sources/Wtf/AgentsView.swift.
 type agentsTab struct {
@@ -41,6 +43,11 @@ func newAgentsTab(w *Window) *agentsTab {
 	t.list = newSideList(false)
 	t.list.onClick = t.activate
 	t.list.onActivate = t.activate
+	t.list.onDoubleClick = func(id string) {
+		if session, toggle := agentRowSession(id); !toggle && id == session {
+			w.renameAgent(session)
+		}
+	}
 	t.list.onMenu = func(ids []string, x, y float64) {
 		session, _ := agentRowSession(ids[0])
 		open := "Go to Claude Code"
@@ -48,7 +55,8 @@ func newAgentsTab(w *Window) *agentsTab {
 			open = "Open in Tab"
 		}
 		items := []*menuItem{{label: open, run: func() { w.app.goToAgent(session) }},
-			{label: "Peek and Reply…", run: func() { w.app.peekAgent(session, &w.win.Window) }}}
+			{label: "Peek and Reply…", run: func() { w.app.peekAgent(session, &w.win.Window) }},
+			{label: "Rename…", run: func() { w.renameAgent(session) }}}
 		if len(w.app.agents.all[session].Subagents) > 0 {
 			label := "Show Sub-agents"
 			if w.app.agents.subagentsShown[session] {
@@ -183,16 +191,20 @@ func (t *agentsTab) rebuild() {
 		focused = ps.SessionID
 	}
 	var rows, parked []sideRow
-	for _, st := range a.agents.sorted() {
+	// Fixed order (when each started), so a row never moves.
+	for _, st := range a.agents.listed() {
 		state := agentState(st)
-		title, cwd := a.agentPlace(st.Session)
+		_, cwd := a.agentPlace(st.Session)
+		title, tab := a.agentTitle(st)
 		detail := agentLabel(state)
-		if cwd != "" {
-			detail += " · " + cwd
+		for _, s := range []string{tab, cwd} {
+			if s != "" {
+				detail += " · " + s
+			}
 		}
 		r := sideRow{id: st.Session, dot: "agent-" + state, title: title, detail: detail,
 			pills: []sidePill{{text: agentAge(st.Since), tip: "In this state since then"}}, highlighted: st.Session == focused,
-			tip: "Go to this Claude Code"}
+			tip: "Go to this Claude Code; double-click to name it"}
 		if state == bridge.StateWaiting && st.Message != "" {
 			r.alert, r.alertClass = a.settings.text(st.Message), "agent-alert"
 		} else if st.Prompt != "" {
@@ -202,7 +214,7 @@ func (t *agentsTab) rebuild() {
 		r.button, r.buttonTip, r.buttonRun = "view-reveal-symbolic", "Peek and reply", func() { a.peekAgent(session, &t.w.win.Window) }
 		subs := t.subagentRows(st)
 		if aw := a.windowOf(st.Session); aw != nil && aw.background {
-			r.tip = "Open it in a tab"
+			r.tip = "Open it in a tab; double-click to name it"
 			parked = append(append(parked, r), subs...)
 			continue
 		}

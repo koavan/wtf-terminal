@@ -9,11 +9,23 @@ Each row shows:
   - **Done** (green): it finished while you were looking elsewhere. It stays done until you look at its pane.
   - **Working** (accent colour).
   - **Idle** (grey): waiting for your next prompt.
-- the tab's title and the folder it runs in;
+- its name, if you gave it one (otherwise the tab's title), and the folder it runs in;
 - the first line of your last prompt (secrets hidden);
 - how long it's been in that state.
 
-The most urgent come first: needs you, then done, working and idle. Click a row to go to that window, tab and pane; right-click for **Copy Folder Path**.
+Agents are listed in the order they started, and a row stays where it is whatever its state, so you can find one at a glance. Click a row to go to that window, tab and pane; right-click for **Copy Folder Path**.
+
+## The agents tab group
+
+Every tab running Claude Code joins its window's **agents** [tab group](#tabs), so your agents sit together in the tab strip. wtf makes the group, in the next free colour, when the first agent starts, and a tab leaves it when its Claude Code ends (unless another agent runs in one of its panes). The group goes when its last tab leaves. A tab that was in another group moves over. Agents kept running in the background aren't in a window's tabs, so they're left out until you open them in a tab again.
+
+You can collapse, rename or recolour the group like any other. Turn this off with **Group tabs running Claude Code under "agents"** in **Settings** ({{mac:⌘,|other:Ctrl+,}}) → **General**, or `agent-group = false` in `config.toml`.
+
+## Name an agent
+
+Double-click an agent (or right-click → **Rename…**) and give it a name, such as `deploy fixer` or `reviewer`. The name replaces the tab's title in the Agents tab, in {{cmd:agents.pick}} and in its notifications; the tab's title moves to the second line. Leave it empty to go back to the tab's title.
+
+The name stays with the agent's shell: quit Claude Code and start it again in the same tab, and it keeps its name. It's forgotten when the shell closes or wtf quits.
 
 ## Sub-agents
 
@@ -51,10 +63,10 @@ For each agent, in the Agents tab (the eye button, or right-click):
 
 ## Without opening the side pane
 
-- {{cmd:agents.pick}} lists the same rows in the command palette. Type to filter: `needs`, `done`, `working`, `idle`, or part of a tab title, folder or prompt.
+- {{cmd:agents.pick}} lists the same agents in the command palette, most urgent first: needs you, then done, working and idle. Type to filter: `needs`, `done`, `working`, `idle`, or part of a name, tab title, folder or prompt.
 - {{cmd:agents.next}} goes to the next agent that needs you, then to the next one that's done, round and round.
 - The tab strip shows a badge on every tab running Claude Code: {{mac:an orange speech bubble|other:an orange !}} needs you, {{mac:a green check|other:a green ✓}} done, {{mac:a sparkle|other:✦}} working, {{mac:a grey sparkle|other:a grey ✦}} idle.
-- When one needs you or finishes and you're looking at something else (another tab, another window, another app), wtf shows a notification.
+- When one needs you or finishes and you're looking at something else (another tab, another window, another app), wtf shows a notification and plays a short sound: {{mac:*Glass* when it needs you, *Pop* when it finishes|other:your desktop's "new message" sound when it needs you, its "complete" sound when it finishes}}. Several at once make one sound. Turn the sound off with **Play a sound when an agent needs you or finishes** in **Settings** ({{mac:⌘,|other:Ctrl+,}}) → **General**, or `agent-sound = false` in `config.toml`.{{mac:|other: On Linux the notification daemon plays it (so Do Not Disturb applies); if it can't, wtf uses `canberra-gtk-play` when it's installed.}}
 - On macOS, the Dock icon shows how many need you.
 
 ## How wtf knows

@@ -103,6 +103,16 @@ func (s *Service) SetAgentStatus(on bool) error {
 	return s.set("agent-status", strconv.FormatBool(on))
 }
 
+// SetAgentSound turns agent-sound on or off.
+func (s *Service) SetAgentSound(on bool) error {
+	return s.set("agent-sound", strconv.FormatBool(on))
+}
+
+// SetAgentGroup turns agent-group on or off.
+func (s *Service) SetAgentGroup(on bool) error {
+	return s.set("agent-group", strconv.FormatBool(on))
+}
+
 // SetAgentClose sets what closing a pane running Claude Code does: "ask",
 // "background" or "end".
 func (s *Service) SetAgentClose(mode string) error {

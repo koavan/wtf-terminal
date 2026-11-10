@@ -741,6 +741,31 @@ Built 2026-11-09:
 
 Still to do: hands-on with real Claude Code.
 
+### 36. Spotting agents at a glance ☐
+
+Asked 2026-11-09: hear an agent that needs you, and find one in the list or
+the tab strip without reading every row.
+
+Built 2026-11-09:
+
+- `agent-sound` (on): a short sound with an agent's notification, one for
+  needs you and one for finished (macOS Glass / Pop, played in the app;
+  Linux the freedesktop message-new-instant / complete through the
+  notification daemon when it has the sound capability, else
+  canberra-gtk-play). One sound per 1.5 s.
+- The Agents tab lists agents in the order they started (bridge.Status
+  `started`); rows don't move. Go to Agent… stays most urgent first.
+- Names: double-click or Rename… (bridge.Rename); shown in the Agents tab,
+  the picker and notifications; kept with the shell across claude restarts,
+  dropped when it closes.
+- `agent-group` (on): a tab running Claude Code joins its window's "agents"
+  tab group (made when needed) and leaves it when Claude Code ends, unless
+  another agent runs in it. Background agents are left out.
+- Self-check `claude` covers names and the group on macOS and Linux; a
+  stand-in notify-send / canberra test covers the Linux sound.
+
+Still to do: hands-on with real Claude Code; listening to the sounds.
+
 ## Also built
 
 - Resource usage (2026-10-13): wtf's own CPU and memory in the address bar

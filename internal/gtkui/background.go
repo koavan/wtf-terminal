@@ -120,6 +120,8 @@ func (a *App) openAgent(session string) {
 	if !ok {
 		return
 	}
+	// agent-group: back in a window's tabs, it joins "agents".
+	defer coreglib.IdleAdd(func() { a.autoGroup(session) })
 	if front := a.front(); front != nil {
 		bg.moveTab(t.ID, front, 0)
 		return

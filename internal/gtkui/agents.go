@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/dayanraj/wtf/internal/bridge"
+	"github.com/dayanraj/wtf/internal/notify"
 	"github.com/dayanraj/wtf/internal/uicore"
 )
 
@@ -32,6 +33,8 @@ type agentList struct {
 	// The agents whose sub-agents the Agents tab shows (collapsed by
 	// default; remembered while wtf runs).
 	subagentsShown map[string]bool
+	// When an agent notification last played its sound (agent-sound).
+	lastSound time.Time
 }
 
 func newAgentList() *agentList {
@@ -114,6 +117,103 @@ func (l *agentList) sorted() []bridge.Status {
 	return out
 }
 
+// agentGroupName is the tab group agents' tabs join (agent-group).
+const agentGroupName = "agents"
+
+// autoGroup (agent-group): an agent's tab joins its window's "agents"
+// group, made when needed. Not in the background window, whose tabs
+// aren't shown.
+func (a *App) autoGroup(session string) {
+	w := a.windowOf(session)
+	if w == nil || w.background || !a.settings.config().AgentGroup {
+		return
+	}
+	ps := w.model.PaneBySession(session)
+	if ps == nil {
+		return
+	}
+	t, ok := w.model.TabOf(ps.ID)
+	if !ok || (t.GroupID != 0 && t.GroupID == w.model.GroupNamed(agentGroupName)) {
+		return
+	}
+	w.model.JoinNamedGroup(t.ID, agentGroupName)
+}
+
+// autoUngroup: its Claude Code ended, so the tab leaves the "agents" group,
+// unless another agent runs in one of its panes.
+func (w *Window) autoUngroup(session string) {
+	if !w.app.settings.config().AgentGroup {
+		return
+	}
+	ps := w.model.PaneBySession(session)
+	if ps == nil {
+		return
+	}
+	t, ok := w.model.TabOf(ps.ID)
+	if !ok || t.GroupID == 0 || t.GroupID != w.model.GroupNamed(agentGroupName) {
+		return
+	}
+	for _, id := range t.Root.Leaves() {
+		if p := w.model.Panes[id]; id != ps.ID && p != nil && p.SessionID != "" {
+			if _, ok := w.app.agents.all[p.SessionID]; ok {
+				return
+			}
+		}
+	}
+	w.model.RemoveFromGroup(t.ID)
+}
+
+// listed: the order wtf first heard of them, for the Agents tab, so a row
+// stays where it is whatever its state.
+func (l *agentList) listed() []bridge.Status {
+	out := make([]bridge.Status, 0, len(l.all))
+	for _, st := range l.all {
+		out = append(out, st)
+	}
+	slices.SortFunc(out, func(a, b bridge.Status) int {
+		if a.Started != b.Started {
+			if a.Started < b.Started {
+				return -1
+			}
+			return 1
+		}
+		return strings.Compare(a.Session, b.Session)
+	})
+	return out
+}
+
+// agentTitle is what an agent is called: the name you gave it, or its
+// tab's title; tab is the tab's title when it has a name ("" otherwise).
+func (a *App) agentTitle(st bridge.Status) (title, tab string) {
+	t, _ := a.agentPlace(st.Session)
+	if st.Name == "" {
+		return t, ""
+	}
+	return st.Name, t
+}
+
+// renameAgent (Rename…): a name for the agent, shown in the Agents tab, the
+// picker and its notifications. It stays with its shell.
+func (w *Window) renameAgent(session string) {
+	st, ok := w.app.agents.all[session]
+	if !ok {
+		return
+	}
+	tab, _ := w.app.agentPlace(session)
+	f := newKubeForm(w, "Rename Agent", "Shown in the Agents tab, Go to Agent… and its notifications. It stays with this shell: a claude you start there again gets it too. Leave it empty to use the tab's title.")
+	field := f.entry(st.Name, tab)
+	f.field("Name", field)
+	f.button("ok", "Rename")
+	bridgeSvc := w.app.be.Bridge
+	f.d.ConnectResponse(func(id string) {
+		if id == "ok" {
+			name := field.Text()
+			go bridgeSvc.Rename(session, name)
+		}
+	})
+	f.present(field)
+}
+
 // agentTabState is a tab's badge: its most urgent agent ("" for none).
 func (w *Window) agentTabState(leaves []int) string {
 	found := ""
@@ -177,6 +277,13 @@ func (a *App) agentStatus(st bridge.Status) {
 		l.all[st.Session] = st
 	}
 	w := a.windowOf(st.Session)
+	if w != nil && !w.background {
+		if !had && st.State != bridge.StateEnded {
+			a.autoGroup(st.Session)
+		} else if st.State == bridge.StateEnded {
+			w.autoUngroup(st.Session)
+		}
+	}
 	if w != nil {
 		w.strip.refresh()
 	}
@@ -211,17 +318,36 @@ func (a *App) agentStatus(st bridge.Status) {
 		return
 	}
 	title := a.settings.text(w.model.Title(t))
-	var head, body string
+	if st.Name != "" {
+		title = st.Name
+	}
+	var head, body, sound string
 	switch now {
 	case bridge.StateWaiting:
-		head, body = "Claude Code needs you", a.settings.text(st.Message)
+		head, body, sound = "Claude Code needs you", a.settings.text(st.Message), notify.SoundAttention
 	case agentDone:
-		head, body = "Claude Code finished", a.settings.text(st.Prompt)
+		head, body, sound = "Claude Code finished", a.settings.text(st.Prompt), notify.SoundComplete
 	default:
 		return
 	}
-	notify := a.be.Notify
-	go func() { _ = notify.Notify(head, title, body) }()
+	if !a.agents.soundDue(a.settings.config().AgentSound) {
+		sound = ""
+	}
+	n := a.be.Notify
+	go func() { _ = n.NotifySound(head, title, body, sound) }()
+}
+
+// soundGap: agents that change together make one sound.
+const soundGap = 1500 * time.Millisecond
+
+// soundDue says whether an agent notification may play its sound now
+// (agent-sound on, and none played in the last soundGap).
+func (l *agentList) soundDue(on bool) bool {
+	if !on || time.Since(l.lastSound) < soundGap {
+		return false
+	}
+	l.lastSound = time.Now()
+	return true
 }
 
 // goToAgent shows an agent's window, tab and pane; a background one comes
@@ -307,19 +433,20 @@ func agentAge(since int64) string {
 }
 
 // agentEntries are the picker's rows (Go to Agent…): every Claude Code,
-// most urgent first.
+// most urgent first, by its name or tab title.
 func (w *Window) agentEntries() []paletteEntry {
 	a := w.app
 	var out []paletteEntry
 	for _, st := range a.agents.sorted() {
 		state := agentState(st)
-		title, cwd := a.agentPlace(st.Session)
+		_, cwd := a.agentPlace(st.Session)
+		title, tab := a.agentTitle(st)
 		what := st.Prompt
 		if state == bridge.StateWaiting && st.Message != "" {
 			what = st.Message
 		}
 		detail := agentLabel(state)
-		for _, s := range []string{cwd, a.settings.text(what)} {
+		for _, s := range []string{tab, cwd, a.settings.text(what)} {
 			if s != "" {
 				detail += " · " + s
 			}

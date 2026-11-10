@@ -161,6 +161,8 @@ enum Background {
         } else {
             bg.moveToOwnWindow(t.id)
         }
+        // agent-group: back in a window's tabs, it joins "agents".
+        DispatchQueue.main.async { Agents.autoGroup(session) }
     }
 
     /// Ends an agent (its shell too), after asking.

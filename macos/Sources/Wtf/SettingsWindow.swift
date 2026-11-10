@@ -214,6 +214,14 @@ final class SettingsWindow: NSObject, NSWindowDelegate, NSToolbarDelegate {
         agents.state = Settings.shared.config?.agentStatus == false ? .off : .on
         agents.toolTip = "wtf's shell integration adds hooks that report what claude is doing, for that run only; nothing is written to ~/.claude. Applies to new panes"
         content.addArrangedSubview(agents)
+        let sound = NSButton(checkboxWithTitle: "Play a sound when an agent needs you or finishes (agent-sound)", target: self, action: #selector(toggleAgentSound(_:)))
+        sound.state = Settings.shared.config?.agentSound == false ? .off : .on
+        sound.toolTip = "With its notification: Glass when it needs you, Pop when it finishes"
+        content.addArrangedSubview(sound)
+        let group = NSButton(checkboxWithTitle: "Group tabs running Claude Code under “agents” (agent-group)", target: self, action: #selector(toggleAgentGroup(_:)))
+        group.state = Settings.shared.config?.agentGroup == false ? .off : .on
+        group.toolTip = "A tab joins its window's agents tab group when Claude Code starts in it, and leaves when it ends"
+        content.addArrangedSubview(group)
         let closing = NSPopUpButton()
         closing.addItems(withTitles: ["Ask", "Keep running in background", "End it"])
         closing.selectItem(at: ["ask", "background", "end"].firstIndex(of: Settings.shared.config?.agentClose ?? "ask") ?? 0)
@@ -228,6 +236,28 @@ final class SettingsWindow: NSObject, NSWindowDelegate, NSToolbarDelegate {
         let mode = ["ask", "background", "end"][max(0, sender.indexOfSelectedItem)]
         Task {
             do { try await Services.config.SetAgentClose(mode) } catch {
+                Toast.show("Couldn't change the setting: \(error.localizedDescription)", in: window.contentView)
+            }
+        }
+    }
+
+    @objc private func toggleAgentGroup(_ sender: NSButton) {
+        let on = sender.state == .on
+        Task {
+            do { try await Services.config.SetAgentGroup(on) } catch {
+                sender.state = on ? .off : .on
+                Toast.show("Couldn't change the setting: \(error.localizedDescription)", in: window.contentView)
+            }
+        }
+    }
+
+    @objc private func toggleAgentSound(_ sender: NSButton) {
+        let on = sender.state == .on
+        // Turned on: what it sounds like.
+        if on { Agents.playSound(.attention, preview: true) }
+        Task {
+            do { try await Services.config.SetAgentSound(on) } catch {
+                sender.state = on ? .off : .on
                 Toast.show("Couldn't change the setting: \(error.localizedDescription)", in: window.contentView)
             }
         }

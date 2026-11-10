@@ -2,7 +2,8 @@ import AppKit
 import WtfCore
 
 /// The Agents tab (#33): every Claude Code in wtf's shells, across windows,
-/// most urgent first: needs you, done, working, idle. A click goes to it.
+/// in the order they started (rows don't move), by the name you gave them
+/// or their tab's title. A click goes to it; a double-click renames it.
 /// Event-driven (Agents' changes); the only timer redraws "for 3m" every
 /// 30s, and only while the tab shows.
 @MainActor
@@ -72,7 +73,8 @@ final class AgentsView: NSView, SidePaneTab {
 
     private func rebuild() {
         form.clear()
-        let list = Agents.sorted()
+        // Fixed order (when each started), so a row never moves.
+        let list = Agents.listed()
         if list.isEmpty {
             form.add(form.label("No Claude Code running", bold: true))
             if Settings.shared.config?.agentStatus == false {
@@ -115,7 +117,8 @@ private final class AgentRow: NSView {
         layer?.cornerRadius = 7
         let state = Agents.state(st)
         let place = Agents.find(st.session)
-        let title = place.flatMap { w, p in w.model.tabOf(pane: p.id).map { w.model.title($0) } } ?? st.session
+        let title = Agents.title(st)
+        let tab = st.name.isEmpty ? "" : Redaction.shared.text(Agents.tabTitle(st.session) ?? "")
         let cwd = place.map { WindowModel.prettyPath($0.1.cwd) } ?? ""
 
         let dot = NSView()
@@ -125,7 +128,7 @@ private final class AgentRow: NSView {
         dot.translatesAutoresizingMaskIntoConstraints = false
         NSLayoutConstraint.activate([dot.widthAnchor.constraint(equalToConstant: 8), dot.heightAnchor.constraint(equalToConstant: 8)])
 
-        let name = NSTextField(labelWithString: Redaction.shared.text(title))
+        let name = NSTextField(labelWithString: title)
         name.font = .systemFont(ofSize: 12, weight: .semibold)
         name.lineBreakMode = .byTruncatingTail
         name.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
@@ -138,7 +141,7 @@ private final class AgentRow: NSView {
         let top = NSStackView(views: [dot, name, spacer, age])
         top.spacing = 6
 
-        let what = NSTextField(labelWithString: ([state.label] + (cwd.isEmpty ? [] : [cwd])).joined(separator: " · "))
+        let what = NSTextField(labelWithString: [state.label, tab, cwd].filter { !$0.isEmpty }.joined(separator: " · "))
         what.font = .systemFont(ofSize: 11, weight: state == .waiting ? .semibold : .regular)
         what.textColor = state == .waiting ? .systemOrange : .secondaryLabelColor
         what.lineBreakMode = .byTruncatingMiddle
@@ -192,14 +195,20 @@ private final class AgentRow: NSView {
         if owner.model.active.flatMap({ owner.model.focusedPane($0) })?.sessionId == st.session {
             layer?.backgroundColor = NSColor.selectedContentBackgroundColor.withAlphaComponent(0.18).cgColor
         }
-        toolTip = place?.0.background == true ? "Open it in a tab" : "Go to this Claude Code"
+        toolTip = (place?.0.background == true ? "Open it in a tab" : "Go to this Claude Code") + "; double-click to name it"
         setAccessibilityRole(.button)
         setAccessibilityLabel("\(title): Claude Code \(state.label.lowercased())")
     }
 
     required init?(coder: NSCoder) { fatalError() }
 
-    override func mouseDown(with event: NSEvent) { Agents.go(to: session) }
+    override func mouseDown(with event: NSEvent) {
+        if event.clickCount == 2 {
+            Agents.rename(session, in: window)
+        } else {
+            Agents.go(to: session)
+        }
+    }
 
     @objc private func peekClicked() { Background.peek(session) }
 
@@ -230,6 +239,7 @@ private final class AgentRow: NSView {
         let parked = Agents.find(session)?.0.background == true
         m.addItem(ClosureMenuItem(title: parked ? "Open in Tab" : "Go to Claude Code", keyEquivalent: "") { [session] in Agents.go(to: session) })
         m.addItem(ClosureMenuItem(title: "Peek and Reply…", keyEquivalent: "") { [session] in Background.peek(session) })
+        m.addItem(ClosureMenuItem(title: "Rename…", keyEquivalent: "") { [session, weak self] in Agents.rename(session, in: self?.window) })
         if Agents.all[session]?.subagents.isEmpty == false {
             let shown = Agents.subagentsShown.contains(session)
             m.addItem(ClosureMenuItem(title: shown ? "Hide Sub-agents" : "Show Sub-agents", keyEquivalent: "") { [session] in

@@ -112,7 +112,16 @@ type Status struct {
 	// The sub-agents it started, oldest first: the running ones and those
 	// done since its last prompt.
 	Subagents []Subagent `json:"subagents"`
+	// The name you gave it in the Agents tab ("" for none). It stays with
+	// its shell: a claude started there again gets it back.
+	Name string `json:"name"`
+	// When wtf first heard of it (Unix milliseconds): the Agents tab lists
+	// agents in this order, so a row never moves.
+	Started int64 `json:"started"`
 }
+
+// maxName is how long an agent's name can be.
+const maxName = 60
 
 // maxPrompt is how much of a prompt the Agents tab shows.
 const maxPrompt = 160
@@ -185,6 +194,8 @@ type Service struct {
 	targets map[string]string
 	// Session → the Claude Code running in it (from its hooks).
 	agents map[string]*Status
+	// Session → the name you gave its agent, kept until its shell closes.
+	names map[string]string
 	// The status-only settings for claude (claude-plugin/status-settings.json);
 	// "" without the plugin.
 	statusSettings string
@@ -202,7 +213,7 @@ type Service struct {
 }
 
 func NewService(in *infra.Service) *Service {
-	s := &Service{infra: in, pending: map[string]chan Reply{}, targets: map[string]string{}, agents: map[string]*Status{}}
+	s := &Service{infra: in, pending: map[string]chan Reply{}, targets: map[string]string{}, agents: map[string]*Status{}, names: map[string]string{}}
 	// Next to the app (macOS: Contents/MacOS; a Linux dev build), or where
 	// the Linux packages put it (/usr/bin/wtf → /usr/lib/wtf/wtf-mcp).
 	if exe, err := os.Executable(); err == nil {
@@ -336,8 +347,7 @@ func (s *Service) setState(session, state, message, prompt string, newPrompt boo
 		return Status{Session: session, State: StateEnded, Since: time.Now().UnixMilli()}, true
 	}
 	if a == nil {
-		a = &Status{Session: session}
-		s.agents[session] = a
+		a = s.newAgent(session)
 	}
 	old := a.clone()
 	if newPrompt {
@@ -363,6 +373,46 @@ func (s *Service) setState(session, state, message, prompt string, newPrompt boo
 	}
 	a.State = state
 	return a.clone(), !a.equal(old)
+}
+
+// newAgent starts listing session's Claude Code. Locked.
+func (s *Service) newAgent(session string) *Status {
+	now := time.Now().UnixMilli()
+	a := &Status{Session: session, Since: now, Started: now, Name: s.names[session]}
+	s.agents[session] = a
+	return a
+}
+
+// Rename names session's agent ("" clears it), from the Agents tab. The
+// name stays with the shell, for the next claude started there.
+func (s *Service) Rename(session, name string) {
+	name = strings.Join(strings.Fields(name), " ")
+	if r := []rune(name); len(r) > maxName {
+		name = string(r[:maxName])
+	}
+	s.mu.Lock()
+	if name == "" {
+		delete(s.names, session)
+	} else {
+		s.names[session] = name
+	}
+	a := s.agents[session]
+	if a == nil || a.Name == name {
+		s.mu.Unlock()
+		return
+	}
+	a.Name = name
+	st := a.clone()
+	s.mu.Unlock()
+	events.Emit(EventStatus, st)
+}
+
+// ShellClosed forgets session's Claude Code and the name you gave it.
+func (s *Service) ShellClosed(session string) {
+	s.mu.Lock()
+	delete(s.names, session)
+	s.mu.Unlock()
+	s.Forget(session)
 }
 
 // shortPrompt is a prompt's first non-empty line, redacted and shortened.

@@ -219,16 +219,16 @@ final class Palette: NSView, NSTextFieldDelegate {
         }
     }
 
-    /// Every Claude Code, most urgent first (Agents tab order).
+    /// Every Claude Code, most urgent first, by its name or tab title.
     private func agentEntries() -> [Entry] {
         Agents.sorted().map { st in
             let state = Agents.state(st)
             let place = Agents.find(st.session)
-            let title = place.flatMap { w, p in w.model.tabOf(pane: p.id).map { w.model.title($0) } } ?? st.session
             let cwd = place.map { WindowModel.prettyPath($0.1.cwd) } ?? ""
+            let tab = st.name.isEmpty ? "" : Redaction.shared.text(Agents.tabTitle(st.session) ?? "")
             let what = state == .waiting && !st.message.isEmpty ? st.message : st.prompt
-            let detail = [state.label, cwd, Redaction.shared.text(what)].filter { !$0.isEmpty }.joined(separator: " · ")
-            return Entry(section: .agents, label: Redaction.shared.text(title) + " — " + state.label.lowercased(), detail: detail,
+            let detail = [state.label, tab, cwd, Redaction.shared.text(what)].filter { !$0.isEmpty }.joined(separator: " · ")
+            return Entry(section: .agents, label: Agents.title(st) + " — " + state.label.lowercased(), detail: detail,
                          hint: Agents.age(since: st.since), dot: Agents.color(state)) { Agents.go(to: st.session) }
         }
     }
