@@ -453,7 +453,7 @@ palette and right-click; the finding cites steps, Type Fix at Prompt.
 Linux self-check `investigate` (fake Claude API in-process, stand-in kubectl).
 
 
-### 32. AI through Claude Code (rearchitecture) ☐
+### 32. AI through Claude Code (rearchitecture) ◐
 
 Agreed 2026-11-02, after #23–#27 were built on API-key providers. wtf's AI
 moves to the user's own Claude Code, run interactively in a wtf pane with a
@@ -644,7 +644,7 @@ contexts as facts when the shell now points elsewhere). Homes: the palette
 
 ## Tier 7 — agents
 
-### 33. Agents tab ☐
+### 33. Agents tab ☑
 
 Like herdr's agent sidebar: every coding agent running in wtf's shells, with
 whether it's working or waiting for you, so you don't poll tabs. State
@@ -687,7 +687,7 @@ Phases:
 Later: Codex (its `notify` hook), and agents that report through OSC
 9/777/7501.
 
-### 34. Background agents ☐
+### 34. Background agents ☑
 
 Close a tab running Claude Code and it can keep running; the Agents tab
 manages it. Decided with the user (2026-11-06): it lives while wtf runs (not
@@ -719,7 +719,7 @@ Built 2026-11-06:
 
 Still to do: hands-on with real Claude Code.
 
-### 35. Sub-agents in the Agents tab ☐
+### 35. Sub-agents in the Agents tab ☑
 
 See the sub-agents an agent spins up and what they do, folded away by
 default (asked 2026-11-09): a small "▸ 3 sub-agents · 1 working" toggle under
@@ -741,7 +741,7 @@ Built 2026-11-09:
 
 Still to do: hands-on with real Claude Code.
 
-### 36. Spotting agents at a glance ☐
+### 36. Spotting agents at a glance ☑
 
 Asked 2026-11-09: hear an agent that needs you, and find one in the list or
 the tab strip without reading every row.
@@ -757,7 +757,8 @@ Built 2026-11-09:
   `started`); rows don't move. Go to Agent… stays most urgent first.
 - Names: double-click or Rename… (bridge.Rename); shown in the Agents tab,
   the picker and notifications; kept with the shell across claude restarts,
-  dropped when it closes.
+  dropped when it closes. Naming an agent also names its tab; clearing the
+  name puts the tab back to automatic if it still carries that name.
 - `agent-group` (on): a tab running Claude Code joins its window's "agents"
   tab group (made when needed) and leaves it when Claude Code ends, unless
   another agent runs in it. Background agents are left out.
