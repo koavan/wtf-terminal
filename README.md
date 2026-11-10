@@ -565,7 +565,7 @@ tool hooks; a sub-agent's steps don't change its agent's state.
 
 Agents are listed in the order they started, so rows don't move; double-click
 one (or Rename…) to give it a name, shown in the list, the picker and its
-notifications. A short sound plays with an agent's notification, one for
+notifications, and given to its tab too. A short sound plays with an agent's notification, one for
 needs you and one for finished (`agent-sound`), and tabs running Claude Code
 join their window's **agents** tab group (`agent-group`).
 
