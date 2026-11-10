@@ -118,7 +118,7 @@ private final class AgentRow: NSView {
         let state = Agents.state(st)
         let place = Agents.find(st.session)
         let title = Agents.title(st)
-        let tab = st.name.isEmpty ? "" : Redaction.shared.text(Agents.tabTitle(st.session) ?? "")
+        let tab = Agents.tabDetail(st)
         let cwd = place.map { WindowModel.prettyPath($0.1.cwd) } ?? ""
 
         let dot = NSView()

@@ -189,18 +189,22 @@ func (a *App) agentTitle(st bridge.Status) (title, tab string) {
 	if st.Name == "" {
 		return t, ""
 	}
+	if t == a.settings.text(st.Name) {
+		return st.Name, "" // the tab carries the same name
+	}
 	return st.Name, t
 }
 
 // renameAgent (Rename…): a name for the agent, shown in the Agents tab, the
-// picker and its notifications. It stays with its shell.
+// picker and its notifications, and as its tab's title. It stays with its
+// shell.
 func (w *Window) renameAgent(session string) {
 	st, ok := w.app.agents.all[session]
 	if !ok {
 		return
 	}
 	tab, _ := w.app.agentPlace(session)
-	f := newKubeForm(w, "Rename Agent", "Shown in the Agents tab, Go to Agent… and its notifications. It stays with this shell: a claude you start there again gets it too. Leave it empty to use the tab's title.")
+	f := newKubeForm(w, "Rename Agent", "Shown in the Agents tab, Go to Agent…, its notifications and as its tab's title. It stays with this shell: a claude you start there again gets it too. Leave it empty to use the tab's title.")
 	field := f.entry(st.Name, tab)
 	f.field("Name", field)
 	f.button("ok", "Rename")
@@ -208,10 +212,33 @@ func (w *Window) renameAgent(session string) {
 	f.d.ConnectResponse(func(id string) {
 		if id == "ok" {
 			name := field.Text()
+			w.app.renameAgentTab(session, st.Name, name)
 			go bridgeSvc.Rename(session, name)
 		}
 	})
 	f.present(field)
+}
+
+// renameAgentTab gives an agent's tab its new name. Clearing the name puts
+// the tab back to automatic, unless you've since renamed the tab yourself.
+func (a *App) renameAgentTab(session, old, name string) {
+	w := a.windowOf(session)
+	if w == nil {
+		return
+	}
+	ps := w.model.PaneBySession(session)
+	if ps == nil {
+		return
+	}
+	t, ok := w.model.TabOf(ps.ID)
+	if !ok {
+		return
+	}
+	if uicore.CleanTitle(name) != "" {
+		w.model.Rename(t.ID, name)
+	} else if old != "" && t.CustomTitle == uicore.CleanTitle(old) {
+		w.model.Rename(t.ID, "")
+	}
 }
 
 // agentTabState is a tab's badge: its most urgent agent ("" for none).

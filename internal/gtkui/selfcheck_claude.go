@@ -395,7 +395,12 @@ func (w *Window) checkAgents() {
 	check(slices.Equal(ids, []string{session, "subs:" + session}), "another click hides them: %q", ids)
 
 	// A name you give it: the Agents tab and the picker show it.
+	onMain(func() { a.renameAgentTab(session, "", "deploy fixer") })
 	go a.be.Bridge.Rename(session, "deploy fixer")
+	onMain(func() {
+		t, _ := w.model.TabOf(p.id)
+		check(t.CustomTitle == "deploy fixer", "Rename… names its tab too: %q", t.CustomTitle)
+	})
 	check(waitUntil(5*time.Second, func() bool {
 		var title string
 		onMain(func() { title, _ = a.agentTitle(a.agents.all[session]) })

@@ -79,25 +79,45 @@ enum Agents {
         find(session).flatMap { w, p in w.model.tabOf(pane: p.id).map { w.model.title($0) } }
     }
 
+    /// Its tab's title as a detail beside its name: "" when it has no name,
+    /// or when the tab carries the same one.
+    static func tabDetail(_ st: Go.bridge.Status) -> String {
+        guard !st.name.isEmpty else { return "" }
+        let t = Redaction.shared.text(tabTitle(st.session) ?? "")
+        return t == Redaction.shared.text(st.name) ? "" : t
+    }
+
     /// What an agent is called: the name you gave it, or its tab's title.
     static func title(_ st: Go.bridge.Status) -> String {
         st.name.isEmpty ? Redaction.shared.text(tabTitle(st.session) ?? st.session) : st.name
     }
 
     /// Rename…: a name for the agent, shown in the Agents tab, the picker
-    /// and its notifications. It stays with its shell.
+    /// and its notifications, and as its tab's title. It stays with its shell.
     static func rename(_ session: String, in window: NSWindow?) {
         guard let st = all[session] else { return }
         let s = FormSheet(title: "Rename Agent",
-                          subtitle: "Shown in the Agents tab, Go to Agent… and its notifications. It stays with this shell: a claude you start there again gets it too. Leave it empty to use the tab’s title.")
+                          subtitle: "Shown in the Agents tab, Go to Agent…, its notifications and as its tab’s title. It stays with this shell: a claude you start there again gets it too. Leave it empty to use the tab’s title.")
         let field = s.text(st.name, placeholder: Redaction.shared.text(tabTitle(session) ?? ""))
         s.field("Name", field)
         s.buttons([("Rename", true, { [weak s] in
             let name = field.stringValue
+            renameTab(session, old: st.name, name)
             Task { try? await Services.bridge.Rename(session, name) }
             s?.close()
         })])
         s.present(in: window, focus: field)
+    }
+
+    /// Gives an agent's tab its new name. Clearing the name puts the tab
+    /// back to automatic, unless you've since renamed the tab yourself.
+    private static func renameTab(_ session: String, old: String, _ name: String) {
+        guard let (w, p) = find(session), let t = w.model.tabOf(pane: p.id) else { return }
+        if WindowModel.cleanTitle(name) != nil {
+            w.model.rename(t.id, name)
+        } else if !old.isEmpty, t.customTitle == WindowModel.cleanTitle(old) {
+            w.model.rename(t.id, "")
+        }
     }
 
     /// agent-group: the tab group agents' tabs join.

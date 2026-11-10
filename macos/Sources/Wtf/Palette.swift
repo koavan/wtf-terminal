@@ -225,7 +225,7 @@ final class Palette: NSView, NSTextFieldDelegate {
             let state = Agents.state(st)
             let place = Agents.find(st.session)
             let cwd = place.map { WindowModel.prettyPath($0.1.cwd) } ?? ""
-            let tab = st.name.isEmpty ? "" : Redaction.shared.text(Agents.tabTitle(st.session) ?? "")
+            let tab = Agents.tabDetail(st)
             let what = state == .waiting && !st.message.isEmpty ? st.message : st.prompt
             let detail = [state.label, tab, cwd, Redaction.shared.text(what)].filter { !$0.isEmpty }.joined(separator: " · ")
             return Entry(section: .agents, label: Agents.title(st) + " — " + state.label.lowercased(), detail: detail,

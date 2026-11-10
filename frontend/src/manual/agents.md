@@ -23,7 +23,7 @@ You can collapse, rename or recolour the group like any other. Turn this off wit
 
 ## Name an agent
 
-Double-click an agent (or right-click → **Rename…**) and give it a name, such as `deploy fixer` or `reviewer`. The name replaces the tab's title in the Agents tab, in {{cmd:agents.pick}} and in its notifications; the tab's title moves to the second line. Leave it empty to go back to the tab's title.
+Double-click an agent (or right-click → **Rename…**) and give it a name, such as `deploy fixer` or `reviewer`. The name shows in the Agents tab, in {{cmd:agents.pick}} and in its notifications, and becomes the tab's title too. Rename the tab yourself later and the Agents tab shows both: the name first, the tab's title on the second line. Leave the name empty to go back to the tab's title (and the tab to its automatic title, if it still carries the agent's name).
 
 The name stays with the agent's shell: quit Claude Code and start it again in the same tab, and it keeps its name. It's forgotten when the shell closes or wtf quits.
 
