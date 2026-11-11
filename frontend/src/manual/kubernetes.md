@@ -14,6 +14,7 @@ The header names the cluster; below it, the namespace. Sections, grouped:
 | Storage | PersistentVolumeClaims |
 | Scaling | HorizontalPodAutoscalers |
 | Cluster | Nodes, Events |
+| Access | Permissions |
 
 ## Nothing loads until you ask
 
@@ -50,3 +51,9 @@ Secrets are listed by name, type and number of keys. Their values are read only 
 
 - **View Decoded Values…** (or double-click) reads that one secret. Each key stays masked until you click its eye, or **Reveal All**; the copy button copies a value without showing it (base64 for binary data), and the clipboard empties after 30 seconds (see [Privacy](#privacy)). Everything masks again when wtf loses focus, so a screen share can't catch it. The values live only in that dialog.
 - **Decode in Terminal** prints `key=value` lines in a new tab, using kubectl's own `base64decode`.
+
+## Permissions
+
+**Permissions** (in Access) shows what the context's credentials may do in the namespace, as the cluster answers `kubectl auth can-i --list`. The first row names who you are (`kubectl auth whoami`, Kubernetes 1.28 and later; hover for your groups). Each other row is a resource (or a URL like `/healthz`) and its verbs. **Only:** means the rule applies to the named objects alone. A row reading **Full access** means every verb on every resource.
+
+It's read when you expand it and when the context or namespace changes, but not on the 10-second refresh: collapse and expand it to ask again. It reads only and changes nothing. Some clusters can't answer this fully (webhook authorizers, for example), and then kubectl says so in the list.

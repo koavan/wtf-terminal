@@ -226,6 +226,7 @@ final class AwsView: NSView, SidePaneTab, NSSearchFieldDelegate {
         m.addItem(.separator())
         add("Check Identity (sts)") { AwsStore.shared.verify(p.name) }
         if p.kind == "keys" { add("Check Access Keys (iam)") { AwsStore.shared.checkKeys(p.name) } }
+        add("Check Permissions (iam)…") { AwsPermissionsViewer.show(p.name, in: o) }
         m.addItem(.separator())
         add("Edit…") { AwsProfileEditor.show(p, in: o) }
         if p.kind == "keys", p.accessKeyId.hasPrefix("AKIA") { add("Rotate Access Key…") { AwsRotate.show(p, in: o) } }

@@ -160,6 +160,12 @@ public enum Kube {
         }
     }
 
+    /// A permission rule's second line: its verbs, and the objects it's limited to.
+    public static func ruleDetail(_ r: Go.kube.Rule) -> String {
+        let verbs = r.verbs == ["*"] ? "all verbs" : r.verbs.joined(separator: ", ")
+        return r.names.isEmpty ? verbs : "\(verbs) · only: \(r.names.joined(separator: ", "))"
+    }
+
     public static func rowSummary(_ kind: String, _ cells: [String: String]) -> String {
         let cols = tableKinds.first { $0.id == kind }?.columns ?? []
         var parts = cols.compactMap { c -> String? in

@@ -97,6 +97,7 @@ var Commands = func() []Command {
 		cmd("sidebar.findings", "Show Findings", "Ctrl+Alt+F"),
 		cmd("sidebar.share", "Show Share & Record", "Ctrl+Alt+J"),
 		cmd("sidebar.generate", "Show Generate Keys & Passwords", "Ctrl+Alt+G"),
+		cmd("sidebar.secrets", "Show Cloud Secrets", "Ctrl+Alt+X"),
 		cmd("usage.show", "Resource Usage…", ""),
 		cmd("secrets.toggle", "Hide Secrets", "Ctrl+Alt+Shift+R"),
 		cmd("prompt.prev", "Previous Prompt", "Ctrl+Shift+Up"),

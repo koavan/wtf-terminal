@@ -9,6 +9,7 @@
 | [SSH](#ssh-hosts) | {{key:sidebar.ssh}} | hosts, keys, [git identities](#git-identities), tunnels |
 | [AWS Profiles](#aws) | {{key:sidebar.aws}} | AWS CLI profiles |
 | [Kubernetes](#kubernetes) | {{key:sidebar.kube}} | cluster resources and kubeconfig contexts |
+| [Cloud Secrets](#cloud-secrets) | {{key:sidebar.secrets}} | AWS Secrets Manager, Parameter Store and Vault |
 | [Snippets](#snippets) | {{key:sidebar.snippets}} | saved commands and runbooks |
 | [Workspaces](#workspaces) | {{key:sidebar.workspaces}} | sets of tabs to open in one go |
 | [Network](#network) | {{key:sidebar.network}} | listening ports and connections |

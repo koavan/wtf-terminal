@@ -13,6 +13,7 @@ These only read, so they don't ask first. They run the AWS CLI; if it isn't inst
 
 - **Check Identity (sts)** — who the credentials belong to (account and ARN), via `aws sts get-caller-identity`, which needs no permissions.
 - **Check Access Keys (iam)** — for access-key profiles: each key of the IAM user, active or not, how many days old, and when and for what it was last used.
+- **Check Permissions (iam)…** — who the credentials are (IAM user, assumed role and its session, or the root user) and the IAM policies that apply: the permissions boundary, the policies attached to the user or role, and its inline policies, plus, for a user, those of each of its groups. **Show** reads a policy's JSON document (a managed policy's default version). This lists what's attached. It doesn't evaluate it: service control policies, resource policies and session policies can still allow less. Each list IAM refuses (say `iam:ListAttachedRolePolicies: AccessDenied`) is named, and the rest are still shown. It needs `iam:GetUser`/`iam:GetRole`, `iam:List*Policies`, `iam:ListGroupsForUser`, and `iam:GetPolicy`, `iam:GetPolicyVersion` and `iam:Get*Policy` to show documents.
 
 ## Changing profiles
 

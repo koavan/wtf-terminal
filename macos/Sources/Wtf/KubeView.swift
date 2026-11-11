@@ -127,7 +127,11 @@ final class KubeResources: NSView, SidePaneTab, NSComboBoxDelegate, NSSearchFiel
         ("Storage", ["pvcs"]),
         ("Scaling", ["hpas"]),
         ("Cluster", ["nodes", "events"]),
+        ("Access", ["permissions"]),
     ]
+
+    /// Read when opened and when the context or namespace changes, never on the poll.
+    static let unpolled: Set<String> = ["permissions"]
 
     private unowned let owner: WindowController
     private var state: KubeState { owner.kubeState }
@@ -271,8 +275,9 @@ final class KubeResources: NSView, SidePaneTab, NSComboBoxDelegate, NSSearchFiel
         }
     }
 
-    private func refreshOpen() {
-        for id in state.open { refresh(id) }
+    /// Reads the open sections; `poll` leaves out the ones only read on request.
+    private func refreshOpen(poll: Bool = false) {
+        for id in state.open where !(poll && Self.unpolled.contains(id) && state.section(id).items != nil) { refresh(id) }
         rebuild()
     }
 
@@ -296,6 +301,7 @@ final class KubeResources: NSView, SidePaneTab, NSComboBoxDelegate, NSSearchFiel
                 case "deployments": try await Services.kube.Deployments(req)
                 case "pods": try await Services.kube.Pods(req, selector)
                 case "events": try await Services.kube.Events(req)
+                case "permissions": try await Services.kube.Permissions(req)
                 default: try await Services.kube.Table(req, id)
                 }
                 guard mine == s.seq else { return }
@@ -345,7 +351,7 @@ final class KubeResources: NSView, SidePaneTab, NSComboBoxDelegate, NSSearchFiel
         timer = Timer.scheduledTimer(withTimeInterval: interval, repeats: true) { [weak self] _ in
             MainActor.assumeIsolated {
                 guard let self, self.window?.isKeyWindow == true, NSApp.isActive else { return }
-                self.refreshOpen()
+                self.refreshOpen(poll: true)
             }
         }
         rebuild()
@@ -436,6 +442,23 @@ final class KubeResources: NSView, SidePaneTab, NSComboBoxDelegate, NSSearchFiel
                                           title: "\(e.reason) \(e.object)\(e.count > 1 ? " ×\(e.count)" : "") · \(Kube.age(e.last))",
                                           detail: e.message, tip: "\(e.type) · \(e.last)"))
                     }
+                case "permissions":
+                    guard let p = s.items as? Go.kube.Permissions else { break }
+                    if !p.user.isEmpty, matches(p.user) {
+                        rows.append(.init(id: "permissions:!user", symbol: "person.crop.circle", tint: .secondaryLabelColor, title: "You: \(p.user)",
+                                          detail: p.groups.isEmpty ? "" : "\(p.groups.count) group\(p.groups.count == 1 ? "" : "s")",
+                                          tip: ([p.user] + p.groups.map { "group: \($0)" }).joined(separator: "\n")))
+                    }
+                    if p.admin {
+                        rows.append(.init(id: "permissions:!admin", symbol: "exclamationmark.shield", tint: .systemOrange,
+                                          title: "Full access: every verb on every resource", tip: "A rule allows * on *.* in this namespace"))
+                    }
+                    for (n, r) in p.rules.enumerated() where matches("\(r.resource) \(r.verbs.joined(separator: " ")) \(r.names.joined(separator: " "))") {
+                        rows.append(.init(id: "permissions:\(n)", symbol: r.nonResource ? "link" : "cube", tint: .secondaryLabelColor,
+                                          title: r.resource, mono: true, detail: Kube.ruleDetail(r),
+                                          tip: "\(r.nonResource ? "URL" : "Resource"): \(r.resource)\nVerbs: \(r.verbs.joined(separator: ", "))"
+                                              + (r.names.isEmpty ? "" : "\nOnly: \(r.names.joined(separator: ", "))")))
+                    }
                 default:
                     let table = s.items as? Go.kube.Table
                     for r in table?.rows ?? [] {
@@ -460,7 +483,7 @@ final class KubeResources: NSView, SidePaneTab, NSComboBoxDelegate, NSSearchFiel
                                       button: ("xmark.circle.fill", "Show all pods", { [weak self] in self?.select(nil) })), at: 0)
                 }
                 let emptyText: String? = loaded && count == 0
-                    ? (id == "events" ? "No recent events" : "No \(label.lowercased())\(query.isEmpty && !(id == "pods" && state.deployment != nil) ? "" : " match")")
+                    ? (id == "events" ? "No recent events" : id == "permissions" ? (query.isEmpty ? "Nothing allowed in this namespace" : "No permissions match") : "No \(label.lowercased())\(query.isEmpty && !(id == "pods" && state.deployment != nil) ? "" : " match")")
                     : nil
                 sections.append(.init(title: title, tip: (open ? "Collapse \(label)" : "Show \(label)") + (note.isEmpty ? "" : "\n\(note)"),
                                       rows: rows, toggle: { [weak self] in self?.toggle(id) }, open: open, badge: badge,
@@ -478,6 +501,7 @@ final class KubeResources: NSView, SidePaneTab, NSComboBoxDelegate, NSSearchFiel
         case "deployments": "Deployments"
         case "pods": "Pods"
         case "events": "Events"
+        case "permissions": "Permissions"
         default: Kube.tableKinds.first { $0.id == id }?.label ?? id
         }
     }
@@ -579,6 +603,16 @@ final class KubeResources: NSView, SidePaneTab, NSComboBoxDelegate, NSSearchFiel
             TunnelEditor.show(nil, host: nil, prefill: d, in: owner)
         }
         switch section {
+        case "permissions":
+            guard let p = state.section("permissions").items as? Go.kube.Permissions else { return nil }
+            if name == "!user" {
+                add("Copy User Name") { [weak self] in self?.copy(p.user, "Copied user name") }
+                return m
+            }
+            guard let n = Int(name), n < p.rules.count else { return nil }
+            let r = p.rules[n]
+            add(r.nonResource ? "Copy URL" : "Copy Resource") { [weak self] in self?.copy(r.resource, "Copied \(r.resource)") }
+            return m
         case "pods":
             guard let p = pod(id) else { return nil }
             let many = p.containers.count > 1

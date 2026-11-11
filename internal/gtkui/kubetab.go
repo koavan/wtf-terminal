@@ -202,6 +202,7 @@ var kubeGroups = []struct {
 	{"Storage", []string{"pvcs"}},
 	{"Scaling", []string{"hpas"}},
 	{"Cluster", []string{"nodes", "events"}},
+	{"Access", []string{"permissions"}},
 }
 
 func kubeTableKind(id string) (uicore.KubeTableKind, bool) {
@@ -221,6 +222,8 @@ func kubeLabel(id string) string {
 		return "Pods"
 	case "events":
 		return "Events"
+	case "permissions":
+		return "Permissions"
 	}
 	if k, ok := kubeTableKind(id); ok {
 		return k.Label
@@ -402,6 +405,17 @@ func (r *kubeResources) refreshOpen() {
 	r.rebuild()
 }
 
+// pollOpen is the timer's refresh: Permissions is read when opened and when
+// the context or namespace changes, not every few seconds.
+func (r *kubeResources) pollOpen() {
+	for id := range r.st.open {
+		if id != "permissions" || r.st.section(id).items == nil {
+			r.refresh(id)
+		}
+	}
+	r.rebuild()
+}
+
 func (r *kubeResources) refresh(id string) {
 	t := r.st.target
 	if t == nil {
@@ -430,6 +444,8 @@ func (r *kubeResources) refresh(id string) {
 			items, err = svc.Pods(req, selector)
 		case "events":
 			items, err = svc.Events(req)
+		case "permissions":
+			items, err = svc.Permissions(req)
 		default:
 			items, err = svc.Table(req, id)
 		}
@@ -488,7 +504,7 @@ func (r *kubeResources) startPolling() {
 		seconds := max(10, cfg.SidebarRefreshInterval)
 		r.timer = coreglib.TimeoutAdd(uint(seconds*1000), func() bool {
 			if r.w.win.IsActive() {
-				r.refreshOpen()
+				r.pollOpen()
 			}
 			return true
 		})
@@ -697,6 +713,36 @@ func (r *kubeResources) rebuild() {
 						detail: e.Message, tip: e.Type + " · " + e.Last})
 					count++
 				}
+			case "permissions":
+				p, _ := s.items.(kube.Permissions)
+				if p.User != "" && matches(p.User) {
+					tip := "Who the cluster says you are (kubectl auth whoami)"
+					if len(p.Groups) > 0 {
+						tip += "\nGroups: " + strings.Join(p.Groups, ", ")
+					}
+					rows = append(rows, sideRow{id: "permissions:!user", icon: "avatar-default-symbolic", title: "You: " + p.User, tip: tip})
+				}
+				if p.Admin {
+					rows = append(rows, sideRow{id: "permissions:!admin", icon: "dialog-warning-symbolic", title: "Full access: every verb on every resource",
+						titleClass: "warning", tip: "A rule allows * on *.* in this namespace"})
+				}
+				for n, rule := range p.Rules {
+					detail := strings.Join(rule.Verbs, ", ")
+					if len(rule.Names) > 0 {
+						detail += " · only: " + strings.Join(rule.Names, ", ")
+					}
+					if !matches(rule.Resource + " " + detail) {
+						continue
+					}
+					icon := ""
+					tip := "Resource " + rule.Resource
+					if rule.NonResource {
+						icon, tip = "network-server-symbolic", "URL "+rule.Resource
+					}
+					rows = append(rows, sideRow{id: "permissions:" + strconv.Itoa(n), icon: icon, title: rule.Resource, mono: true, detail: detail,
+						tip: tip + "\nVerbs: " + detail})
+					count++
+				}
 			default:
 				table, _ := s.items.(kube.Table)
 				for _, row := range table.Rows {
@@ -744,6 +790,8 @@ func (r *kubeResources) rebuild() {
 				switch {
 				case id == "events":
 					empty = "No recent events"
+				case id == "permissions" && q == "":
+					empty = "No permissions in this namespace"
 				case q != "" || filtered:
 					empty = "No " + strings.ToLower(label) + " match"
 				default:
@@ -977,6 +1025,18 @@ func (r *kubeResources) menu(id string) []*menuItem {
 		add("Copy Name", func() { r.copy(name, "Copied deployment name") })
 	case "events":
 		return nil
+	case "permissions":
+		p, _ := r.st.section("permissions").items.(kube.Permissions)
+		n, err := strconv.Atoi(name)
+		if err != nil || n < 0 || n >= len(p.Rules) {
+			if name == "!user" && p.User != "" {
+				add("Copy User", func() { r.copy(p.User, "Copied user name") })
+				return items
+			}
+			return nil
+		}
+		res := p.Rules[n].Resource
+		add("Copy Resource", func() { r.copy(res, "Copied "+res) })
 	default:
 		kind, ok := kubeTableKind(section)
 		if !ok {

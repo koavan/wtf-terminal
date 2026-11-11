@@ -548,6 +548,7 @@ func buildMenu() -> NSMenu {
         cmd("Show SSH Hosts", "sidebar.ssh", "s", [.command, .shift]),
         cmd("Show AWS Profiles", "sidebar.aws", "u", [.command, .shift]),
         cmd("Show Kubernetes", "sidebar.kube", "k", [.command, .shift]),
+        cmd("Show Cloud Secrets", "sidebar.secrets", "x", [.command, .shift]),
         cmd("Show Snippets", "sidebar.snippets", "y", [.command, .shift]),
         cmd("Show Workspaces", "sidebar.workspaces", "l", [.command, .shift]),
         cmd("Show Network", "sidebar.network", "o", [.command, .shift]),

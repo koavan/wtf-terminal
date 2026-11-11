@@ -4,7 +4,7 @@
 import Foundation
 
 public enum SidebarTab: String, CaseIterable, Sendable {
-    case files, ssh, aws, kube, snippets, workspaces, network, processes, history, pins, findings, share, generate, investigate, agents
+    case files, ssh, aws, kube, snippets, workspaces, network, processes, history, pins, findings, share, generate, investigate, agents, secrets
 }
 
 public struct SidebarState: Equatable, Sendable {
@@ -23,6 +23,8 @@ public struct SidebarState: Equatable, Sendable {
     public var networkScope = "terminals"
     public var processScope = "terminals"
     public var processSort = "cpu"
+    /// The Cloud Secrets tab's store: secretsmanager, ssm or vault.
+    public var secretsSource = "secretsmanager"
     /// Everything else in the saved object, as it was.
     var rest: [String: JSONValue] = [:]
 
@@ -44,6 +46,7 @@ public struct SidebarState: Equatable, Sendable {
         if case .string(let n)? = o["processSort"], ["cpu", "memory", "name"].contains(n) { processSort = n }
         if case .string(let h)? = o["historyScope"], ["pane", "all", "saved"].contains(h) { historyScope = h }
         if case .string(let g)? = o["generateSection"], ["key", "password"].contains(g) { generateSection = g }
+        if case .string(let c)? = o["secretsSource"], ["secretsmanager", "ssm", "vault"].contains(c) { secretsSource = c }
     }
 
     public var json: JSONValue {
@@ -59,6 +62,7 @@ public struct SidebarState: Equatable, Sendable {
         o["networkScope"] = .string(networkScope)
         o["processScope"] = .string(processScope)
         o["processSort"] = .string(processSort)
+        o["secretsSource"] = .string(secretsSource)
         return .object(o)
     }
 }

@@ -4,12 +4,13 @@ Some side-pane features run programs you'd run yourself: the same programs, your
 
 | Program | Used by |
 | --- | --- |
-| `kubectl` | [Kubernetes](#kubernetes) tab, Test Connection in [Contexts](#kube-contexts), kubectl [port forwards](#ssh-tunnels) |
-| AWS CLI (`aws`, version 2) | [AWS profiles](#aws): Check Identity and Access Keys; the AWS account in the [address bar](#context-badges); Add EKS Cluster |
+| `kubectl` | [Kubernetes](#kubernetes) tab (and its Permissions), Test Connection in [Contexts](#kube-contexts), kubectl [port forwards](#ssh-tunnels) |
+| AWS CLI (`aws`, version 2) | [AWS profiles](#aws): Check Identity, Access Keys and Permissions; the AWS account in the [address bar](#context-badges); Add EKS Cluster; [Cloud Secrets](#cloud-secrets): Secrets Manager and Parameter Store |
 | `git` | Branch and sync in the address bar, git status in [Files](#files) |
 | OpenSSH (`ssh`, `ssh-keygen`, `ssh-add`, `ssh-keyscan`) | [SSH](#ssh-hosts) tab: connect, test, keys, host keys, tunnels, file copies |
 | `lsof` (macOS), `ss` or `lsof` (Linux) | [Network](#network) tab |
 | `notify-send` (Linux) | Notifications when a long command finishes |
+| Vault CLI (`vault`) | [Cloud Secrets](#cloud-secrets): Vault. Optional: listed, but not mentioned on first start |
 | Trivy, Semgrep, Checkov, Gitleaks, Grype | [Findings](#findings): Run Scan. Optional: listed, but not mentioned on first start |
 
 Everything else (profiles, contexts, SSH config, expiry clocks, the [inspector](#inspect)) reads files and needs nothing installed.
@@ -24,9 +25,9 @@ On first start, if something is missing, wtf opens this list once. It only looks
 
 ## Installing a tool
 
-Click **Install…** next to a missing program, or next to a "kubectl isn't installed" or "the aws CLI isn't installed" message in the side pane. wtf shows the ways it can be installed on this system, the recommended one first:
+Click **Install…** next to a missing program, or next to a "kubectl isn't installed", "the aws CLI isn't installed" or "the vault CLI isn't installed" message in the side pane. wtf shows the ways it can be installed on this system, the recommended one first:
 
-- **Homebrew** (macOS, when Homebrew is installed): `brew install kubectl`, `brew install awscli`, `brew install git`.
+- **Homebrew** (macOS, when Homebrew is installed): `brew install kubectl`, `brew install awscli`, `brew install git`, `brew install hashicorp/tap/vault`. On Linux, Vault comes from HashiCorp's own package repository: its page is linked.
 - **Official release**: kubectl from `dl.k8s.io` for your system and processor (Apple silicon or Intel, amd64 or arm64), checked against its published SHA-256 checksum and put in `~/.local/bin` — no password needed. The AWS CLI from `awscli.amazonaws.com`: on macOS the official package, whose Apple signature is checked before `sudo installer` runs it; on Linux the official zip, installed into `~/.local/aws-cli` and `~/.local/bin` without sudo.
 - **Apple Command Line Tools** (git on macOS): `xcode-select --install`; macOS asks before downloading.
 - **Your distribution's package** (Linux): `apt-get`, `dnf`, `yum`, `pacman`, `zypper` or `apk`, whichever is installed, e.g. `sudo apt-get update && sudo apt-get install openssh-client`.

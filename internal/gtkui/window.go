@@ -704,7 +704,7 @@ func (w *Window) mainMenuButton() *gtk.MenuButton {
 		{"tab.new", "tab.newApi", "window.new", "pane.splitRight", "pane.splitDown", "tab.duplicate", "tab.toNewWindow"},
 		{"tab.reopen", "pane.close", "tab.close", "window.close"},
 		{"palette", "config.open", "config.file", "theme.pick", "themes.folder", "snippets.run", "workspace.open", "workspace.save", "findings.scan", "usage.show"},
-		{"sidebar.toggle", "sidebar.agents", "sidebar.files", "sidebar.ssh", "sidebar.aws", "sidebar.kube", "sidebar.snippets", "sidebar.workspaces",
+		{"sidebar.toggle", "sidebar.agents", "sidebar.files", "sidebar.ssh", "sidebar.aws", "sidebar.kube", "sidebar.secrets", "sidebar.snippets", "sidebar.workspaces",
 			"sidebar.network", "sidebar.processes", "sidebar.history", "sidebar.pins", "sidebar.findings", "sidebar.share", "sidebar.generate"},
 		{"find", "term.copyOutput", "term.pinOutput", "claude.ask", "ai.explain", "ai.ask", "ai.investigate", "ai.logs", "ai.runbook", "ai.postmortem", "ai.history", "review.last", "term.clear", "secrets.toggle"},
 		{"record.toggle", "export.text", "export.markdown"},

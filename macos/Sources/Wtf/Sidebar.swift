@@ -38,6 +38,7 @@ final class Sidebar: NSView {
         TabInfo(tab: .ssh, label: "SSH Hosts", symbol: "server.rack", key: "⌘⇧S") { SshView(window: $0) },
         TabInfo(tab: .aws, label: "AWS Profiles", symbol: "cloud", key: "⌘⇧U") { AwsView(window: $0) },
         TabInfo(tab: .kube, label: "Kubernetes", symbol: "helm", key: "⌘⇧K") { KubeView(window: $0) },
+        TabInfo(tab: .secrets, label: "Cloud Secrets", symbol: "lock.rectangle.stack", key: "⌘⇧X") { CloudSecretsView(window: $0) },
         TabInfo(tab: .snippets, label: "Snippets", symbol: "scroll", key: "⌘⇧Y") { SnippetsView(window: $0) },
         TabInfo(tab: .workspaces, label: "Workspaces", symbol: "square.stack.3d.up", key: "⌘⇧L") { WorkspacesView(window: $0) },
         TabInfo(tab: .network, label: "Network", symbol: "network", key: "⌘⇧O") { NetworkView(window: $0) },

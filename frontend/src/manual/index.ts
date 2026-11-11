@@ -10,6 +10,7 @@ import find from './find.md?raw';
 import gettingStarted from './getting-started.md?raw';
 import history from './history.md?raw';
 import kubeContexts from './kube-contexts.md?raw';
+import cloudSecrets from './cloud-secrets.md?raw';
 import kubernetes from './kubernetes.md?raw';
 import logs from './logs.md?raw';
 import inspectPage from './inspect.md?raw';
@@ -88,6 +89,7 @@ export const TOPICS: Topic[] = [
   t('Cloud', 'aws', 'AWS profiles', aws),
   t('Cloud', 'kubernetes', 'Kubernetes: resources', kubernetes),
   t('Cloud', 'kube-contexts', 'Kubernetes: contexts', kubeContexts),
+  t('Cloud', 'cloud-secrets', 'Cloud secrets: Secrets Manager, Parameter Store, Vault', cloudSecrets),
   t('Reference', 'tools', 'Command-line tools', toolsPage),
   t('Reference', 'ask-claude', 'Ask Claude (Claude Code)', askClaudePage),
   t('Reference', 'ai', 'AI assistance', aiPage),

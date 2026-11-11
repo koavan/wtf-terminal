@@ -17,6 +17,7 @@ import (
 	"github.com/dayanraj/wtf/internal/awsprofiles"
 	"github.com/dayanraj/wtf/internal/bridge"
 	"github.com/dayanraj/wtf/internal/certs"
+	"github.com/dayanraj/wtf/internal/cloudsecrets"
 	"github.com/dayanraj/wtf/internal/cmdhistory"
 	"github.com/dayanraj/wtf/internal/config"
 	"github.com/dayanraj/wtf/internal/files"
@@ -63,6 +64,7 @@ type Backend struct {
 	Review      *review.Service
 	Bridge      *bridge.Service
 	History     *cmdhistory.Service
+	Secrets     *cloudsecrets.Service
 
 	started []any // by Start, for Shutdown
 }
@@ -104,6 +106,7 @@ func New(version, commit, buildDate, stateDir string) (*Backend, error) {
 	b.Procs = procs.NewService(b.Terminal.ShellPIDs)
 	b.APIClient = apiclient.NewService()
 	b.Review = review.NewService(b.Infra)
+	b.Secrets = cloudsecrets.NewService(b.Infra)
 	// Self-checks don't add to (or prune) the user's saved history; the
 	// history check saves to a throwaway folder.
 	switch debug := os.Getenv("WTF_NATIVE_DEBUG"); debug {
@@ -171,6 +174,7 @@ func (b *Backend) Services() []Named {
 		{"review", b.Review},
 		{"bridge", b.Bridge},
 		{"cmdhistory", b.History},
+		{"cloudsecrets", b.Secrets},
 	}
 }
 

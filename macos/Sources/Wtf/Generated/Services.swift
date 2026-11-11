@@ -74,10 +74,12 @@ enum Services {
         static func Delete(_ a0: String, _ a1: [String: String]) async throws -> Go.awsprofiles.List { try await Backend.call("awsprofiles", "Delete", [a0, a1], as: Go.awsprofiles.List.self) }
         static func List() async throws -> Go.awsprofiles.List { try await Backend.call("awsprofiles", "List", [], as: Go.awsprofiles.List.self) }
         static func MakeDefault(_ a0: String, _ a1: [String: String]) async throws -> Go.awsprofiles.List { try await Backend.call("awsprofiles", "MakeDefault", [a0, a1], as: Go.awsprofiles.List.self) }
+        static func Permissions(_ a0: String) async throws -> Go.awsprofiles.Permissions { try await Backend.call("awsprofiles", "Permissions", [a0], as: Go.awsprofiles.Permissions.self) }
         static func PlanDelete(_ a0: String, _ a1: [String: String]) async throws -> [String] { try await Backend.call("awsprofiles", "PlanDelete", [a0, a1], as: [String].self) }
         static func PlanMakeDefault(_ a0: String, _ a1: [String: String]) async throws -> [String] { try await Backend.call("awsprofiles", "PlanMakeDefault", [a0, a1], as: [String].self) }
         static func PlanRotate(_ a0: String, _ a1: Bool) async throws -> [String] { try await Backend.call("awsprofiles", "PlanRotate", [a0, a1], as: [String].self) }
         static func PlanSave(_ a0: Go.awsprofiles.Draft) async throws -> [String] { try await Backend.call("awsprofiles", "PlanSave", [a0], as: [String].self) }
+        static func PolicyDocument(_ a0: String, _ a1: Go.awsprofiles.Policy) async throws -> String { try await Backend.call("awsprofiles", "PolicyDocument", [a0, a1], as: String.self) }
         static func Rotate(_ a0: String, _ a1: Bool, _ a2: [String: String]) async throws -> Go.awsprofiles.RotateResult { try await Backend.call("awsprofiles", "Rotate", [a0, a1, a2], as: Go.awsprofiles.RotateResult.self) }
         static func Save(_ a0: Go.awsprofiles.Draft) async throws -> Go.awsprofiles.List { try await Backend.call("awsprofiles", "Save", [a0], as: Go.awsprofiles.List.self) }
         static func Verify(_ a0: String) async throws -> Go.awsprofiles.Identity { try await Backend.call("awsprofiles", "Verify", [a0], as: Go.awsprofiles.Identity.self) }
@@ -92,6 +94,7 @@ enum Services {
         static func EKSClusters(_ a0: [String: String], _ a1: String, _ a2: String) async throws -> [String] { try await Backend.call("kube", "EKSClusters", [a0, a1, a2], as: [String].self) }
         static func Events(_ a0: Go.kube.Request) async throws -> [Go.kube.Event] { try await Backend.call("kube", "Events", [a0], as: [Go.kube.Event].self) }
         static func Namespaces(_ a0: Go.kube.Request) async throws -> [String] { try await Backend.call("kube", "Namespaces", [a0], as: [String].self) }
+        static func Permissions(_ a0: Go.kube.Request) async throws -> Go.kube.Permissions { try await Backend.call("kube", "Permissions", [a0], as: Go.kube.Permissions.self) }
         static func PlanEdit(_ a0: [String: String], _ a1: Go.kube.Op) async throws -> [String] { try await Backend.call("kube", "PlanEdit", [a0, a1], as: [String].self) }
         static func Pods(_ a0: Go.kube.Request, _ a1: [String: String]) async throws -> [Go.kube.Pod] { try await Backend.call("kube", "Pods", [a0, a1], as: [Go.kube.Pod].self) }
         static func SecretValues(_ a0: Go.kube.Request, _ a1: String) async throws -> [Go.kube.SecretEntry] { try await Backend.call("kube", "SecretValues", [a0, a1], as: [Go.kube.SecretEntry].self) }
@@ -202,5 +205,18 @@ enum Services {
         static func Path() async throws -> String { try await Backend.call("cmdhistory", "Path", [], as: String.self) }
         static func Record(_ a0: Go.cmdhistory.Record) async throws { try await Backend.run("cmdhistory", "Record", [a0]) }
         static func Search(_ a0: Go.cmdhistory.Query) async throws -> Go.cmdhistory.Result { try await Backend.call("cmdhistory", "Search", [a0], as: Go.cmdhistory.Result.self) }
+    }
+
+    enum cloudsecrets {
+        static func ApplyChange(_ a0: Go.cloudsecrets.Request, _ a1: Go.cloudsecrets.Change) async throws { try await Backend.run("cloudsecrets", "ApplyChange", [a0, a1]) }
+        static func ListParameters(_ a0: Go.cloudsecrets.Request) async throws -> [Go.cloudsecrets.Item] { try await Backend.call("cloudsecrets", "ListParameters", [a0], as: [Go.cloudsecrets.Item].self) }
+        static func ListSecrets(_ a0: Go.cloudsecrets.Request) async throws -> [Go.cloudsecrets.Item] { try await Backend.call("cloudsecrets", "ListSecrets", [a0], as: [Go.cloudsecrets.Item].self) }
+        static func PlanChange(_ a0: Go.cloudsecrets.Request, _ a1: Go.cloudsecrets.Change) async throws -> [String] { try await Backend.call("cloudsecrets", "PlanChange", [a0, a1], as: [String].self) }
+        static func ReadParameter(_ a0: Go.cloudsecrets.Request, _ a1: String) async throws -> Go.cloudsecrets.Value { try await Backend.call("cloudsecrets", "ReadParameter", [a0, a1], as: Go.cloudsecrets.Value.self) }
+        static func ReadSecret(_ a0: Go.cloudsecrets.Request, _ a1: String) async throws -> Go.cloudsecrets.Value { try await Backend.call("cloudsecrets", "ReadSecret", [a0, a1], as: Go.cloudsecrets.Value.self) }
+        static func Target(_ a0: Go.cloudsecrets.Request) async throws -> Go.cloudsecrets.Target { try await Backend.call("cloudsecrets", "Target", [a0], as: Go.cloudsecrets.Target.self) }
+        static func VaultList(_ a0: Go.cloudsecrets.Request, _ a1: String) async throws -> [Go.cloudsecrets.Item] { try await Backend.call("cloudsecrets", "VaultList", [a0, a1], as: [Go.cloudsecrets.Item].self) }
+        static func VaultMounts(_ a0: Go.cloudsecrets.Request) async throws -> [Go.cloudsecrets.Mount] { try await Backend.call("cloudsecrets", "VaultMounts", [a0], as: [Go.cloudsecrets.Mount].self) }
+        static func VaultRead(_ a0: Go.cloudsecrets.Request, _ a1: String, _ a2: Int) async throws -> Go.cloudsecrets.Value { try await Backend.call("cloudsecrets", "VaultRead", [a0, a1, a2], as: Go.cloudsecrets.Value.self) }
     }
 }

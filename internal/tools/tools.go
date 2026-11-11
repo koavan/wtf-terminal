@@ -209,7 +209,7 @@ func (s *Service) FirstRun(shellPATH string) []string {
 	p := s.platform(shellPATH)
 	var missing []string
 	for _, t := range catalog {
-		if (t.only != "" && t.only != p.goos) || t.scanner {
+		if (t.only != "" && t.only != p.goos) || t.scanner || t.optional {
 			continue
 		}
 		if st := s.status(t, p); !st.Found && st.BuiltIn == "" {

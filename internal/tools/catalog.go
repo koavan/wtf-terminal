@@ -24,6 +24,8 @@ type tool struct {
 	// A security scanner for the Findings tab: wtf works fine without it,
 	// so the first-run check doesn't mention it.
 	scanner bool
+	// Only some people need it (Vault): the first-run check doesn't mention it.
+	optional bool
 }
 
 var catalog = []tool{
@@ -31,7 +33,7 @@ var catalog = []tool{
 		id: "kubectl", name: "kubectl", about: "The Kubernetes command-line tool",
 		programs: []string{"kubectl"},
 		version:  []string{"version", "--client"},
-		usedBy:   []string{"Kubernetes tab", "Kubernetes contexts: Test Connection", "kubectl port forwards"},
+		usedBy:   []string{"Kubernetes tab (and its Permissions)", "Kubernetes contexts: Test Connection", "kubectl port forwards"},
 		homepage: "https://kubernetes.io/docs/tasks/tools/",
 		brew:     "kubectl",
 	},
@@ -39,9 +41,18 @@ var catalog = []tool{
 		id: "aws", name: "AWS CLI", about: "Amazon Web Services command-line interface, version 2",
 		programs: []string{"aws"},
 		version:  []string{"--version"},
-		usedBy:   []string{"AWS tab: Verify and access keys", "AWS account in the address bar", "Kubernetes: Add EKS Cluster"},
+		usedBy:   []string{"AWS tab: Verify, access keys and permissions", "AWS account in the address bar", "Kubernetes: Add EKS Cluster", "Cloud Secrets: Secrets Manager and Parameter Store"},
 		homepage: "https://aws.amazon.com/cli/",
 		brew:     "awscli",
+	},
+	{
+		id: "vault", name: "Vault CLI", about: "HashiCorp Vault's command-line interface",
+		programs: []string{"vault"},
+		version:  []string{"version"},
+		usedBy:   []string{"Cloud Secrets: Vault"},
+		homepage: "https://developer.hashicorp.com/vault/install",
+		brew:     "hashicorp/tap/vault",
+		optional: true,
 	},
 	{
 		id: "git", name: "git", about: "Version control",

@@ -26,6 +26,7 @@ public enum Manual {
         ("SSH", "git-identities", "Git identities (more than one GitHub user)"), ("SSH", "ssh-host-keys", "Host keys (known_hosts)"),
         ("SSH", "ssh-tunnels", "SSH tunnels"), ("SSH", "ssh-files", "Copying files over SSH"),
         ("Cloud", "aws", "AWS profiles"), ("Cloud", "kubernetes", "Kubernetes: resources"), ("Cloud", "kube-contexts", "Kubernetes: contexts"),
+        ("Cloud", "cloud-secrets", "Cloud secrets: Secrets Manager, Parameter Store, Vault"),
         ("Reference", "tools", "Command-line tools"), ("Reference", "ask-claude", "Ask Claude (Claude Code)"), ("Reference", "ai", "AI assistance"),
         ("Reference", "settings", "Settings and themes"),
         ("Reference", "usage", "Resource usage (wtf’s CPU and memory)"), ("Reference", "sessions", "Sessions and windows"),
@@ -37,7 +38,7 @@ public enum Manual {
     public static let sidebarTopic: [SidebarTab: String] = [
         .files: "files", .ssh: "ssh-hosts", .aws: "aws", .kube: "kubernetes", .snippets: "snippets", .workspaces: "workspaces",
         .network: "network", .processes: "processes", .history: "history", .pins: "pins", .share: "share",
-        .generate: "generate", .findings: "findings", .investigate: "ai", .agents: "agents",
+        .generate: "generate", .findings: "findings", .investigate: "ai", .agents: "agents", .secrets: "cloud-secrets",
     ]
 
     /// Help for what's in front: the side pane's tab (and section), or the welcome page.
@@ -253,7 +254,8 @@ public enum Tools {
     /// The tool an error says is missing (for its Install… link), or nil.
     public static func missingTool(_ error: String?) -> String? {
         guard let e = error else { return nil }
-        let table = [(#"\bkubectl isn't installed\b"#, "kubectl"), (#"\baws CLI isn't installed\b"#, "aws"), (#"\blsof isn't installed\b"#, "lsof")]
+        let table = [(#"\bkubectl isn't installed\b"#, "kubectl"), (#"\baws CLI isn't installed\b"#, "aws"), (#"\blsof isn't installed\b"#, "lsof"),
+                     (#"\bvault CLI isn't installed\b"#, "vault")]
         return table.first { e.range(of: $0.0, options: .regularExpression) != nil }?.1
     }
 }

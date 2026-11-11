@@ -1269,6 +1269,38 @@ contexts:
 
 	_ = xkey("ctrl+alt+k")
 	check(waitUntil(2*time.Second, func() bool { return w.sidebar == nil }), "Ctrl+Alt+K again closes the pane")
+
+	// Cloud Secrets: this home has no AWS profile, and no vault CLI, so
+	// nothing is asked of AWS or Vault; each store says why.
+	_ = xkey("ctrl+alt+x")
+	var cs *cloudSecretsTab
+	check(waitUntil(3*time.Second, func() bool {
+		if sp, ok := w.sidePane().(*cloudSecretsTab); ok {
+			cs = sp
+		}
+		return cs != nil
+	}), "Ctrl+Alt+X opens the Cloud Secrets tab")
+	var awsErr string
+	check(waitUntil(5*time.Second, func() bool {
+		onMain(func() { awsErr = cs.target.AWSError })
+		return cs.loaded && awsErr != ""
+	}), "without a profile it says so: %q", awsErr)
+	w.shot("sidebar-secrets")
+	onMain(func() { cs.choose("vault") })
+	var vaultErr string
+	check(waitUntil(5*time.Second, func() bool {
+		onMain(func() { vaultErr = cs.err })
+		return cs.loaded && vaultErr != ""
+	}), "Vault without its CLI says why: %q", vaultErr)
+	onMain(func() { saved = string(w.sidebarState.JSON()) })
+	check(strings.Contains(saved, `"secretsSource":"vault"`), "the store shown is saved: %s", saved)
+	var vaultOn, smOn bool
+	onMain(func() { vaultOn, smOn = cs.switches[2].Active(), cs.switches[0].Active() })
+	check(vaultOn && !smOn, "the switch shows Vault (vault %v, secrets manager %v)", vaultOn, smOn)
+	w.shot("sidebar-secrets-vault")
+	onMain(func() { cs.choose("secretsmanager") })
+	_ = xkey("ctrl+alt+x")
+	check(waitUntil(2*time.Second, func() bool { return w.sidebar == nil }), "Ctrl+Alt+X again closes the pane")
 	w.finish()
 }
 

@@ -34,11 +34,13 @@ const (
 	SidebarInvestigate SidebarTab = "investigate"
 	// Every Claude Code in wtf's shells (#33).
 	SidebarAgents SidebarTab = "agents"
+	// Secrets Manager, Parameter Store and Vault (#18).
+	SidebarSecrets SidebarTab = "secrets"
 )
 
 // SidebarTabs lists every tab, in order.
 var SidebarTabs = []SidebarTab{
-	SidebarFiles, SidebarSSH, SidebarAWS, SidebarKube, SidebarSnippets, SidebarWorkspaces,
+	SidebarFiles, SidebarSSH, SidebarAWS, SidebarKube, SidebarSecrets, SidebarSnippets, SidebarWorkspaces,
 	SidebarNetwork, SidebarProcesses, SidebarHistory, SidebarPins, SidebarFindings, SidebarShare, SidebarGenerate,
 	SidebarInvestigate, SidebarAgents,
 }
@@ -65,6 +67,8 @@ type SidebarState struct {
 	NetworkScope string
 	ProcessScope string
 	ProcessSort  string
+	// The Cloud Secrets tab's store: secretsmanager, ssm or vault.
+	SecretsSource string
 	// Everything else in the saved object, as it was.
 	rest map[string]json.RawMessage
 }
@@ -81,6 +85,7 @@ func NewSidebarState() SidebarState {
 		NetworkScope:    "terminals",
 		ProcessScope:    "terminals",
 		ProcessSort:     "cpu",
+		SecretsSource:   "secretsmanager",
 	}
 }
 
@@ -123,6 +128,7 @@ func ParseSidebarState(raw json.RawMessage) SidebarState {
 	oneOf("processSort", &s.ProcessSort, "cpu", "memory", "name")
 	oneOf("historyScope", &s.HistoryScope, "pane", "all", "saved")
 	oneOf("generateSection", &s.GenerateSection, "key", "password")
+	oneOf("secretsSource", &s.SecretsSource, "secretsmanager", "ssm", "vault")
 	return s
 }
 
@@ -148,6 +154,7 @@ func (s SidebarState) JSON() json.RawMessage {
 	o["networkScope"] = s.NetworkScope
 	o["processScope"] = s.ProcessScope
 	o["processSort"] = s.ProcessSort
+	o["secretsSource"] = s.SecretsSource
 	data, err := json.Marshal(o)
 	if err != nil {
 		// Only a width that isn't a number fails; save the rest.

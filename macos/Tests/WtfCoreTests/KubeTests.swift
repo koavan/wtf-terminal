@@ -47,3 +47,9 @@ private let t = Kube.Target(context: "prod", namespace: "shop", env: ["KUBECONFI
     #expect(Kube.eksAdd(cluster: "sales", region: "us-west-2", profile: "devops", alias: "", file: "/home/me/.kube/config")
             == "aws eks update-kubeconfig --name sales --region us-west-2 --profile devops --kubeconfig /home/me/.kube/config")
 }
+
+@Test func ruleDetail() {
+    #expect(Kube.ruleDetail(Go.kube.Rule(resource: "pods", verbs: ["get", "list"])) == "get, list")
+    #expect(Kube.ruleDetail(Go.kube.Rule(resource: "*.*", verbs: ["*"])) == "all verbs")
+    #expect(Kube.ruleDetail(Go.kube.Rule(resource: "configmaps", names: ["app"], verbs: ["get"])) == "get · only: app")
+}

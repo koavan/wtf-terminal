@@ -332,6 +332,7 @@ func (t *awsTab) menu(p awsprofiles.Profile) []*menuItem {
 	if p.Kind == "keys" {
 		items = append(items, item("Check Access Keys (iam)", func() { awsStore.checkKeys(svc, p.Name) }))
 	}
+	items = append(items, item("Check Permissions (iam)…", func() { w.showAWSPermissions(p.Name) }))
 	items = append(items, menuSection, item("Edit…", func() { t.showEditor(&p) }))
 	if p.Kind == "keys" && strings.HasPrefix(p.AccessKeyID, "AKIA") {
 		items = append(items, item("Rotate Access Key…", func() { t.showRotate(p) }))

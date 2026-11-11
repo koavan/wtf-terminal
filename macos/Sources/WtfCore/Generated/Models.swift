@@ -12,6 +12,7 @@ extension Go { public enum apiclient {} }
 extension Go { public enum awsprofiles {} }
 extension Go { public enum bridge {} }
 extension Go { public enum certs {} }
+extension Go { public enum cloudsecrets {} }
 extension Go { public enum cmdhistory {} }
 extension Go { public enum config {} }
 extension Go { public enum files {} }
@@ -379,6 +380,90 @@ extension Go.awsprofiles {
             self.configFile = (try? c.decodeIfPresent(String.self, forKey: .configFile)) ?? ""
             self.versions = (try? c.decodeIfPresent([String: String].self, forKey: .versions)) ?? [:]
             self.problems = (try? c.decodeIfPresent([String].self, forKey: .problems)) ?? []
+        }
+    }
+}
+
+extension Go.awsprofiles {
+    /// awsprofiles.Permissions
+    public struct Permissions: Codable, Equatable, Sendable {
+        public var identity: Go.awsprofiles.Identity
+        public var kind: String
+        public var name: String
+        public var session: String
+        public var groups: [String]
+        public var policies: [Go.awsprofiles.Policy]
+        public var problems: [String]
+
+        public init(identity: Go.awsprofiles.Identity = Go.awsprofiles.Identity(), kind: String = "", name: String = "", session: String = "", groups: [String] = [], policies: [Go.awsprofiles.Policy] = [], problems: [String] = []) {
+            self.identity = identity
+            self.kind = kind
+            self.name = name
+            self.session = session
+            self.groups = groups
+            self.policies = policies
+            self.problems = problems
+        }
+
+        enum CodingKeys: String, CodingKey {
+            case identity = "identity"
+            case kind = "kind"
+            case name = "name"
+            case session = "session"
+            case groups = "groups"
+            case policies = "policies"
+            case problems = "problems"
+        }
+
+        public init(from decoder: Decoder) throws {
+            let c = try decoder.container(keyedBy: CodingKeys.self)
+            self.identity = (try? c.decodeIfPresent(Go.awsprofiles.Identity.self, forKey: .identity)) ?? Go.awsprofiles.Identity()
+            self.kind = (try? c.decodeIfPresent(String.self, forKey: .kind)) ?? ""
+            self.name = (try? c.decodeIfPresent(String.self, forKey: .name)) ?? ""
+            self.session = (try? c.decodeIfPresent(String.self, forKey: .session)) ?? ""
+            self.groups = (try? c.decodeIfPresent([String].self, forKey: .groups)) ?? []
+            self.policies = (try? c.decodeIfPresent([Go.awsprofiles.Policy].self, forKey: .policies)) ?? []
+            self.problems = (try? c.decodeIfPresent([String].self, forKey: .problems)) ?? []
+        }
+    }
+}
+
+extension Go.awsprofiles {
+    /// awsprofiles.Policy
+    public struct Policy: Codable, Equatable, Sendable {
+        public var name: String
+        public var arn: String
+        public var inline: Bool
+        public var via: String
+        public var owner: String
+        public var awsManaged: Bool
+
+        public init(name: String = "", arn: String = "", inline: Bool = false, via: String = "", owner: String = "", awsManaged: Bool = false) {
+            self.name = name
+            self.arn = arn
+            self.inline = inline
+            self.via = via
+            self.owner = owner
+            self.awsManaged = awsManaged
+        }
+
+        enum CodingKeys: String, CodingKey {
+            case name = "name"
+            case arn = "arn"
+            case inline = "inline"
+            case via = "via"
+            case owner = "owner"
+            case awsManaged = "awsManaged"
+        }
+
+        public init(from decoder: Decoder) throws {
+            let c = try decoder.container(keyedBy: CodingKeys.self)
+            self.name = (try? c.decodeIfPresent(String.self, forKey: .name)) ?? ""
+            self.arn = (try? c.decodeIfPresent(String.self, forKey: .arn)) ?? ""
+            self.inline = (try? c.decodeIfPresent(Bool.self, forKey: .inline)) ?? false
+            self.via = (try? c.decodeIfPresent(String.self, forKey: .via)) ?? ""
+            self.owner = (try? c.decodeIfPresent(String.self, forKey: .owner)) ?? ""
+            self.awsManaged = (try? c.decodeIfPresent(Bool.self, forKey: .awsManaged)) ?? false
         }
     }
 }
@@ -831,6 +916,262 @@ extension Go.certs {
             self.alpn = (try? c.decodeIfPresent(String.self, forKey: .alpn)) ?? ""
             self.verified = (try? c.decodeIfPresent(Bool.self, forKey: .verified)) ?? false
             self.verifyError = (try? c.decodeIfPresent(String.self, forKey: .verifyError)) ?? ""
+        }
+    }
+}
+
+extension Go.cloudsecrets {
+    /// cloudsecrets.Change
+    public struct Change: Codable, Equatable, Sendable {
+        public var store: String
+        public var name: String
+        public var create: Bool
+        public var value: String
+        public var type: String
+        public var description: String
+        public var version: String
+        public var kv: Int
+
+        public init(store: String = "", name: String = "", create: Bool = false, value: String = "", type: String = "", description: String = "", version: String = "", kv: Int = 0) {
+            self.store = store
+            self.name = name
+            self.create = create
+            self.value = value
+            self.type = type
+            self.description = description
+            self.version = version
+            self.kv = kv
+        }
+
+        enum CodingKeys: String, CodingKey {
+            case store = "store"
+            case name = "name"
+            case create = "create"
+            case value = "value"
+            case type = "type"
+            case description = "description"
+            case version = "version"
+            case kv = "kv"
+        }
+
+        public init(from decoder: Decoder) throws {
+            let c = try decoder.container(keyedBy: CodingKeys.self)
+            self.store = (try? c.decodeIfPresent(String.self, forKey: .store)) ?? ""
+            self.name = (try? c.decodeIfPresent(String.self, forKey: .name)) ?? ""
+            self.create = (try? c.decodeIfPresent(Bool.self, forKey: .create)) ?? false
+            self.value = (try? c.decodeIfPresent(String.self, forKey: .value)) ?? ""
+            self.type = (try? c.decodeIfPresent(String.self, forKey: .type)) ?? ""
+            self.description = (try? c.decodeIfPresent(String.self, forKey: .description)) ?? ""
+            self.version = (try? c.decodeIfPresent(String.self, forKey: .version)) ?? ""
+            self.kv = (try? c.decodeIfPresent(Int.self, forKey: .kv)) ?? 0
+        }
+    }
+}
+
+extension Go.cloudsecrets {
+    /// cloudsecrets.Field
+    public struct Field: Codable, Equatable, Sendable {
+        public var key: String
+        public var value: String
+
+        public init(key: String = "", value: String = "") {
+            self.key = key
+            self.value = value
+        }
+
+        enum CodingKeys: String, CodingKey {
+            case key = "key"
+            case value = "value"
+        }
+
+        public init(from decoder: Decoder) throws {
+            let c = try decoder.container(keyedBy: CodingKeys.self)
+            self.key = (try? c.decodeIfPresent(String.self, forKey: .key)) ?? ""
+            self.value = (try? c.decodeIfPresent(String.self, forKey: .value)) ?? ""
+        }
+    }
+}
+
+extension Go.cloudsecrets {
+    /// cloudsecrets.Item
+    public struct Item: Codable, Equatable, Sendable {
+        public var name: String
+        public var description: String
+        public var changed: String
+        public var accessed: String
+        public var type: String
+        public var version: String
+        public var rotation: Bool
+        public var folder: Bool
+
+        public init(name: String = "", description: String = "", changed: String = "", accessed: String = "", type: String = "", version: String = "", rotation: Bool = false, folder: Bool = false) {
+            self.name = name
+            self.description = description
+            self.changed = changed
+            self.accessed = accessed
+            self.type = type
+            self.version = version
+            self.rotation = rotation
+            self.folder = folder
+        }
+
+        enum CodingKeys: String, CodingKey {
+            case name = "name"
+            case description = "description"
+            case changed = "changed"
+            case accessed = "accessed"
+            case type = "type"
+            case version = "version"
+            case rotation = "rotation"
+            case folder = "folder"
+        }
+
+        public init(from decoder: Decoder) throws {
+            let c = try decoder.container(keyedBy: CodingKeys.self)
+            self.name = (try? c.decodeIfPresent(String.self, forKey: .name)) ?? ""
+            self.description = (try? c.decodeIfPresent(String.self, forKey: .description)) ?? ""
+            self.changed = (try? c.decodeIfPresent(String.self, forKey: .changed)) ?? ""
+            self.accessed = (try? c.decodeIfPresent(String.self, forKey: .accessed)) ?? ""
+            self.type = (try? c.decodeIfPresent(String.self, forKey: .type)) ?? ""
+            self.version = (try? c.decodeIfPresent(String.self, forKey: .version)) ?? ""
+            self.rotation = (try? c.decodeIfPresent(Bool.self, forKey: .rotation)) ?? false
+            self.folder = (try? c.decodeIfPresent(Bool.self, forKey: .folder)) ?? false
+        }
+    }
+}
+
+extension Go.cloudsecrets {
+    /// cloudsecrets.Mount
+    public struct Mount: Codable, Equatable, Sendable {
+        public var path: String
+        public var kv: Int
+        public var description: String
+
+        public init(path: String = "", kv: Int = 0, description: String = "") {
+            self.path = path
+            self.kv = kv
+            self.description = description
+        }
+
+        enum CodingKeys: String, CodingKey {
+            case path = "path"
+            case kv = "kv"
+            case description = "description"
+        }
+
+        public init(from decoder: Decoder) throws {
+            let c = try decoder.container(keyedBy: CodingKeys.self)
+            self.path = (try? c.decodeIfPresent(String.self, forKey: .path)) ?? ""
+            self.kv = (try? c.decodeIfPresent(Int.self, forKey: .kv)) ?? 0
+            self.description = (try? c.decodeIfPresent(String.self, forKey: .description)) ?? ""
+        }
+    }
+}
+
+extension Go.cloudsecrets {
+    /// cloudsecrets.Request
+    public struct Request: Codable, Equatable, Sendable {
+        public var env: [String: String]
+        public var region: String
+
+        public init(env: [String: String] = [:], region: String = "") {
+            self.env = env
+            self.region = region
+        }
+
+        enum CodingKeys: String, CodingKey {
+            case env = "env"
+            case region = "region"
+        }
+
+        public init(from decoder: Decoder) throws {
+            let c = try decoder.container(keyedBy: CodingKeys.self)
+            self.env = (try? c.decodeIfPresent([String: String].self, forKey: .env)) ?? [:]
+            self.region = (try? c.decodeIfPresent(String.self, forKey: .region)) ?? ""
+        }
+    }
+}
+
+extension Go.cloudsecrets {
+    /// cloudsecrets.Target
+    public struct Target: Codable, Equatable, Sendable {
+        public var profile: String
+        public var account: String
+        public var region: String
+        public var awsError: String
+        public var vaultAddr: String
+        public var vaultNamespace: String
+
+        public init(profile: String = "", account: String = "", region: String = "", awsError: String = "", vaultAddr: String = "", vaultNamespace: String = "") {
+            self.profile = profile
+            self.account = account
+            self.region = region
+            self.awsError = awsError
+            self.vaultAddr = vaultAddr
+            self.vaultNamespace = vaultNamespace
+        }
+
+        enum CodingKeys: String, CodingKey {
+            case profile = "profile"
+            case account = "account"
+            case region = "region"
+            case awsError = "awsError"
+            case vaultAddr = "vaultAddr"
+            case vaultNamespace = "vaultNamespace"
+        }
+
+        public init(from decoder: Decoder) throws {
+            let c = try decoder.container(keyedBy: CodingKeys.self)
+            self.profile = (try? c.decodeIfPresent(String.self, forKey: .profile)) ?? ""
+            self.account = (try? c.decodeIfPresent(String.self, forKey: .account)) ?? ""
+            self.region = (try? c.decodeIfPresent(String.self, forKey: .region)) ?? ""
+            self.awsError = (try? c.decodeIfPresent(String.self, forKey: .awsError)) ?? ""
+            self.vaultAddr = (try? c.decodeIfPresent(String.self, forKey: .vaultAddr)) ?? ""
+            self.vaultNamespace = (try? c.decodeIfPresent(String.self, forKey: .vaultNamespace)) ?? ""
+        }
+    }
+}
+
+extension Go.cloudsecrets {
+    /// cloudsecrets.Value
+    public struct Value: Codable, Equatable, Sendable {
+        public var name: String
+        public var text: String
+        public var binary: Bool
+        public var fields: [Go.cloudsecrets.Field]
+        public var version: String
+        public var type: String
+        public var changed: String
+
+        public init(name: String = "", text: String = "", binary: Bool = false, fields: [Go.cloudsecrets.Field] = [], version: String = "", type: String = "", changed: String = "") {
+            self.name = name
+            self.text = text
+            self.binary = binary
+            self.fields = fields
+            self.version = version
+            self.type = type
+            self.changed = changed
+        }
+
+        enum CodingKeys: String, CodingKey {
+            case name = "name"
+            case text = "text"
+            case binary = "binary"
+            case fields = "fields"
+            case version = "version"
+            case type = "type"
+            case changed = "changed"
+        }
+
+        public init(from decoder: Decoder) throws {
+            let c = try decoder.container(keyedBy: CodingKeys.self)
+            self.name = (try? c.decodeIfPresent(String.self, forKey: .name)) ?? ""
+            self.text = (try? c.decodeIfPresent(String.self, forKey: .text)) ?? ""
+            self.binary = (try? c.decodeIfPresent(Bool.self, forKey: .binary)) ?? false
+            self.fields = (try? c.decodeIfPresent([Go.cloudsecrets.Field].self, forKey: .fields)) ?? []
+            self.version = (try? c.decodeIfPresent(String.self, forKey: .version)) ?? ""
+            self.type = (try? c.decodeIfPresent(String.self, forKey: .type)) ?? ""
+            self.changed = (try? c.decodeIfPresent(String.self, forKey: .changed)) ?? ""
         }
     }
 }
@@ -2136,6 +2477,38 @@ extension Go.kube {
 }
 
 extension Go.kube {
+    /// kube.Permissions
+    public struct Permissions: Codable, Equatable, Sendable {
+        public var user: String
+        public var groups: [String]
+        public var rules: [Go.kube.Rule]
+        public var admin: Bool
+
+        public init(user: String = "", groups: [String] = [], rules: [Go.kube.Rule] = [], admin: Bool = false) {
+            self.user = user
+            self.groups = groups
+            self.rules = rules
+            self.admin = admin
+        }
+
+        enum CodingKeys: String, CodingKey {
+            case user = "user"
+            case groups = "groups"
+            case rules = "rules"
+            case admin = "admin"
+        }
+
+        public init(from decoder: Decoder) throws {
+            let c = try decoder.container(keyedBy: CodingKeys.self)
+            self.user = (try? c.decodeIfPresent(String.self, forKey: .user)) ?? ""
+            self.groups = (try? c.decodeIfPresent([String].self, forKey: .groups)) ?? []
+            self.rules = (try? c.decodeIfPresent([Go.kube.Rule].self, forKey: .rules)) ?? []
+            self.admin = (try? c.decodeIfPresent(Bool.self, forKey: .admin)) ?? false
+        }
+    }
+}
+
+extension Go.kube {
     /// kube.Pod
     public struct Pod: Codable, Equatable, Sendable {
         public var name: String
@@ -2227,6 +2600,38 @@ extension Go.kube {
             self.env = (try? c.decodeIfPresent([String: String].self, forKey: .env)) ?? [:]
             self.context = (try? c.decodeIfPresent(String.self, forKey: .context)) ?? ""
             self.namespace = (try? c.decodeIfPresent(String.self, forKey: .namespace)) ?? ""
+        }
+    }
+}
+
+extension Go.kube {
+    /// kube.Rule
+    public struct Rule: Codable, Equatable, Sendable {
+        public var resource: String
+        public var nonResource: Bool
+        public var names: [String]
+        public var verbs: [String]
+
+        public init(resource: String = "", nonResource: Bool = false, names: [String] = [], verbs: [String] = []) {
+            self.resource = resource
+            self.nonResource = nonResource
+            self.names = names
+            self.verbs = verbs
+        }
+
+        enum CodingKeys: String, CodingKey {
+            case resource = "resource"
+            case nonResource = "nonResource"
+            case names = "names"
+            case verbs = "verbs"
+        }
+
+        public init(from decoder: Decoder) throws {
+            let c = try decoder.container(keyedBy: CodingKeys.self)
+            self.resource = (try? c.decodeIfPresent(String.self, forKey: .resource)) ?? ""
+            self.nonResource = (try? c.decodeIfPresent(Bool.self, forKey: .nonResource)) ?? false
+            self.names = (try? c.decodeIfPresent([String].self, forKey: .names)) ?? []
+            self.verbs = (try? c.decodeIfPresent([String].self, forKey: .verbs)) ?? []
         }
     }
 }

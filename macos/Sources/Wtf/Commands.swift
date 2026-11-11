@@ -76,6 +76,7 @@ enum Commands {
         Command("generate.key", "Generate SSH Key…") { $0.showGenerator("key") },
         Command("generate.password", "Generate Password…") { $0.showGenerator("password") },
         Command("sidebar.kube", "Show Kubernetes", "⌘⇧K") { $0.showSidebar(.kube) },
+        Command("sidebar.secrets", "Show Cloud Secrets (Secrets Manager, Parameter Store, Vault)", "⌘⇧X") { $0.showSidebar(.secrets) },
         Command("sidebar.snippets", "Show Snippets", "⌘⇧Y") { $0.showSidebar(.snippets) },
         Command("snippets.run", "Run Snippet…", "⌘⇧R") { Palette.toggle(.snippets, in: $0) },
         Command("snippets.open", "Open Snippets File") { $0.openSnippetsFile() },

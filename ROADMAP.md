@@ -195,10 +195,22 @@ Built: `clipboard-clear` (default 30 s, 0 off) applies to Kubernetes secret
 values, decoded base64, Copy Token on a JWT in output, generated passwords
 and passphrases (lib/clipboard.copySecret). wtf never copies a private key.
 
-### 15. Effective permissions panel ☐
+### 15. Effective permissions panel ☑
 
 `kubectl auth can-i --list` for the current namespace, and the AWS caller
 identity with its attached policies. Loaded on request.
+
+Built (2026-11-11): the Kubernetes tab's **Permissions** section (group
+Access): `kubectl auth whoami` (1.28+, skipped when the cluster can't) and
+`can-i --list` as rows of resource or URL with verbs and resource names, a
+"Full access" row for `*` on `*.*`; read when expanded and when the context
+or namespace changes, never on the poll (`kube.Permissions`). AWS profiles'
+**Check Permissions (iam)…**: identity (user, assumed role and session, root,
+other), the boundary, attached and inline policies of the user or role and
+of the user's groups, each policy's document on **Show** (default version);
+calls IAM refuses are listed, not fatal (`awsprofiles.Permissions`,
+`PolicyDocument`). Lists what's attached; doesn't evaluate SCPs, resource or
+session policies. Manual: Kubernetes, AWS profiles, Command-line tools.
 
 ### 16. SSH config facts ☑
 
@@ -230,10 +242,30 @@ Self-checks write nothing to the real history (read-only under
 WTF_NATIVE_DEBUG); the `history` self-check (both platforms) uses a
 throwaway store.
 
-### 18. Cloud secrets browser ☐
+### 18. Cloud secrets browser ☑
 
 AWS Secrets Manager, SSM Parameter Store and Vault, like the k8s secrets view:
 values masked until revealed, every write confirmed with a reviewed plan.
+
+Built (2026-11-11): a **Cloud Secrets** side tab (⌘⇧X / Ctrl+Alt+X) with a
+store picker (saved per window as `secretsSource`), following the focused
+shell: its AWS profile and region (a region picked in the tab overrides it
+until quit), and `VAULT_ADDR`, `VAULT_NAMESPACE`, `VAULT_CACERT`, newly
+reported by the shell integration. `VAULT_TOKEN` is never reported, so the
+vault CLI's token helper supplies the token. `internal/cloudsecrets` runs
+the aws and vault CLIs. Lists hold names and metadata only (up to 2,000;
+Vault: mounts, then folders). A value is read when its dialog opens, masked
+until revealed, hidden on focus loss, dropped on close, and blocked
+(reveal, copy, edit) while Hide Secrets is on. **Edit…** and **+** plan first
+(`PlanChange`: secret, version, account and region or Vault server, which
+keys change or the length, never values), then `ApplyChange` checks the
+version again (Secrets Manager's AWSCURRENT VersionId, the parameter's
+version, Vault KV 2 `-cas`; creating uses `-cas=0`). Values go to the CLIs on
+stdin (`--cli-input-json file:///dev/stdin`, `vault kv put … -`). Overwriting
+a parameter keeps its type, KMS key, tier and data type. The Vault CLI is in
+Command-Line Tools (optional, so not on first start). Not done: deleting
+secrets, Secrets Manager binary values (shown, not editable), versions and
+rotation, and self-checks with real stores. Manual page: Cloud secrets.
 
 ### 19. Multi-line paste confirmation ☑
 

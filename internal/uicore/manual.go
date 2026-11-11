@@ -42,6 +42,7 @@ var ManualTopics = []ManualTopic{
 	{"SSH", "git-identities", "Git identities (more than one GitHub user)"}, {"SSH", "ssh-host-keys", "Host keys (known_hosts)"},
 	{"SSH", "ssh-tunnels", "SSH tunnels"}, {"SSH", "ssh-files", "Copying files over SSH"},
 	{"Cloud", "aws", "AWS profiles"}, {"Cloud", "kubernetes", "Kubernetes: resources"}, {"Cloud", "kube-contexts", "Kubernetes: contexts"},
+	{"Cloud", "cloud-secrets", "Cloud secrets: Secrets Manager, Parameter Store, Vault"},
 	{"Reference", "tools", "Command-line tools"}, {"Reference", "ask-claude", "Ask Claude (Claude Code)"}, {"Reference", "ai", "AI assistance"},
 	{"Reference", "settings", "Settings and themes"},
 	{"Reference", "usage", "Resource usage (wtf’s CPU and memory)"}, {"Reference", "sessions", "Sessions and windows"},
@@ -64,7 +65,7 @@ var ManualSidebarTopic = map[SidebarTab]string{
 	SidebarFiles: "files", SidebarSSH: "ssh-hosts", SidebarAWS: "aws", SidebarKube: "kubernetes", SidebarSnippets: "snippets",
 	SidebarWorkspaces: "workspaces", SidebarNetwork: "network", SidebarProcesses: "processes", SidebarHistory: "history",
 	SidebarPins: "pins", SidebarShare: "share", SidebarGenerate: "generate", SidebarFindings: "findings",
-	SidebarInvestigate: "ai", SidebarAgents: "agents",
+	SidebarInvestigate: "ai", SidebarAgents: "agents", SidebarSecrets: "cloud-secrets",
 }
 
 // ManualHelpTopic is help for what's in front: the side pane's tab (and
@@ -458,6 +459,7 @@ var missingTools = []struct {
 	{regexp.MustCompile(`\bkubectl isn't installed\b`), "kubectl"},
 	{regexp.MustCompile(`\baws CLI isn't installed\b`), "aws"},
 	{regexp.MustCompile(`\blsof isn't installed\b`), "lsof"},
+	{regexp.MustCompile(`\bvault CLI isn't installed\b`), "vault"},
 }
 
 // MissingTool is the tool an error says is missing (for its Install…
