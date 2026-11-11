@@ -45,6 +45,10 @@ type Request struct {
 	AgentType string     `json:"agentType,omitempty"`
 	Input     *ToolInput `json:"input,omitempty"`
 	Spawned   string     `json:"spawned,omitempty"`
+	// The Agent call returned with the sub-agent finished (its response's
+	// status isn't "async_launched"): some sub-agents (web-fetch) send no
+	// SubagentStart or SubagentStop, so this is the only end wtf hears of.
+	SpawnedDone bool `json:"spawnedDone,omitempty"`
 }
 
 // ToolInput is what wtf shows of a tool call's input: an Agent call's

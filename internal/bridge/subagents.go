@@ -101,6 +101,11 @@ func (s *Service) subagentHook(session string, req wire.Request) (Status, bool) 
 		if sa.Type == "" {
 			sa.Type = in.SubagentType
 		}
+		// A sub-agent in front is done when its call returns, whether or
+		// not it sent SubagentStop (web-fetch sends neither Start nor Stop).
+		if req.SpawnedDone && sa.Running {
+			sa.Running, sa.Doing, sa.Ended = false, "", time.Now().UnixMilli()
+		}
 	case req.Event == "SubagentStart":
 		// Started, or resumed with another message.
 		if !sa.Running {

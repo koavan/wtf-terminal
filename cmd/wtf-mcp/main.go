@@ -170,9 +170,12 @@ func hook(c client, in io.Reader, out io.Writer) int {
 	if ev.Tool == "Agent" || ev.Tool == "Task" {
 		var r struct {
 			AgentID string `json:"agentId"`
+			// "async_launched" in the background, "completed" once done.
+			Status string `json:"status"`
 		}
 		if json.Unmarshal(ev.Response, &r) == nil {
 			req.Spawned = r.AgentID
+			req.SpawnedDone = r.Status != "" && r.Status != "async_launched"
 		}
 	}
 	if _, err := c.do(ctx, req); err != nil {

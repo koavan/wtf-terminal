@@ -597,12 +597,30 @@ func TestSubagents(t *testing.T) {
 		t.Fatalf("front done = %+v", sa)
 	}
 
+	// web-fetch (Claude Code 2.1.322) sends no SubagentStart or Stop: its
+	// tool calls, then the Agent call returning "completed".
+	hook(wire.Request{Event: "PostToolUse", AgentID: "w1", AgentType: "web-fetch", Tool: "WebFetch", Input: &wire.ToolInput{URL: "https://example.com/x"}})
+	if sa := last().Subagents[1]; !sa.Running || sa.Doing != "WebFetch example.com" {
+		t.Fatalf("web-fetch working = %+v", sa)
+	}
+	hook(wire.Request{Event: "PostToolUse", Tool: "Agent", Spawned: "w1", SpawnedDone: true, Input: &wire.ToolInput{Description: "Read it"}})
+	if sa := last().Subagents[1]; sa.Running || sa.Ended == 0 || sa.Task != "Read it" {
+		t.Fatalf("web-fetch done = %+v", sa)
+	}
+	// A background launch isn't done.
+	hook(wire.Request{Event: "PostToolUse", Tool: "Agent", Spawned: "b1", Input: &wire.ToolInput{Description: "Later"}})
+	if sa := last().Subagents[2]; !sa.Running {
+		t.Fatalf("background launch = %+v", sa)
+	}
+	hook(wire.Request{Event: "SubagentStop", AgentID: "b1", AgentType: "Explore"})
+	hook(wire.Request{Event: "UserPromptSubmit", Prompt: "next"})
+
 	// Claude Code's own agents (no type) and unknown stops are ignored.
 	n := len(f.status)
 	hook(wire.Request{Event: "SubagentStop", AgentID: "x"})
 	hook(wire.Request{Event: "SubagentStop", AgentID: "y", AgentType: "Explore"})
 	hook(wire.Request{Event: "SubagentStart", AgentID: "z"})
-	if len(f.status) != n || len(s.Agents()[0].Subagents) != 1 {
+	if len(f.status) != n || len(s.Agents()[0].Subagents) != 0 {
 		t.Fatalf("ignored events changed it: %+v", s.Agents())
 	}
 

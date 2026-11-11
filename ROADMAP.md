@@ -773,6 +773,13 @@ Built 2026-11-09:
   wtf runs), right-click Show/Hide Sub-agents. Self-check `claude` covers
   it, passing on macOS and Linux.
 
+Fixed 2026-11-11: a web-fetch sub-agent (Claude Code 2.1.322) sends no
+SubagentStart or SubagentStop, only its tool calls, so it stayed "working"
+for good. The Agent call's response `status` (`async_launched` in the
+background, `completed` once a foreground one is done) now ends it
+(wire.Request.SpawnedDone). Checked with `claude -p` and a hook logger:
+Explore sends Start/Stop in front and in the background; web-fetch neither.
+
 Still to do: hands-on with real Claude Code.
 
 ### 36. Spotting agents at a glance ☑
