@@ -45,6 +45,7 @@ var subagentEvents = map[string]bool{"SubagentStart": true, "SubagentStop": true
 func (a Status) equal(b Status) bool {
 	return a.Session == b.Session && a.State == b.State && a.Message == b.Message && a.Prompt == b.Prompt &&
 		a.Since == b.Since && a.Unseen == b.Unseen && a.Name == b.Name && a.Started == b.Started &&
+		a.Folder == b.Folder && a.Git == b.Git &&
 		slices.Equal(a.Subagents, b.Subagents)
 }
 

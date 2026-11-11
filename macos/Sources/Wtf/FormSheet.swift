@@ -176,9 +176,10 @@ final class ClosureButton: NSButton {
 
 @MainActor
 enum Confirm {
-    /// "Delete …?" with a destructive button; runs `action` when confirmed.
+    /// "Delete …?" with a destructive button (unless `destructive` is
+    /// false); runs `action` when confirmed.
     static func show(in window: NSWindow?, title: String, message: String, items: [String] = [], button: String,
-                     limit: Int = 6, _ action: @escaping () -> Void) {
+                     limit: Int = 6, destructive: Bool = true, _ action: @escaping () -> Void) {
         guard let window else { return }
         let alert = NSAlert()
         alert.messageText = title
@@ -189,7 +190,7 @@ enum Confirm {
         alert.informativeText = text
         alert.addButton(withTitle: button)
         alert.addButton(withTitle: "Cancel")
-        alert.buttons[0].hasDestructiveAction = true
+        alert.buttons[0].hasDestructiveAction = destructive
         alert.beginSheetModal(for: window) { if $0 == .alertFirstButtonReturn { action() } }
     }
 }

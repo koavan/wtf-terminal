@@ -27,6 +27,7 @@ extension Go { public enum sshhosts {} }
 extension Go { public enum terminal {} }
 extension Go { public enum tools {} }
 extension Go { public enum usage {} }
+extension Go { public enum worktree {} }
 
 extension Go.about {
     /// about.Info
@@ -716,8 +717,10 @@ extension Go.bridge {
         public var subagents: [Go.bridge.Subagent]
         public var name: String
         public var started: Int
+        public var folder: String
+        public var git: Go.worktree.Branch
 
-        public init(session: String = "", state: String = "", message: String = "", prompt: String = "", since: Int = 0, unseen: Bool = false, subagents: [Go.bridge.Subagent] = [], name: String = "", started: Int = 0) {
+        public init(session: String = "", state: String = "", message: String = "", prompt: String = "", since: Int = 0, unseen: Bool = false, subagents: [Go.bridge.Subagent] = [], name: String = "", started: Int = 0, folder: String = "", git: Go.worktree.Branch = Go.worktree.Branch()) {
             self.session = session
             self.state = state
             self.message = message
@@ -727,6 +730,8 @@ extension Go.bridge {
             self.subagents = subagents
             self.name = name
             self.started = started
+            self.folder = folder
+            self.git = git
         }
 
         enum CodingKeys: String, CodingKey {
@@ -739,6 +744,8 @@ extension Go.bridge {
             case subagents = "subagents"
             case name = "name"
             case started = "started"
+            case folder = "folder"
+            case git = "git"
         }
 
         public init(from decoder: Decoder) throws {
@@ -752,6 +759,8 @@ extension Go.bridge {
             self.subagents = (try? c.decodeIfPresent([Go.bridge.Subagent].self, forKey: .subagents)) ?? []
             self.name = (try? c.decodeIfPresent(String.self, forKey: .name)) ?? ""
             self.started = (try? c.decodeIfPresent(Int.self, forKey: .started)) ?? 0
+            self.folder = (try? c.decodeIfPresent(String.self, forKey: .folder)) ?? ""
+            self.git = (try? c.decodeIfPresent(Go.worktree.Branch.self, forKey: .git)) ?? Go.worktree.Branch()
         }
     }
 }
@@ -1454,8 +1463,9 @@ extension Go.config {
         public var agentClose: String
         public var agentSound: Bool
         public var agentGroup: Bool
+        public var worktreeDir: String
 
-        public init(theme: String = "", fontFamily: String = "", fontSize: Double = 0, lineHeight: Double = 0, cursorStyle: String = "", cursorBlink: Bool = false, scrollback: Int = 0, optionAsMeta: Bool = false, copyOnSelect: Bool = false, shell: String = "", shellIntegration: Bool = false, notifyAfter: Double = 0, unfocusedSplitDim: Double = 0, sidebarAutoRefresh: Bool = false, sidebarRefreshInterval: Double = 0, contextBadges: Bool = false, logHighlighting: Bool = false, redactSecrets: Bool = false, clipboardClear: Double = 0, confirmPaste: Bool = false, showUsage: Bool = false, historyDays: Int = 0, claudeAutoMode: Bool = false, agentStatus: Bool = false, agentClose: String = "", agentSound: Bool = false, agentGroup: Bool = false) {
+        public init(theme: String = "", fontFamily: String = "", fontSize: Double = 0, lineHeight: Double = 0, cursorStyle: String = "", cursorBlink: Bool = false, scrollback: Int = 0, optionAsMeta: Bool = false, copyOnSelect: Bool = false, shell: String = "", shellIntegration: Bool = false, notifyAfter: Double = 0, unfocusedSplitDim: Double = 0, sidebarAutoRefresh: Bool = false, sidebarRefreshInterval: Double = 0, contextBadges: Bool = false, logHighlighting: Bool = false, redactSecrets: Bool = false, clipboardClear: Double = 0, confirmPaste: Bool = false, showUsage: Bool = false, historyDays: Int = 0, claudeAutoMode: Bool = false, agentStatus: Bool = false, agentClose: String = "", agentSound: Bool = false, agentGroup: Bool = false, worktreeDir: String = "") {
             self.theme = theme
             self.fontFamily = fontFamily
             self.fontSize = fontSize
@@ -1483,6 +1493,7 @@ extension Go.config {
             self.agentClose = agentClose
             self.agentSound = agentSound
             self.agentGroup = agentGroup
+            self.worktreeDir = worktreeDir
         }
 
         enum CodingKeys: String, CodingKey {
@@ -1513,6 +1524,7 @@ extension Go.config {
             case agentClose = "agentClose"
             case agentSound = "agentSound"
             case agentGroup = "agentGroup"
+            case worktreeDir = "worktreeDir"
         }
 
         public init(from decoder: Decoder) throws {
@@ -1544,6 +1556,7 @@ extension Go.config {
             self.agentClose = (try? c.decodeIfPresent(String.self, forKey: .agentClose)) ?? ""
             self.agentSound = (try? c.decodeIfPresent(Bool.self, forKey: .agentSound)) ?? false
             self.agentGroup = (try? c.decodeIfPresent(Bool.self, forKey: .agentGroup)) ?? false
+            self.worktreeDir = (try? c.decodeIfPresent(String.self, forKey: .worktreeDir)) ?? ""
         }
     }
 }
@@ -4384,6 +4397,266 @@ extension Go.usage {
             self.cores = (try? c.decodeIfPresent(Int.self, forKey: .cores)) ?? 0
             self.memoryKind = (try? c.decodeIfPresent(String.self, forKey: .memoryKind)) ?? ""
             self.note = (try? c.decodeIfPresent(String.self, forKey: .note)) ?? ""
+        }
+    }
+}
+
+extension Go.worktree {
+    /// worktree.AddPlan
+    public struct AddPlan: Codable, Equatable, Sendable {
+        public var path: String
+        public var branch: String
+        public var new: Bool
+        public var base: String
+        public var detach: Bool
+        public var command: String
+
+        public init(path: String = "", branch: String = "", new: Bool = false, base: String = "", detach: Bool = false, command: String = "") {
+            self.path = path
+            self.branch = branch
+            self.new = new
+            self.base = base
+            self.detach = detach
+            self.command = command
+        }
+
+        enum CodingKeys: String, CodingKey {
+            case path = "path"
+            case branch = "branch"
+            case new = "new"
+            case base = "base"
+            case detach = "detach"
+            case command = "command"
+        }
+
+        public init(from decoder: Decoder) throws {
+            let c = try decoder.container(keyedBy: CodingKeys.self)
+            self.path = (try? c.decodeIfPresent(String.self, forKey: .path)) ?? ""
+            self.branch = (try? c.decodeIfPresent(String.self, forKey: .branch)) ?? ""
+            self.new = (try? c.decodeIfPresent(Bool.self, forKey: .new)) ?? false
+            self.base = (try? c.decodeIfPresent(String.self, forKey: .base)) ?? ""
+            self.detach = (try? c.decodeIfPresent(Bool.self, forKey: .detach)) ?? false
+            self.command = (try? c.decodeIfPresent(String.self, forKey: .command)) ?? ""
+        }
+    }
+}
+
+extension Go.worktree {
+    /// worktree.AddRequest
+    public struct AddRequest: Codable, Equatable, Sendable {
+        public var dir: String
+        public var branch: String
+        public var new: Bool
+        public var base: String
+        public var detach: Bool
+        public var path: String
+
+        public init(dir: String = "", branch: String = "", new: Bool = false, base: String = "", detach: Bool = false, path: String = "") {
+            self.dir = dir
+            self.branch = branch
+            self.new = new
+            self.base = base
+            self.detach = detach
+            self.path = path
+        }
+
+        enum CodingKeys: String, CodingKey {
+            case dir = "dir"
+            case branch = "branch"
+            case new = "new"
+            case base = "base"
+            case detach = "detach"
+            case path = "path"
+        }
+
+        public init(from decoder: Decoder) throws {
+            let c = try decoder.container(keyedBy: CodingKeys.self)
+            self.dir = (try? c.decodeIfPresent(String.self, forKey: .dir)) ?? ""
+            self.branch = (try? c.decodeIfPresent(String.self, forKey: .branch)) ?? ""
+            self.new = (try? c.decodeIfPresent(Bool.self, forKey: .new)) ?? false
+            self.base = (try? c.decodeIfPresent(String.self, forKey: .base)) ?? ""
+            self.detach = (try? c.decodeIfPresent(Bool.self, forKey: .detach)) ?? false
+            self.path = (try? c.decodeIfPresent(String.self, forKey: .path)) ?? ""
+        }
+    }
+}
+
+extension Go.worktree {
+    /// worktree.Branch
+    public struct Branch: Codable, Equatable, Sendable {
+        public var branch: String
+        public var detached: Bool
+        public var upstream: String
+        public var ahead: Int
+        public var behind: Int
+        public var linked: Bool
+
+        public init(branch: String = "", detached: Bool = false, upstream: String = "", ahead: Int = 0, behind: Int = 0, linked: Bool = false) {
+            self.branch = branch
+            self.detached = detached
+            self.upstream = upstream
+            self.ahead = ahead
+            self.behind = behind
+            self.linked = linked
+        }
+
+        enum CodingKeys: String, CodingKey {
+            case branch = "branch"
+            case detached = "detached"
+            case upstream = "upstream"
+            case ahead = "ahead"
+            case behind = "behind"
+            case linked = "linked"
+        }
+
+        public init(from decoder: Decoder) throws {
+            let c = try decoder.container(keyedBy: CodingKeys.self)
+            self.branch = (try? c.decodeIfPresent(String.self, forKey: .branch)) ?? ""
+            self.detached = (try? c.decodeIfPresent(Bool.self, forKey: .detached)) ?? false
+            self.upstream = (try? c.decodeIfPresent(String.self, forKey: .upstream)) ?? ""
+            self.ahead = (try? c.decodeIfPresent(Int.self, forKey: .ahead)) ?? 0
+            self.behind = (try? c.decodeIfPresent(Int.self, forKey: .behind)) ?? 0
+            self.linked = (try? c.decodeIfPresent(Bool.self, forKey: .linked)) ?? false
+        }
+    }
+}
+
+extension Go.worktree {
+    /// worktree.RemovePlan
+    public struct RemovePlan: Codable, Equatable, Sendable {
+        public var path: String
+        public var branch: String
+        public var prunable: Bool
+        public var changes: [String]
+        public var more: Int
+        public var command: String
+
+        public init(path: String = "", branch: String = "", prunable: Bool = false, changes: [String] = [], more: Int = 0, command: String = "") {
+            self.path = path
+            self.branch = branch
+            self.prunable = prunable
+            self.changes = changes
+            self.more = more
+            self.command = command
+        }
+
+        enum CodingKeys: String, CodingKey {
+            case path = "path"
+            case branch = "branch"
+            case prunable = "prunable"
+            case changes = "changes"
+            case more = "more"
+            case command = "command"
+        }
+
+        public init(from decoder: Decoder) throws {
+            let c = try decoder.container(keyedBy: CodingKeys.self)
+            self.path = (try? c.decodeIfPresent(String.self, forKey: .path)) ?? ""
+            self.branch = (try? c.decodeIfPresent(String.self, forKey: .branch)) ?? ""
+            self.prunable = (try? c.decodeIfPresent(Bool.self, forKey: .prunable)) ?? false
+            self.changes = (try? c.decodeIfPresent([String].self, forKey: .changes)) ?? []
+            self.more = (try? c.decodeIfPresent(Int.self, forKey: .more)) ?? 0
+            self.command = (try? c.decodeIfPresent(String.self, forKey: .command)) ?? ""
+        }
+    }
+}
+
+extension Go.worktree {
+    /// worktree.RemoveResult
+    public struct RemoveResult: Codable, Equatable, Sendable {
+        public var refused: String
+
+        public init(refused: String = "") {
+            self.refused = refused
+        }
+
+        enum CodingKeys: String, CodingKey {
+            case refused = "refused"
+        }
+
+        public init(from decoder: Decoder) throws {
+            let c = try decoder.container(keyedBy: CodingKeys.self)
+            self.refused = (try? c.decodeIfPresent(String.self, forKey: .refused)) ?? ""
+        }
+    }
+}
+
+extension Go.worktree {
+    /// worktree.Repo
+    public struct Repo: Codable, Equatable, Sendable {
+        public var main: String
+        public var name: String
+        public var current: String
+        public var worktrees: [Go.worktree.Worktree]
+        public var branches: [String]
+        public var parent: String
+
+        public init(main: String = "", name: String = "", current: String = "", worktrees: [Go.worktree.Worktree] = [], branches: [String] = [], parent: String = "") {
+            self.main = main
+            self.name = name
+            self.current = current
+            self.worktrees = worktrees
+            self.branches = branches
+            self.parent = parent
+        }
+
+        enum CodingKeys: String, CodingKey {
+            case main = "main"
+            case name = "name"
+            case current = "current"
+            case worktrees = "worktrees"
+            case branches = "branches"
+            case parent = "parent"
+        }
+
+        public init(from decoder: Decoder) throws {
+            let c = try decoder.container(keyedBy: CodingKeys.self)
+            self.main = (try? c.decodeIfPresent(String.self, forKey: .main)) ?? ""
+            self.name = (try? c.decodeIfPresent(String.self, forKey: .name)) ?? ""
+            self.current = (try? c.decodeIfPresent(String.self, forKey: .current)) ?? ""
+            self.worktrees = (try? c.decodeIfPresent([Go.worktree.Worktree].self, forKey: .worktrees)) ?? []
+            self.branches = (try? c.decodeIfPresent([String].self, forKey: .branches)) ?? []
+            self.parent = (try? c.decodeIfPresent(String.self, forKey: .parent)) ?? ""
+        }
+    }
+}
+
+extension Go.worktree {
+    /// worktree.Worktree
+    public struct Worktree: Codable, Equatable, Sendable {
+        public var path: String
+        public var branch: String
+        public var head: String
+        public var main: Bool
+        public var locked: Bool
+        public var prunable: Bool
+
+        public init(path: String = "", branch: String = "", head: String = "", main: Bool = false, locked: Bool = false, prunable: Bool = false) {
+            self.path = path
+            self.branch = branch
+            self.head = head
+            self.main = main
+            self.locked = locked
+            self.prunable = prunable
+        }
+
+        enum CodingKeys: String, CodingKey {
+            case path = "path"
+            case branch = "branch"
+            case head = "head"
+            case main = "main"
+            case locked = "locked"
+            case prunable = "prunable"
+        }
+
+        public init(from decoder: Decoder) throws {
+            let c = try decoder.container(keyedBy: CodingKeys.self)
+            self.path = (try? c.decodeIfPresent(String.self, forKey: .path)) ?? ""
+            self.branch = (try? c.decodeIfPresent(String.self, forKey: .branch)) ?? ""
+            self.head = (try? c.decodeIfPresent(String.self, forKey: .head)) ?? ""
+            self.main = (try? c.decodeIfPresent(Bool.self, forKey: .main)) ?? false
+            self.locked = (try? c.decodeIfPresent(Bool.self, forKey: .locked)) ?? false
+            self.prunable = (try? c.decodeIfPresent(Bool.self, forKey: .prunable)) ?? false
         }
     }
 }

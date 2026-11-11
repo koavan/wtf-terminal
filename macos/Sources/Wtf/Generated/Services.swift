@@ -189,6 +189,7 @@ enum Services {
 
     enum bridge {
         static func Agents() async throws -> [Go.bridge.Status] { try await Backend.call("bridge", "Agents", [], as: [Go.bridge.Status].self) }
+        static func AgentsIn(_ a0: String) async throws -> [String] { try await Backend.call("bridge", "AgentsIn", [a0], as: [String].self) }
         static func ClaudeCommand() async throws -> String { try await Backend.call("bridge", "ClaudeCommand", [], as: String.self) }
         static func Forget(_ a0: String) async throws { try await Backend.run("bridge", "Forget", [a0]) }
         static func Rename(_ a0: String, _ a1: String) async throws { try await Backend.run("bridge", "Rename", [a0, a1]) }
@@ -218,5 +219,14 @@ enum Services {
         static func VaultList(_ a0: Go.cloudsecrets.Request, _ a1: String) async throws -> [Go.cloudsecrets.Item] { try await Backend.call("cloudsecrets", "VaultList", [a0, a1], as: [Go.cloudsecrets.Item].self) }
         static func VaultMounts(_ a0: Go.cloudsecrets.Request) async throws -> [Go.cloudsecrets.Mount] { try await Backend.call("cloudsecrets", "VaultMounts", [a0], as: [Go.cloudsecrets.Mount].self) }
         static func VaultRead(_ a0: Go.cloudsecrets.Request, _ a1: String, _ a2: Int) async throws -> Go.cloudsecrets.Value { try await Backend.call("cloudsecrets", "VaultRead", [a0, a1, a2], as: Go.cloudsecrets.Value.self) }
+    }
+
+    enum worktree {
+        static func Add(_ a0: Go.worktree.AddRequest) async throws -> Go.worktree.Worktree { try await Backend.call("worktree", "Add", [a0], as: Go.worktree.Worktree.self) }
+        static func PlanAdd(_ a0: Go.worktree.AddRequest) async throws -> Go.worktree.AddPlan { try await Backend.call("worktree", "PlanAdd", [a0], as: Go.worktree.AddPlan.self) }
+        static func PlanRemove(_ a0: String, _ a1: String) async throws -> Go.worktree.RemovePlan { try await Backend.call("worktree", "PlanRemove", [a0, a1], as: Go.worktree.RemovePlan.self) }
+        static func Remove(_ a0: String, _ a1: String, _ a2: Bool) async throws -> Go.worktree.RemoveResult { try await Backend.call("worktree", "Remove", [a0, a1, a2], as: Go.worktree.RemoveResult.self) }
+        static func Repo(_ a0: String) async throws -> Go.worktree.Repo { try await Backend.call("worktree", "Repo", [a0], as: Go.worktree.Repo.self) }
+        static func Suggest(_ a0: String, _ a1: String) async throws -> String { try await Backend.call("worktree", "Suggest", [a0, a1], as: String.self) }
     }
 }

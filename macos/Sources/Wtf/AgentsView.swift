@@ -120,6 +120,7 @@ private final class AgentRow: NSView {
         let title = Agents.title(st)
         let tab = Agents.tabDetail(st)
         let cwd = place.map { WindowModel.prettyPath($0.1.cwd) } ?? ""
+        let branch = Worktrees.label(st.git)
 
         let dot = NSView()
         dot.wantsLayer = true
@@ -148,6 +149,24 @@ private final class AgentRow: NSView {
         what.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
 
         var lines: [NSView] = [top, what]
+        var branchRow: NSView?
+        if !branch.isEmpty {
+            let b = NSTextField(labelWithString: branch)
+            b.font = .monospacedDigitSystemFont(ofSize: 10.5, weight: .regular)
+            b.textColor = .secondaryLabelColor
+            b.lineBreakMode = .byTruncatingMiddle
+            b.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
+            let icon = NSImageView(image: NSImage(systemSymbolName: st.git.linked ? "square.stack.3d.down.right" : "arrow.triangle.branch",
+                                                  accessibilityDescription: nil)!)
+            icon.symbolConfiguration = .init(pointSize: 9, weight: .regular)
+            icon.contentTintColor = .secondaryLabelColor
+            let row = NSStackView(views: [icon, b])
+            row.spacing = 3
+            row.toolTip = (st.git.linked ? "In a worktree, on " : "On ") + branch
+                + (st.git.upstream.isEmpty ? "" : " (vs \(st.git.upstream), as of the last fetch)")
+            lines.append(row)
+            branchRow = row
+        }
         // Full width (less the insets).
         var wide: [NSView] = []
         let detail = state == .waiting && !st.message.isEmpty ? st.message : st.prompt
@@ -186,6 +205,7 @@ private final class AgentRow: NSView {
             what.widthAnchor.constraint(lessThanOrEqualTo: stack.widthAnchor, constant: -16),
         ])
         for v in wide { v.widthAnchor.constraint(equalTo: stack.widthAnchor, constant: -16).isActive = true }
+        branchRow?.widthAnchor.constraint(lessThanOrEqualTo: stack.widthAnchor, constant: -16).isActive = true
         let peek = NSButton(image: NSImage(systemSymbolName: "eye", accessibilityDescription: "Peek and reply")!, target: nil, action: nil)
         peek.isBordered = false
         peek.toolTip = "Peek and reply"

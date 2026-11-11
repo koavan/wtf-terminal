@@ -30,4 +30,6 @@ When the folder is in a git repository, the tree shows what's changed:
 - **N changes** in the bar lists every changed file in the repository, including deleted ones (struck through), with the folder each is in. Click a file to put its path at the prompt. Click **N changes** again to go back to the tree.
 - **Right-click** a file for **Show Changes** (its `git diff`) and **Show History** (`git log --follow`), or a folder for its status, changes and history. They run as git commands in a new tab at the repository's root, so you can scroll, search and run them again.
 
-wtf only reads git's state. Nothing here stages, commits or discards. `git status` runs when the tree refreshes (after each command, or ↻) and never takes git's index lock, so it can't get in the way of a git command you're running. In a huge repository where it takes more than 3 seconds, the bar says the status isn't available.
+The worktrees button at the end of the bar (and **Worktrees** in the right-click menu) makes, opens and removes other checkouts of the repository on their own branches, for agents working side by side. See [Worktrees](#worktrees).
+
+Apart from worktrees, which you confirm first, wtf only reads git's state. Nothing here stages, commits or discards. `git status` runs when the tree refreshes (after each command, or ↻) and never takes git's index lock, so it can't get in the way of a git command you're running. In a huge repository where it takes more than 3 seconds, the bar says the status isn't available.

@@ -14,6 +14,7 @@ import (
 
 	"github.com/dayanraj/wtf/internal/files"
 	"github.com/dayanraj/wtf/internal/uicore"
+	"github.com/dayanraj/wtf/internal/worktree"
 )
 
 func init() {
@@ -45,9 +46,11 @@ type filesTab struct {
 	filter    *gtk.SearchEntry
 	list      *sideList
 
-	tree        *uicore.FileTree
-	git         *uicore.GitIndex
-	gitSeq      int
+	tree   *uicore.FileTree
+	git    *uicore.GitIndex
+	gitSeq int
+	// The repository's worktrees (#37), read with its git status.
+	repo        *worktree.Repo
 	changesOnly bool
 	shownRoot   string
 	loading     map[string]bool
@@ -82,6 +85,19 @@ func newFilesTab(w *Window) *filesTab {
 	f.gitBar.Append(gtk.NewImageFromIconName("media-playlist-consecutive-symbolic"))
 	f.gitBar.Append(f.gitText)
 	f.gitBar.Append(f.gitBtn)
+	trees := gtk.NewButtonFromIconName("view-paged-symbolic")
+	trees.AddCSSClass("flat")
+	trees.SetFocusOnClick(false)
+	trees.SetTooltipText("Worktrees: new, open or remove another checkout of this repository")
+	treesMenu := newMenuPopover(trees)
+	trees.ConnectClicked(func() {
+		if f.git == nil || f.repo == nil {
+			w.newWorktree(f.rootPath())
+			return
+		}
+		treesMenu.show(0, float64(trees.Height()), w.worktreeMenu(*f.repo), nil)
+	})
+	f.gitBar.Append(trees)
 	f.filter = gtk.NewSearchEntry()
 	f.filter.SetPlaceholderText("Filter")
 	f.filter.AddCSSClass("wtf-side-filter")
@@ -247,14 +263,20 @@ func (f *filesTab) loadGit(dir string) {
 	if f.git != nil && !uicore.InsidePath(dir, f.git.Status.Root) {
 		f.git = nil
 	}
-	svc := f.w.app.be.Files
+	svc, trees := f.w.app.be.Files, f.w.app.be.Worktree
 	go func() {
 		s := svc.GitStatus(dir)
+		var repo *worktree.Repo
+		if s.Root != "" {
+			if r, err := trees.Repo(dir); err == nil {
+				repo = &r
+			}
+		}
 		onMainAsync(func() {
 			if mine != f.gitSeq || f.closed {
 				return
 			}
-			f.git = nil
+			f.git, f.repo = nil, repo
 			if s.Root != "" {
 				f.git = uicore.NewGitIndex(s)
 			}
@@ -625,6 +647,9 @@ func (f *filesTab) menu(id string) []*menuItem {
 				w.win.Clipboard().SetText(uicore.RelativePath(cwd, path))
 				w.toast("Copied relative path")
 			}))
+	}
+	if f.git != nil && f.repo != nil {
+		items = append(items, menuSection, submenu("Worktrees", w.worktreeMenu(*f.repo)))
 	}
 	if g := f.git; g != nil {
 		if git := g.Menu(p.path, p.dir); len(git) > 0 {

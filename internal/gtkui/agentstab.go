@@ -205,6 +205,16 @@ func (t *agentsTab) rebuild() {
 		r := sideRow{id: st.Session, dot: "agent-" + state, title: title, detail: detail,
 			pills: []sidePill{{text: agentAge(st.Since), tip: "In this state since then"}}, highlighted: st.Session == focused,
 			tip: "Go to this Claude Code; double-click to name it"}
+		if b := uicore.BranchLabel(st.Git); b != "" {
+			r.branch, r.branchIcon = b, "media-playlist-consecutive-symbolic"
+			r.branchTip = "On " + b
+			if st.Git.Linked {
+				r.branchIcon, r.branchTip = "view-paged-symbolic", "In a worktree, on "+b
+			}
+			if st.Git.Upstream != "" {
+				r.branchTip += " (vs " + st.Git.Upstream + ", as of the last fetch)"
+			}
+		}
 		if state == bridge.StateWaiting && st.Message != "" {
 			r.alert, r.alertClass = a.settings.text(st.Message), "agent-alert"
 		} else if st.Prompt != "" {

@@ -361,3 +361,15 @@ func TestOldAIIgnored(t *testing.T) {
 		t.Fatalf("problems %q, err %v, font %v", problems, err, cfg.FontSize)
 	}
 }
+
+func TestWorktreeDir(t *testing.T) {
+	for in, ok := range map[string]bool{`"~/trees"`: true, `"/srv/trees"`: true, `"trees"`: false, `"~bob/x"`: false} {
+		c, problems, err := Parse("worktree-dir = " + in)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if ok != (len(problems) == 0) || ok != (c.WorktreeDir != "") {
+			t.Errorf("%s: %q, problems %v", in, c.WorktreeDir, problems)
+		}
+	}
+}

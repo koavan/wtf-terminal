@@ -70,7 +70,7 @@ final class Palette: NSView, NSTextFieldDelegate {
         case .themes: "Search themes…"
         case .workspaces: "Search workspaces…"
         case .snippets: "Search snippets…"
-        case .agents: "Search agents: needs you, done, working, idle, or a tab, folder or prompt…"
+        case .agents: "Search agents: needs you, done, working, idle, or a tab, folder, branch or prompt…"
         }
         field.font = .systemFont(ofSize: 15)
         field.isBordered = false
@@ -227,7 +227,7 @@ final class Palette: NSView, NSTextFieldDelegate {
             let cwd = place.map { WindowModel.prettyPath($0.1.cwd) } ?? ""
             let tab = Agents.tabDetail(st)
             let what = state == .waiting && !st.message.isEmpty ? st.message : st.prompt
-            let detail = [state.label, tab, cwd, Redaction.shared.text(what)].filter { !$0.isEmpty }.joined(separator: " · ")
+            let detail = [state.label, tab, cwd, Worktrees.label(st.git), Redaction.shared.text(what)].filter { !$0.isEmpty }.joined(separator: " · ")
             return Entry(section: .agents, label: Agents.title(st) + " — " + state.label.lowercased(), detail: detail,
                          hint: Agents.age(since: st.since), dot: Agents.color(state)) { Agents.go(to: st.session) }
         }

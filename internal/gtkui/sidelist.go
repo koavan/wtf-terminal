@@ -30,9 +30,11 @@ type sideRow struct {
 	// A second line, and a second line in red (an error) or a class.
 	detail, alert, alertClass string
 	monoDetail                bool
-	pills                     []sidePill
-	tip                       string
-	muted, highlighted        bool
+	// A line under the detail with an icon: an agent's branch (#37).
+	branch, branchIcon, branchTip string
+	pills                         []sidePill
+	tip                           string
+	muted, highlighted            bool
 	// Indent for trees.
 	depth int
 	// A trailing button.
@@ -330,6 +332,22 @@ func sideRowWidget(r sideRow) *gtk.Box {
 		}
 		d.SetEllipsize(pango.EllipsizeMiddle)
 		lines.Append(d)
+	}
+	if r.branch != "" {
+		row := gtk.NewBox(gtk.OrientationHorizontal, 3)
+		if r.branchIcon != "" {
+			icon := gtk.NewImageFromIconName(r.branchIcon)
+			icon.SetPixelSize(10)
+			icon.AddCSSClass("dim-label")
+			row.Append(icon)
+		}
+		b := sideLabel(r.branch, "dim-label")
+		b.AddCSSClass("wtf-side-detail")
+		b.AddCSSClass("monospace")
+		b.SetEllipsize(pango.EllipsizeMiddle)
+		row.Append(b)
+		row.SetTooltipText(r.branchTip)
+		lines.Append(row)
 	}
 	if r.alert != "" {
 		class := r.alertClass

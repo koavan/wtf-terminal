@@ -42,6 +42,7 @@ import (
 	"github.com/dayanraj/wtf/internal/infra"
 	"github.com/dayanraj/wtf/internal/snippets"
 	"github.com/dayanraj/wtf/internal/uicore"
+	"github.com/dayanraj/wtf/internal/worktree"
 )
 
 const (
@@ -118,6 +119,11 @@ type Status struct {
 	// When wtf first heard of it (Unix milliseconds): the Agents tab lists
 	// agents in this order, so a row never moves.
 	Started int64 `json:"started"`
+	// The folder it works in (from its hooks), and where that checkout
+	// stands: read when it starts and each time it finishes, so two agents
+	// in worktrees of one repository can be told apart (#37).
+	Folder string          `json:"folder"`
+	Git    worktree.Branch `json:"git"`
 }
 
 // maxName is how long an agent's name can be.
@@ -210,10 +216,14 @@ type Service struct {
 	Program func() string
 	// Saved command history, for search_history (#31); nil without.
 	History *cmdhistory.Service
+
+	// Reads where an agent's checkout stands; tests replace it.
+	branchOf func(dir string) worktree.Branch
 }
 
 func NewService(in *infra.Service) *Service {
-	s := &Service{infra: in, pending: map[string]chan Reply{}, targets: map[string]string{}, agents: map[string]*Status{}, names: map[string]string{}}
+	s := &Service{infra: in, pending: map[string]chan Reply{}, targets: map[string]string{}, agents: map[string]*Status{}, names: map[string]string{},
+		branchOf: worktree.BranchOf}
 	// Next to the app (macOS: Contents/MacOS; a Linux dev build), or where
 	// the Linux packages put it (/usr/bin/wtf → /usr/lib/wtf/wtf-mcp).
 	if exe, err := os.Executable(); err == nil {
@@ -460,6 +470,64 @@ func (s *Service) Seen(session string) {
 	events.Emit(EventStatus, st)
 }
 
+// noteFolder records the folder an agent works in, and reads where its
+// checkout stands when that changed, it started, or it finished a turn
+// (it may have committed or switched branches): not on every tool call.
+func (s *Service) noteFolder(session, cwd, event string) {
+	s.mu.Lock()
+	a := s.agents[session]
+	if a == nil {
+		s.mu.Unlock()
+		return
+	}
+	moved := a.Folder != cwd
+	if moved {
+		a.Folder, a.Git = cwd, worktree.Branch{}
+	}
+	st := a.clone()
+	s.mu.Unlock()
+	if moved {
+		events.Emit(EventStatus, st)
+	}
+	if moved || event == "SessionStart" || event == "Stop" {
+		go s.readGit(session, cwd)
+	}
+}
+
+func (s *Service) readGit(session, cwd string) {
+	b := s.branchOf(cwd)
+	s.mu.Lock()
+	a := s.agents[session]
+	if a == nil || a.Folder != cwd || a.Git == b {
+		s.mu.Unlock()
+		return
+	}
+	a.Git = b
+	st := a.clone()
+	s.mu.Unlock()
+	events.Emit(EventStatus, st)
+}
+
+// AgentsIn names the agents working in dir or below it (by the name you
+// gave them, else their folder's name): a worktree with one isn't removed.
+func (s *Service) AgentsIn(dir string) []string {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	var out []string
+	for _, a := range s.agents {
+		if a.Folder == "" || !worktree.Inside(a.Folder, filepath.Clean(dir)) {
+			continue
+		}
+		if a.Name != "" {
+			out = append(out, a.Name)
+		} else {
+			out = append(out, "in "+filepath.Base(a.Folder))
+		}
+	}
+	slices.Sort(out)
+	return out
+}
+
 // Forget drops session's Claude Code: its shell closed, or is back at its
 // prompt (a claude killed before its SessionEnd hook).
 func (s *Service) Forget(session string) {
@@ -605,6 +673,9 @@ func (s *Service) do(ctx context.Context, req wire.Request) wire.Response {
 		}
 		if ok {
 			events.Emit(EventStatus, st)
+		}
+		if state != StateEnded && filepath.IsAbs(req.Cwd) {
+			s.noteFolder(req.Pane, filepath.Clean(req.Cwd), req.Event)
 		}
 		return wire.Response{}
 	}

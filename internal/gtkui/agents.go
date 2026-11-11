@@ -473,7 +473,7 @@ func (w *Window) agentEntries() []paletteEntry {
 			what = st.Message
 		}
 		detail := agentLabel(state)
-		for _, s := range []string{tab, cwd, a.settings.text(what)} {
+		for _, s := range []string{tab, cwd, uicore.BranchLabel(st.Git), a.settings.text(what)} {
 			if s != "" {
 				detail += " · " + s
 			}

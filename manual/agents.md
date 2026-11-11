@@ -10,6 +10,7 @@ Each row shows:
   - **Working** (accent colour).
   - **Idle** (grey): waiting for your next prompt.
 - its name, if you gave it one (otherwise the tab's title), and the folder it runs in;
+- the branch that folder is on, with ↑ and ↓ for commits ahead of and behind its upstream, so two agents in [worktrees](#worktrees) of one repository are easy to tell apart;
 - the first line of your last prompt (secrets hidden);
 - how long it's been in that state.
 
@@ -61,9 +62,11 @@ For each agent, in the Agents tab (the eye button, or right-click):
 
 {{cmd:agents.start}} (also the **+** in the Agents tab): pick a folder, give a first prompt if you like, and **Start in a Tab** or **Start in Background**. It runs `claude` (with your prompt) in a new shell there, with the status hooks above.
 
+To run several agents on one repository without them editing the same files, give each its own [worktree](#worktrees): {{cmd:worktree.new}} can start Claude Code in it straight away.
+
 ## Without opening the side pane
 
-- {{cmd:agents.pick}} lists the same agents in the command palette, most urgent first: needs you, then done, working and idle. Type to filter: `needs`, `done`, `working`, `idle`, or part of a name, tab title, folder or prompt.
+- {{cmd:agents.pick}} lists the same agents in the command palette, most urgent first: needs you, then done, working and idle. Type to filter: `needs`, `done`, `working`, `idle`, or part of a name, tab title, folder, branch or prompt.
 - {{cmd:agents.next}} goes to the next agent that needs you, then to the next one that's done, round and round.
 - The tab strip shows a badge on every tab running Claude Code: {{mac:an orange speech bubble|other:an orange !}} needs you, {{mac:a green check|other:a green ✓}} done, {{mac:a sparkle|other:✦}} working, {{mac:a grey sparkle|other:a grey ✦}} idle.
 - When one needs you or finishes and you're looking at something else (another tab, another window, another app), wtf shows a notification and plays a short sound: {{mac:*Glass* when it needs you, *Pop* when it finishes|other:your desktop's "new message" sound when it needs you, its "complete" sound when it finishes}}. Several at once make one sound. Turn the sound off with **Play a sound when an agent needs you or finishes** in **Settings** ({{mac:⌘,|other:Ctrl+,}}) → **General**, or `agent-sound = false` in `config.toml`.{{mac:|other: On Linux the notification daemon plays it (so Do Not Disturb applies); if it can't, wtf uses `canberra-gtk-play` when it's installed.}}

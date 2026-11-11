@@ -79,7 +79,7 @@ func (p *palette) build() {
 	case paletteSnippets:
 		p.entry.SetPlaceholderText("Search snippets…")
 	case paletteAgents:
-		p.entry.SetPlaceholderText("Search agents: needs you, done, working, idle, or a tab, folder or prompt…")
+		p.entry.SetPlaceholderText("Search agents: needs you, done, working, idle, or a tab, folder, branch or prompt…")
 	default:
 		p.entry.SetPlaceholderText("Search commands, tabs and workspaces…")
 	}

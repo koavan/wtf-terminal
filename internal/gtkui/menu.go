@@ -22,11 +22,16 @@ import (
 type menuItem struct {
 	label string
 	run   func()
+	// A submenu instead of run.
+	sub []*menuItem
 }
 
 var menuSection *menuItem
 
-func item(label string, run func()) *menuItem { return &menuItem{label, run} }
+func item(label string, run func()) *menuItem { return &menuItem{label: label, run: run} }
+
+// submenu is an item that opens items.
+func submenu(label string, items []*menuItem) *menuItem { return &menuItem{label: label, sub: items} }
 
 // menuPopover is a widget's popup menu: one popover, kept, whose items
 // change each time it opens (a popover unparented after closing crashed).
@@ -53,6 +58,19 @@ func newMenuPopover(at gtk.Widgetter) *menuPopover {
 // show shows items at a point in the widget. onClose runs when it's gone.
 func (m *menuPopover) show(x, y float64, items []*menuItem, onClose func()) {
 	group := gio.NewSimpleActionGroup()
+	root := buildMenu(group, "a", items)
+	// Replaces the group the last menu used.
+	m.at.InsertActionGroup("menu", group)
+	m.pop.SetMenuModel(root)
+	rect := gdk.NewRectangle(int(x), int(y), 1, 1)
+	m.pop.SetPointingTo(&rect)
+	m.onClose = onClose
+	m.pop.Popup()
+}
+
+// buildMenu makes items a menu model, adding their actions to group
+// (named prefix + index, so submenus' don't clash).
+func buildMenu(group *gio.SimpleActionGroup, prefix string, items []*menuItem) *gio.Menu {
 	root := gio.NewMenu()
 	section := gio.NewMenu()
 	flush := func() {
@@ -66,7 +84,11 @@ func (m *menuPopover) show(x, y float64, items []*menuItem, onClose func()) {
 			flush()
 			continue
 		}
-		name := fmt.Sprintf("a%d", i)
+		name := fmt.Sprintf("%s%d", prefix, i)
+		if it.sub != nil {
+			section.AppendSubmenu(it.label, buildMenu(group, name+"_", it.sub))
+			continue
+		}
 		act := gio.NewSimpleAction(name, nil)
 		if it.run == nil {
 			act.SetEnabled(false)
@@ -78,13 +100,7 @@ func (m *menuPopover) show(x, y float64, items []*menuItem, onClose func()) {
 		section.Append(it.label, "menu."+name)
 	}
 	flush()
-	// Replaces the group the last menu used.
-	m.at.InsertActionGroup("menu", group)
-	m.pop.SetMenuModel(root)
-	rect := gdk.NewRectangle(int(x), int(y), 1, 1)
-	m.pop.SetPointingTo(&rect)
-	m.onClose = onClose
-	m.pop.Popup()
+	return root
 }
 
 // installMouse adds the pane's clicks: the gutter marks and the right-click

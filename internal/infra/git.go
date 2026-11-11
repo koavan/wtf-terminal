@@ -200,3 +200,6 @@ func cleanURL(raw string) string {
 	}
 	return raw // scp-like git@github.com:owner/repo.git has no password
 }
+
+// GitPath is the git wtf runs ("" when there's none that can run).
+func GitPath() string { return gitPath() }

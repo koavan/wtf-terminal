@@ -10,6 +10,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -19,6 +20,7 @@ import (
 	"github.com/dayanraj/wtf/internal/cmdhistory"
 	"github.com/dayanraj/wtf/internal/events"
 	"github.com/dayanraj/wtf/internal/snippets"
+	"github.com/dayanraj/wtf/internal/worktree"
 )
 
 // fakeUI answers the bridge's requests the way the native UIs do, for one
@@ -708,5 +710,58 @@ func TestAgentNames(t *testing.T) {
 	hook("s1", "SessionStart")
 	if st := last(); st.Name != "" {
 		t.Fatalf("a new shell kept the name: %+v", st)
+	}
+}
+
+func TestAgentFolder(t *testing.T) {
+	f := newFake(t)
+	s := f.s
+	var reads atomic.Int32
+	s.branchOf = func(dir string) worktree.Branch {
+		reads.Add(1)
+		return worktree.Branch{Branch: "feat/" + filepath.Base(dir), Ahead: 2, Linked: true}
+	}
+	hook := func(event, cwd string) {
+		t.Helper()
+		if r := s.do(context.Background(), wire.Request{V: wire.Version, Pane: "s1", Token: s.token("s1"), Op: "hook", Event: event, Cwd: cwd}); r.Error != "" {
+			t.Fatal(r.Error)
+		}
+	}
+	waitFor := func(what string, ok func(Status) bool) {
+		t.Helper()
+		for range 200 {
+			if a := s.Agents(); len(a) == 1 && ok(a[0]) {
+				return
+			}
+			time.Sleep(5 * time.Millisecond)
+		}
+		t.Fatalf("%s: %+v", what, s.Agents())
+	}
+	hook("SessionStart", "/src/login")
+	waitFor("start", func(a Status) bool {
+		return a.Folder == "/src/login" && a.Git.Branch == "feat/login" && a.Git.Ahead == 2
+	})
+	// Tool calls don't read git again; a finished turn does.
+	n := reads.Load()
+	hook("UserPromptSubmit", "/src/login")
+	hook("PostToolUse", "/src/login")
+	if reads.Load() != n {
+		t.Fatal("read git on a tool call")
+	}
+	hook("Stop", "/src/login")
+	waitFor("stop", func(Status) bool { return reads.Load() == n+1 })
+	// It moved: the new folder's branch.
+	hook("UserPromptSubmit", "/src/metrics")
+	waitFor("moved", func(a Status) bool { return a.Folder == "/src/metrics" && a.Git.Branch == "feat/metrics" })
+
+	if got := s.AgentsIn("/src"); len(got) != 1 || got[0] != "in metrics" {
+		t.Fatalf("AgentsIn(/src) = %v", got)
+	}
+	s.Rename("s1", "metrics")
+	if got := s.AgentsIn("/src/metrics"); len(got) != 1 || got[0] != "metrics" {
+		t.Fatalf("AgentsIn named = %v", got)
+	}
+	if got := s.AgentsIn("/src/login"); len(got) != 0 {
+		t.Fatalf("AgentsIn(login) = %v", got)
 	}
 }

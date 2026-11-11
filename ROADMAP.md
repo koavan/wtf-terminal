@@ -801,27 +801,43 @@ Built 2026-11-09:
 
 Still to do: hands-on with real Claude Code; listening to the sounds.
 
-### 37. Worktrees for parallel agents ☐
+### 37. Worktrees for parallel agents ☑
 
 Like herdr's worktree actions (asked 2026-11-11): run several agents on one
 repo without them editing the same checkout.
 
-- Right-click a git repo (Files tree, a tab's folder) → **New Worktree…**:
-  branch (an existing local one, or a new one from the current HEAD), folder
-  (default a sibling `<repo>.worktrees/<branch-slug>`, configurable),
-  optionally a first prompt for Claude Code. The plan (`git worktree add …`)
-  is shown and runs only on confirm. It opens in a new tab in the repo's tab
-  group, or starts Claude Code there.
-- **Open Worktree…** lists `git worktree list`, focusing a tab already in
-  one or opening a new one.
-- **Remove Worktree…** runs `git worktree remove` after a confirm; if git
-  refuses (modified or untracked files) it says why and asks again before
-  `--force`. Branches are never deleted. Refused while an agent runs there.
-- Agent rows (Agents tab, Go to Agent…) show the branch and ahead/behind
-  counts (cached, refreshed on the agent's Stop and when the tab is shown),
-  so two agents in worktrees of one repo can be told apart; the picker
-  searches branch and folder too.
-- Manual: a worktrees section in `agents.md` and `files.md`.
+Built 2026-11-11:
+
+- `internal/worktree` (service `worktree`): Repo (worktrees from `git
+  worktree list --porcelain -z`, local branches, where new ones go),
+  PlanAdd/Add, PlanRemove/Remove. Every change is planned and shown as the
+  git command, and runs only on confirm. Add checks the branch name, an
+  existing branch not checked out elsewhere, the base commit, and a folder
+  that's new (or empty) and outside the main checkout. Remove never deletes a
+  branch; it refuses the main checkout, a locked worktree and one an agent
+  works in (bridge.AgentsIn); git's own refusal (changed or untracked
+  files) comes back as Refused and the UIs ask again before `--force`. A
+  worktree whose folder is gone is pruned (`git worktree prune`).
+- `worktree-dir` (config.toml only): "" = `<repo>.worktrees/<branch-slug>`
+  beside the repository, else `<dir>/<repo>/<branch-slug>`.
+- Both UIs: New Worktree… (branch with the free branches offered, From for a
+  new branch, folder suggested until edited, then open a tab, start Claude
+  Code in a tab or in the background, optional prompt), Open Worktree… (a
+  tab already in it, else a new one after the active tab in its group),
+  Remove Worktree… (the command, what isn't committed there, shells open in
+  it). Homes: palette commands `worktree.new/open/remove` (focused pane's
+  folder), the Files tab's git bar button and its right-click **Worktrees**
+  submenu.
+- Agent rows: the hook's `cwd` now reaches the bridge (wire.Request.Cwd);
+  bridge.Status gains `folder` and `git` (branch, ahead/behind vs upstream,
+  linked worktree), read on SessionStart, Stop and a folder change, never per
+  tool call. Shown under each agent's state, and searched by Go to Agent….
+- Tests: internal/worktree against a real temp repository (add, refuse,
+  force, prune, worktree-dir), bridge folder/branch reads, config, slug and
+  label cases shared by Go and Swift. Manual page `worktrees`; `agents`,
+  `files` and `settings` updated.
+
+Still to do: hands-on in the apps (the self-checks don't open the dialogs).
 
 ### 38. Resume agents after a restart ☐
 

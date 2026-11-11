@@ -8,6 +8,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"strconv"
 	"strings"
 
 	"github.com/BurntSushi/toml"
@@ -65,6 +66,10 @@ type Config struct {
 	// A tab running Claude Code joins its window's "agents" tab group
 	// (made when needed), and leaves it when Claude Code ends.
 	AgentGroup bool `toml:"agent-group" json:"agentGroup"`
+
+	// Where New Worktree… puts worktrees (#37): "" beside the repository
+	// (<repo>.worktrees/<branch>), else <dir>/<repo>/<branch>.
+	WorktreeDir string `toml:"worktree-dir" json:"worktreeDir"`
 }
 
 func Defaults() Config {
@@ -214,6 +219,11 @@ const template = `# wtf settings. Changes apply as soon as you save (or switch b
 # needed) and leaves it when Claude Code ends. Background agents aren't in a
 # window's tabs, so they're left out.
 # agent-group = true
+
+# Where New Worktree… puts a repository's worktrees, each in a folder named
+# after its branch. Unset: beside the repository, in <repo>.worktrees/.
+# Set: <worktree-dir>/<repo>/<branch>. A full path, or one starting with ~/.
+# worktree-dir = "~/worktrees"
 `
 
 // Dir is $XDG_CONFIG_HOME/wtf, or ~/.config/wtf, on every platform.
@@ -308,6 +318,10 @@ func validate(c Config, problems []string) (Config, []string, error) {
 	if c.HistoryDays < 0 || c.HistoryDays > 3650 {
 		bad("history-days", c.HistoryDays, "must be between 0 and 3650")
 		c.HistoryDays = d.HistoryDays
+	}
+	if w := strings.TrimSpace(c.WorktreeDir); w != "" && !filepath.IsAbs(w) && w != "~" && !strings.HasPrefix(w, "~/") {
+		bad("worktree-dir", strconv.Quote(c.WorktreeDir), "must be a full path, or start with ~/")
+		c.WorktreeDir = d.WorktreeDir
 	}
 	if strings.TrimSpace(c.FontFamily) == "" {
 		c.FontFamily = d.FontFamily

@@ -35,6 +35,8 @@ type Request struct {
 	Event   string `json:"event,omitempty"`
 	Message string `json:"message,omitempty"`
 	Prompt  string `json:"prompt,omitempty"`
+	// hook: the folder Claude Code works in (its cwd).
+	Cwd string `json:"cwd,omitempty"`
 	// Sub-agents: the sub-agent a tool event or SubagentStart/Stop is
 	// about (Claude Code's agent_id and agent_type; "" for the main
 	// conversation), the few tool_input fields wtf shows (Tool is the

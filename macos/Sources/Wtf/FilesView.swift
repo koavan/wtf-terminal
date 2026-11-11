@@ -28,12 +28,15 @@ final class FilesView: NSView, SidePaneTab, NSTableViewDataSource, NSTableViewDe
     private var tree = FileTree()
     private var git: GitIndex?
     private var gitSeq = 0
+    /// The repository's worktrees (#37), read with its git status.
+    private var repo: Go.worktree.Repo?
     private var changesOnly = false
     private var rows: [FileTree.Row] = []
     private var changes: [Go.files.GitChange] = []
     private var shownRoot = ""
     private var loading = Set<String>()
     private var refreshTimer: Timer?
+    private var worktreeButton: NSButton?
     private var lastCommandKey: String?
 
     init(window: WindowController) {
@@ -64,7 +67,15 @@ final class FilesView: NSView, SidePaneTab, NSTableViewDataSource, NSTableViewDe
         gitButton.refusesFirstResponder = true
         gitButton.target = self
         gitButton.action = #selector(toggleChanges)
-        gitBar.setViews([branchIcon, gitLabel, NSView(), gitButton], in: .leading)
+        let worktrees = ClosureButton(title: "") { [weak self] in self?.showWorktreeMenu() }
+        worktrees.image = NSImage(systemSymbolName: "square.stack.3d.down.right", accessibilityDescription: "Worktrees")
+        worktrees.bezelStyle = .accessoryBarAction
+        worktrees.isBordered = false
+        worktrees.contentTintColor = .secondaryLabelColor
+        worktrees.toolTip = "Worktrees: new, open or remove another checkout of this repository"
+        worktrees.refusesFirstResponder = true
+        worktreeButton = worktrees
+        gitBar.setViews([branchIcon, gitLabel, NSView(), gitButton, worktrees], in: .leading)
         gitBar.spacing = 4
         addSubview(gitBar)
 
@@ -95,6 +106,9 @@ final class FilesView: NSView, SidePaneTab, NSTableViewDataSource, NSTableViewDe
         scroll.hasVerticalScroller = true
         scroll.autohidesScrollers = true
         addSubview(scroll)
+        NotificationCenter.default.addObserver(forName: .worktreesChanged, object: nil, queue: .main) { [weak self] _ in
+            MainActor.assumeIsolated { self?.refresh() }
+        }
         paneChanged()
     }
 
@@ -184,6 +198,9 @@ final class FilesView: NSView, SidePaneTab, NSTableViewDataSource, NSTableViewDe
             let s = try? await Services.files.GitStatus(dir)
             guard mine == gitSeq else { return }
             git = s.flatMap { $0.root.isEmpty ? nil : GitIndex($0) }
+            let r = git == nil ? nil : try? await Services.worktree.Repo(dir)
+            guard mine == gitSeq else { return }
+            repo = r
             rebuild()
         }
     }
@@ -533,6 +550,14 @@ final class FilesView: NSView, SidePaneTab, NSTableViewDataSource, NSTableViewDe
                 Toast.show("Copied relative path", in: self)
             }
         }
+        if git != nil, let repo {
+            if m.numberOfItems > 0 { m.addItem(.separator()) }
+            let sub = NSMenu()
+            WorktreeUI.menuItems(repo, owner: owner, heading: false).forEach(sub.addItem)
+            let i = NSMenuItem(title: "Worktrees", action: nil, keyEquivalent: "")
+            i.submenu = sub
+            m.addItem(i)
+        }
         if let g = git {
             let items = g.menu(p.path, dir: p.dir)
             if !items.isEmpty {
@@ -550,6 +575,18 @@ final class FilesView: NSView, SidePaneTab, NSTableViewDataSource, NSTableViewDe
             }
         }
         return m
+    }
+
+    /// The git bar's worktrees button: New, Open and Remove Worktree.
+    private func showWorktreeMenu() {
+        guard git != nil, let repo, let b = worktreeButton else {
+            WorktreeUI.new(from: root, owner: owner)
+            return
+        }
+        let m = NSMenu()
+        m.autoenablesItems = false
+        WorktreeUI.menuItems(repo, owner: owner).forEach(m.addItem)
+        m.popUp(positioning: nil, at: NSPoint(x: 0, y: b.bounds.height + 4), in: b)
     }
 
     // MARK: Drag
