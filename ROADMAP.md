@@ -801,6 +801,45 @@ Built 2026-11-09:
 
 Still to do: hands-on with real Claude Code; listening to the sounds.
 
+### 37. Worktrees for parallel agents ☐
+
+Like herdr's worktree actions (asked 2026-11-11): run several agents on one
+repo without them editing the same checkout.
+
+- Right-click a git repo (Files tree, a tab's folder) → **New Worktree…**:
+  branch (an existing local one, or a new one from the current HEAD), folder
+  (default a sibling `<repo>.worktrees/<branch-slug>`, configurable),
+  optionally a first prompt for Claude Code. The plan (`git worktree add …`)
+  is shown and runs only on confirm. It opens in a new tab in the repo's tab
+  group, or starts Claude Code there.
+- **Open Worktree…** lists `git worktree list`, focusing a tab already in
+  one or opening a new one.
+- **Remove Worktree…** runs `git worktree remove` after a confirm; if git
+  refuses (modified or untracked files) it says why and asks again before
+  `--force`. Branches are never deleted. Refused while an agent runs there.
+- Agent rows (Agents tab, Go to Agent…) show the branch and ahead/behind
+  counts (cached, refreshed on the agent's Stop and when the tab is shown),
+  so two agents in worktrees of one repo can be told apart; the picker
+  searches branch and folder too.
+- Manual: a worktrees section in `agents.md` and `files.md`.
+
+### 38. Resume agents after a restart ☐
+
+Background agents and agent tabs end when wtf quits (the #34 decision
+stands). Asked 2026-11-11: get back to them after a relaunch, like herdr's
+`resume_agents_on_restore`, but never on its own.
+
+- The bridge keeps each agent's Claude Code `session_id` (from its hooks)
+  and its folder; the window session saves them with the pane.
+- After relaunch, a restored tab that had an agent shows a bar: **Resume
+  Claude Code** (types `claude --resume <id>` into that shell, in its
+  folder) or Dismiss. Background agents that were running come back as a
+  "Resumable" section in the Agents tab with the same choice, plus Resume
+  All…, which lists them first.
+- Only with `agent-status` on (the id comes from the status hooks); an id
+  whose transcript is gone (`~/.claude/projects/…`) is dropped quietly.
+- Manual: `agents.md`.
+
 ## Also built
 
 - Resource usage (2026-10-13): wtf's own CPU and memory in the address bar
