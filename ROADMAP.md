@@ -12,7 +12,7 @@ Ground rules that apply to every item:
 - Build on what exists: OSC 133 shell integration, tab groups, the side pane, the
   command palette, `internal/notify`, session restore.
 
-Status legend: ☐ not started · ◐ in progress · ☑ done
+Status legend: ☐ not started · ◐ in progress · ☑ done · ✗ dropped
 
 ## Tier 1 — build first
 
@@ -181,11 +181,13 @@ busy), like the other side-pane actions. Scanners are optional entries in Comman
 Tools (Homebrew on macOS; Linux points to their sites). Reloads when a scan
 command finishes.
 
-### 13. Incognito tab ☐
+### 13. Incognito tab ✗
 
 No shell history, no session restore, no saved scrollback, recording blocked,
 Hide Secrets forced on. Clearly marked; for break-glass access and handling
 secrets.
+
+Dropped 2026-11-11: not needed.
 
 ### 14. Clipboard auto-clear ☑
 
