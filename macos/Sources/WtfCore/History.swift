@@ -1,6 +1,6 @@
 // What the History, Pinned and Share & Record tabs keep, in memory per
-// window: commands run, pinned output, and how output is exported. Ports
-// of lib/history.svelte.ts, lib/pins.svelte.ts and lib/transcript.ts.
+// window: commands run, pinned output, and how output is exported. Like
+// internal/uicore/history.go and export.go.
 import Foundation
 
 /// The commands each pane ran, from shell integration.

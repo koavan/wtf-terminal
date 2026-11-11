@@ -1,8 +1,8 @@
 import Foundation
 
 public enum Format {
-    /// "0.4s", "12s", "3m 5s", "2h 10m". Matches formatDuration in
-    /// frontend/src/lib/toast.svelte.ts.
+    /// "0.4s", "12s", "3m 5s", "2h 10m". Matches Duration in
+    /// internal/uicore/theme.go.
     public static func duration(ms: Double) -> String {
         if ms < 1000 { return String(format: "%.1fs", ms / 1000) }
         let s = Int((ms / 1000).rounded())

@@ -2,10 +2,10 @@ import AppKit
 import WebKit
 import WtfCore
 
-/// The manual: the same Markdown pages as the Wails build, rendered in
+/// The manual: the Markdown pages in manual/, rendered in
 /// Swift, shown in a WKWebView with JavaScript off. Pages are listed and
 /// searched natively on the left. Made on first open and let go on close
-/// (a web view costs a process). Like Manual.svelte.
+/// (a web view costs a process). Like internal/gtkui/manual.go.
 @MainActor
 final class ManualWindow: NSObject, NSWindowDelegate, WKNavigationDelegate, NSSearchFieldDelegate,
     NSTableViewDataSource, NSTableViewDelegate {
@@ -147,7 +147,7 @@ final class ManualWindow: NSObject, NSWindowDelegate, WKNavigationDelegate, NSSe
     /// The pages bundled in the app, or the repo's while developing.
     static var folder: URL {
         if let u = Bundle.main.resourceURL?.appendingPathComponent("manual"), FileManager.default.fileExists(atPath: u.path) { return u }
-        return URL(fileURLWithPath: #filePath).deletingLastPathComponent().appendingPathComponent("../../../frontend/src/manual").standardized
+        return URL(fileURLWithPath: #filePath).deletingLastPathComponent().appendingPathComponent("../../../manual").standardized
     }
 
     static func source(_ id: String) -> String {

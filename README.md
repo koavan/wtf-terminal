@@ -2,8 +2,9 @@
 
 A browser-like terminal for macOS and Linux. A Go backend with a native UI on
 each: AppKit + SwiftTerm on macOS (`macos/`, see NATIVE_MACOS_ROADMAP.md), GTK 4 +
-libadwaita + VTE on Linux (`internal/gtkui`, see NATIVE_LINUX_ROADMAP.md). The
-earlier Wails v3 + Svelte 5 + xterm.js UI is still in the tree.
+libadwaita + VTE on Linux (`internal/gtkui`, see NATIVE_LINUX_ROADMAP.md).
+Before 1.0 it was a Wails v3 + Svelte 5 + xterm.js app; that UI was removed
+after 1.7.1 (roadmap #21).
 
 What's next: see [ROADMAP.md](ROADMAP.md).
 
@@ -11,8 +12,22 @@ What's next: see [ROADMAP.md](ROADMAP.md).
 
 The `.deb` (Ubuntu 24.04+, Debian 13+) or `.rpm` (Fedora 40+) for your
 processor from the release, e.g. `sudo apt install ./wtf_1.1.0_amd64.deb` or
-`sudo dnf install ./wtf-1.1.0-1.x86_64.rpm`. It replaces the Wails build of wtf
-and keeps its windows and settings (`~/.config/wtf`).
+`sudo dnf install ./wtf-1.1.0-1.x86_64.rpm`. It replaces an older Wails build
+of wtf and keeps its windows and settings (`~/.config/wtf`).
+
+## Build the macOS app
+
+Needs Xcode (full, not only the Command Line Tools) and Go 1.25+:
+
+```sh
+macos/build.sh                   # bin/native/wtf.app (release, this Mac's processor)
+macos/build.sh debug             # a debug build
+macos/build.sh release universal dmg   # arm64 + x86_64, and bin/native/wtf-<version>.dmg
+(cd macos && swift test)         # the Swift core's tests
+```
+
+The version comes from the `VERSION` file; the build stamps the git commit and
+date into the app.
 
 ## Build the native Linux app
 
@@ -30,21 +45,20 @@ linux/package/test-install.sh amd64   # installs them on clean Ubuntu, Debian, F
 If a distribution's mirror is slow, `UBUNTU_MIRROR=http://mirrors.mit.edu/ubuntu/`
 or `DEBIAN_MIRROR=…` points `test-install.sh` at another one.
 
-## Run
+## Tests
 
 ```sh
-wails3 dev      # hot-reloading dev build
-wails3 build    # production binary in bin/wtf
-go test ./internal/...
-cd frontend && npm test
+go vet ./... && go test ./...    # the Go backend and shared UI logic
+(cd macos && swift test)         # the macOS app's Swift core
+linux/check.sh                   # the Linux app, headless, in its dev image
 ```
 
-Requires Go 1.25+, Node 20+, and `wails3` (`go install github.com/wailsapp/wails/v3/cmd/wails3@v3.0.0-beta.28`).
-On Linux, wtf uses GTK 4 and WebKitGTK 6.0 (Debian 13, Ubuntu 24.04, Fedora 40
-or newer): install `libgtk-4-dev libwebkitgtk-6.0-dev` (Debian/Ubuntu) or
-`gtk4-devel webkitgtk6.0-devel` (Fedora) to build. At run time it uses `ss`
-(or `lsof`) for the Network tab, `notify-send` for notifications and
-`xdg-open` to open files.
+`testdata/secrets/cases.json` holds what the secret finder must find; both the
+Go and Swift tests check against it. After changing the rules, regenerate it
+with `go run testdata/secrets/generate.go`.
+
+At run time the Linux app uses `ss` (or `lsof`) for the Network tab,
+`notify-send` for notifications and `xdg-open` to open files.
 
 ## Command-line tools
 
@@ -66,9 +80,14 @@ first start it opens once if anything is missing. The `.deb`/`.rpm` recommend
 
 ## Layout
 
-- `main.go`: window setup and native menu (menu items emit `app:command` events).
-- `internal/terminal`: shell sessions (PTY), foreground-process/cwd polling, and the
-  loopback WebSocket that streams PTY bytes with ack-based flow control.
+- `macos/`: the macOS app (AppKit + SwiftTerm); `macos/Sources/WtfCore` is its
+  shared, tested logic. `cmd/libwtf` builds the Go backend as a C archive for it.
+- `internal/gtkui`, `cmd/wtf-gtk`: the Linux app (GTK 4 + libadwaita + VTE);
+  `internal/uicore` is its shared, tested logic (a Go port of WtfCore).
+- `internal/backend`: builds every service once, for both apps.
+- `cmd/wtf-mcp`: the wtf Claude Code plugin's MCP server (`claude-plugin/`).
+- `manual/`: the in-app manual's pages.
+- `internal/terminal`: shell sessions (PTY) and foreground-process/cwd polling.
 - `internal/state`: atomic session file storage.
 - `internal/config`: config file, themes (built-in, Ghostty, iTerm2), live reload.
 - `internal/terminal/shellintegration`: the bash/zsh scripts.
@@ -83,11 +102,8 @@ first start it opens once if anything is missing. The `.deb`/`.rpm` recommend
 - `internal/files`: directory listings (with git ignore rules) for the file tree.
 - `internal/netconn`: connections and listening ports, attributed to terminal sessions.
 - `internal/procs`: the user's processes, attributed to terminal sessions.
-- `internal/windows`: opening/restoring windows, moving tabs between them,
-  confirm-before-close/quit.
-- `frontend/src/lib`: tab/group/pane state (`tabs.svelte.ts`), split geometry
-  (`layout.ts`), the command registry (`commands.ts`), session autosave, themes.
-- `frontend/src/components`: tab strip, address bar, panes, palette, search, menus.
+- `internal/cloudsecrets`: the Cloud Secrets tab: Secrets Manager, Parameter
+  Store and Vault through the aws and vault CLIs.
 
 ## Manual
 
@@ -95,11 +111,11 @@ wtf has a user manual built in: **Help → wtf Manual** (⌘?, F1 on Linux), the
 command palette, or the **?** at the top right of the side pane, which opens
 the page for the tab on screen. It covers every feature, with search, and
 its shortcuts come from the app's own command list. The pages are Markdown
-in `frontend/src/manual/` (see `lib/manual.ts` for the subset they use);
+in `manual/` (`internal/uicore/manual.go` describes the subset they use);
 tests check that every command and page they mention exists.
 
 **About wtf** (the **wtf** menu on macOS, the command palette anywhere) shows the version, the commit and date of the build
-(`wails3 build` stamps them in from git), the system, the shell and whether
+(the build stamps them in from git), the system, the shell and whether
 shell integration is on, and where settings, snippets, the session and
 backups live. **Copy Diagnostics** copies the version and system facts, with
 no paths, for a bug report.

@@ -9,8 +9,8 @@ import (
 // Workspaces: named sets of tabs — with folders, split panes, tab groups
 // and startup commands — opened in one go. They live in the same files as
 // snippets, as [[workspace]] blocks, so one project file can carry a
-// team's runbooks and workspaces. Opening one is done by the frontend
-// (lib/workspaces.svelte.ts); this reads, checks and edits them.
+// team's runbooks and workspaces. Opening one is done by the UI
+// (internal/uicore/workspaces.go); this reads, checks and edits them.
 
 // WPane is one pane of a tab with several.
 type WPane struct {

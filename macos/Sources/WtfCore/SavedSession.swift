@@ -1,6 +1,6 @@
-// The session.json shapes the Svelte build writes (spec: file version 2 with
-// per-window sessions, each version 1), so either build restores the other's
-// windows. Decoding is lenient: a malformed part is skipped, not fatal.
+// The session.json shapes every build writes, older versions (the Wails
+// build) included (spec: file version 2 with per-window sessions, each
+// version 1), so every build restores the others' windows. Decoding is lenient: a malformed part is skipped, not fatal.
 import Foundation
 
 public struct SavedNode: Codable, Equatable, Sendable {
@@ -154,7 +154,8 @@ public struct SavedSession: Codable, Sendable {
     public var tabs: [SavedTab]?
     public var groups: [Group]?
     public var active: Int?
-    /// Fields this build doesn't use (the Svelte build's sidebar state),
+    /// Fields this build doesn't use (the sidebar state, and what older
+    /// versions such as the Wails build saved),
     /// kept so saving doesn't drop them.
     public var extra: [String: JSONValue] = [:]
 

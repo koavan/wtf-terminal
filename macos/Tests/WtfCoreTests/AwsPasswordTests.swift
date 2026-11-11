@@ -53,3 +53,28 @@ import Testing
     var draws: [UInt32] = [4_294_967_295, 13]
     #expect(Passwords.randomInt(10) { draws.removeFirst() } == 3)
 }
+
+// More cases of the Svelte build's passwords tests.
+
+@Test func passwordsUseOnlyTheChosenClasses() {
+    var digits = Passwords.Options()
+    digits.lower = false; digits.upper = false; digits.symbols = false; digits.length = 30
+    let pw = Passwords.generate(digits)
+    #expect(pw.count == 30 && pw.allSatisfy { Passwords.digits.contains($0) })
+    let all = String(Passwords.classes(Passwords.Options()).joined())
+    #expect(!all.contains { "'\"\\` ".contains($0) })
+}
+
+@Test func passwordsClampTheLength() {
+    var o = Passwords.Options()
+    o.length = 1
+    #expect(Passwords.generate(o).count == 4)
+    o.length = 1000
+    #expect(Passwords.generate(o).count == 128)
+}
+
+@Test func passwordsDrawEvenly() {
+    var counts = [Int](repeating: 0, count: 10)
+    for _ in 0..<20000 { counts[Passwords.randomInt(10)] += 1 }
+    #expect(counts.allSatisfy { $0 > 1700 }, "\(counts)")
+}

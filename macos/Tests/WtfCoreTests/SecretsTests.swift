@@ -2,8 +2,8 @@ import Foundation
 import Testing
 @testable import WtfCore
 
-/// testdata/secrets/cases.json, written by the TypeScript implementation
-/// (node testdata/secrets/generate.ts): the Swift port must agree with it.
+/// testdata/secrets/cases.json, written from the Go implementation
+/// (go run testdata/secrets/generate.go): the Swift port must agree with it.
 struct SharedCase: Decodable, CustomTestStringConvertible {
     struct Span: Decodable { let kind: String; let start: Int; let end: Int }
     let text: String
@@ -20,7 +20,7 @@ struct SharedCase: Decodable, CustomTestStringConvertible {
 }
 
 @Test(arguments: SharedCase.all)
-func findsWhatTheTypeScriptFinds(_ c: SharedCase) {
+func findsTheSharedCases(_ c: SharedCase) {
     let want = c.found.map { SecretSpan(start: $0.start, end: $0.end, kind: $0.kind) }
     #expect(Secrets.find(c.text) == want)
     #expect(Secrets.redact(c.text) == c.redacted)

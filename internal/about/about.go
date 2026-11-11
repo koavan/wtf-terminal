@@ -10,7 +10,6 @@ import (
 	"os/exec"
 	"path/filepath"
 	"runtime"
-	"runtime/debug"
 	"strings"
 	"time"
 
@@ -23,8 +22,7 @@ type Info struct {
 	Commit    string `json:"commit"`
 	BuildDate string `json:"buildDate"`
 
-	GoVersion    string `json:"goVersion"`
-	WailsVersion string `json:"wailsVersion"`
+	GoVersion string `json:"goVersion"`
 	// "macOS 26.0 (25A123)", "Ubuntu 24.04.1 LTS"…
 	OS   string `json:"os"`
 	Arch string `json:"arch"`
@@ -68,13 +66,6 @@ func (s *Service) Info() Info {
 	}
 	if cache, err := paths.UserCacheDir(); err == nil {
 		in.CacheDir = filepath.Join(cache, "wtf")
-	}
-	if bi, ok := debug.ReadBuildInfo(); ok {
-		for _, d := range bi.Deps {
-			if d.Path == "github.com/wailsapp/wails/v3" {
-				in.WailsVersion = d.Version
-			}
-		}
 	}
 	if s.shell != nil {
 		in.Shell, in.ShellIntegration = s.shell()

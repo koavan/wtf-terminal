@@ -7,9 +7,8 @@ import (
 	"github.com/dayanraj/wtf/internal/sshhosts"
 )
 
-// Shell helpers: quoting, and switching a shell to a git identity. Ports of
-// frontend/src/lib/shell.ts and useIdentityCommand in
-// lib/gitIdentities.svelte.ts (macos/Sources/WtfCore/Shell.swift).
+// Shell helpers: quoting, and switching a shell to a git identity. A port of
+// macos/Sources/WtfCore/Shell.swift.
 
 var shellSafe = regexp.MustCompile(`^[A-Za-z0-9_@%+=:,./-]+$`)
 

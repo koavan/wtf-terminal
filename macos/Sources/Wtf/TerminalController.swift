@@ -4,7 +4,7 @@ import WtfCore
 
 /// One terminal view attached to one backend shell session: its look
 /// (config.toml), command blocks (OSC 133), secret covers, find bar and
-/// menus. Like TerminalPane.svelte.
+/// menus. Like internal/gtkui/pane.go.
 @MainActor
 final class TerminalController: NSObject, @MainActor TerminalViewDelegate, OutputSink, NSMenuDelegate {
     let view: WtfTerminalView
@@ -44,7 +44,7 @@ final class TerminalController: NSObject, @MainActor TerminalViewDelegate, Outpu
         super.init()
         view.terminalDelegate = self
         view.controller = self
-        // Links open with ⌘-click, as in the Wails build.
+        // Links open with ⌘-click.
         view.linkReporting = .implicit
         // CoreText beat Metal in the M0 benchmark; Metal stays opt-in.
         if ProcessInfo.processInfo.environment["WTF_NATIVE_RENDERER"] == "metal" {
@@ -663,7 +663,7 @@ final class TerminalController: NSObject, @MainActor TerminalViewDelegate, Outpu
 
     /// Inspector entries: the URL or token under the mouse, what the
     /// selection can be inspected as, a YAML base64 value, JSON in the line.
-    /// Like outputEntries in TerminalPane.svelte.
+    /// Like inspectItems in internal/gtkui/inspectmenu.go.
     private func inspectItems(row: Int?, col: Int?) -> [NSMenuItem] {
         guard let owner else { return [] }
         let hide = Redaction.shared.on
@@ -834,7 +834,7 @@ final class TerminalController: NSObject, @MainActor TerminalViewDelegate, Outpu
     }
 
     // A program's own title (OSC 0/2: vim, htop, a remote shell) names the
-    // tab while it runs, as in the Wails build.
+    // tab while it runs.
     func setTerminalTitle(source: TerminalView, title: String) {
         guard let o = owner, let p = o.model.panes[paneId], p.oscTitle != title else { return }
         p.oscTitle = title
@@ -846,10 +846,9 @@ final class TerminalController: NSObject, @MainActor TerminalViewDelegate, Outpu
             NSWorkspace.shared.open(url)
         }
     }
-    // Silent, as in the Wails build (a beep on every completion miss).
+    // Silent (else a beep on every completion miss).
     func bell(source: TerminalView) {}
-    // Programs (remote ones too, over ssh) can't set the clipboard (OSC 52),
-    // as in the Wails build.
+    // Programs (remote ones too, over ssh) can't set the clipboard (OSC 52).
     func clipboardCopy(source: TerminalView, content: Data) {}
     func clipboardRead(source: TerminalView) -> Data? { nil }
     func iTermContent(source: TerminalView, content: ArraySlice<UInt8>) {}
@@ -864,7 +863,7 @@ final class ClosureMenuItem: NSMenuItem {
         run = action
         super.init(title: title, action: #selector(fire), keyEquivalent: keyEquivalent)
         target = self
-        // Destructive items are red, as in the Wails build's menus.
+        // Destructive items are red.
         if Self.danger.contains(where: { title.hasPrefix($0) }) {
             attributedTitle = NSAttributedString(string: title, attributes: [.foregroundColor: NSColor.systemRed, .font: NSFont.menuFont(ofSize: 0)])
         }

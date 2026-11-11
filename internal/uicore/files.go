@@ -10,9 +10,8 @@ import (
 )
 
 // The Files tab's logic: the folder tree from cached listings (filtered,
-// expanded), git decorations, and the git menu's commands. Ports of
-// frontend/src/lib/gitstatus.ts, fileActions.ts and FileTree.svelte's rules
-// (macos/Sources/WtfCore/Files.swift).
+// expanded), git decorations, and the git menu's commands. A port of
+// macos/Sources/WtfCore/Files.swift.
 
 // RelativePath is path relative to base when inside it ("src/main.go"),
 // else absolute.

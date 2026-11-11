@@ -2,7 +2,7 @@ import AppKit
 import WtfCore
 
 /// Open “<workspace>”: asks for its placeholders, shows what will open,
-/// then opens it here or in a new window. Like WorkspaceOpenDialog.svelte.
+/// then opens it here or in a new window. Like internal/gtkui/workspace.go.
 @MainActor
 final class WorkspaceOpen: NSObject, NSTextFieldDelegate {
     private static var current: WorkspaceOpen?

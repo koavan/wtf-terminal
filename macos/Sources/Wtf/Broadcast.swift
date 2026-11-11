@@ -3,7 +3,7 @@ import WtfCore
 
 /// Broadcast input: typing in one pane also goes to the other panes of its
 /// tab group, or of its split tab. Per window, in memory only (never
-/// survives a restart). Like lib/broadcast.svelte.ts.
+/// survives a restart). Like internal/gtkui/broadcast.go.
 @MainActor
 final class Broadcast {
     static let shared = Broadcast()

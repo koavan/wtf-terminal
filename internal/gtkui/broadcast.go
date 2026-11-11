@@ -15,8 +15,8 @@ import (
 
 // broadcast is input broadcast in a window: typing in one pane also goes to
 // the other panes of its tab group, or of its split tab. In memory only (it
-// never survives a restart). Like lib/broadcast.svelte.ts and the macOS
-// app's Broadcast.
+// never survives a restart). Like the macOS app's
+// Broadcast.
 type broadcast struct {
 	groups map[int]bool
 	tabs   map[int]bool

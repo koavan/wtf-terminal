@@ -203,8 +203,8 @@ func (p *Pane) run(a uicore.LogAction) {
 // inspectItems are the inspector entries at a point in the terminal: the
 // token under the mouse and its menu, what the selection can be inspected
 // as (or a YAML base64 value), JSON in the selection or the line. Groups
-// are split by sections; nil for none. Like outputEntries in
-// TerminalPane.svelte.
+// are split by sections; nil for none. Like inspectItems in
+// the macOS app's TerminalController.
 func (p *Pane) inspectItems(x, y float64) []*menuItem {
 	w := p.win
 	hide := w.app.settings.hide

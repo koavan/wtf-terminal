@@ -2,7 +2,7 @@ import Foundation
 import Testing
 @testable import WtfCore
 
-// The cases of frontend/src/lib/tabs.test.ts, and its random-operations check.
+// The cases of the Svelte build's tabs tests, and its random-operations check.
 
 private final class Setup {
     let w = WindowModel()
@@ -513,4 +513,19 @@ private func json(_ text: String) -> SavedSession { try! JSONDecoder().decode(Sa
     #expect(WindowModel.paneTitle(p, home: "/home/me") == "ssh web1")
     p.oscTitle = "remote: vim"
     #expect(WindowModel.paneTitle(p, home: "/home/me") == "remote: vim")
+}
+
+@Test func aCustomNameSurvivesRestoreAndMovingToAnotherWindow() {
+    let s = Setup()
+    let a = s.open(2)[0]
+    s.w.rename(a, "db")
+    let snap = roundTrip(s.w.snapshot(fontSize: 13))
+    let moved = s.w.detach(a) { _ in "" }!
+    let r = Setup()
+    r.w.restore(snap)
+    #expect(r.w.tabs.map(\.customTitle) == ["db", nil])
+    let o = Setup()
+    o.open(1)
+    let payload = try! JSONDecoder().decode(SavedTab.Payload.self, from: JSONEncoder().encode(moved))
+    #expect(o.w.adopt(payload) && o.w.active?.customTitle == "db")
 }

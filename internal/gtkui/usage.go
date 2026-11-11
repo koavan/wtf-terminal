@@ -29,7 +29,7 @@ func init() {
 
 // usageStore is wtf's CPU and memory, sampled every 2s only while a
 // readout or the dialog is on screen and a wtf window is in front. One per
-// app. Like usage.svelte.ts and the macOS app's UsageStore.
+// app. Like the macOS app's UsageStore.
 type usageStore struct {
 	a        *App
 	current  *usage.Usage
@@ -163,7 +163,7 @@ func (r *usageReadout) stop() {
 
 // showUsage is the Resource Usage dialog: wtf in all, then the app and
 // your programs, process by process, live while open. One at a time. Like
-// UsageDialog.svelte and the macOS app's UsageDialog.
+// the macOS app's UsageDialog.
 func (w *Window) showUsage() {
 	st := usageStoreOf(w.app)
 	if st.dialog != nil {

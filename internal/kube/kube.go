@@ -8,7 +8,7 @@
 // plugins like aws-iam-authenticator or gke-gcloud-auth-plugin are found),
 // so it sees exactly what `kubectl` typed in that shell would. Actions on
 // the cluster — logs, exec, restarts — are real kubectl commands the
-// frontend runs in a terminal tab.
+// UI runs in a terminal tab.
 package kube
 
 import (

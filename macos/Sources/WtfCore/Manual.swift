@@ -1,6 +1,5 @@
-// The in-app manual: the same Markdown pages as the Wails build
-// (frontend/src/manual/*.md), rendered to HTML for a WKWebView. A port of
-// lib/manual.ts and manual/index.ts. All text is escaped first; the only
+// The in-app manual: the Markdown pages in manual/*.md (shared with the
+// Linux app), rendered to HTML for a WKWebView. All text is escaped first; the only
 // markup is the renderer's own. Page links become wtf-manual:<id> and
 // outside links stay https://, so the web view needs no JavaScript.
 import Foundation

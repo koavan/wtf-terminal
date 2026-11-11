@@ -44,3 +44,41 @@ func TestPasswords(t *testing.T) {
 		t.Errorf("random int %d", got)
 	}
 }
+
+// More cases of the Svelte build's passwords tests.
+
+func TestPasswordsUseOnlyTheChosenClasses(t *testing.T) {
+	digits := PasswordOptions{Length: 30, Digits: true}
+	if pw := GeneratePassword(digits, nil); len(pw) != 30 || strings.Trim(pw, PasswordDigits) != "" {
+		t.Errorf("digits only: %q", pw)
+	}
+	var all strings.Builder
+	for _, set := range PasswordClasses(NewPasswordOptions()) {
+		all.WriteString(string(set))
+	}
+	if strings.ContainsAny(all.String(), "'\"\\` ") {
+		t.Errorf("classes hold a quote, backslash, backtick or space: %q", all.String())
+	}
+}
+
+func TestPasswordsClampTheLength(t *testing.T) {
+	o := NewPasswordOptions()
+	for in, want := range map[int]int{1: 4, 1000: 128} {
+		o.Length = in
+		if pw := GeneratePassword(o, nil); utf8.RuneCountInString(pw) != want {
+			t.Errorf("length %d gave %d characters", in, utf8.RuneCountInString(pw))
+		}
+	}
+}
+
+func TestPasswordsDrawEvenly(t *testing.T) {
+	var counts [10]int
+	for range 20000 {
+		counts[PasswordRandomInt(10, nil)]++
+	}
+	for i, c := range counts {
+		if c <= 1700 {
+			t.Errorf("%d drawn %d times of 20000", i, c)
+		}
+	}
+}

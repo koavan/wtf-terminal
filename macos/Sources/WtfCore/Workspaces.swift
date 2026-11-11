@@ -1,8 +1,8 @@
 // Workspaces: named sets of tabs (folders, split panes, tab groups and
 // startup commands) opened in one go, from the snippets files
 // (internal/snippets). A workspace becomes a plan once its placeholders are
-// filled in; the plan is what opens. Ports of lib/workspaces.svelte.ts and
-// the placeholder helpers in lib/snippets.svelte.ts.
+// filled in; the plan is what opens. Like
+// internal/uicore/workspaces.go.
 import Foundation
 
 public struct Param: Decodable, Equatable, Sendable {

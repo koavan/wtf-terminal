@@ -13,7 +13,7 @@ import (
 )
 
 // The Findings tab's grouping: by severity, then rule, filtered by words.
-// Port of lib/findings.svelte.ts (macos/Sources/WtfCore/Findings.swift).
+// A port of macos/Sources/WtfCore/Findings.swift.
 
 var FindingSeverities = []string{"critical", "high", "error", "medium", "warning", "low", "note", "none"}
 

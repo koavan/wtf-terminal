@@ -2,7 +2,7 @@ import AppKit
 import WtfCore
 
 /// The config from the backend, the system appearance and the text size,
-/// for every terminal. Like lib/settings.svelte.ts.
+/// for every terminal.
 @MainActor
 final class Settings {
     static let shared = Settings()
@@ -85,8 +85,7 @@ final class Settings {
 /// Hide Secrets, for sharing your screen: while on, secrets in the output are
 /// covered on screen, and text that leaves a terminal has them replaced with
 /// [REDACTED]. The output itself is untouched. One switch for every terminal;
-/// `redact-secrets` in config.toml sets it at startup. Like
-/// lib/redaction.svelte.ts.
+/// `redact-secrets` in config.toml sets it at startup.
 @MainActor
 final class Redaction {
     static let shared = Redaction()

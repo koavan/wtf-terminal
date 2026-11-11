@@ -8,9 +8,8 @@ import (
 )
 
 // The side pane's state as each window saves it in its session ("sidebar"
-// in SavedSession.Extra), validated field by field like
-// lib/sidebar.svelte.ts. Fields this build doesn't use are kept, so saving
-// doesn't drop the Svelte build's. A port of
+// in SavedSession.Extra), validated field by field. Fields this build doesn't use are kept, so
+// saving doesn't drop what older versions (the Wails build) saved. A port of
 // macos/Sources/WtfCore/Sidebar.swift.
 
 // SidebarTab is one of the side pane's tabs.

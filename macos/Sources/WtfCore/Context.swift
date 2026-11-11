@@ -1,6 +1,6 @@
 // A shell's cloud and cluster context, from the variables it reports at
 // each prompt (infra.Resolve in internal/infra), and the address bar badges
-// made from it. A port of frontend/src/lib/infra.ts.
+// made from it. Like internal/uicore/badges.go.
 import Foundation
 
 public enum Env {
@@ -222,8 +222,8 @@ public enum Badges {
     }
 }
 
-/// Which input broadcast leaves its pane. A port of isTerminalReport in
-/// lib/broadcast.svelte.ts: answers the terminal gives a program on its own
+/// Which input broadcast leaves its pane. Like IsTerminalReport in
+/// internal/uicore/env.go: answers the terminal gives a program on its own
 /// (cursor position, mouse, focus, mode and device reports, OSC and DCS
 /// replies) stay in their pane.
 public enum TerminalReport {

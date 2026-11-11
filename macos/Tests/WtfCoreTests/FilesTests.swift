@@ -1,7 +1,7 @@
 import Testing
 @testable import WtfCore
 
-// The cases of frontend/src/lib/gitstatus.test.ts and fileActions.test.ts.
+// The cases of the Svelte build's gitstatus tests and fileActions tests.
 
 private func change(_ p: String, _ s: String, staged: Bool = false, unstaged: Bool = true) -> Go.files.GitChange {
     Go.files.GitChange(path: p, status: s, staged: staged, unstaged: unstaged)
@@ -79,4 +79,25 @@ private func entry(_ path: String, dir: Bool = false) -> Go.files.Entry {
     #expect(Paths.parent("/a") == "/" && Paths.base("/") == "/")
     t.visit("pane:1", "/a"); t.visit("pane:1", "/a"); t.visit("pane:1", "/b")
     #expect(t.history["pane:1"] == ["/a", "/b"])
+}
+
+// More cases of the Svelte build's shell tests (paths) and fileActions tests.
+
+@Test func pathsRelativeParentAndBase() {
+    #expect(Paths.relative("/w/proj", "/w/proj/src/a.go") == "src/a.go")
+    #expect(Paths.relative("/w/proj", "/w/proj") == ".")
+    #expect(Paths.relative("/w/proj", "/w/project/a.go") == "/w/project/a.go")
+    #expect(Paths.relative("/w/proj", "/etc/hosts") == "/etc/hosts")
+    #expect(Paths.relative("", "/etc/hosts") == "/etc/hosts")
+    #expect(Paths.parent("/a/b/c") == "/a/b")
+    #expect(Paths.base("/a/b/c.txt") == "c.txt")
+}
+
+@Test func gitFolderMenu() {
+    #expect(menuIdx.menu("/repo/src", dir: true) == [
+        .heading("Git: changes inside"),
+        .run(label: "Show Status of Folder", command: "git status -- src"),
+        .run(label: "Show Changes in Folder", command: "git diff HEAD -- src"),
+        .run(label: "Show Folder History", command: "git log --oneline -- src"),
+    ])
 }

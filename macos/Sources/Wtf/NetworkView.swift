@@ -67,7 +67,7 @@ extension WindowController {
 
 /// The Network tab: port forwards, then what's listening, connected and
 /// otherwise open — from your terminals or everything. Polled only while
-/// on screen and the window is in front. Like NetworkView.svelte.
+/// on screen and the window is in front. Like internal/gtkui/networktab.go.
 @MainActor
 final class NetworkView: NSView, SidePaneTab, NSSearchFieldDelegate {
     private unowned let owner: WindowController

@@ -7,7 +7,7 @@
 // secret means "keep the current one".
 //
 // Every change can be planned first — a list of what would change, in
-// words — and the frontend asks the user to confirm that list before
+// words — and the UI asks the user to confirm that list before
 // saving. Saving checks that the files are still the versions that were
 // listed, keeps a copy of the old files in wtf's cache, and writes
 // atomically, keeping each file's permissions.

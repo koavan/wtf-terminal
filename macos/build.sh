@@ -16,14 +16,14 @@ for a in "$@"; do
 	esac
 done
 cd "$(dirname "$0")/.."
-version=$(sed -n 's/^const version = "\(.*\)"/\1/p' main.go)
+version=$(cat VERSION)
 commit=$(git describe --always --dirty 2>/dev/null || echo unknown)
 date=$(date -u +%Y-%m-%d)
 
 goarchive() { # goarchive <goarch> <clang arch> <out>
 	# Go won't overwrite a fat archive from a universal build.
 	rm -f "$3"
-	CGO_ENABLED=1 GOARCH=$1 CC="clang -arch $2" go build -tags native -trimpath -buildvcs=false -buildmode=c-archive \
+	CGO_ENABLED=1 GOARCH=$1 CC="clang -arch $2" go build -trimpath -buildvcs=false -buildmode=c-archive \
 		-o "$3" ./cmd/libwtf
 }
 if [ -n "$universal" ]; then
@@ -53,7 +53,7 @@ if [ -n "$universal" ]; then helper_archs="-arch arm64 -arch x86_64"; else helpe
 cc -O2 -Wall $helper_archs -mmacosx-version-min=14.0 -o "$app/Contents/MacOS/wtf-exec" macos/exec/wtf-exec.c
 # The wtf plugin's MCP server, which Claude Code starts in a wtf shell (#32).
 gohelper() { # gohelper <goarch> <out>
-	CGO_ENABLED=0 GOARCH=$1 go build -tags native -trimpath -buildvcs=false \
+	CGO_ENABLED=0 GOARCH=$1 go build -trimpath -buildvcs=false \
 		-ldflags "-s -w -X main.version=$version" -o "$2" ./cmd/wtf-mcp
 }
 if [ -n "$universal" ]; then
@@ -63,21 +63,21 @@ if [ -n "$universal" ]; then
 else
 	gohelper "$(go env GOARCH)" "$app/Contents/MacOS/wtf-mcp"
 fi
-cp build/darwin/icons.icns build/darwin/Assets.car "$app/Contents/Resources/"
-# JetBrains Mono (OFL), the terminal's default font, as in the Wails build.
+cp macos/Resources/icons.icns macos/Resources/Assets.car "$app/Contents/Resources/"
+# JetBrains Mono (OFL), the terminal's default font.
 mkdir -p "$app/Contents/Resources/Fonts"
 cp macos/Resources/Fonts/*.ttf macos/Resources/Fonts/OFL.txt "$app/Contents/Resources/Fonts/"
 # The wtf Claude Code plugin, for `claude --plugin-dir` (#32).
 cp -R claude-plugin "$app/Contents/Resources/claude-plugin"
-# The manual: the same pages as the Wails build.
+# The manual: the pages in manual/, shared with the Linux app.
 mkdir -p "$app/Contents/Resources/manual"
-cp frontend/src/manual/*.md "$app/Contents/Resources/manual/"
+cp manual/*.md "$app/Contents/Resources/manual/"
 if [ -d "$bin/SwiftTerm_SwiftTerm.bundle" ]; then
 	cp -R "$bin/SwiftTerm_SwiftTerm.bundle" "$app/Contents/Resources/"
 fi
 # wtf's Info.plist (bundle id com.dayanraj.wtf): this app is wtf on macOS.
 plist=$app/Contents/Info.plist
-cp build/darwin/Info.plist "$plist"
+cp macos/Resources/Info.plist "$plist"
 pb() { /usr/libexec/PlistBuddy -c "$1" "$plist"; }
 pb "Set :CFBundleVersion $version"
 pb "Set :CFBundleShortVersionString $version"

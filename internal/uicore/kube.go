@@ -12,9 +12,8 @@ import (
 )
 
 // The Kubernetes tab's rules: kubectl command lines, how rows read and what
-// colour their dot is, and how contexts are described. Ports of
-// frontend/src/lib/kube.svelte.ts and kubeconfigs.svelte.ts
-// (macos/Sources/WtfCore/Kube.swift).
+// colour their dot is, and how contexts are described. A port of
+// macos/Sources/WtfCore/Kube.swift.
 
 // KubeTarget is where kubectl commands go: a context and namespace, and
 // the shell's variables for a new tab.

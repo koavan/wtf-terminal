@@ -19,7 +19,7 @@ import (
 // addressBar is the bar under the tabs: what the focused pane runs, where,
 // its context badges (cluster, cloud account, git, credentials expiring)
 // and how the last command went. Clicking it never takes the keyboard from
-// the terminal. Like AddressBar.svelte and the macOS app's AddressBar.
+// the terminal. Like the macOS app's AddressBar.
 type addressBar struct {
 	w     *Window
 	root  *gtk.Box

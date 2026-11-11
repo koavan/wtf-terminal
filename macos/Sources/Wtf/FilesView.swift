@@ -5,7 +5,7 @@ import WtfCore
 /// with git status. Clicking a file types its path at the prompt;
 /// double-clicking a folder cds there. Nothing in it changes files. It reads
 /// folders when the root changes and after each command (while
-/// auto-refresh is on), never on a timer. Like FileTree.svelte.
+/// auto-refresh is on), never on a timer. Like internal/gtkui/filestab.go.
 @MainActor
 final class FilesView: NSView, SidePaneTab, NSTableViewDataSource, NSTableViewDelegate, NSSearchFieldDelegate {
     static let remoteProcesses: Set<String> = ["ssh", "mosh", "mosh-client", "et", "telnet"]

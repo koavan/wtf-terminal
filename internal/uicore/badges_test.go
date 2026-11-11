@@ -10,7 +10,7 @@ import (
 	"github.com/dayanraj/wtf/internal/infra"
 )
 
-// The cases of frontend/src/lib/infra.test.ts.
+// The cases of the Svelte build's infra tests.
 
 func TestShortClusterNames(t *testing.T) {
 	for in, want := range map[string]string{
@@ -113,7 +113,7 @@ func TestGitBadge(t *testing.T) {
 		}
 	}
 	w := gitBadge(testGit(func(g *infra.Git) { g.Identity = "work" }), now)
-	if w.Label != "work · main → origin" || !strings.Contains(w.Title, "Git identity: work") {
+	if w.Label != "work · main → origin" || !strings.Contains(w.Title, "Git identity: work") || !strings.Contains(w.Title, "Author: Ada <ada@example.com>") {
 		t.Errorf("identity badge = %+v", w)
 	}
 	g := testGit(nil)

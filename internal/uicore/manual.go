@@ -6,10 +6,9 @@ import (
 	"strings"
 )
 
-// The in-app manual: the same Markdown pages as the Wails build
-// (frontend/src/manual/*.md), parsed into blocks of styled runs for a
-// native renderer. A port of lib/manual.ts and manual/index.ts
-// (macos/Sources/WtfCore/Manual.swift, which renders HTML instead). The
+// The in-app manual: the Markdown pages in manual/*.md, parsed into
+// blocks of styled runs for a native renderer (macOS's
+// macos/Sources/WtfCore/Manual.swift renders HTML instead). The
 // Markdown is a small subset — just what the pages use: headings (#, ##,
 // ###), paragraphs, - and 1. lists, > tips, | tables |, ``` code blocks,
 // `code`, **bold**, *italics*, and links: [text](#topic) to another page,

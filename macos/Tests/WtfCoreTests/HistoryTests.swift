@@ -74,3 +74,26 @@ import Testing
     #expect(Findings.isScan("trivy fs .") && Findings.isScan("(cd /r && semgrep scan)") && !Findings.isScan("trivyx"))
     #expect(Findings.tone("medium") == .warn && Findings.tone("note") == .dim)
 }
+
+// More cases of the Svelte build's transcript tests and pins tests.
+
+@Test func fenceIsLongerThanAnyBackticksInside() {
+    #expect(Export.fence("plain") == "```")
+    #expect(Export.fence("````") == "`````")
+    let md = Export.markdown([.init(text: "echo `date`", output: "a ``` b", exitCode: 0)], title: "t", cwd: "", exportedAt: Date())
+    #expect(md.contains("## 1. `` echo `date` ``"))
+    #expect(md.contains("````text\na ``` b\n````"))
+}
+
+@Test func pinsFollowARunningCommandAndKeepTheEndOfLongOutput() {
+    var p = Pins()
+    p.add(.init(title: "make", text: "old", paneId: 1, blockId: 7, cwd: "/w", running: true))
+    let again = p.add(.init(title: "make", text: "a", paneId: 1, blockId: 7, cwd: "/w", running: true))
+    #expect(again.text == "a" && p.list.count == 1)
+    p.update(pane: 1, block: 7, text: "a\nb")
+    #expect(p.list[0].text == "a\nb" && p.list[0].running && p.live.count == 1)
+    p.paneGone(1)
+    #expect(p.list.count == 1 && !p.list[0].running)
+    let long = p.add(.init(title: "log", text: String(repeating: "x", count: Pins.maxChars) + "END", paneId: 1, blockId: 8, cwd: "/w"))
+    #expect(long.truncated && long.text.count == Pins.maxChars && long.text.hasSuffix("END"))
+}

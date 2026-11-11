@@ -15,7 +15,7 @@ import (
 // findBar finds text in the terminal's output: as you type, Enter for the
 // next match, Shift+Enter for the previous, Escape to close. The overlay
 // highlights the matches on screen and outlines the current one. Like
-// SearchBar.svelte and the macOS app's SearchBar.
+// the macOS app's SearchBar.
 type findBar struct {
 	p      *Pane
 	box    *gtk.Box

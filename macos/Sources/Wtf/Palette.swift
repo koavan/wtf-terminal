@@ -3,7 +3,7 @@ import WtfCore
 
 /// The command palette (⌘⇧P): commands, tabs, groups and workspaces in one
 /// fuzzy list; or themes (previewed as you move) or workspaces alone.
-/// Like Palette.svelte. One per window.
+/// Like internal/gtkui/palette.go. One per window.
 @MainActor
 final class Palette: NSView, NSTextFieldDelegate {
     enum Mode: Equatable { case commands, themes, workspaces, snippets, agents }

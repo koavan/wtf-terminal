@@ -38,3 +38,17 @@ func TestExports(t *testing.T) {
 		t.Errorf("head:\n%s", md)
 	}
 }
+
+// More cases of the Svelte build's transcript tests.
+
+func TestExportFenceIsLongerThanAnyBackticksInside(t *testing.T) {
+	expectText(t, ExportFence("plain"), "```")
+	expectText(t, ExportFence("````"), "`````")
+	out, zero := "a ``` b", 0
+	md := ExportMarkdown([]ExportBlock{{Text: "echo `date`", Output: &out, ExitCode: &zero}}, "t", "", time.Now(), time.UTC)
+	for _, want := range []string{"## 1. `` echo `date` ``", "````text\na ``` b\n````", "# t\n"} {
+		if !strings.Contains(md, want) {
+			t.Errorf("missing %q in\n%s", want, md)
+		}
+	}
+}

@@ -2,7 +2,6 @@ import AppKit
 import WtfCore
 
 /// The popover under a group chip: name, colour, and the group's actions.
-/// Like GroupEditor.svelte.
 @MainActor
 final class GroupEditor: NSViewController, NSTextFieldDelegate, NSPopoverDelegate {
     private static var open: NSPopover?

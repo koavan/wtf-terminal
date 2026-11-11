@@ -1,6 +1,6 @@
 // Package events delivers backend events to whichever UI is running: the
-// Wails webview (main.go) or the native macOS app (cmd/libwtf). Services
-// emit through here so they don't depend on either.
+// macOS app (through cmd/libwtf) or the Linux app (internal/gtkui).
+// Services emit through here so they don't depend on either.
 package events
 
 import "sync/atomic"

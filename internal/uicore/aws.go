@@ -13,8 +13,7 @@ import (
 
 // The AWS Profiles tab's rules: row text, tooltips, key ages, and the
 // editor's draft (what a profile's form shows, and what it sends back).
-// Ports of lib/aws.svelte.ts and AwsProfileEditor.svelte
-// (macos/Sources/WtfCore/Aws.swift).
+// A port of macos/Sources/WtfCore/Aws.swift.
 
 var AWSKindLabel = map[string]string{"keys": "Access keys", "role": "Assume role", "sso": "SSO", "process": "Credential process", "none": "Settings only"}
 

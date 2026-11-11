@@ -82,8 +82,8 @@ func (sv *streamServer) handle(w http.ResponseWriter, r *http.Request) {
 	defer sess.attachMu.Unlock()
 
 	c, err := websocket.Accept(w, r, &websocket.AcceptOptions{
-		// The webview's origin differs per platform (wails://, http://wails.localhost,
-		// the Vite dev server); the token is what authenticates the client.
+		// A client's origin can be anything (a web view's own scheme, a dev
+		// server); the token is what authenticates the client.
 		InsecureSkipVerify: true,
 		CompressionMode:    websocket.CompressionDisabled,
 	})

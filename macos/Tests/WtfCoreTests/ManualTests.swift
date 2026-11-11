@@ -46,7 +46,7 @@ var ctx: Manual.Context { Manual.Context(label: { ["sidebar.ssh": "Show SSH Host
 }
 
 @Test func manualTopicsMatchPages() throws {
-    let dir = URL(fileURLWithPath: #filePath).deletingLastPathComponent().appendingPathComponent("../../../frontend/src/manual")
+    let dir = URL(fileURLWithPath: #filePath).deletingLastPathComponent().appendingPathComponent("../../../manual")
     let files = try FileManager.default.contentsOfDirectory(atPath: dir.path).filter { $0.hasSuffix(".md") }.map { String($0.dropLast(3)) }
     #expect(Set(files) == Set(Manual.topics.map(\.id)))
     #expect(Set(Manual.topics.map(\.id)).count == Manual.topics.count)

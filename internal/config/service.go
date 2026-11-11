@@ -21,17 +21,17 @@ const (
 	pollInterval = 750 * time.Millisecond
 )
 
-// Resolved is the config as the frontend uses it.
+// Resolved is the config as the UI uses it.
 type Resolved struct {
 	Config Config `json:"config"`
 	Dark   Theme  `json:"dark"`
 	Light  Theme  `json:"light"`
-	// Problems found while loading; the frontend shows them.
+	// Problems found while loading; the UI shows them.
 	Problems []string `json:"problems"`
 	Path     string   `json:"path"`
 }
 
-// Service loads the config, watches it, and pushes changes to the frontend.
+// Service loads the config, watches it, and pushes changes to the UI.
 type Service struct {
 	dir string
 	// Watching pauses while no window is in front; nil never pauses.

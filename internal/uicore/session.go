@@ -10,9 +10,9 @@ import (
 	"github.com/dayanraj/wtf/internal/apiclient"
 )
 
-// The session.json shapes the Svelte build writes (spec: file version 2 with
-// per-window sessions, each version 1), so every build restores the others'
-// windows. A port of macos/Sources/WtfCore/SavedSession.swift. Decoding is
+// The session.json shapes every build writes, older versions (the Wails
+// build) included (spec: file version 2 with per-window sessions, each
+// version 1), so every build restores the others' windows. A port of macos/Sources/WtfCore/SavedSession.swift. Decoding is
 // lenient: a wrongly typed field reads as absent and a malformed tab or
 // group is skipped, not fatal. encoding/json fails a whole struct on one bad
 // field, so each field is read on its own from json.RawMessage.
@@ -72,7 +72,8 @@ type SavedSession struct {
 	Tabs   []SavedTab
 	Groups []SavedGroup
 	Active *int
-	// Fields this build doesn't use (the Svelte build's sidebar state),
+	// Fields this build doesn't use (the sidebar state, and what older
+	// versions such as the Wails build saved),
 	// kept so saving doesn't drop them.
 	Extra map[string]json.RawMessage
 }

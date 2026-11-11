@@ -2,8 +2,8 @@ import AppKit
 import WtfCore
 
 /// The tab strip, which is also the window's title bar: group chips, tabs
-/// and the + button, drawn in one view (cheap however many tabs). Like
-/// TabStrip.svelte: click to activate, middle-click or × to close,
+/// and the + button, drawn in one view (cheap however many tabs).
+/// Click to activate, middle-click or × to close,
 /// double-click to rename, right-click for the menu, drag to reorder, drag
 /// off the strip for a new window. Empty space moves the window.
 @MainActor

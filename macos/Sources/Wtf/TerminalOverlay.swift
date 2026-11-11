@@ -2,7 +2,7 @@ import AppKit
 import SwiftTerm
 import WtfCore
 
-/// Holds a terminal view with the padding the Wails build has (the left
+/// Holds a terminal view with its padding (the left
 /// padding is the gutter for command marks), and the overlay drawn over it.
 @MainActor
 final class TerminalContainer: NSView {
@@ -234,7 +234,7 @@ final class TerminalOverlay: NSView, NSViewToolTipOwner {
         for m in marks where m.block.exitCode != nil { addCursorRect(markRect(m.row), cursor: .pointingHand) }
     }
 
-    /// The mark's tooltip, like the Wails build's.
+    /// The mark's tooltip.
     func tooltip(at point: NSPoint) -> String? {
         guard let m = marks.first(where: { markRect($0.row).contains(point) }), let code = m.block.exitCode else { return nil }
         var s = code == 0 ? "Succeeded" : "Failed with exit code \(code)"

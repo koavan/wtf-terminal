@@ -195,7 +195,7 @@ func toolsOpenURL(w *Window, url string) {
 // toolsDialog is Command-Line Tools: which programs the side pane runs
 // are there, and installing the missing ones — the exact command or script
 // is shown first, then run in a new tab (never by wtf itself). Like
-// ToolsDialog.svelte and the macOS app's ToolsDialog.
+// the macOS app's ToolsDialog.
 type toolsDialog struct {
 	*toolsSheet
 	list     []tools.Status
@@ -536,8 +536,8 @@ func aboutDiagnostics(i about.Info) string {
 }
 
 // showAbout opens About wtf: version, what it is, where its files are, and
-// the way to the manual and the tools. Like AboutDialog.svelte and the
-// macOS app's AboutDialog.
+// the way to the manual and the tools. Like the macOS app's
+// AboutDialog.
 func (w *Window) showAbout() {
 	s := newToolsSheet(w, "About wtf", 520)
 	var info *about.Info

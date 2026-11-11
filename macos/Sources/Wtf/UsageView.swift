@@ -2,7 +2,7 @@ import AppKit
 import WtfCore
 
 /// wtf's CPU and memory, sampled every 2s only while a readout or the
-/// dialog is on screen and a wtf window is in front. Like usage.svelte.ts.
+/// dialog is on screen and a wtf window is in front. Like internal/gtkui/usage.go.
 @MainActor
 final class UsageStore {
     static let shared = UsageStore()
@@ -110,7 +110,7 @@ final class UsageReadout: NSView {
 }
 
 /// The Resource Usage dialog: wtf in all, then the app and your programs,
-/// process by process, live while open. Like UsageDialog.svelte.
+/// process by process, live while open.
 @MainActor
 final class UsageDialog: NSObject {
     private static var shown: UsageDialog?

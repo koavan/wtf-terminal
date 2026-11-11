@@ -1,7 +1,7 @@
 import Testing
 @testable import WtfCore
 
-// The outcomes frontend/src/lib/fuzzy.test.ts requires.
+// The outcomes the Svelte build's fuzzy tests requires.
 
 @Test func fuzzyMatchesInOrder() {
     #expect(Fuzzy.match("nt", "New Tab")?.indices == [0, 4])

@@ -1,7 +1,7 @@
 // Package uicore holds the native UIs' rules that don't touch a toolkit:
 // what counts as a secret, when a paste is shown first, fuzzy matching, the
-// keymap. Each is a port of the matching frontend/src/lib file (and of
-// macos/Sources/WtfCore), tested against the same cases.
+// keymap. Each matches its counterpart in macos/Sources/WtfCore,
+// tested against the same cases.
 package uicore
 
 import (
@@ -29,8 +29,7 @@ const Redacted = "[REDACTED]"
 // Best effort, and on the side of hiding too much: hiding a harmless value
 // costs little while sharing a screen; showing a key costs a lot.
 //
-// The patterns are frontend/src/lib/secrets.ts's, which need lookarounds and
-// backreferences, so they run on regexp2 rather than RE2.
+// The patterns need lookarounds and backreferences, so they run on regexp2 rather than RE2.
 type secretRule struct {
 	kind string
 	re   *regexp2.Regexp

@@ -125,7 +125,7 @@ func (s *awsShared) checkKeys(svc *awsprofiles.Service, name string) {
 // awsTab is the AWS Profiles tab: the profiles in ~/.aws/credentials and
 // ~/.aws/config. Use one in the focused shell, check it with AWS, add,
 // edit, rotate, copy to default, delete — every write planned and
-// confirmed first. Like AwsView.svelte and the macOS app's AwsView.
+// confirmed first. Like the macOS app's AwsView.
 type awsTab struct {
 	w      *Window
 	root   *gtk.Box
@@ -408,8 +408,7 @@ var awsEditorKinds = []string{"keys", "role", "sso", "process"}
 
 // showEditor adds (p nil) or edits a profile: a form, then the exact
 // changes to the two files, written only once confirmed. Secrets are
-// write-only. Like AwsProfileEditor.svelte and the macOS app's
-// AwsProfileEditor.
+// write-only. Like the macOS app's AwsProfileEditor.
 func (t *awsTab) showEditor(p *awsprofiles.Profile) {
 	w, svc := t.w, t.svc()
 	l := awsStore.list
@@ -700,8 +699,8 @@ func awsField(f *sshForm, label string, control gtk.Widgetter, help string) *gtk
 
 // showRotate rotates an IAM user's access key: check, show the plan, then
 // create, write, verify, deactivate and delete — undoing what it can on
-// failure. The new secret never reaches the UI. Like AwsRotate.svelte and
-// the macOS app's AwsRotate.
+// failure. The new secret never reaches the UI. Like the macOS
+// app's AwsRotate.
 func (t *awsTab) showRotate(p awsprofiles.Profile) {
 	w, svc := t.w, t.svc()
 	f := newSSHForm(w, "Rotate Access Key — "+p.Name, "Replaces "+p.AccessKeyID+" with a new key for the same IAM user", 480)

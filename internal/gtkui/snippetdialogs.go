@@ -25,7 +25,7 @@ import (
 
 // showSnippetRun fills in a snippet's placeholders, then inserts or runs
 // it — or runs a runbook's steps one by one in the shell that was focused.
-// Like SnippetDialog.svelte.
+// Like the macOS app's SnippetRun.
 func (w *Window) showSnippetRun(s snippets.Snippet) {
 	pane := 0
 	var facts uicore.ShellFacts
@@ -514,7 +514,7 @@ func (w *Window) showSnippetDraft(s snippets.Snippet) {
 
 // snippetEditor is the snippet editor: a command or a runbook of steps,
 // its placeholders, the file to save to; then a review of exactly what
-// will be written. Like SnippetEditor.svelte.
+// will be written. Like the macOS app's SnippetEditor.
 type snippetEditor struct {
 	w       *Window
 	sheet   *snippetSheet

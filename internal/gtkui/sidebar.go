@@ -52,8 +52,8 @@ func sidebarTabInfoOf(tab uicore.SidebarTab) (sidebarTabInfo, bool) {
 }
 
 // sidebar is the side pane: an icon rail and the chosen tab, left of the
-// terminals, resized by its divider. Like Sidebar.svelte and the macOS
-// app's Sidebar.
+// terminals, resized by its divider. Like the macOS app's
+// Sidebar.
 type sidebar struct {
 	w       *Window
 	root    *gtk.Box

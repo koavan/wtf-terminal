@@ -28,8 +28,7 @@ var remoteProcesses = map[string]bool{"ssh": true, "mosh": true, "mosh-client": 
 // a tree, with git status. Clicking a file types its path at the prompt;
 // double-clicking a folder cds there. Nothing in it changes files. It reads
 // folders when the root changes and after each command (while auto-refresh
-// is on), never on a timer. Like FileTree.svelte and the macOS app's
-// FilesView.
+// is on), never on a timer. Like the macOS app's FilesView.
 type filesTab struct {
 	w      *Window
 	root   *gtk.Box

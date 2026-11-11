@@ -1,6 +1,6 @@
-// Package paths says where wtf keeps its caches. The native macOS app runs
-// beside the Wails one while it is being built, with caches of its own so
-// the two don't clear or overwrite each other's files.
+// Package paths says where wtf keeps its caches. A build can be given
+// caches of its own (SetCacheRoot), so two builds side by side don't clear
+// or overwrite each other's files.
 package paths
 
 import (

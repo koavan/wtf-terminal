@@ -1,6 +1,6 @@
 # Dev image for the native Linux app (GTK 4 + libadwaita + VTE), on the
-# oldest supported base (Ubuntu 24.04). It also has WebKitGTK, so the Wails
-# build can be built and benchmarked next to it, and Xvfb for headless checks.
+# oldest supported base (Ubuntu 24.04). It also has WebKitGTK, which older
+# versions (the Wails build) needed, and Xvfb for headless checks.
 #
 #   docker build -t wtf-gtk-dev:ubuntu24 linux
 FROM golang:1.25 AS go

@@ -90,8 +90,8 @@ func Accent(cursor, background string, palette []string, dark bool) RGB {
 	return RGB{0x4c, 0x5b, 0xd4, 1}
 }
 
-// Duration is "0.4s", "12s", "3m 5s" or "2h 10m" (formatDuration in
-// frontend/src/lib/toast.svelte.ts).
+// Duration is "0.4s", "12s", "3m 5s" or "2h 10m" (Format.duration in
+// macos/Sources/WtfCore/Format.swift).
 func Duration(d time.Duration) string {
 	ms := float64(d) / float64(time.Millisecond)
 	if ms < 1000 {

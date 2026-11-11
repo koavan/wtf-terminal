@@ -13,8 +13,8 @@ import (
 )
 
 // The SSH tab's rules: commands, host text, the host editor's fields,
-// tunnels and scp. Ports of frontend/src/lib/ssh.svelte.ts and
-// sshAdmin.svelte.ts (macos/Sources/WtfCore/Ssh.swift).
+// tunnels and scp. A port of
+// macos/Sources/WtfCore/Ssh.swift.
 
 // SSHCommand is the command that connects; config hosts go by alias so ssh
 // applies their settings.

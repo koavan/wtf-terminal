@@ -3,7 +3,7 @@ import WtfCore
 
 /// One window: its tabs and panes (WindowModel), the tab strip, the pane
 /// area and a terminal per pane. Menu commands for the focused window land
-/// here through the responder chain. Like App.svelte with tabs.svelte.ts.
+/// here through the responder chain.
 @MainActor
 final class WindowController: NSWindowController, NSWindowDelegate, NSMenuItemValidation {
     let name: String

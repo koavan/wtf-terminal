@@ -1,10 +1,9 @@
-// Command libwtf builds the Go backend as a C archive for the native macOS
-// UI. Build it with the native tag, which leaves the Wails glue out:
+// Command libwtf builds the Go backend as a C archive for the macOS app:
 //
-//	go build -tags native -buildmode=c-archive -o bin/native/libwtf.a ./cmd/libwtf
+//	go build -buildmode=c-archive -o bin/native/libwtf.a ./cmd/libwtf
 //
-// Service methods are called by name with JSON arguments (wtf_call), the
-// same methods the Wails bindings expose. Backend events and PTY output come
+// Service methods are called by name with JSON arguments (wtf_call): every
+// exported method of the services in backend.Services. Backend events and PTY output come
 // back through callbacks, on Go-owned threads.
 package main
 
@@ -106,15 +105,14 @@ func wtf_init(version, commit, buildDate, stateDir, cacheDir *C.cstr_t, onEvent 
 	for _, n := range b.Services() {
 		services[n.Name] = n.Service
 	}
-	// What the Wails window manager reads from the store itself.
+	// The saved windows, read from the store itself.
 	services["session"] = &session{b.Store}
 	be, cancel = b, stop
 	return nil
 }
 
 // session gives the native UI the saved windows to reopen at launch, and
-// forgets a window closed for good. (Saving goes through state.SaveWindow,
-// as in the Wails build.)
+// forgets a window closed for good. (Saving goes through state.SaveWindow.)
 type session struct{ store *state.Store }
 
 // Windows returns the saved windows in the order they were first saved.
@@ -193,7 +191,7 @@ func call(service, method string, args []byte) (result any, err error) {
 		in[i] = v.Elem()
 	}
 	out := m.Call(in)
-	// As with Wails: a trailing error is the error; the rest is the result
+	// A trailing error is the error; the rest is the result
 	// (nothing, one value, or an array).
 	if n := len(out); n > 0 && t.Out(n-1) == errorType {
 		if e := out[n-1]; !e.IsNil() {

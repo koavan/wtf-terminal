@@ -7,7 +7,7 @@ import (
 	"github.com/dayanraj/wtf/internal/files"
 )
 
-// The cases of frontend/src/lib/gitstatus.test.ts and fileActions.test.ts.
+// The cases of the Svelte build's gitstatus tests and fileActions tests.
 
 func gitChange(p, s string, staged, unstaged bool) files.GitChange {
 	return files.GitChange{Path: p, Status: s, Staged: staged, Unstaged: unstaged}
@@ -154,5 +154,42 @@ func TestTreeRowsAndFilter(t *testing.T) {
 	tr.Visit("pane:1", "/b")
 	if got := tr.History["pane:1"]; !reflect.DeepEqual(got, []string{"/a", "/b"}) {
 		t.Errorf("history %v", got)
+	}
+}
+
+// More cases of the Svelte build's shell tests (paths) and fileActions tests.
+
+func TestPathsRelativeParentAndBase(t *testing.T) {
+	for _, c := range [][3]string{
+		{"/w/proj", "/w/proj/src/a.go", "src/a.go"},
+		{"/w/proj", "/w/proj", "."},
+		{"/w/proj", "/w/project/a.go", "/w/project/a.go"},
+		{"/w/proj", "/etc/hosts", "/etc/hosts"},
+		{"", "/etc/hosts", "/etc/hosts"},
+	} {
+		if got := RelativePath(c[0], c[1]); got != c[2] {
+			t.Errorf("RelativePath(%q, %q) = %q, want %q", c[0], c[1], got, c[2])
+		}
+	}
+	if got := ParentPath("/a/b/c"); got != "/a/b" {
+		t.Errorf("ParentPath = %q", got)
+	}
+	if got := BaseName("/a/b/c.txt"); got != "c.txt" {
+		t.Errorf("BaseName = %q", got)
+	}
+}
+
+func TestGitFolderMenu(t *testing.T) {
+	idx := NewGitIndex(files.GitStatus{Root: "/repo", Branch: "main", Changes: []files.GitChange{
+		gitChange("/repo/src/app.go", "modified", false, true),
+	}})
+	want := []GitMenuItem{
+		gitHeading("Git: changes inside"),
+		gitRun("Show Status of Folder", "git status -- src"),
+		gitRun("Show Changes in Folder", "git diff HEAD -- src"),
+		gitRun("Show Folder History", "git log --oneline -- src"),
+	}
+	if got := idx.Menu("/repo/src", true); !reflect.DeepEqual(got, want) {
+		t.Errorf("got %+v\nwant %+v", got, want)
 	}
 }

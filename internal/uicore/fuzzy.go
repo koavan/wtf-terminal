@@ -7,7 +7,7 @@ import (
 )
 
 // Fuzzy matching for the palette and the tab overview. A port of
-// frontend/src/lib/fuzzy.ts: characters in order, rewarding runs, word
+// macos/Sources/WtfCore/Fuzzy.swift: characters in order, rewarding runs, word
 // starts and the very start, penalising gaps and long texts.
 
 // FuzzyMatch is how well a query matched a text.

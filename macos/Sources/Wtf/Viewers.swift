@@ -4,7 +4,7 @@ import WtfCore
 /// The token and certificate inspector's dialogs: JSON, JWT, decoded
 /// base64, certificates and Kubernetes secrets. One at a time: opening one
 /// closes the last. Decoded values live only while the dialog is open.
-/// Like JsonViewer, JwtViewer, DecodedViewer, CertViewer and SecretViewer.svelte.
+/// Like internal/gtkui/viewers.go.
 @MainActor
 class Viewer: PagedSheet {
     private static weak var current: Viewer?

@@ -3,7 +3,7 @@ import WtfCore
 
 /// The AWS profiles, shared by every window: read when the tab first shows
 /// and after each change, never polled. Checks run only when asked and are
-/// kept per profile while the app runs. Like lib/aws.svelte.ts.
+/// kept per profile while the app runs.
 @MainActor
 final class AwsStore {
     static let shared = AwsStore()
@@ -80,7 +80,7 @@ final class AwsStore {
 /// The AWS Profiles tab: the profiles in ~/.aws/credentials and
 /// ~/.aws/config. Use one in the focused shell, check it with AWS, add,
 /// edit, rotate, copy to default, delete — every write planned and
-/// confirmed first. Like AwsView.svelte.
+/// confirmed first. Like internal/gtkui/awstab.go.
 @MainActor
 final class AwsView: NSView, SidePaneTab, NSSearchFieldDelegate {
     private unowned let owner: WindowController
@@ -180,7 +180,7 @@ final class AwsView: NSView, SidePaneTab, NSSearchFieldDelegate {
         } else if let e = c.keysError {
             lines.append((Self.withHint(e), .systemRed))
         }
-        // Each result on its own line, as in the Wails build.
+        // Each result on its own line.
         if let first = lines.first {
             r.alert = first.0
             r.alertColor = first.1
@@ -287,7 +287,7 @@ final class AwsView: NSView, SidePaneTab, NSSearchFieldDelegate {
 }
 
 /// Add or edit a profile: a form, then the exact changes to the two files,
-/// written only once confirmed. Secrets are write-only. Like AwsProfileEditor.svelte.
+/// written only once confirmed. Secrets are write-only.
 @MainActor
 final class AwsProfileEditor: NSObject {
     private static var open: [AwsProfileEditor] = []
@@ -545,7 +545,7 @@ final class AwsProfileEditor: NSObject {
 
 /// Rotate an IAM user's access key: check, show the plan, then create,
 /// write, verify, deactivate and delete — undoing what it can on failure.
-/// The new secret never reaches the UI. Like AwsRotate.svelte.
+/// The new secret never reaches the UI.
 @MainActor
 final class AwsRotate: NSObject {
     private static var open: [AwsRotate] = []

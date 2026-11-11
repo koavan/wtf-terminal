@@ -105,7 +105,7 @@ final class SshStore {
 }
 
 /// The SSH tab: Hosts, Keys, Git identities and Tunnels. Only the shown
-/// section exists. Like SshView.svelte.
+/// section exists. Like internal/gtkui/sshtab.go.
 @MainActor
 final class SshView: NSView, SidePaneTab {
     private unowned let owner: WindowController

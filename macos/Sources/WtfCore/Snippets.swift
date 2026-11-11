@@ -1,6 +1,6 @@
 // Snippets: one-line commands with {{placeholders}}, or runbooks of steps,
-// from the snippets files (internal/snippets). Ports of the snippet parts
-// of lib/snippets.svelte.ts.
+// from the snippets files (internal/snippets). Like
+// internal/uicore/snippets.go.
 import Foundation
 
 public typealias Snippet = Go.snippets.Snippet

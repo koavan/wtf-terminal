@@ -13,9 +13,8 @@ import (
 // Workspaces: named sets of tabs (folders, split panes, tab groups and
 // startup commands) opened in one go, from the snippets files
 // (internal/snippets). A workspace becomes a plan once its placeholders are
-// filled in; the plan is what opens. Ports of lib/workspaces.svelte.ts and
-// the placeholder helpers in lib/snippets.svelte.ts
-// (macos/Sources/WtfCore/Workspaces.swift).
+// filled in; the plan is what opens. A port of
+// macos/Sources/WtfCore/Workspaces.swift.
 
 // AllPanes is a tab's panes: the pane list, or its own folder and command.
 func AllPanes(t snippets.WTab) []snippets.WPane {

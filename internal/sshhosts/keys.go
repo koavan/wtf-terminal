@@ -23,7 +23,7 @@ import (
 // itself (its public half is stored in the clear). Things that may ask for
 // a passphrase or password — loading a key into the agent, changing its
 // passphrase, installing it on a server — run as real commands in a
-// terminal tab (see the frontend), so they land in the shell history and
+// terminal tab, so they land in the shell history and
 // the secret never passes through wtf. The exception is the Generate tab's
 // key form (keygen.go), which takes a new key's passphrase to encrypt it.
 

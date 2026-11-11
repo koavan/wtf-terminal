@@ -32,8 +32,7 @@ var findingsHelpURI = regexp.MustCompile(`^https?://`)
 // findingsTab is the Findings tab: security scanners' SARIF results for
 // the focused shell's repository, by severity then rule. Read when the tab
 // opens, when the shell leaves the folder, on refresh, and when a scan
-// finishes; never polled. Like FindingsView.svelte and the macOS app's
-// FindingsView.
+// finishes; never polled. Like the macOS app's FindingsView.
 type findingsTab struct {
 	w       *Window
 	root    *gtk.Box
@@ -444,8 +443,7 @@ var findingsLastScanner = "trivy"
 
 // runSecurityScan (Run Security Scan…): pick an installed scanner, see the
 // exact command, and run it in the focused shell; its SARIF goes to wtf's
-// cache, not the repository. Like ScanDialog.svelte and the macOS app's
-// ScanDialog.
+// cache, not the repository. Like the macOS app's ScanDialog.
 func (w *Window) runSecurityScan() {
 	paneID, cwd, path := -1, "", ""
 	if ps := w.model.ActivePane(); ps != nil {

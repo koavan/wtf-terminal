@@ -1,5 +1,5 @@
 // One window's tabs, panes and groups, and the rules that keep them
-// consistent. A port of frontend/src/lib/tabs.svelte.ts; the views observe
+// consistent. Like internal/uicore/window.go; the views observe
 // it through `onChange`. No AppKit here, so it's tested on its own.
 import Foundation
 

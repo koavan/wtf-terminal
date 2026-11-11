@@ -1,6 +1,6 @@
 // The SSH tab's rules: commands, host text, the host editor's fields,
-// tunnels and scp. Ports of frontend/src/lib/ssh.svelte.ts and
-// sshAdmin.svelte.ts.
+// tunnels and scp. Like
+// internal/uicore/ssh.go.
 import Foundation
 
 public typealias SshHost = Go.sshhosts.Host

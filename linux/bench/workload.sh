@@ -1,6 +1,6 @@
 #!/bin/sh
 # Benchmark, the Linux port of macos/bench/workload.sh. Run inside the
-# terminal under test (the Wails build or wtf-gtk), from a fresh tab, with
+# terminal under test (e.g. wtf-gtk), from a fresh tab, with
 # that window left alone:
 #
 #   linux/bench/workload.sh <label>

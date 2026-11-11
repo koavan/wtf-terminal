@@ -3,7 +3,7 @@ import WtfCore
 
 /// The Kubernetes tab: Resources (what the focused shell's context holds)
 /// and Contexts (the kubeconfigs). Only the shown view exists. Like
-/// KubeView.svelte.
+/// internal/gtkui/kubetab.go.
 @MainActor
 final class KubeView: NSView, SidePaneTab {
     private unowned let owner: WindowController
@@ -421,7 +421,7 @@ final class KubeResources: NSView, SidePaneTab, NSComboBoxDelegate, NSSearchFiel
                 switch id {
                 case "deployments":
                     for d in deployments where matches(d.name) {
-                        // One red line per problem, as in the Wails build.
+                        // One red line per problem.
                         var row = SideList.Row(id: "deployments:\(d.name)", symbol: "", title: d.name, mono: true, detail: Kube.deploymentDetail(d),
                                                alert: d.problems.first ?? "",
                                                tip: (d.images + d.problems).joined(separator: "\n"), dot: dot(Kube.tone(d)),

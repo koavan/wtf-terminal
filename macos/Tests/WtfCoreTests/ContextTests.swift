@@ -2,7 +2,7 @@ import Foundation
 import Testing
 @testable import WtfCore
 
-// The cases of frontend/src/lib/infra.test.ts and the broadcast report filter.
+// The cases of the Svelte build's infra tests and the broadcast report filter.
 
 @Test func parsesEnvLines() {
     #expect(Env.parse("A=1\nB=x=y\n=bad\nnoeq\nA=2\nC=") == ["A": "2", "B": "x=y", "C": ""])

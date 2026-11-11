@@ -20,7 +20,7 @@ enum SavedHistory {
 /// ran, newest first, with how they went; or Saved: every shell's, across
 /// windows and restarts, with the Kubernetes and AWS context each ran in
 /// (#17), filtered by it. Click to put one at the prompt, double-click to
-/// run it again. Like HistoryView.svelte.
+/// run it again. Like internal/gtkui/historytab.go.
 @MainActor
 final class HistoryView: NSView, SidePaneTab, NSSearchFieldDelegate {
     private unowned let owner: WindowController
@@ -432,7 +432,7 @@ final class HistoryView: NSView, SidePaneTab, NSSearchFieldDelegate {
 }
 
 /// The Pinned tab: output kept in view, newest first; a running command's
-/// pin follows it (every 1.5s, only while this tab shows). Like PinsView.svelte.
+/// pin follows it (every 1.5s, only while this tab shows). Like internal/gtkui/pinstab.go.
 @MainActor
 final class PinsView: NSView, SidePaneTab {
     private unowned let owner: WindowController

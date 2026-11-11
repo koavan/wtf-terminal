@@ -15,8 +15,8 @@ import (
 )
 
 // The command palette (Ctrl+Shift+P): commands, tabs and groups in one
-// fuzzy list; or themes alone, previewed as you move. Like Palette.svelte
-// and the macOS app's Palette. One per window.
+// fuzzy list; or themes alone, previewed as you move. Like the macOS
+// app's Palette. One per window.
 
 type paletteMode int
 

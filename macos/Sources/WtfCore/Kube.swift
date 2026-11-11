@@ -1,6 +1,6 @@
 // The Kubernetes tab's rules: kubectl command lines, how rows read and what
-// colour their dot is, and how contexts are described. Ports of
-// frontend/src/lib/kube.svelte.ts and kubeconfigs.svelte.ts.
+// colour their dot is, and how contexts are described. Like
+// internal/uicore/kube.go.
 import Foundation
 
 public enum Kube {

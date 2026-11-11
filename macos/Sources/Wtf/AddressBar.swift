@@ -30,7 +30,7 @@ enum AddressBarModel {
 
 /// The bar under the tab strip: what the focused pane runs, where, its
 /// context badges and how the last command went. Clicking it never takes the
-/// keyboard from the terminal. Like AddressBar.svelte.
+/// keyboard from the terminal. Like internal/gtkui/addressbar.go.
 @MainActor
 final class AddressBar: NSView {
     private let omnibox = NSView()

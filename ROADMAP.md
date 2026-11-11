@@ -808,7 +808,7 @@ Still to do: hands-on with real Claude Code; listening to the sounds.
 
 ## Maintenance
 
-### 21. Retire the Wails/Svelte UI ☐
+### 21. Retire the Wails/Svelte UI ☑
 
 Since 1.1.0 both platforms ship native apps (macOS: AppKit + SwiftTerm;
 Linux: GTK 4 + VTE), so nothing ships the Wails build any more. Agreed
@@ -828,6 +828,23 @@ Linux: GTK 4 + VTE), so nothing ships the Wails build any more. Agreed
 - README: drop the Wails build steps.
 - Check after: `go vet ./...`, `go test ./internal/...`, `linux/check.sh`,
   `swift test` and both app builds.
+
+Done 2026-11-11, after 1.7.1: `main.go`, `internal/windows`, the `wails.go`
+glue, `frontend/` and `build/` are gone, and so is the `native` build tag
+(the services' startup hooks are plain `startup.go`); go.mod has no Wails.
+The manual is in `manual/` (Go package `manual`, embedded by the Linux app,
+copied into the macOS bundle). The version is the `VERSION` file, read by
+`macos/build.sh`, `linux/build.sh` and `linux/package.sh` (a release bumps
+only it and the README). The icons and Info.plist moved to
+`macos/Resources/`, the Linux icon to `linux/package/`.
+`testdata/secrets/cases.json` is now written by
+`go run testdata/secrets/generate.go` (identical output). 35 vitest cases
+with no Go or Swift test were ported (22 Go, 16 Swift); logic that only
+lived in Svelte (xterm decorations, blocks menus, broadcast targets) went
+with it. The manual test now matches the Go topic list against
+`Manual.swift`. About no longer reports a Wails version. Taskfile.yml runs
+the native scripts only. Left: `linux/Dockerfile` still installs WebKitGTK
+(harmless; drop it on the next image rebuild).
 
 ## Previously deferred (not DevOps-specific)
 

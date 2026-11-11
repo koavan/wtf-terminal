@@ -8,9 +8,8 @@ import (
 )
 
 // What the History and Pinned tabs keep, in memory per window: commands
-// run, and pinned output. Ports of lib/history.svelte.ts and
-// lib/pins.svelte.ts (macos/Sources/WtfCore/History.swift; its Export
-// part is in export.go).
+// run, and pinned output. A port of
+// macos/Sources/WtfCore/History.swift (its Export part is in export.go).
 
 // HistoryEntry is one command a pane ran.
 type HistoryEntry struct {

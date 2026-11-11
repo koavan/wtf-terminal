@@ -1,5 +1,6 @@
 // The address bar badges made from a shell's cloud and cluster context
-// (infra.Resolve in internal/infra). A port of frontend/src/lib/infra.ts.
+// (infra.Resolve in internal/infra). A port of
+// macos/Sources/WtfCore/Context.swift.
 package uicore
 
 import (

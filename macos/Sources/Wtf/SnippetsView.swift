@@ -41,8 +41,8 @@ extension WindowController {
 }
 
 /// The Snippets tab: snippets and runbooks from the snippets files, grouped
-/// by file. Run (▶ or double-click), edit, duplicate, delete. Like the
-/// Snippets part of SnippetsView.svelte.
+/// by file. Run (▶ or double-click), edit, duplicate, delete. Like
+/// internal/gtkui/snippetstab.go.
 @MainActor
 final class SnippetsView: NSView, SidePaneTab, NSSearchFieldDelegate {
     private unowned let owner: WindowController
@@ -202,7 +202,7 @@ final class SnippetsView: NSView, SidePaneTab, NSSearchFieldDelegate {
 }
 
 /// Fill in a snippet's placeholders, then insert or run it — or run a
-/// runbook's steps one by one in the shell that was focused. Like SnippetDialog.svelte.
+/// runbook's steps one by one in the shell that was focused.
 @MainActor
 final class SnippetRun: NSObject, NSTextFieldDelegate {
     private static var current: SnippetRun?
@@ -373,7 +373,7 @@ extension WindowController {
 
 /// The snippet editor: a command or a runbook of steps, its placeholders,
 /// the file to save to; then a review of exactly what will be written.
-/// Like SnippetEditor.svelte.
+/// Like internal/gtkui/snippetdialogs.go.
 @MainActor
 final class SnippetEditor: NSObject {
     enum Source {

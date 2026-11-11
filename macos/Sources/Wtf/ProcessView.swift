@@ -39,7 +39,7 @@ final class ProcStore {
 
 /// The Processes tab: each terminal's process tree, or all your processes
 /// by CPU, memory or name; end or force quit them. Polled only while on
-/// screen and the window is in front. Like ProcessView.svelte.
+/// screen and the window is in front. Like internal/gtkui/processtab.go.
 @MainActor
 final class ProcessView: NSView, SidePaneTab, NSSearchFieldDelegate {
     static let cap = 300

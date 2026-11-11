@@ -43,7 +43,7 @@ func (p *Pane) pasteText(text string) {
 }
 
 // confirmPaste shows a paste as it would arrive before anything reaches
-// the shell. Like PasteConfirm.svelte and the macOS app's PasteConfirm.
+// the shell. Like the macOS app's PasteConfirm.
 func (p *Pane) confirmPaste(text string) {
 	f := uicore.NewPasteFacts(text)
 	heading := "Paste with a newline?"

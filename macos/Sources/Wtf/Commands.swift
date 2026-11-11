@@ -1,8 +1,7 @@
 import AppKit
 import WtfCore
 
-/// The commands the palette lists and the menus run, by the ids the Wails
-/// build uses (lib/commands.ts). Only what the native app does so far:
+/// The commands the palette lists and the menus run, by id. Only what the native app does so far:
 /// side-pane commands come with M4/M5.
 @MainActor
 struct Command {

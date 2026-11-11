@@ -437,7 +437,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 }
 
-/// The app menu, as in the Wails build (main.go buildMenu). Items with a
+/// The app menu. Items with a
 /// command id run it in the key window; Copy, Paste and Select All go
 /// through the responder chain so text fields get them too.
 @MainActor

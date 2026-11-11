@@ -9,7 +9,7 @@ import (
 	"testing"
 )
 
-const manualDir = "../../frontend/src/manual"
+const manualDir = "../../manual"
 
 var manualCtx = ManualContext{
 	Mac: true,
@@ -20,8 +20,8 @@ var manualCtx = ManualContext{
 	Shortcut: func(id string) string { return map[string]string{"sidebar.ssh": "⌘⇧S"}[id] },
 }
 
-// manualHTML renders a page as the web build's HTML, so these tests are the
-// Swift and TypeScript ones.
+// manualHTML renders a page as HTML, so these tests can match the macOS
+// app's (macos/Tests/WtfCoreTests/ManualTests.swift).
 func manualHTML(p ManualPage) string {
 	runs := func(rs []ManualRun) string {
 		var b strings.Builder
@@ -186,17 +186,17 @@ func TestManualTopicsMatchPages(t *testing.T) {
 	if len(slices.Compact(sorted)) != len(ManualTopics) {
 		t.Error("a topic is listed twice")
 	}
-	// The same pages, order, groups and titles as manual/index.ts.
-	index, err := os.ReadFile(filepath.Join(manualDir, "index.ts"))
+	// The same pages, order, groups and titles as the macOS app's list.
+	swift, err := os.ReadFile("../../macos/Sources/WtfCore/Manual.swift")
 	if err != nil {
 		t.Fatal(err)
 	}
 	var listed []ManualTopic
-	for _, m := range regexp.MustCompile(`(?m)^\s*t\('([^']*)', '([^']*)', '([^']*)'`).FindAllStringSubmatch(string(index), -1) {
+	for _, m := range regexp.MustCompile(`\("([^"]*)", "([^"]*)", "([^"]*)"\)`).FindAllStringSubmatch(string(swift), -1) {
 		listed = append(listed, ManualTopic{m[1], m[2], m[3]})
 	}
 	if !slices.Equal(listed, ManualTopics) {
-		t.Errorf("index.ts lists\n%v\nManualTopics\n%v", listed, ManualTopics)
+		t.Errorf("Manual.swift lists\n%v\nManualTopics\n%v", listed, ManualTopics)
 	}
 	leftover := regexp.MustCompile(`\{\{(cmd|key|mac):`)
 	ctx := ManualContext{Label: func(id string) (string, bool) { return id, true }, Shortcut: func(string) string { return "" }}

@@ -42,8 +42,8 @@ var (
 // sshTab is the SSH tab: Hosts, Keys, Git identities and Tunnels, one
 // shown at a time. What they show is loaded when a section first appears
 // and after ssh-keygen, ssh-add and the like finish, never polled; tunnels
-// follow the ssh:tunnels event while the tab is open. Like SshView.svelte
-// and the macOS app's SshView (its SshStore lives here, per tab).
+// follow the ssh:tunnels event while the tab is open. Like the macOS
+// app's SshView (its SshStore lives here, per tab).
 type sshTab struct {
 	w        *Window
 	root     *gtk.Box

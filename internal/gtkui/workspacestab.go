@@ -21,8 +21,8 @@ func init() {
 // workspacesTab is the Workspaces tab: workspaces from the snippets files,
 // grouped by file. Open (▶ or double-click), edit, duplicate, delete; save
 // this window as one. Read like the Snippets tab: when it opens, when the
-// focused shell's folder changes and on Reload. Like the Workspaces part of
-// SnippetsView.svelte and the macOS app's WorkspacesView.
+// focused shell's folder changes and on Reload. Like the macOS app's
+// WorkspacesView.
 type workspacesTab struct {
 	w       *Window
 	root    *gtk.Box
@@ -248,7 +248,7 @@ type workspaceTabDraft struct {
 // workspaceEditor is the workspace editor: a form of tabs (folders, split
 // panes, groups, startup commands) and placeholders, then a review of
 // exactly what will be written to the snippets file. Like
-// WorkspaceEditor.svelte.
+// the macOS app's WorkspaceEditor.
 type workspaceEditor struct {
 	w       *Window
 	sheet   *snippetSheet

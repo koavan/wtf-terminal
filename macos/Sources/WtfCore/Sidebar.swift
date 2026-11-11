@@ -1,6 +1,7 @@
 // The side pane's state as each window saves it in its session ("sidebar"),
-// validated field by field like lib/sidebar.svelte.ts. Fields this build
-// doesn't use are kept, so saving doesn't drop the Svelte build's.
+// validated field by field. Fields this build doesn't use are kept, so
+// saving doesn't drop what older versions (the Wails build) saved. Like
+// internal/uicore/sidebar.go.
 import Foundation
 
 public enum SidebarTab: String, CaseIterable, Sendable {

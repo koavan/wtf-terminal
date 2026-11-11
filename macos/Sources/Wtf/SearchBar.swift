@@ -3,7 +3,7 @@ import SwiftTerm
 import WtfCore
 
 /// Find in the terminal's output: as you type, Return for the next match,
-/// Shift-Return for the previous, Escape to close. Like SearchBar.svelte.
+/// Shift-Return for the previous, Escape to close. Like internal/gtkui/find.go.
 @MainActor
 final class SearchBar: NSView, NSSearchFieldDelegate {
     private let field = NSSearchField()

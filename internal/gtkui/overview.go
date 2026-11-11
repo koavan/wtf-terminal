@@ -16,7 +16,7 @@ import (
 // overview is Show All Tabs (Ctrl+Shift+\): every tab as a card with the
 // last lines of its screen, in strip order, searchable. Enter or a click
 // opens one; Backspace with an empty search closes the selected tab. Like
-// TabOverview.svelte and the macOS app's TabOverview.
+// the macOS app's TabOverview.
 type overview struct {
 	w      *Window
 	root   *gtk.Box

@@ -7,8 +7,9 @@ import (
 	"unicode/utf16"
 )
 
-// testdata/secrets/cases.json is written by the TypeScript implementation
-// (node testdata/secrets/generate.ts); the Go port must agree with it.
+// testdata/secrets/cases.json is written from this implementation (go run
+// testdata/secrets/generate.go), first by the TypeScript one it was ported
+// from; the Swift port checks against the same file.
 type sharedCase struct {
 	Text  string `json:"text"`
 	Found []struct {
@@ -18,7 +19,7 @@ type sharedCase struct {
 	Redacted string `json:"redacted"`
 }
 
-func TestSecretsMatchTypeScript(t *testing.T) {
+func TestSecretsMatchSharedCases(t *testing.T) {
 	b, err := os.ReadFile("../../testdata/secrets/cases.json")
 	if err != nil {
 		t.Fatal(err)

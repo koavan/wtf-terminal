@@ -1,6 +1,6 @@
-// Package terminal owns shell sessions and exposes them to the frontend:
-// control calls go through Wails bindings, the byte stream through a
-// loopback WebSocket (see stream.go).
+// Package terminal owns shell sessions and exposes them to the UI: control
+// calls go through the service's methods, the byte stream through Attach
+// (see attach.go) or a loopback WebSocket (see stream.go).
 package terminal
 
 import (
@@ -34,7 +34,7 @@ type ExitEvent struct {
 	Code int    `json:"code"`
 }
 
-// Endpoint tells the frontend where to stream session I/O.
+// Endpoint tells a client where to stream session I/O.
 type Endpoint struct {
 	URL   string `json:"url"`
 	Token string `json:"token"`
@@ -68,7 +68,7 @@ type Service struct {
 	OnAtShell func(id string)
 
 	// Set while quitting: shells killed by shutdown must not be reported as
-	// exits, or the frontend would close their tabs and save an empty session.
+	// exits, or the UI would close their tabs and save an empty session.
 	shuttingDown atomic.Bool
 }
 
@@ -321,7 +321,7 @@ func (s *Service) Close(id string) {
 }
 
 // Info is what a session runs and where, right now. The poller only sends
-// changes, and one sent before the frontend linked the session to its pane
+// changes, and one sent before the UI linked the session to its pane
 // is lost (a slow first launch), so a pane asks once it's linked.
 func (s *Service) Info(id string) (Info, error) {
 	sess := s.get(id)
@@ -338,7 +338,7 @@ func (s *Service) get(id string) *Session {
 }
 
 // pollInfo watches each session's foreground process and working directory,
-// and tells the frontend when either changes (tab titles, address bar).
+// and tells the UI when either changes (tab titles, address bar).
 // While no window is in front it waits, and catches up on coming back.
 func (s *Service) pollInfo(ctx context.Context) {
 	t := time.NewTicker(infoPollInterval)

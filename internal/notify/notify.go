@@ -1,7 +1,7 @@
 // Package notify shows desktop notifications.
 //
-// It shells out to the platform's notification tool instead of using the
-// Wails notification service, which requires a bundled .app on macOS.
+// It shells out to the platform's notification tool, which needs no
+// bundled .app on macOS.
 package notify
 
 import (

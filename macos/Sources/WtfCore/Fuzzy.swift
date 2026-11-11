@@ -1,5 +1,5 @@
-// Fuzzy matching for the palette and the tab overview. A port of
-// frontend/src/lib/fuzzy.ts: characters in order, rewarding runs, word
+// Fuzzy matching for the palette and the tab overview. Like
+// internal/uicore/fuzzy.go: characters in order, rewarding runs, word
 // starts and the very start, penalising gaps and long texts.
 import Foundation
 

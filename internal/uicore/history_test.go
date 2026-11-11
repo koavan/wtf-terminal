@@ -87,3 +87,27 @@ func TestPinStore(t *testing.T) {
 		t.Error("clear")
 	}
 }
+
+// More cases of the Svelte build's pins tests.
+
+func TestPinsFollowARunningCommandAndKeepTheEndOfLongOutput(t *testing.T) {
+	var p Pins
+	block := 7
+	p.Add(Pin{Title: "make", Text: "old", PaneID: 1, BlockID: &block, Cwd: "/w", Running: true})
+	if got := p.Add(Pin{Title: "make", Text: "a", PaneID: 1, BlockID: &block, Cwd: "/w", Running: true}); got.Text != "a" || len(p.List()) != 1 {
+		t.Errorf("re-pinned %+v, %d pins", got, len(p.List()))
+	}
+	p.Update(1, 7, "a\nb", nil)
+	if l := p.List(); l[0].Text != "a\nb" || !l[0].Running || len(p.Live()) != 1 {
+		t.Errorf("following %+v", l[0])
+	}
+	p.PaneGone(1)
+	if l := p.List(); len(l) != 1 || l[0].Running {
+		t.Errorf("pane gone %+v", l)
+	}
+	other := 8
+	long := p.Add(Pin{Title: "log", Text: strings.Repeat("x", PinsMaxChars) + "END", PaneID: 1, BlockID: &other})
+	if !long.Truncated || len(long.Text) != PinsMaxChars || !strings.HasSuffix(long.Text, "END") {
+		t.Errorf("long pin: truncated %v, %d characters, ends %q", long.Truncated, len(long.Text), long.Text[len(long.Text)-3:])
+	}
+}

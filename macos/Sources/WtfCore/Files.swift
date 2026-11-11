@@ -1,6 +1,6 @@
 // The Files tab's logic: the folder tree from cached listings (filtered,
-// expanded), git decorations, and the git menu's commands. Ports of
-// frontend/src/lib/gitstatus.ts, fileActions.ts and FileTree.svelte's rules.
+// expanded), git decorations, and the git menu's commands. Like
+// internal/uicore/files.go.
 import Foundation
 
 public enum Paths {

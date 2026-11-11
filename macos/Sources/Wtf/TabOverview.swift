@@ -3,7 +3,7 @@ import WtfCore
 
 /// Show All Tabs (⌘⇧\): every tab as a card with the last lines of its
 /// screen, grouped like the strip, searchable. Enter or a click opens one;
-/// ⌫ with an empty search closes the selected tab. Like TabOverview.svelte.
+/// ⌫ with an empty search closes the selected tab. Like internal/gtkui/overview.go.
 @MainActor
 final class TabOverview: NSView, NSSearchFieldDelegate {
     private static var shown: [ObjectIdentifier: TabOverview] = [:]

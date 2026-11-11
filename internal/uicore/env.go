@@ -33,6 +33,6 @@ var terminalReport = regexp.MustCompile(`^(?:` + strings.Join([]string{
 }, "|") + `)$`)
 
 // IsTerminalReport says input is a terminal's own answer to a program, which
-// broadcast leaves in its pane. Like isTerminalReport in
-// lib/broadcast.svelte.ts.
+// broadcast leaves in its pane. Like TerminalReport in
+// macos/Sources/WtfCore/Context.swift.
 func IsTerminalReport(s string) bool { return terminalReport.MatchString(s) }

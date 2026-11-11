@@ -256,7 +256,7 @@ func netNoteButton(note *gtk.Box, label string, run func()) {
 // networkTab is the Network tab: port forwards, then what's listening,
 // connected and otherwise open — from your terminals or everything.
 // Polled only while on screen and the window is in front. Like
-// NetworkView.svelte and the macOS app's NetworkView.
+// the macOS app's NetworkView.
 type networkTab struct {
 	w          *Window
 	st         *netStore

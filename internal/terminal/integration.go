@@ -7,7 +7,7 @@ import (
 	"path/filepath"
 )
 
-// Shell integration scripts emit OSC 133 prompt marks so the frontend knows
+// Shell integration scripts emit OSC 133 prompt marks so the UI knows
 // where commands start and end. They are written to disk at startup because
 // the shell has to source them by path.
 //
@@ -15,7 +15,7 @@ import (
 var integrationFS embed.FS
 
 // ClearHistoryKeys is the key sequence (Ctrl-X Ctrl-]) the scripts bind to
-// clearing the shell's in-memory history. The frontend sends the same bytes.
+// clearing the shell's in-memory history. The UI sends the same bytes.
 const ClearHistoryKeys = "\x18\x1d"
 
 // installIntegration copies the scripts into dir, replacing old versions.

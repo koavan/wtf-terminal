@@ -13,8 +13,8 @@ import (
 	"github.com/diamondburned/gotk4/pkg/gtk/v4"
 	"github.com/diamondburned/gotk4/pkg/pango"
 
-	"github.com/dayanraj/wtf/frontend/src/manual"
 	"github.com/dayanraj/wtf/internal/uicore"
+	"github.com/dayanraj/wtf/manual"
 )
 
 func init() {
@@ -34,10 +34,10 @@ func init() {
 `)
 }
 
-// manualWindow is the manual: the Markdown pages in frontend/src/manual,
+// manualWindow is the manual: the Markdown pages in manual/,
 // rendered with GTK widgets (no web view). Pages are listed and searched
 // on the left. One per app, made on first open and let go on close. Like
-// Manual.svelte and the macOS app's ManualWindow.
+// the macOS app's ManualWindow.
 type manualWindow struct {
 	a      *App
 	win    *adw.Window

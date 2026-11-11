@@ -21,7 +21,7 @@ func init() {
 
 // pinsTab is the Pinned tab: output kept in view, newest first; a running
 // command's pin follows it (every 1.5s, only while this tab shows). Like
-// PinsView.svelte and the macOS app's PinsView.
+// the macOS app's PinsView.
 type pinsTab struct {
 	w       *Window
 	root    *gtk.Box

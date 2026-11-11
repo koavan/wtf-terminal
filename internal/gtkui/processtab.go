@@ -109,7 +109,7 @@ var procSorts = []uicore.ProcSort{uicore.ProcSortCPU, uicore.ProcSortMemory, uic
 // processTab is the Processes tab: each terminal's process tree, or all
 // your processes by CPU, memory or name; end or force quit them. Polled
 // only while on screen and the window is in front. Like
-// ProcessView.svelte and the macOS app's ProcessView.
+// the macOS app's ProcessView.
 type processTab struct {
 	w         *Window
 	st        *procStore

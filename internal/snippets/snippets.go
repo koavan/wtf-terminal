@@ -9,7 +9,7 @@
 //   - ~/.config/wtf/snippets.toml, the user's own;
 //   - ~/.config/wtf/snippets/*.toml, e.g. a cloned team repo.
 //
-// Placeholders are filled in by the frontend (lib/snippets.svelte.ts);
+// Placeholders are filled in by the UI (internal/uicore, WtfCore on macOS);
 // this package only reads the files, and appends to one for Save as Snippet.
 package snippets
 

@@ -3,7 +3,7 @@ import WtfCore
 
 /// The SSH tab's dialogs: host editor, scp transfer, key install, key
 /// generation in a terminal, tunnel editor, host keys and git identities.
-/// Strings and rules follow the Svelte build's dialogs.
+/// Strings and rules match internal/gtkui/sshdialogs.go.
 
 // MARK: - Host editor
 

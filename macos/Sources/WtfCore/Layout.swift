@@ -1,4 +1,4 @@
-// A tab's panes as a split tree, like frontend/src/lib/layout.ts.
+// A tab's panes as a split tree, like internal/uicore/layout.go.
 import Foundation
 
 public enum SplitDir: String, Codable, Sendable { case row, column }

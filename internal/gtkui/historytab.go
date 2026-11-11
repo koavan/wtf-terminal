@@ -32,15 +32,14 @@ func clockTime(t time.Time) string {
 // the window) ran, newest first, with how they went; or Saved: every
 // shell's, across windows and restarts, with the Kubernetes and AWS context
 // each ran in (#17), filtered by it. Click to put one at the prompt,
-// double-click to run it again. Like HistoryView.svelte and the macOS app's
-// HistoryView.
+// double-click to run it again. Like the macOS app's HistoryView.
 type historyTab struct {
-	w      *Window
-	root   *gtk.Box
-	scope  [3]*gtk.ToggleButton
-	trash  *gtk.Button
+	w     *Window
+	root  *gtk.Box
+	scope [3]*gtk.ToggleButton
+	trash *gtk.Button
 	// Saved: ask Claude about it (#31).
-	ask *gtk.Button
+	ask    *gtk.Button
 	filter *gtk.SearchEntry
 	list   *sideList
 	shown  []uicore.HistoryEntry

@@ -3,7 +3,7 @@ import WtfCore
 
 /// A paste with more than one line, a final newline or control characters,
 /// shown as it would arrive before anything reaches the shell. Like
-/// PasteConfirm.svelte.
+/// internal/gtkui/paste.go.
 @MainActor
 enum PasteConfirm {
     static func show(_ text: String, bracketed: Bool, panes: Int = 1, in window: NSWindow, paste: @escaping (String) -> Void) {

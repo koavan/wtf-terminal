@@ -147,7 +147,7 @@ func (s *Store) write(windows []Window) error {
 	return os.Rename(tmp.Name(), filepath.Join(s.dir, sessionFile))
 }
 
-// Service exposes the store to the frontend.
+// Service exposes the store to the UI.
 type Service struct {
 	store *Store
 }

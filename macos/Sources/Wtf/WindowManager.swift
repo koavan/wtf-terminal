@@ -3,8 +3,7 @@ import WtfCore
 
 /// The app's windows: reopening the saved ones at launch, naming new ones
 /// ("main", then w2, w3, …), routing backend events to the window a shell
-/// belongs to, and asking before quitting ends running programs. What
-/// internal/windows does for the Wails build.
+/// belongs to, and asking before quitting ends running programs.
 @MainActor
 final class WindowManager {
     static let shared = WindowManager()

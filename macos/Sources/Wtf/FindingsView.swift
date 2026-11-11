@@ -4,7 +4,7 @@ import WtfCore
 /// The Findings tab: security scanners' SARIF results for the focused
 /// shell's repository, by severity then rule. Read when the tab opens,
 /// when the shell leaves the folder, on refresh, and when a scan finishes;
-/// never polled. Like FindingsView.svelte.
+/// never polled. Like internal/gtkui/findingstab.go.
 @MainActor
 final class FindingsView: NSView, SidePaneTab, NSSearchFieldDelegate {
     private unowned let owner: WindowController
@@ -302,7 +302,6 @@ extension Array {
 
 /// Run Security Scan: pick an installed scanner, see the exact command, and
 /// run it in the focused shell; its SARIF goes to wtf's cache, not the repo.
-/// Like ScanDialog.svelte.
 @MainActor
 final class ScanDialog: NSObject {
     private static var current: ScanDialog?

@@ -15,7 +15,7 @@ import (
 
 // openWorkspace (Open “<workspace>”) asks for the workspace's placeholders,
 // shows what will open, then opens it here or in a new window. Like
-// WorkspaceOpenDialog.svelte and the macOS app's WorkspaceOpen.
+// the macOS app's WorkspaceOpen.
 func (w *Window) openWorkspace(ws snippets.Workspace) {
 	var facts uicore.ShellFacts
 	if ps := w.model.ActivePane(); ps != nil {

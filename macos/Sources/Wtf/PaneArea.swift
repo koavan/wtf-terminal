@@ -4,7 +4,7 @@ import WtfCore
 /// Lays out the active tab's panes from its split tree: one terminal per
 /// leaf, a divider per split (drag to resize, double-click for half and
 /// half), unfocused panes dimmed, and the zoomed pane alone with a pill to
-/// say so. Like TabPanes.svelte. Terminals are kept, not re-created, as the
+/// say so. Terminals are kept, not re-created, as the
 /// layout changes: only their frames move.
 @MainActor
 final class PaneArea: NSView {

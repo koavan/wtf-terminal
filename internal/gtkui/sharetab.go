@@ -20,7 +20,7 @@ func init() {
 
 // shareTab is the Share & Record tab: Hide Secrets, recording the focused
 // terminal, saving its output as text or Markdown, and what was saved from
-// this window. Like ShareView.svelte and the macOS app's ShareView.
+// this window. Like the macOS app's ShareView.
 type shareTab struct {
 	w     *Window
 	root  *gtk.Box

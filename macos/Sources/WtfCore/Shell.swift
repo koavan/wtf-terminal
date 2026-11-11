@@ -1,5 +1,5 @@
-// Shell quoting and the commands wtf types into shells. Ports of
-// frontend/src/lib/shell.ts and useIdentityCommand in lib/gitIdentities.svelte.ts.
+// Shell quoting and the commands wtf types into shells. Like
+// internal/uicore/shell.go.
 import Foundation
 
 public enum Shell {

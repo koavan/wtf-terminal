@@ -1,7 +1,7 @@
 import Testing
 @testable import WtfCore
 
-// The cases of frontend/src/lib/paste.test.ts.
+// The cases of the Svelte build's paste tests.
 
 @Test func singlePlainLineGoesThrough() {
     #expect(!PasteFacts("kubectl get pods -n shop").needsConfirm)

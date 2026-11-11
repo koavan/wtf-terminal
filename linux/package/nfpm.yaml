@@ -16,7 +16,8 @@ vendor: dayanraj
 homepage: https://github.com/dayanraj-rently/wtf-terminal
 license: MIT
 
-# The Wails build was packaged as wtf too: this one replaces it.
+# Older versions (the Wails build) were packaged as wtf too: this one
+# replaces them.
 contents:
   - src: ${STAGE}/wtf
     dst: /usr/bin/wtf

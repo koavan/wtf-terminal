@@ -3,7 +3,7 @@ import WtfCore
 
 /// The Generate tab: a new SSH key (made by wtf, with a passphrase if you
 /// like) or a random password. Nothing loads until the key form shows.
-/// Like GenerateView.svelte.
+/// Like internal/gtkui/generatetab.go.
 @MainActor
 final class GenerateView: NSView, SidePaneTab {
     private unowned let owner: WindowController
@@ -33,7 +33,7 @@ final class GenerateView: NSView, SidePaneTab {
 
     override func layout() {
         super.layout()
-        // Just the segmented control on top, as in the Wails build.
+        // Just the segmented control on top.
         section.frame = NSRect(x: 8, y: 6, width: bounds.width - 16, height: 22)
         scroll.frame = NSRect(x: 0, y: 34, width: bounds.width, height: max(0, bounds.height - 34))
         fitBody()
@@ -143,7 +143,7 @@ class PaneForm: NSStackView, Refitting {
 
 /// Makes a key pair in ~/.ssh through Go: the passphrase is used once, in
 /// memory, and never stored. Then shows the public key and what to do
-/// with it. Like KeyGenForm.svelte.
+/// with it.
 @MainActor
 final class KeyGenForm: PaneForm {
     private unowned let owner: WindowController
@@ -360,7 +360,7 @@ final class KeyGenForm: PaneForm {
 }
 
 /// Random passwords from the system's secure source: never saved, never
-/// sent. Options last while the app runs. Like PasswordGenerator.svelte.
+/// sent. Options last while the app runs.
 @MainActor
 final class PasswordGenerator: PaneForm, NSTextFieldDelegate {
     private static var options = Passwords.Options()

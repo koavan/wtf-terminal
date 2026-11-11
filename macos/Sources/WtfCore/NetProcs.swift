@@ -1,6 +1,6 @@
 // The Network, Processes and Resource Usage rules: addresses, which
-// connections show, how processes sort and nest, and number formats. Ports
-// of frontend/src/lib/network.svelte.ts, processes.svelte.ts and usage.svelte.ts.
+// connections show, how processes sort and nest, and number formats. Like
+// internal/uicore/netprocs.go.
 import Foundation
 
 public typealias Conn = Go.netconn.Conn

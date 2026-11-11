@@ -41,7 +41,7 @@ func init() {
 
 // kubeTab is the Kubernetes tab: Resources (what the focused shell's
 // context holds) and Contexts (the kubeconfigs). Only the shown view
-// exists. Like KubeView.svelte and the macOS app's KubeView.
+// exists. Like the macOS app's KubeView.
 type kubeTab struct {
 	w         *Window
 	root      *gtk.Box
@@ -680,7 +680,7 @@ func (r *kubeResources) rebuild() {
 						continue
 					}
 					tone := uicore.DeploymentTone(d)
-					// One red line per problem, as in the Wails build.
+					// One red line per problem.
 					rows = append(rows, sideRow{id: "deployments:" + d.Name, title: d.Name, mono: true, detail: uicore.DeploymentDetail(d, now),
 						alert: strings.Join(d.Problems, "\n"), tip: strings.Join(append(append([]string{}, d.Images...), d.Problems...), "\n"),
 						dot: toneDot(tone), highlighted: st.deployment != nil && st.deployment.Name == d.Name})

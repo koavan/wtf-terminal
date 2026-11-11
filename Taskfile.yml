@@ -1,89 +1,43 @@
 version: '3'
 
-vars:
-  APP_NAME: "wtf"
-  BIN_DIR: "bin"
-  PACKAGE_MANAGER: '{{.PACKAGE_MANAGER | default "npm"}}'
-  VITE_PORT: '{{.WAILS_VITE_PORT | default 9245}}'
-  # Target OS for build/package/run. Defaults to the host OS, and is overridden
-  # by `wails3 build GOOS=...` (or the GOOS env var) for cross-compilation. The
-  # tasks below dispatch to the matching platform Taskfile via this variable.
-  GOOS: '{{.GOOS | default OS}}'
-
-includes:
-  common: ./build/Taskfile.yml
-  windows: ./build/windows/Taskfile.yml
-  darwin: ./build/darwin/Taskfile.yml
-  linux: ./build/linux/Taskfile.yml
+# Shortcuts for the build scripts (https://taskfile.dev). Each task runs one
+# script; the scripts say what they need.
 
 tasks:
   build:
-    summary: Builds the application
+    summary: Builds the macOS app (bin/native/wtf.app); needs Xcode
     cmds:
-      - task: "{{.GOOS}}:build"
-
-  package:
-    summary: Packages a production build of the application
-    cmds:
-      - task: "{{.GOOS}}:package"
-
-  run:
-    summary: Runs the application
-    cmds:
-      - task: "{{.GOOS}}:run"
+      - ./macos/build.sh {{.CLI_ARGS}}
 
   native:
-    summary: Builds the native macOS app (bin/native/wtf.app); needs Xcode
+    summary: Same as build
     cmds:
-      - ./macos/build.sh
+      - ./macos/build.sh {{.CLI_ARGS}}
+
+  native:test:
+    summary: Tests the macOS app's Go side (dispatcher, headless C smoke test) and its Swift core
+    cmds:
+      - go test ./cmd/libwtf/
+      - ./cmd/libwtf/smoke/run.sh
+      - cd macos && swift test
 
   gtk:
-    summary: Builds the native Linux app (bin/gtk/wtf-gtk) in the dev image (docker build -t wtf-gtk-dev:ubuntu24 linux)
+    summary: Builds the Linux app (bin/gtk/wtf-gtk) in the dev image (docker build -t wtf-gtk-dev:ubuntu24 linux)
     cmds:
       - ./linux/build.sh
 
   gtk:check:
-    summary: Runs the native Linux app's headless checks under Xvfb (after task gtk)
+    summary: Runs the Linux app's headless checks under Xvfb (after task gtk)
     cmds:
       - ./linux/check.sh
 
-  native:test:
-    summary: Tests the native app's Go side (dispatcher, headless C smoke test)
+  gtk:package:
+    summary: Builds the Linux .deb and .rpm packages (bin/gtk/packages)
     cmds:
-      - go test -tags native ./cmd/libwtf/
-      - ./cmd/libwtf/smoke/run.sh
+      - ./linux/package.sh {{.CLI_ARGS}}
 
-  dev:
-    summary: Runs the application in development mode
+  test:
+    summary: Runs the Go tests
     cmds:
-      - wails3 dev -config ./build/config.yml -port {{.VITE_PORT}}
-
-  install:msix:tools:
-    summary: Installs tools required for Windows MSIX packaging
-    cmds:
-      - task: windows:install:msix:tools
-
-  setup:docker:
-    summary: Builds Docker image for cross-compilation (~800MB download)
-    cmds:
-      - task: common:setup:docker
-
-  build:server:
-    summary: Builds the application in server mode (no GUI, HTTP server only)
-    cmds:
-      - task: common:build:server
-
-  run:server:
-    summary: Runs the application in server mode
-    cmds:
-      - task: common:run:server
-
-  build:docker:
-    summary: Builds a Docker image for server mode deployment
-    cmds:
-      - task: common:build:docker
-
-  run:docker:
-    summary: Builds and runs the Docker image
-    cmds:
-      - task: common:run:docker
+      - go vet ./...
+      - go test ./...

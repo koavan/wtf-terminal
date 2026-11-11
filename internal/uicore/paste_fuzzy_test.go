@@ -5,7 +5,7 @@ import (
 	"testing"
 )
 
-// The cases of frontend/src/lib/paste.test.ts.
+// The cases of the Svelte build's paste tests.
 
 func TestPasteSinglePlainLineGoesThrough(t *testing.T) {
 	for _, s := range []string{"kubectl get pods -n shop", "a\tb"} {
@@ -51,7 +51,7 @@ func TestPasteDropsOnlyTheFinalNewline(t *testing.T) {
 	}
 }
 
-// The outcomes frontend/src/lib/fuzzy.test.ts requires.
+// The outcomes the Svelte build's fuzzy tests requires.
 
 func TestFuzzyMatchesInOrder(t *testing.T) {
 	if m, ok := Fuzzy("nt", "New Tab"); !ok || !slices.Equal(m.Indices, []int{0, 4}) {

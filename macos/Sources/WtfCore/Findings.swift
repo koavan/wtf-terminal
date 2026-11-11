@@ -1,5 +1,5 @@
 // The Findings tab's grouping: by severity, then rule, filtered by words.
-// Port of lib/findings.svelte.ts.
+// Like internal/uicore/findings.go.
 import Foundation
 
 public typealias Finding = Go.findings.Finding

@@ -20,7 +20,7 @@ extension SidePaneTab {
 }
 
 /// The side pane: an icon rail and the chosen tab, left of the terminals,
-/// resizable by its right edge. Like Sidebar.svelte.
+/// resizable by its right edge. Like internal/gtkui/sidebar.go.
 @MainActor
 final class Sidebar: NSView {
     struct TabInfo {

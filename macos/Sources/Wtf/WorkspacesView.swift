@@ -32,7 +32,7 @@ final class SnippetStore {
 
 /// The Workspaces tab: workspaces from the snippets files, grouped by file.
 /// Open (▶ or double-click), edit, duplicate, delete; save this window as
-/// one. Like the Workspaces part of SnippetsView.svelte.
+/// one. Like internal/gtkui/workspacestab.go.
 @MainActor
 final class WorkspacesView: NSView, SidePaneTab, NSSearchFieldDelegate {
     private unowned let owner: WindowController
@@ -170,7 +170,7 @@ final class WorkspacesView: NSView, SidePaneTab, NSSearchFieldDelegate {
 
 /// The workspace editor: a form of tabs (folders, split panes, groups,
 /// startup commands) and placeholders, then a review of exactly what will
-/// be written to the snippets file. Like WorkspaceEditor.svelte.
+/// be written to the snippets file.
 @MainActor
 final class WorkspaceEditor: NSObject {
     enum Source {

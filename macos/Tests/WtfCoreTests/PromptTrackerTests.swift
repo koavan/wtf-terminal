@@ -3,7 +3,7 @@ import SwiftTerm
 import Testing
 @testable import WtfCore
 
-// The cases of frontend/src/lib/prompts.test.ts, on SwiftTerm's headless terminal.
+// The cases of the Svelte build's prompts tests, on SwiftTerm's headless terminal.
 
 private final class Sink: TerminalDelegate {
     func send(source: Terminal, data: ArraySlice<UInt8>) {}
@@ -162,4 +162,27 @@ private final class Setup {
     let lines = (1...8).map { "line \($0)" }.joined(separator: "\r\n") + "\r\n"
     s.write(run("one", lines) + run("clear", "\u{1b}[H\u{1b}[2J\u{1b}[3J") + A + "$ ")
     #expect(s.tracker.blocks(from: 0, to: 1000).map(\.row) == [0])
+}
+
+// More cases of the Svelte build's prompts tests.
+
+@Test func transcriptListsEveryCommand() {
+    let s = Setup()
+    s.write(run("ls", "a\r\nb\r\n") + run("false", "", 1) + A + "$ ")
+    let t = s.tracker.transcript()
+    #expect(t.map(\.text) == ["ls", "false"])
+    #expect(t.map(\.output) == ["a\nb", ""])
+    #expect(t.map(\.exitCode) == [0, 1])
+    #expect(t.allSatisfy { $0.startedAt != nil })
+}
+
+@Test func givesEachCommandAnIdAndItsPromptRow() {
+    let s = Setup(rows: 4)
+    var out = ""
+    for i in 0..<6 { out += run("echo \(i)", "\(i)\r\n\(i)\r\n") }
+    s.write(out + A + "$ ")
+    #expect(s.started.map(\.1) == [1, 2, 3, 4, 5, 6])
+    // Each command takes 3 rows: command 2's prompt is on line 3.
+    #expect(s.tracker.promptRow(2) == 3)
+    #expect(s.tracker.promptRow(99) == nil)
 }

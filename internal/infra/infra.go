@@ -27,7 +27,7 @@ import (
 	"github.com/dayanraj/wtf/internal/events"
 )
 
-// EventChanged tells the frontend to resolve its shells' contexts again: an
+// EventChanged tells the UI to resolve its shells' contexts again: an
 // AWS account lookup finished.
 const EventChanged = "infra:changed"
 

@@ -3,7 +3,7 @@
 # state and cache directories.
 set -eu
 cd "$(dirname "$0")/../../.."
-CGO_ENABLED=1 go build -tags native -buildmode=c-archive -o bin/native/libwtf.a ./cmd/libwtf
+CGO_ENABLED=1 go build -buildmode=c-archive -o bin/native/libwtf.a ./cmd/libwtf
 tmp=$(mktemp -d)
 trap 'rm -rf "$tmp"' EXIT
 cc -o "$tmp/smoke" -Ibin/native cmd/libwtf/smoke/smoke.c bin/native/libwtf.a \

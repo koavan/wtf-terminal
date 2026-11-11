@@ -238,8 +238,7 @@ func (w *Window) snippetEntries(trailing bool) []paletteEntry {
 // files, grouped by file. Run (▶ or double-click), edit, duplicate,
 // delete. The files are read when it opens, when the focused shell's
 // folder changes (project files depend on it) and on Reload; never polled.
-// Like the Snippets part of SnippetsView.svelte and the macOS app's
-// SnippetsView.
+// Like the macOS app's SnippetsView.
 type snippetsTab struct {
 	w        *Window
 	root     *gtk.Box

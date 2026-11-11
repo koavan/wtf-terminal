@@ -1,6 +1,8 @@
 package uicore
 
 import (
+	"fmt"
+	"slices"
 	"testing"
 	"time"
 )
@@ -166,5 +168,53 @@ func TestTextOfJoinsWrappedRows(t *testing.T) {
 func TestUnescape(t *testing.T) {
 	if got := Unescape(`echo a\\b \x3b c\x0a`); got != "echo a\\b ; c\n" {
 		t.Errorf("got %q", got)
+	}
+}
+
+// More cases of the Svelte build's prompts tests.
+
+func TestPromptTranscriptListsEveryCommand(t *testing.T) {
+	s := newSession()
+	s.run("ls", "0", time.Second, "a", "b")
+	s.run("false", "1", 0)
+	s.p.OSC133("A", 0, s.g.cursor)
+	s.g.print("$ ")
+	tr := s.p.Transcript()
+	if len(tr) != 2 {
+		t.Fatalf("transcript %+v", tr)
+	}
+	for i, want := range []struct {
+		text, output string
+		code         int
+	}{{"ls", "a\nb", 0}, {"false", "", 1}} {
+		b := tr[i]
+		if b.Text != want.text || b.Output == nil || *b.Output != want.output || b.ExitCode == nil || *b.ExitCode != want.code {
+			t.Errorf("block %d: %+v", i, b)
+		}
+		if b.StartedAt.IsZero() || b.Duration == nil {
+			t.Errorf("block %d has no start or duration", i)
+		}
+	}
+}
+
+func TestPromptIdsAndRevealingACommand(t *testing.T) {
+	s := newSession()
+	var ids []int
+	s.p.OnCommandStart = func(_ string, id int) { ids = append(ids, id) }
+	for i := range 6 {
+		n := fmt.Sprint(i)
+		s.run("echo "+n, "0", 0, n, n)
+	}
+	s.p.OSC133("A", 0, s.g.cursor)
+	s.g.print("$ ")
+	if !slices.Equal(ids, []int{1, 2, 3, 4, 5, 6}) {
+		t.Errorf("ids %v", ids)
+	}
+	// Each command takes 3 rows: command 2's prompt is on row 3.
+	if r, ok := s.p.PromptRow(2); !ok || r != 3 {
+		t.Errorf("prompt row %d %v", r, ok)
+	}
+	if _, ok := s.p.PromptRow(99); ok {
+		t.Error("a prompt row for an unknown command")
 	}
 }

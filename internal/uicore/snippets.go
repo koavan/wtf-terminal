@@ -8,8 +8,8 @@ import (
 )
 
 // Snippets: one-line commands with {{placeholders}}, or runbooks of steps,
-// from the snippets files (internal/snippets). Ports of the snippet parts
-// of lib/snippets.svelte.ts (macos/Sources/WtfCore/Snippets.swift). The
+// from the snippets files (internal/snippets). A port of
+// macos/Sources/WtfCore/Snippets.swift. The
 // placeholder helpers (Fields, Fill, Field.InitialValue) are in
 // workspaces.go.
 

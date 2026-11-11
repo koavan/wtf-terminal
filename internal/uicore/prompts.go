@@ -11,7 +11,7 @@ import (
 // internal/terminal/shellintegration) and turns each into a command block:
 // its mark in the margin, its duration, and the command's text and output
 // for copying, selecting and running again. A port of
-// frontend/src/lib/prompts.ts (macos/Sources/WtfCore/PromptTracker.swift).
+// macos/Sources/WtfCore/PromptTracker.swift.
 
 // Block is what's known about one command, for its menu.
 type Block struct {

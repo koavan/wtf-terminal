@@ -611,8 +611,7 @@ func (s *Service) do(ctx context.Context, req wire.Request) wire.Response {
 	return wire.Response{Error: "unknown op " + strconv.Quote(req.Op)}
 }
 
-// ServiceStartup starts listening (native UIs; the Wails build doesn't
-// offer the bridge).
+// ServiceStartup starts listening.
 func (s *Service) ServiceStartup(context.Context) error { return s.startup() }
 
 func (s *Service) ServiceShutdown() error {

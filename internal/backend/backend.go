@@ -1,7 +1,6 @@
-// Package backend builds wtf's services once, for every UI: the Wails app
-// (main.go binds each one), the native macOS app (cmd/libwtf dispatches
-// calls to them by name) and the native Linux app (cmd/wtf-gtk calls them
-// directly).
+// Package backend builds wtf's services once, for both UIs: the macOS app
+// (cmd/libwtf dispatches calls to them by name) and the Linux app
+// (cmd/wtf-gtk calls them directly).
 package backend
 
 import (
@@ -142,15 +141,14 @@ func New(version, commit, buildDate, stateDir string) (*Backend, error) {
 	return b, nil
 }
 
-// Named is a service with the name the native UI calls it by: the last
-// element of its Go package path, as in the generated Wails bindings.
+// Named is a service with the name the macOS app calls it by: the last
+// element of its Go package path.
 type Named struct {
 	Name    string
 	Service any
 }
 
-// Services lists every service in startup order (the order main.go binds
-// them in).
+// Services lists every service in startup order.
 func (b *Backend) Services() []Named {
 	return []Named{
 		{"config", b.Config},
@@ -182,8 +180,7 @@ func (b *Backend) Services() []Named {
 type starter interface{ ServiceStartup(context.Context) error }
 type stopper interface{ ServiceShutdown() error }
 
-// Start runs each service's startup hook in order, for the native UIs (Wails
-// runs them itself). If one fails, the ones already started are stopped.
+// Start runs each service's startup hook in order. If one fails, the ones already started are stopped.
 func (b *Backend) Start(ctx context.Context) error {
 	for _, n := range b.Services() {
 		if s, ok := n.Service.(starter); ok {

@@ -11,8 +11,8 @@ import (
 )
 
 // One window's tabs, panes and groups, and the rules that keep them
-// consistent. A port of frontend/src/lib/tabs.svelte.ts (and
-// macos/Sources/WtfCore/WindowModel.swift); the views observe it through
+// consistent. A port of
+// macos/Sources/WtfCore/WindowModel.swift; the views observe it through
 // OnChange. No GTK here, so it's tested on its own.
 //
 // Tab, pane and group ids start at 1; 0 means none.

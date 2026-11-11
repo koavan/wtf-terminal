@@ -3,7 +3,7 @@
 // Best effort, and on the side of hiding too much: hiding a harmless value
 // costs little while sharing a screen; showing a key costs a lot.
 //
-// A port of frontend/src/lib/secrets.ts. Both are tested against
+// Like internal/uicore/secrets.go. Both are tested against
 // testdata/secrets/cases.json so they find the same things.
 import Foundation
 

@@ -2,7 +2,7 @@ package uicore
 
 import "math"
 
-// A tab's panes as a split tree, like frontend/src/lib/layout.ts (a port of
+// A tab's panes as a split tree (a port of
 // macos/Sources/WtfCore/Layout.swift).
 
 // SplitDir is how a split lays out its two sides.

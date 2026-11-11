@@ -5,7 +5,6 @@
 #   linux/bench/run-xvfb.sh <label> <app> [VAR=value…]
 #
 # e.g. linux/bench/run-xvfb.sh gtk-feed bin/gtk/wtf-gtk
-#      linux/bench/run-xvfb.sh wails bin/gtk/wtf-wails
 set -eu
 label=$1 app=$2
 shift 2

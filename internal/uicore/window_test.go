@@ -9,7 +9,7 @@ import (
 	"testing"
 )
 
-// The cases of frontend/src/lib/tabs.test.ts (and
+// The cases of the Svelte build's tabs tests (and
 // macos/Tests/WtfCoreTests/WindowModelTests.swift), and its random-operations check.
 
 type setup struct {
@@ -928,5 +928,36 @@ func TestDetachesOnePaneWithItsSession(t *testing.T) {
 	checkInvariants(t, s.w, "")
 	if _, ok := s.w.DetachPane(9999, nil); ok {
 		t.Error("detached a pane that isn't there")
+	}
+}
+
+func TestACustomNameSurvivesRestoreAndMovingToAnotherWindow(t *testing.T) {
+	s := newSetup()
+	a := s.open(2)[0]
+	s.w.Rename(a, "db")
+	snap := roundTrip(t, s.w.Snapshot(14, nil))
+	moved, ok := s.w.Detach(a, func(*PaneState) string { return "" })
+	if !ok {
+		t.Fatal("detach failed")
+	}
+
+	r := newSetup()
+	r.w.Restore(snap)
+	if tabs := r.w.Tabs(); tabs[0].CustomTitle != "db" || tabs[1].CustomTitle != "" {
+		t.Errorf("restored titles %q, %q", tabs[0].CustomTitle, tabs[1].CustomTitle)
+	}
+
+	o := newSetup()
+	o.open(1)
+	data, err := moved.MarshalJSON()
+	if err != nil {
+		t.Fatal(err)
+	}
+	payload, err := ParseTabPayload(data)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !o.w.Adopt(&payload) || o.active().CustomTitle != "db" {
+		t.Errorf("adopted title %q", o.active().CustomTitle)
 	}
 }

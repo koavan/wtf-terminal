@@ -1,6 +1,6 @@
 // The AWS Profiles tab's rules: row text, tooltips, key ages, and the
 // editor's draft (what a profile's form shows, and what it sends back).
-// Ports of lib/aws.svelte.ts and AwsProfileEditor.svelte.
+// Like internal/uicore/aws.go.
 import Foundation
 
 public typealias AwsProfile = Go.awsprofiles.Profile

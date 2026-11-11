@@ -1,7 +1,7 @@
 // Multi-line paste confirmation: text with more than one line, or with
 // control characters, is shown before it reaches the shell. Decided by the
 // text alone — never by guessing what a command does.
-// A port of frontend/src/lib/paste.ts.
+// Like internal/uicore/paste.go.
 import Foundation
 
 public struct PasteFacts: Equatable, Sendable {

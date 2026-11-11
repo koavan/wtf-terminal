@@ -3,7 +3,7 @@ import WtfCore
 
 /// The Share & Record tab: Hide Secrets, recording the focused terminal,
 /// saving its output as text or Markdown, and what was saved from this
-/// window. Like ShareView.svelte.
+/// window. Like internal/gtkui/sharetab.go.
 @MainActor
 final class ShareView: NSView, SidePaneTab {
     private unowned let owner: WindowController

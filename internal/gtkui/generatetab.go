@@ -28,8 +28,7 @@ func init() {
 
 // generateTab is the Generate tab: a new SSH key (made by wtf, with a
 // passphrase if you like) or a random password. Nothing loads until the
-// key form shows. Like GenerateView.svelte and the macOS app's
-// GenerateView.
+// key form shows. Like the macOS app's GenerateView.
 type generateTab struct {
 	w        *Window
 	root     *gtk.Box
@@ -177,8 +176,7 @@ func generateSSH(w *Window) *sshTab {
 
 // generateKeyForm makes a key pair in ~/.ssh through Go: the passphrase
 // is used once, in memory, and never stored. Then it shows the public key
-// and what to do with it. Like KeyGenForm.svelte and the macOS app's
-// KeyGenForm.
+// and what to do with it. Like the macOS app's KeyGenForm.
 type generateKeyForm struct {
 	w    *Window
 	root *gtk.Box
@@ -479,8 +477,8 @@ func (f *generateKeyForm) renderResult(r sshhosts.KeyGenResult) {
 var generatePasswordOptions = uicore.NewPasswordOptions()
 
 // generatePasswordForm makes random passwords from the system's secure
-// source: never saved, never sent. Like PasswordGenerator.svelte and the
-// macOS app's PasswordGenerator.
+// source: never saved, never sent. Like the macOS app's
+// PasswordGenerator.
 type generatePasswordForm struct {
 	w        *Window
 	root     *gtk.Box

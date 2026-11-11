@@ -22,7 +22,7 @@ final class WtfTerminalView: TerminalView {
         onFocus?()
         let mods = event.modifierFlags.intersection(.deviceIndependentFlagsMask)
         if mods == .command, onCommandClick?(event) == true { return }
-        // ⌥-drag selects even in programs that take the mouse (vim, htop, tmux), as in the Wails build.
+        // ⌥-drag selects even in programs that take the mouse (vim, htop, tmux).
         if mods.contains(.option), allowMouseReporting {
             allowMouseReporting = false
             optionSelecting = true
