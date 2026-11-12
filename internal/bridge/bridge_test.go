@@ -310,7 +310,13 @@ func TestHelper(t *testing.T) {
 	}
 
 	// Outside a wtf shell it says so and exits.
-	out, err := exec.Command(bin).CombinedOutput()
+	outside := exec.Command(bin)
+	for _, kv := range os.Environ() {
+		if !strings.HasPrefix(kv, wire.EnvBridge+"=") && !strings.HasPrefix(kv, wire.EnvPane+"=") && !strings.HasPrefix(kv, wire.EnvToken+"=") {
+			outside.Env = append(outside.Env, kv)
+		}
+	}
+	out, err := outside.CombinedOutput()
 	if err == nil || !strings.Contains(string(out), "not running in a wtf shell") {
 		t.Fatalf("no env: %v %s", err, out)
 	}
@@ -492,6 +498,22 @@ func TestAgents(t *testing.T) {
 	if len(s.Agents()) != 0 {
 		t.Fatalf("agents = %+v", s.Agents())
 	}
+
+	// Codex uses PermissionRequest for the approval state and carries its
+	// provider through to the shared Agents UI.
+	for _, req := range []wire.Request{
+		{Event: "SessionStart", Provider: "codex"},
+		{Event: "UserPromptSubmit", Provider: "codex", Prompt: "fix tests"},
+		{Event: "PermissionRequest", Provider: "codex", Message: "Run go test"},
+	} {
+		req.V, req.Pane, req.Token, req.Op = wire.Version, "s4", s.token("s4"), "hook"
+		if r := s.do(context.Background(), req); r.Error != "" {
+			t.Fatal(r.Error)
+		}
+	}
+	if st := last(); st.Provider != "codex" || st.State != StateWaiting || st.Message != "Run go test" {
+		t.Fatalf("codex waiting = %+v", st)
+	}
 }
 
 // New shells get WTF_AGENT_SETTINGS while agent-status is on and the
@@ -504,12 +526,16 @@ func TestAgentSettingsEnv(t *testing.T) {
 	t.Cleanup(s.shutdown)
 	s.helper, s.statusSettings = "/x/wtf-mcp", "/x/claude-plugin/"+StatusSettingsFile
 	has := func() bool {
+		settings, codex := false, false
 		for _, kv := range s.shellEnv("s1") {
 			if kv == wire.EnvAgentSettings+"="+s.statusSettings {
-				return true
+				settings = true
+			}
+			if kv == wire.EnvCodexHook+"=\"/x/wtf-mcp codex-hook\"" {
+				codex = true
 			}
 		}
-		return false
+		return settings && codex
 	}
 	if !has() {
 		t.Error("missing by default")

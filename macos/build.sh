@@ -37,6 +37,7 @@ else
 	goarchive "$(go env GOARCH)" "$(uname -m)" bin/native/libwtf.a
 	archs=
 fi
+mkdir -p macos/Sources/CWtf/include
 cp bin/native/libwtf.h macos/Sources/CWtf/include/libwtf.h
 # shellcheck disable=SC2086
 (cd macos && swift build -c "$config" $archs)

@@ -15,6 +15,10 @@ enum Resume {
     /// reports in again after resuming.
     static var pendingNames: [String: String] = [:]
 
+    static func prefix(_ a: Go.state.Agent) -> String {
+        a.provider == "codex" ? "codex resume " : "claude --resume "
+    }
+
     /// At launch, once the saved windows are open: drops what can't be
     /// resumed any more (its transcript or folder is gone, quietly) and
     /// shows the rest.
@@ -42,7 +46,7 @@ enum Resume {
     /// What resumes `a` in a shell in `cwd`: claude finds a session by the
     /// folder it started in.
     static func command(_ a: Go.state.Agent, from cwd: String) -> String {
-        let resume = "claude --resume " + Shell.quote(a.session)
+        let resume = prefix(a) + Shell.quote(a.session)
         return cwd == a.dir ? resume : "cd \(Shell.quote(a.dir)) && \(resume)"
     }
 
@@ -80,7 +84,7 @@ enum Resume {
     /// Resumes a background agent in a new tab of `w`, or in the background.
     static func resumeBackground(_ a: Go.state.Agent, inTab: Bool, from w: WindowController) {
         if !a.name.isEmpty { pendingNames[a.session] = a.name }
-        let cmd = "claude --resume " + Shell.quote(a.session)
+        let cmd = prefix(a) + Shell.quote(a.session)
         if inTab {
             w.model.open(cwd: a.dir, command: cmd)
         } else {

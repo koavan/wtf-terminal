@@ -134,6 +134,20 @@ if [ -n "$WTF_SHELL_INTEGRATION" ] && [ -z "$__wtf_loaded" ]; then
     }
   fi
 
+  # Codex has the same lifecycle hook events. Add wtf's status hook to this
+  # invocation only; the user's config, login, model and approval policy stay
+  # Codex's own. A function from the user's startup files wins, as for claude.
+  if [ -n "$WTF_CODEX_HOOK" ] && ! declare -F codex >/dev/null; then
+    codex() {
+      local e
+      local -a wtf_codex_args=()
+      for e in SessionStart UserPromptSubmit PermissionRequest PostToolUse Stop Interrupt SessionEnd SubagentStart SubagentStop; do
+        wtf_codex_args+=( -c "hooks.$e=[{hooks=[{type=\"command\",command=$WTF_CODEX_HOOK}]}]" )
+      done
+      command codex "${wtf_codex_args[@]}" "$@"
+    }
+  fi
+
   PROMPT_COMMAND="__wtf_prompt_start${PROMPT_COMMAND:+; $PROMPT_COMMAND}; __wtf_prompt_end"
   trap '__wtf_preexec' DEBUG
 

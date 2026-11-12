@@ -1,6 +1,6 @@
-# Agents: every Claude Code
+# Agents: Claude Code and Codex
 
-The **Agents** tab ({{key:sidebar.agents}}, the first icon in the side pane) lists every Claude Code running in your wtf shells, in every window, so you don't have to visit each tab to see which one is still working and which one is waiting for you.
+The **Agents** tab ({{key:sidebar.agents}}, the first icon in the side pane) lists every Claude Code and Codex running in your wtf shells, in every window, so you don't have to visit each tab to see which one is still working and which one is waiting for you.
 
 Each row shows:
 
@@ -85,6 +85,8 @@ To run several agents on one repository without them editing the same files, giv
 
 Claude Code reports what it's doing through hooks: small commands it runs when you send a prompt, when it needs your approval, when it finishes, when it starts or finishes a sub-agent, after each tool call and when it quits. wtf never reads the screen to guess.
 
+Codex reports through its matching lifecycle hooks. The shell integration adds wtf's command hooks to that `codex` run with temporary `--config` arguments, so nothing is written to `~/.codex`. Its session, prompt, approvals, completion, interrupts, tool calls and sub-agents use the same rows and badges; saved Codex conversations resume with `codex resume`.
+
 - **Ask Claude** panes ({{key:claude.ask}}) report through wtf's plugin. See [Ask Claude](#ask-claude).
 - **A `claude` you type yourself**: wtf's [shell integration](#shell-integration) (bash and zsh) runs it as `claude --settings <wtf's status hooks>`. Those settings hold only the hooks that report its state: no tools, no slash commands, and no permission rules, so your own claude asks you exactly what it asked before. They apply to that run only; nothing is written to `~/.claude`, and your own settings and hooks still apply.
 
@@ -98,6 +100,6 @@ A Claude Code that quits, or is killed, disappears from the list when its shell 
 
 ## What it doesn't cover yet
 
-- Other coding agents (Codex, OpenCode and others).
+- Other coding agents (OpenCode and others).
 - Claude Code started inside tmux or over SSH from a wtf shell: its hooks run where it runs, not in wtf's shell.
 - fish (no shell integration).

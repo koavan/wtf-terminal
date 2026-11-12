@@ -13,6 +13,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/dayanraj/wtf/internal/bridge/wire"
 )
 
 // The plugin's folder in the repo, as bundled with the apps.
@@ -81,6 +83,9 @@ func TestPluginFiles(t *testing.T) {
 		}
 	}
 	for event := range maps.Keys(hookStates) {
+		if codexOnlyHookEvents[event] {
+			continue
+		}
 		if _, ok := hooks.Hooks[event]; !ok {
 			t.Errorf("no %s hook", event)
 		}
@@ -186,6 +191,17 @@ func TestHook(t *testing.T) {
 	}
 	env := append(os.Environ(), f.s.shellEnv("s1")...)
 	env = append(env, "WTF_MCP="+bin)
+	// This test can itself be run from a wtf shell. Cases that simulate wtf
+	// being gone must not inherit that live pane's bridge credentials, or a
+	// synthetic hook event would appear in the running app's Agents tab.
+	withoutBridge := slices.DeleteFunc(slices.Clone(os.Environ()), func(kv string) bool {
+		for _, name := range []string{wire.EnvBridge, wire.EnvPane, wire.EnvToken} {
+			if strings.HasPrefix(kv, name+"=") {
+				return true
+			}
+		}
+		return false
+	})
 
 	out, code := run("PreToolUse", env, `{"hook_event_name":"PreToolUse","tool_name":"Bash","permission_mode":"auto"}`)
 	var raw map[string]map[string]string
@@ -197,11 +213,11 @@ func TestHook(t *testing.T) {
 	if _, code := run("PreToolUse", env, "nonsense"); code != 2 {
 		t.Errorf("bad input exits %d", code)
 	}
-	if _, code := run("PreToolUse", append(os.Environ(), "WTF_MCP="), `{"hook_event_name":"PreToolUse"}`); code != 2 {
+	if _, code := run("PreToolUse", append(withoutBridge, "WTF_MCP="), `{"hook_event_name":"PreToolUse"}`); code != 2 {
 		t.Errorf("no helper exits %d", code)
 	}
 	// It doesn't need the app.
-	if out, code := run("PreToolUse", append(os.Environ(), "WTF_MCP="+bin), `{"hook_event_name":"PreToolUse"}`); code != 0 || !strings.Contains(out, `"ask"`) {
+	if out, code := run("PreToolUse", append(withoutBridge, "WTF_MCP="+bin), `{"hook_event_name":"PreToolUse"}`); code != 0 || !strings.Contains(out, `"ask"`) {
 		t.Errorf("without the bridge: %d %q", code, out)
 	}
 
@@ -218,7 +234,7 @@ func TestHook(t *testing.T) {
 		}
 	}
 	// Status events don't fail a session when wtf is gone.
-	if _, code := run("Stop", append(os.Environ(), "WTF_MCP="+bin), `{"hook_event_name":"Stop"}`); code != 0 {
+	if _, code := run("Stop", append(withoutBridge, "WTF_MCP="+bin), `{"hook_event_name":"Stop"}`); code != 0 {
 		t.Errorf("Stop without the bridge exits %d", code)
 	}
 	deadline := time.Now().Add(2 * time.Second)

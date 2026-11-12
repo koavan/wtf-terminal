@@ -345,3 +345,46 @@ func TestClaudeWrapper(t *testing.T) {
 		}
 	}
 }
+
+// agent-status adds wtf's Codex lifecycle hook to a codex invocation, unless
+// the user already defines a codex function. The hook is scoped to that run.
+func TestCodexWrapper(t *testing.T) {
+	fake := "#!/bin/sh\nprintf 'ARG:%s\\n' \"$@\"\n"
+	for _, tc := range []struct {
+		shell, rc string
+		own       bool
+	}{
+		{"bash", ".bash_profile", false},
+		{"zsh", ".zshrc", false},
+		{"bash", ".bash_profile", true},
+		{"zsh", ".zshrc", true},
+	} {
+		t.Run(tc.shell+map[bool]string{true: "/own"}[tc.own], func(t *testing.T) {
+			rc := "PATH=$HOME:$PATH\n"
+			if tc.own {
+				rc += "codex() { echo MINE; }\n"
+			}
+			home := map[string]string{tc.rc: rc, "codex": fake}
+			hook := `"/tmp/wtf mcp codex-hook"`
+			home[".zshenv"] = "export WTF_CODEX_HOOK='" + hook + "'\n"
+			home[".bash_profile"] = "export WTF_CODEX_HOOK='" + hook + "'\n" + home[".bash_profile"]
+			out, _, _ := runIntegratedHome(t, tc.shell, home,
+				"chmod +x ~/codex; [ \"$(/usr/bin/which codex)\" = \"$HOME/codex\" ] || exit; codex hello; echo DONE_$((1+1))\n", "DONE_2")
+			if tc.own {
+				if !strings.Contains(out, "MINE") {
+					t.Fatalf("user function did not win: %q", out)
+				}
+				return
+			}
+			for _, event := range []string{"SessionStart", "UserPromptSubmit", "PermissionRequest", "PostToolUse", "Stop", "Interrupt", "SessionEnd", "SubagentStart", "SubagentStop"} {
+				want := "ARG:hooks." + event + "=[{hooks=[{type=\"command\",command=\"/tmp/wtf mcp codex-hook\"}]}]"
+				if !strings.Contains(out, want) {
+					t.Errorf("missing %s in %q", event, out)
+				}
+			}
+			if !strings.Contains(out, "ARG:hello") {
+				t.Errorf("missing original argument: %q", out)
+			}
+		})
+	}
+}

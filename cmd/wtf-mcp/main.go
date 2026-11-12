@@ -78,8 +78,12 @@ func main() {
 		return
 	}
 	c := client{os.Getenv(wire.EnvBridge), os.Getenv(wire.EnvPane), os.Getenv(wire.EnvToken)}
-	if len(os.Args) > 1 && os.Args[1] == "hook" {
-		os.Exit(hook(c, os.Stdin, os.Stdout))
+	if len(os.Args) > 1 && (os.Args[1] == "hook" || os.Args[1] == "codex-hook") {
+		provider := "claude"
+		if os.Args[1] == "codex-hook" {
+			provider = "codex"
+		}
+		os.Exit(hook(c, provider, os.Stdin, os.Stdout))
 	}
 	if c.sock == "" || c.pane == "" || c.token == "" {
 		log.Fatal("not running in a wtf shell (WTF_PANE, WTF_BRIDGE and WTF_BRIDGE_TOKEN are unset)")
@@ -120,7 +124,7 @@ const askReason = "wtf asks before every command Claude Code runs or types in yo
 
 // hook handles one hook event and returns the exit code. A PreToolUse it
 // can't read exits 2, which makes Claude Code refuse the tool call.
-func hook(c client, in io.Reader, out io.Writer) int {
+func hook(c client, provider string, in io.Reader, out io.Writer) int {
 	var ev struct {
 		Event   string `json:"hook_event_name"`
 		Message string `json:"message"`
@@ -164,11 +168,14 @@ func hook(c client, in io.Reader, out io.Writer) int {
 	// Best effort: a status the app misses changes nothing.
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 	defer cancel()
-	req := wire.Request{Op: "hook", Event: ev.Event, Message: ev.Message, Prompt: ev.Prompt, Cwd: ev.Cwd,
+	req := wire.Request{Op: "hook", Provider: provider, Event: ev.Event, Message: ev.Message, Prompt: ev.Prompt, Cwd: ev.Cwd,
 		ClaudeSession: ev.SessionID, Transcript: ev.Transcript,
 		AgentID: ev.AgentID, AgentType: ev.AgentType, Tool: ev.Tool, Input: ev.Input}
 	if ev.Event == "SubagentStop" && req.Message == "" {
 		req.Message = ev.Last
+	}
+	if ev.Event == "PermissionRequest" && req.Message == "" && ev.Input != nil {
+		req.Message = ev.Input.Description
 	}
 	// An Agent call's response names the sub-agent it started.
 	if ev.Tool == "Agent" || ev.Tool == "Task" {

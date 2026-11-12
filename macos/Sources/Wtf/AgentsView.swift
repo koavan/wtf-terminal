@@ -76,12 +76,12 @@ final class AgentsView: NSView, SidePaneTab {
         // Fixed order (when each started), so a row never moves.
         let list = Agents.listed()
         if list.isEmpty, Resume.background.isEmpty {
-            form.add(form.label("No Claude Code running", bold: true))
+            form.add(form.label("No agents running", bold: true))
             if Settings.shared.config?.agentStatus == false {
-                form.add(form.note("Only Ask Claude panes (⌘I) are listed: agent-status is off, so a claude you start yourself doesn't report what it's doing."))
+                form.add(form.note("Only Ask Claude panes (⌘I) are listed: agent-status is off, so codex or claude you start yourself doesn't report what it's doing."))
                 form.add(form.link("Turn on in Settings") { SettingsWindow.show() }, full: false)
             } else {
-                form.add(form.note("Start claude in any tab, or Ask Claude (⌘I). Each one shows here: needs you, working, done or idle, with its last prompt. A click goes to it."))
+                form.add(form.note("Start codex or claude in any tab, or Ask Claude (⌘I). Each one shows here: needs you, working, done or idle, with its last prompt. A click goes to it."))
             }
         }
         let parked = list.filter { Agents.find($0.session)?.0.background == true }
@@ -226,9 +226,10 @@ private final class AgentRow: NSView {
         if owner.model.active.flatMap({ owner.model.focusedPane($0) })?.sessionId == st.session {
             layer?.backgroundColor = NSColor.selectedContentBackgroundColor.withAlphaComponent(0.18).cgColor
         }
-        toolTip = (place?.0.background == true ? "Open it in a tab" : "Go to this Claude Code") + "; double-click to name it"
+		let product = Agents.product(st)
+		toolTip = (place?.0.background == true ? "Open it in a tab" : "Go to this " + product) + "; double-click to name it"
         setAccessibilityRole(.button)
-        setAccessibilityLabel("\(title): Claude Code \(state.label.lowercased())")
+		setAccessibilityLabel("\(title): \(product) \(state.label.lowercased())")
     }
 
     required init?(coder: NSCoder) { fatalError() }
@@ -268,7 +269,8 @@ private final class AgentRow: NSView {
     override func menu(for event: NSEvent) -> NSMenu? {
         let m = NSMenu()
         let parked = Agents.find(session)?.0.background == true
-        m.addItem(ClosureMenuItem(title: parked ? "Open in Tab" : "Go to Claude Code", keyEquivalent: "") { [session] in Agents.go(to: session) })
+		let product = Agents.all[session].map(Agents.product) ?? "Agent"
+		m.addItem(ClosureMenuItem(title: parked ? "Open in Tab" : "Go to " + product, keyEquivalent: "") { [session] in Agents.go(to: session) })
         m.addItem(ClosureMenuItem(title: "Peek and Reply…", keyEquivalent: "") { [session] in Background.peek(session) })
         m.addItem(ClosureMenuItem(title: "Rename…", keyEquivalent: "") { [session, weak self] in Agents.rename(session, in: self?.window) })
         if Agents.all[session]?.subagents.isEmpty == false {
@@ -284,7 +286,7 @@ private final class AgentRow: NSView {
             })
         }
         m.addItem(.separator())
-        m.addItem(ClosureMenuItem(title: "End Claude Code…", keyEquivalent: "") { [session, weak owner] in Background.end(session, from: owner?.window) })
+		m.addItem(ClosureMenuItem(title: "End " + product + "…", keyEquivalent: "") { [session, weak owner] in Background.end(session, from: owner?.window) })
         return m
     }
 }
@@ -321,7 +323,7 @@ private final class ResumableRow: NSView {
             b.toolTip = tip
             return b
         }
-        let cmd = "claude --resume " + a.session
+        let cmd = Resume.prefix(a) + a.session
         let buttons = NSStackView(views: [
             button("Resume in Tab", "Runs \(cmd) in a new tab in its folder") { [weak owner] in
                 if let owner { Resume.resumeBackground(a, inTab: true, from: owner) }

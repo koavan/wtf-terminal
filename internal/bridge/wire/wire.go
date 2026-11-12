@@ -18,6 +18,9 @@ const (
 	// The status-only Claude Code settings (agent-status): wtf's shell
 	// integration runs claude with --settings "$WTF_AGENT_SETTINGS".
 	EnvAgentSettings = "WTF_AGENT_SETTINGS"
+	// The TOML string value for a Codex command hook ("/path/wtf-mcp hook").
+	// Shell integration adds it to Codex's lifecycle hooks for that run.
+	EnvCodexHook = "WTF_CODEX_HOOK"
 )
 
 // Request is what the helper sends.
@@ -27,6 +30,8 @@ type Request struct {
 	Token string `json:"token"`
 	// "list", "call" or "hook".
 	Op string `json:"op"`
+	// hook: the coding agent that emitted it ("claude" or "codex").
+	Provider string `json:"provider,omitempty"`
 	// call: the MCP tool; hook: the tool a tool event is about.
 	Tool string          `json:"tool,omitempty"`
 	Args json.RawMessage `json:"args,omitempty"`

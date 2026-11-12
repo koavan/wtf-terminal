@@ -710,6 +710,7 @@ extension Go.bridge {
     /// bridge.Status
     public struct Status: Codable, Equatable, Sendable {
         public var session: String
+        public var provider: String
         public var state: String
         public var message: String
         public var prompt: String
@@ -724,8 +725,9 @@ extension Go.bridge {
         public var project: String
         public var transcript: String
 
-        public init(session: String = "", state: String = "", message: String = "", prompt: String = "", since: Int = 0, unseen: Bool = false, subagents: [Go.bridge.Subagent] = [], name: String = "", started: Int = 0, folder: String = "", git: Go.worktree.Branch = Go.worktree.Branch(), claudeSession: String = "", project: String = "", transcript: String = "") {
+        public init(session: String = "", provider: String = "", state: String = "", message: String = "", prompt: String = "", since: Int = 0, unseen: Bool = false, subagents: [Go.bridge.Subagent] = [], name: String = "", started: Int = 0, folder: String = "", git: Go.worktree.Branch = Go.worktree.Branch(), claudeSession: String = "", project: String = "", transcript: String = "") {
             self.session = session
+            self.provider = provider
             self.state = state
             self.message = message
             self.prompt = prompt
@@ -743,6 +745,7 @@ extension Go.bridge {
 
         enum CodingKeys: String, CodingKey {
             case session = "session"
+            case provider = "provider"
             case state = "state"
             case message = "message"
             case prompt = "prompt"
@@ -761,6 +764,7 @@ extension Go.bridge {
         public init(from decoder: Decoder) throws {
             let c = try decoder.container(keyedBy: CodingKeys.self)
             self.session = (try? c.decodeIfPresent(String.self, forKey: .session)) ?? ""
+            self.provider = (try? c.decodeIfPresent(String.self, forKey: .provider)) ?? ""
             self.state = (try? c.decodeIfPresent(String.self, forKey: .state)) ?? ""
             self.message = (try? c.decodeIfPresent(String.self, forKey: .message)) ?? ""
             self.prompt = (try? c.decodeIfPresent(String.self, forKey: .prompt)) ?? ""
@@ -4081,12 +4085,14 @@ extension Go.sshhosts {
 extension Go.state {
     /// state.Agent
     public struct Agent: Codable, Equatable, Sendable {
+        public var provider: String
         public var session: String
         public var dir: String
         public var name: String
         public var transcript: String
 
-        public init(session: String = "", dir: String = "", name: String = "", transcript: String = "") {
+        public init(provider: String = "", session: String = "", dir: String = "", name: String = "", transcript: String = "") {
+            self.provider = provider
             self.session = session
             self.dir = dir
             self.name = name
@@ -4094,6 +4100,7 @@ extension Go.state {
         }
 
         enum CodingKeys: String, CodingKey {
+            case provider = "provider"
             case session = "session"
             case dir = "dir"
             case name = "name"
@@ -4102,6 +4109,7 @@ extension Go.state {
 
         public init(from decoder: Decoder) throws {
             let c = try decoder.container(keyedBy: CodingKeys.self)
+            self.provider = (try? c.decodeIfPresent(String.self, forKey: .provider)) ?? ""
             self.session = (try? c.decodeIfPresent(String.self, forKey: .session)) ?? ""
             self.dir = (try? c.decodeIfPresent(String.self, forKey: .dir)) ?? ""
             self.name = (try? c.decodeIfPresent(String.self, forKey: .name)) ?? ""

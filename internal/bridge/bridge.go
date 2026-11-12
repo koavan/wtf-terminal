@@ -99,7 +99,9 @@ const (
 type Status struct {
 	// The session of the shell Claude Code runs in.
 	Session string `json:"session"`
-	State   string `json:"state"`
+	// The coding agent in this shell: "claude" or "codex".
+	Provider string `json:"provider"`
+	State    string `json:"state"`
 	// While waiting: the Notification's text ("Claude needs your
 	// permission to use Bash"), redacted.
 	Message string `json:"message"`
@@ -140,8 +142,12 @@ const maxPrompt = 160
 
 var hookStates = map[string]string{
 	"SessionStart": StateIdle, "Stop": StateIdle, "UserPromptSubmit": StateBusy, "PostToolUse": StateBusy,
-	"Notification": StateWaiting, "SessionEnd": StateEnded,
+	"Notification": StateWaiting, "PermissionRequest": StateWaiting, "Interrupt": StateIdle, "SessionEnd": StateEnded,
 }
+
+// Codex names these lifecycle points differently from Claude Code. They
+// belong in the shared state machine, but not in Claude's bundled hooks.
+var codexOnlyHookEvents = map[string]bool{"PermissionRequest": true, "Interrupt": true}
 
 // EnvAuto, set on a Claude pane's claude when claude-auto-mode is on, makes
 // the plugin's PreToolUse hook leave commands to Claude Code's own
@@ -312,6 +318,9 @@ func (s *Service) shellEnv(session string) []string {
 		env = append(env, wire.EnvMCP+"="+s.helper)
 		if s.statusSettings != "" && (s.AgentStatus == nil || s.AgentStatus()) {
 			env = append(env, wire.EnvAgentSettings+"="+s.statusSettings)
+			// strconv.Quote is also a valid TOML basic string. Keeping the
+			// quoting here avoids shell/path escaping bugs in the wrappers.
+			env = append(env, wire.EnvCodexHook+"="+strconv.Quote(s.helper+" codex-hook"))
 		}
 	}
 	return env
@@ -348,7 +357,7 @@ func (s *Service) target(session string) string {
 // Claude Code works (a permission prompt); one while it's idle is its
 // reminder that it's waiting for a prompt, which changes nothing.
 // A new prompt (newPrompt) forgets the sub-agents that are done.
-func (s *Service) setState(session, state, message, prompt string, newPrompt bool) (Status, bool) {
+func (s *Service) setState(session, provider, state, message, prompt string, newPrompt bool) (Status, bool) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	a := s.agents[session]
@@ -366,6 +375,11 @@ func (s *Service) setState(session, state, message, prompt string, newPrompt boo
 		a = s.newAgent(session)
 	}
 	old := a.clone()
+	if provider != "" {
+		a.Provider = provider
+	} else if a.Provider == "" {
+		a.Provider = "claude"
+	}
 	if newPrompt {
 		a.dropFinished()
 	}
@@ -559,7 +573,7 @@ func (s *Service) AgentsIn(dir string) []string {
 // Forget drops session's Claude Code: its shell closed, or is back at its
 // prompt (a claude killed before its SessionEnd hook).
 func (s *Service) Forget(session string) {
-	if st, ok := s.setState(session, StateEnded, "", "", false); ok {
+	if st, ok := s.setState(session, "", StateEnded, "", "", false); ok {
 		events.Emit(EventStatus, st)
 	}
 }
@@ -692,7 +706,7 @@ func (s *Service) do(ctx context.Context, req wire.Request) wire.Response {
 		if state == "" {
 			return wire.Response{Error: "unknown hook event " + strconv.Quote(req.Event)}
 		}
-		st, ok := s.setState(req.Pane, state, req.Message, req.Prompt, req.Event == "UserPromptSubmit")
+		st, ok := s.setState(req.Pane, req.Provider, state, req.Message, req.Prompt, req.Event == "UserPromptSubmit")
 		// An Agent call: the sub-agent it started (named in its response).
 		if req.Spawned != "" {
 			if st2, ok2 := s.subagentHook(req.Pane, req); ok2 {

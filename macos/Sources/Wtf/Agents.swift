@@ -54,6 +54,8 @@ enum Agents {
 
     static func state(session: String) -> AgentState? { all[session].map(state) }
 
+    static func product(_ st: Go.bridge.Status) -> String { st.provider == "codex" ? "Codex" : "Claude Code" }
+
     /// The badge for a tab: its most urgent agent.
     static func state(tab: Int, in w: WindowController) -> AgentState? {
         guard let leaves = w.model.tab(tab)?.root.leaves else { return nil }
@@ -97,7 +99,7 @@ enum Agents {
     static func rename(_ session: String, in window: NSWindow?) {
         guard let st = all[session] else { return }
         let s = FormSheet(title: "Rename Agent",
-                          subtitle: "Shown in the Agents tab, Go to Agent…, its notifications and as its tab’s title. It stays with this shell: a claude you start there again gets it too. Leave it empty to use the tab’s title.")
+                          subtitle: "Shown in the Agents tab, Go to Agent…, its notifications and as its tab’s title. It stays with this shell: an agent you start there again gets it too. Leave it empty to use the tab’s title.")
         let field = s.text(st.name, placeholder: Redaction.shared.text(tabTitle(session) ?? ""))
         s.field("Name", field)
         s.buttons([("Rename", true, { [weak s] in
@@ -229,10 +231,10 @@ enum Agents {
         switch now {
         case .waiting:
             let body = Redaction.shared.text(st.message)
-            Task { try? await Backend.run("notify", "Notify", ["Claude Code needs you", title, body]) }
+            Task { try? await Backend.run("notify", "Notify", [product(st) + " needs you", title, body]) }
             playSound(.attention)
         case .done:
-            Task { try? await Backend.run("notify", "Notify", ["Claude Code finished", title, Redaction.shared.text(st.prompt)]) }
+            Task { try? await Backend.run("notify", "Notify", [product(st) + " finished", title, Redaction.shared.text(st.prompt)]) }
             playSound(.complete)
         default:
             break
@@ -246,7 +248,7 @@ enum Agents {
     private static func noteResumable(_ st: Go.bridge.Status, pane p: Pane, in w: WindowController) {
         guard !ClaudePane.isClaude(p) else { return }
         let a: Go.state.Agent? = st.state == "ended" || st.claudeSession.isEmpty ? nil
-            : .init(session: st.claudeSession, dir: st.project, name: st.name, transcript: st.transcript)
+            : .init(provider: st.provider, session: st.claudeSession, dir: st.project, name: st.name, transcript: st.transcript)
         if p.agent != a {
             p.agent = a
             w.scheduleSave()

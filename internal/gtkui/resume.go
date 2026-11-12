@@ -26,7 +26,7 @@ import (
 // resumeCommand resumes a in a shell in cwd: claude finds a session by the
 // folder it started in.
 func resumeCommand(a state.Agent, cwd string) string {
-	resume := "claude --resume " + uicore.ShellQuote(a.Session)
+	resume := state.ResumePrefix(a) + uicore.ShellQuote(a.Session)
 	if cwd == a.Dir {
 		return resume
 	}
@@ -99,7 +99,7 @@ func (w *Window) noteResumable(st bridge.Status) {
 	}
 	var ag *state.Agent
 	if st.State != bridge.StateEnded && st.ClaudeSession != "" {
-		ag = &state.Agent{Session: st.ClaudeSession, Dir: st.Project, Name: st.Name, Transcript: st.Transcript}
+		ag = &state.Agent{Provider: st.Provider, Session: st.ClaudeSession, Dir: st.Project, Name: st.Name, Transcript: st.Transcript}
 	}
 	if (ag == nil) != (ps.Agent == nil) || (ag != nil && *ag != *ps.Agent) {
 		ps.Agent = ag
@@ -205,7 +205,7 @@ func (w *Window) resumeBackground(ag state.Agent, inTab bool) {
 		a.agents.pendingNames[ag.Session] = ag.Name
 	}
 	dir := ag.Dir
-	opts := uicore.OpenOptions{Cwd: &dir, Command: "claude --resume " + uicore.ShellQuote(ag.Session)}
+	opts := uicore.OpenOptions{Cwd: &dir, Command: state.ResumePrefix(ag) + uicore.ShellQuote(ag.Session)}
 	switch {
 	case inTab:
 		w.model.Open(opts)

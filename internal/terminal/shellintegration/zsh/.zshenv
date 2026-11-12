@@ -37,6 +37,19 @@ if [[ -o interactive && -n "$WTF_SHELL_INTEGRATION" && -z "$__wtf_loaded" ]]; th
     }
   fi
 
+  # Codex lifecycle hooks report the same agent states. Defined before the
+  # user's .zshrc so their own alias or function wins.
+  if [[ -n $WTF_CODEX_HOOK ]]; then
+    codex() {
+      local e
+      local -a wtf_codex_args
+      for e in SessionStart UserPromptSubmit PermissionRequest PostToolUse Stop Interrupt SessionEnd SubagentStart SubagentStop; do
+        wtf_codex_args+=( -c "hooks.$e=[{hooks=[{type=\"command\",command=$WTF_CODEX_HOOK}]}]" )
+      done
+      command codex "${wtf_codex_args[@]}" "$@"
+    }
+  fi
+
   # Semantic prompt marks (OSC 133), the command line (OSC 633;E) and the
   # cloud/cluster variables (OSC 633;P;WtfEnv); see wtf.bash for the protocol.
   # wtf's "clear history" sends Ctrl-X Ctrl-]: it removes the commands run

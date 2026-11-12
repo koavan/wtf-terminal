@@ -571,16 +571,17 @@ Triage with Claude on a finding (`/wtf:triage`) and Ask Your History
 ## Agents
 
 The **Agents** tab (⌘⇧M / Ctrl+Alt+M, first in the side pane) lists every
-Claude Code running in wtf's shells, in every window: needs you, done
+Claude Code and Codex running in wtf's shells, in every window: needs you, done
 (finished while you looked elsewhere), working or idle, with its tab,
 folder, last prompt or what it asks, and how long. Click one to go there;
 **Go to Agent…** (⌥⌘A) and **Next Agent Needing You** (⌥⌘N) do it from the
 keyboard. Tab badges and notifications cover every one, and the Dock icon
-counts the ones that need you. State comes from Claude Code's hooks, never
-from reading the screen: Ask Claude panes report through the plugin, and a
+counts the ones that need you. State comes from lifecycle hooks, never
+from reading the screen: Ask Claude panes report through the plugin, a
 `claude` you type yourself runs with `--settings` pointing at wtf's status
 hooks (bash and zsh; that run only, nothing in `~/.claude`; `agent-status =
-false` turns it off).
+false` turns it off), and `codex` gets equivalent hooks through temporary
+`--config` arguments (nothing in `~/.codex`).
 
 Closing a tab running Claude Code asks whether to keep it running in the
 background (`agent-close`: ask, background or end). Background agents keep

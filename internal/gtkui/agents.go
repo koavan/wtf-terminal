@@ -107,6 +107,13 @@ func agentLabel(state string) string {
 	return "Idle"
 }
 
+func agentProduct(st bridge.Status) string {
+	if st.Provider == "codex" {
+		return "Codex"
+	}
+	return "Claude Code"
+}
+
 // sorted: most urgent first, then the longest in that state.
 func (l *agentList) sorted() []bridge.Status {
 	out := make([]bridge.Status, 0, len(l.all))
@@ -218,7 +225,7 @@ func (w *Window) renameAgent(session string) {
 		return
 	}
 	tab, _ := w.app.agentPlace(session)
-	f := newKubeForm(w, "Rename Agent", "Shown in the Agents tab, Go to Agent…, its notifications and as its tab's title. It stays with this shell: a claude you start there again gets it too. Leave it empty to use the tab's title.")
+	f := newKubeForm(w, "Rename Agent", "Shown in the Agents tab, Go to Agent…, its notifications and as its tab's title. It stays with this shell: an agent you start there again gets it too. Leave it empty to use the tab's title.")
 	field := f.entry(st.Name, tab)
 	f.field("Name", field)
 	f.button("ok", "Rename")
@@ -368,9 +375,9 @@ func (a *App) agentStatus(st bridge.Status) {
 	var head, body, sound string
 	switch now {
 	case bridge.StateWaiting:
-		head, body, sound = "Claude Code needs you", a.settings.text(st.Message), notify.SoundAttention
+		head, body, sound = agentProduct(st)+" needs you", a.settings.text(st.Message), notify.SoundAttention
 	case agentDone:
-		head, body, sound = "Claude Code finished", a.settings.text(st.Prompt), notify.SoundComplete
+		head, body, sound = agentProduct(st)+" finished", a.settings.text(st.Prompt), notify.SoundComplete
 	default:
 		return
 	}
@@ -429,7 +436,7 @@ func (w *Window) nextAgent() {
 		}
 	}
 	if len(list) == 0 {
-		w.toast("No Claude Code needs you")
+		w.toast("No agent needs you")
 		return
 	}
 	current := ""
@@ -489,7 +496,7 @@ func (w *Window) agentEntries() []paletteEntry {
 		if state == bridge.StateWaiting && st.Message != "" {
 			what = st.Message
 		}
-		detail := agentLabel(state)
+		detail := agentProduct(st) + " · " + agentLabel(state)
 		for _, s := range []string{tab, cwd, uicore.BranchLabel(st.Git), a.settings.text(what)} {
 			if s != "" {
 				detail += " · " + s
@@ -500,7 +507,7 @@ func (w *Window) agentEntries() []paletteEntry {
 			hint: agentAge(st.Since), run: func() { a.goToAgent(session) }})
 	}
 	if len(out) == 0 {
-		out = append(out, paletteEntry{section: "Agents", label: "No Claude Code running", detail: "Start claude in any tab, or Ask Claude", run: func() {}})
+		out = append(out, paletteEntry{section: "Agents", label: "No agents running", detail: "Start codex or claude in any tab", run: func() {}})
 	}
 	return out
 }

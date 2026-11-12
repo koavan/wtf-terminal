@@ -67,7 +67,8 @@ func newAgentsTab(w *Window) *agentsTab {
 			return
 		}
 		session, _ := agentRowSession(ids[0])
-		open := "Go to Claude Code"
+		product := agentProduct(w.app.agents.all[session])
+		open := "Go to " + product
 		if aw := w.app.windowOf(session); aw != nil && aw.background {
 			open = "Open in Tab"
 		}
@@ -87,7 +88,7 @@ func newAgentsTab(w *Window) *agentsTab {
 				items = append(items, &menuItem{label: "Copy Folder Path", run: func() { w.win.Clipboard().SetText(cwd) }})
 			}
 		}
-		items = append(items, menuSection, &menuItem{label: "End Claude Code…", run: func() { w.app.endAgent(session, &w.win.Window) }})
+		items = append(items, menuSection, &menuItem{label: "End " + product + "…", run: func() { w.app.endAgent(session, &w.win.Window) }})
 		t.list.menu.show(x, y, items, nil)
 	}
 	t.root = gtk.NewBox(gtk.OrientationVertical, 4)
@@ -113,7 +114,7 @@ func (t *agentsTab) resumableRows() []sideRow {
 	var rows []sideRow
 	for i, ag := range a.agents.resumable {
 		ag := ag
-		cmd := "claude --resume " + ag.Session
+		cmd := state.ResumePrefix(ag) + ag.Session
 		rows = append(rows, sideRow{id: "resume:" + strconv.Itoa(i), dot: "agent-resumable", title: resumeTitle(ag),
 			detail: "Not running · " + uicore.PrettyPath(ag.Dir, a.home),
 			tip:    "Right-click: Resume in Tab, Resume in Background or Dismiss",
@@ -292,9 +293,9 @@ func (t *agentsTab) rebuild() {
 	sec := sideSection{rows: rows, always: true}
 	if len(a.agents.all) == 0 && len(a.agents.resumable) == 0 {
 		if !a.settings.config().AgentStatus {
-			sec.empty = "No Claude Code running. Only Ask Claude panes are listed: agent-status is off (Settings → General), so a claude you start yourself doesn't report what it's doing."
+			sec.empty = "No agents running. Only Ask Claude panes are listed: agent-status is off (Settings → General), so codex or claude you start yourself doesn't report what it's doing."
 		} else {
-			sec.empty = "No Claude Code running. Start claude in any tab, or Ask Claude (" + keyOf("claude.ask") + "). Each one shows here: needs you, working, done or idle, with its last prompt."
+			sec.empty = "No agents running. Start codex or claude in any tab, or Ask Claude (" + keyOf("claude.ask") + "). Each one shows here: needs you, working, done or idle, with its last prompt."
 		}
 	} else {
 		sec.title = strings.TrimSpace("Go to Agent… " + keyOf("agents.pick") + " · Next Needing You " + keyOf("agents.next"))

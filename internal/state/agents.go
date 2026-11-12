@@ -22,6 +22,8 @@ const (
 
 // Agent is a Claude Code session that can be resumed.
 type Agent struct {
+	// The CLI that owns the conversation. Empty is the legacy Claude value.
+	Provider string `json:"provider,omitempty"`
 	// Claude Code's session id (its hooks' session_id).
 	Session string `json:"session"`
 	// The folder it was started in: claude --resume finds a session by it.
@@ -36,7 +38,7 @@ var sessionID = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9_-]{0,99}$`)
 
 // Resumable: a well-formed id, its folder still there and its transcript too.
 func Resumable(a Agent) bool {
-	if !sessionID.MatchString(a.Session) || !filepath.IsAbs(a.Dir) || !filepath.IsAbs(a.Transcript) ||
+	if (a.Provider != "" && a.Provider != "claude" && a.Provider != "codex") || !sessionID.MatchString(a.Session) || !filepath.IsAbs(a.Dir) || !filepath.IsAbs(a.Transcript) ||
 		!strings.HasSuffix(a.Transcript, ".jsonl") {
 		return false
 	}
@@ -45,6 +47,14 @@ func Resumable(a Agent) bool {
 	}
 	fi, err := os.Stat(a.Transcript)
 	return err == nil && fi.Mode().IsRegular()
+}
+
+// ResumePrefix is the CLI syntax before a validated session id.
+func ResumePrefix(a Agent) string {
+	if a.Provider == "codex" {
+		return "codex resume "
+	}
+	return "claude --resume "
 }
 
 // BackgroundAgents reads the background agents saved when wtf last quit,
