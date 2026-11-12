@@ -62,6 +62,8 @@ final class WindowManager {
         } else {
             for w in saved { open(name: w.name, session: w.session) }
         }
+        // #38: agents that ran when wtf last quit, offered for resuming.
+        Resume.loadAtLaunch()
         // Problems in config.toml found at launch.
         Settings.shared.showProblems()
         // Once ever: which tools the side pane needs aren't installed.

@@ -154,6 +154,9 @@ enum Agents {
         notify()
     }
 
+    /// Something the Agents tab shows changed (Resume's list).
+    static func changed() { notify() }
+
     private static func notify() {
         observers.removeAll { $0.owner() == nil }
         observers.forEach { $0.f() }
@@ -202,6 +205,7 @@ enum Agents {
             all[st.session] = st
         }
         let place = find(st.session)
+        if let (w, p) = place { noteResumable(st, pane: p, in: w) }
         if let (w, p) = place, !w.background {
             if old == nil, st.state != "ended" {
                 autoGroup(st.session)
@@ -232,6 +236,26 @@ enum Agents {
             playSound(.complete)
         default:
             break
+        }
+    }
+
+    /// #38: what a restart would offer to resume in this pane (not an Ask
+    /// Claude pane, which belongs to the shell it works on). An agent that
+    /// starts in a pane still offering one takes its place; a resumed one
+    /// gets its name back.
+    private static func noteResumable(_ st: Go.bridge.Status, pane p: Pane, in w: WindowController) {
+        guard !ClaudePane.isClaude(p) else { return }
+        let a: Go.state.Agent? = st.state == "ended" || st.claudeSession.isEmpty ? nil
+            : .init(session: st.claudeSession, dir: st.project, name: st.name, transcript: st.transcript)
+        if p.agent != a {
+            p.agent = a
+            w.scheduleSave()
+        }
+        guard a != nil else { return }
+        if p.resumable != nil { Resume.dismiss(p, in: w) }
+        if st.name.isEmpty, let name = Resume.pendingNames.removeValue(forKey: st.claudeSession) {
+            Task { try? await Services.bridge.Rename(st.session, name) }
+            renameTab(st.session, old: "", name)
         }
     }
 

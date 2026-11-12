@@ -124,6 +124,12 @@ type Status struct {
 	// in worktrees of one repository can be told apart (#37).
 	Folder string          `json:"folder"`
 	Git    worktree.Branch `json:"git"`
+	// To resume it after a restart (#38): Claude Code's session id, the
+	// folder that session started in (claude --resume looks there) and its
+	// transcript. The UIs save them with its pane.
+	ClaudeSession string `json:"claudeSession"`
+	Project       string `json:"project"`
+	Transcript    string `json:"transcript"`
 }
 
 // maxName is how long an agent's name can be.
@@ -470,6 +476,28 @@ func (s *Service) Seen(session string) {
 	events.Emit(EventStatus, st)
 }
 
+// noteSession records the Claude Code session an agent runs (a new one
+// after /clear), the folder it started in, and its transcript.
+func (s *Service) noteSession(session string, req wire.Request) {
+	if req.ClaudeSession == "" {
+		return
+	}
+	s.mu.Lock()
+	a := s.agents[session]
+	if a == nil || a.ClaudeSession == req.ClaudeSession {
+		s.mu.Unlock()
+		return
+	}
+	a.ClaudeSession, a.Project = req.ClaudeSession, filepath.Clean(req.Cwd)
+	a.Transcript = ""
+	if filepath.IsAbs(req.Transcript) {
+		a.Transcript = filepath.Clean(req.Transcript)
+	}
+	st := a.clone()
+	s.mu.Unlock()
+	events.Emit(EventStatus, st)
+}
+
 // noteFolder records the folder an agent works in, and reads where its
 // checkout stands when that changed, it started, or it finished a turn
 // (it may have committed or switched branches): not on every tool call.
@@ -675,6 +703,7 @@ func (s *Service) do(ctx context.Context, req wire.Request) wire.Response {
 			events.Emit(EventStatus, st)
 		}
 		if state != StateEnded && filepath.IsAbs(req.Cwd) {
+			s.noteSession(req.Pane, req)
 			s.noteFolder(req.Pane, filepath.Clean(req.Cwd), req.Event)
 		}
 		return wire.Response{}

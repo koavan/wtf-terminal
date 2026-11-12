@@ -12,6 +12,8 @@ public struct SavedNode: Codable, Equatable, Sendable {
     public var buffer: String?
     /// An API pane's request (a terminal pane has none).
     public var api: Api.Request?
+    /// The Claude Code that ran in it, to offer resuming after a restart (#38).
+    public var agent: Go.state.Agent?
     // Split
     public var dir: String?
     public var ratio: Double?
@@ -27,8 +29,10 @@ public struct SavedNode: Codable, Equatable, Sendable {
         public static func == (l: Box, r: Box) -> Bool { l.node == r.node }
     }
 
-    public init(cwd: String, gitIdentity: String? = nil, sessionId: String? = nil, buffer: String? = nil, api: Api.Request? = nil) {
+    public init(cwd: String, gitIdentity: String? = nil, sessionId: String? = nil, buffer: String? = nil, api: Api.Request? = nil,
+                agent: Go.state.Agent? = nil) {
         self.cwd = cwd
+        self.agent = agent
         self.api = api
         self.gitIdentity = gitIdentity
         self.sessionId = sessionId
@@ -42,7 +46,7 @@ public struct SavedNode: Codable, Equatable, Sendable {
         self.b = Box(b)
     }
 
-    enum CodingKeys: String, CodingKey { case cwd, gitIdentity, sessionId, buffer, api, dir, ratio, a, b }
+    enum CodingKeys: String, CodingKey { case cwd, gitIdentity, sessionId, buffer, api, agent, dir, ratio, a, b }
 
     public init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
@@ -51,6 +55,7 @@ public struct SavedNode: Codable, Equatable, Sendable {
         sessionId = try? c.decodeIfPresent(String.self, forKey: .sessionId)
         buffer = try? c.decodeIfPresent(String.self, forKey: .buffer)
         api = try? c.decodeIfPresent(Api.Request.self, forKey: .api)
+        agent = try? c.decodeIfPresent(Go.state.Agent.self, forKey: .agent)
         dir = try? c.decodeIfPresent(String.self, forKey: .dir)
         ratio = try? c.decodeIfPresent(Double.self, forKey: .ratio)
         a = try? c.decodeIfPresent(Box.self, forKey: .a)
@@ -65,6 +70,7 @@ public struct SavedNode: Codable, Equatable, Sendable {
             try c.encodeIfPresent(sessionId, forKey: .sessionId)
             try c.encodeIfPresent(buffer, forKey: .buffer)
             try c.encodeIfPresent(api, forKey: .api)
+            try c.encodeIfPresent(agent, forKey: .agent)
         } else {
             try c.encodeIfPresent(dir, forKey: .dir)
             try c.encodeIfPresent(ratio, forKey: .ratio)

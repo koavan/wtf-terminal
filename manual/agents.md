@@ -50,13 +50,22 @@ Close a tab or pane running Claude Code and wtf asks:
 
 Tick **Don't ask again** to always do the same; **Settings** ({{mac:⌘,|other:Ctrl+,}}) → **General** → **Closing a tab running Claude Code**, or `agent-close` (`ask`, `background` or `end`) in `config.toml`, changes it back. Closing a whole window asks once for all its agents.
 
-Background agents run while wtf does: quitting wtf ends them (it asks first, listing them). Closing the last window you can see, with agents in it or in the background, is quitting.
+Background agents run while wtf does: quitting wtf ends them (it asks first, listing them), and offers them for resuming next time (see **After wtf quits** below). Closing the last window you can see, with agents in it or in the background, is quitting.
 
 For each agent, in the Agents tab (the eye button, or right-click):
 
 - **Open in Tab** (or click the row): back into a tab of the window in front, scrollback and all.
 - **Peek and Reply…**: its screen as it is now (secrets hidden), updated every second, and a box to answer it: what you type is sent with {{mac:Return|other:Enter}}; **{{mac:Return|other:Enter}}** and **Esc** send just that key, for Claude Code's own prompts (Return accepts what its prompt has selected, Esc cancels). You see the screen and choose; wtf never answers for you.
 - **End Claude Code…**: ends it and its shell, after asking.
+
+## After wtf quits
+
+Quitting wtf ends every Claude Code running in it, in tabs and in the background. Their conversations aren't lost: Claude Code keeps each one, and `claude --resume` picks it up where it stopped. wtf remembers which ones were running so you can bring them back with a click, and never resumes them on its own.
+
+- **A tab that ran Claude Code** comes back with your other tabs, with a bar at the top of its pane: *Claude Code was running here when wtf quit.* **Resume** types `claude --resume <its session>` into that shell (with a `cd` to the folder it started in, if the shell is elsewhere; a new tab if the shell is busy). **Dismiss** stops offering it. Until you choose, the bar comes back each time wtf restarts. Starting Claude Code in that shell yourself replaces the offer.
+- **Agents running in the background** are listed in the Agents tab under **Resumable**: {{mac:**Resume in Tab**, **In Background**, or **Dismiss**|other:the play button resumes one in a tab; right-click for **Resume in Tab**, **Resume in Background** or **Dismiss**}}. With more than one, **Resume All…** lists them first, then resumes each in the background.
+
+A resumed agent gets back the name you gave it. Agents whose conversation is gone (deleted from `~/.claude`) or whose folder is gone aren't offered. Ask Claude panes aren't offered either: open Ask Claude again instead. This needs `agent-status` (on by default), which is how wtf learns each agent's session.
 
 ## Start an agent
 

@@ -7,6 +7,8 @@ import (
 	"sort"
 	"strings"
 	"testing"
+
+	"github.com/dayanraj/wtf/internal/state"
 )
 
 // The cases of the Svelte build's tabs tests (and
@@ -959,5 +961,47 @@ func TestACustomNameSurvivesRestoreAndMovingToAnotherWindow(t *testing.T) {
 	}
 	if !o.w.Adopt(&payload) || o.active().CustomTitle != "db" {
 		t.Errorf("adopted title %q", o.active().CustomTitle)
+	}
+}
+
+// Like the Swift savesAgentsAndOffersThemAfterARestore (#38).
+func TestSavesAgentsAndOffersThemAfterARestore(t *testing.T) {
+	s := newSetup()
+	s.open(2)
+	a := state.Agent{Session: "c1", Dir: "/t1", Name: "fixer", Transcript: "/p/c1.jsonl"}
+	s.w.ActivePane().Agent = &a
+	snap := roundTrip(t, s.w.Snapshot(13, nil))
+	r := newSetup()
+	if !r.w.Restore(snap) {
+		t.Fatal("restore failed")
+	}
+	p := r.w.Panes[r.w.Tabs()[1].Root.Leaves()[0]]
+	if p.Resumable == nil || *p.Resumable != a || p.Agent != nil {
+		t.Fatalf("restored = %+v / %+v", p.Resumable, p.Agent)
+	}
+	if r.w.Panes[r.w.Tabs()[0].Root.Leaves()[0]].Resumable != nil {
+		t.Fatal("the other tab got an agent")
+	}
+	// Still offered after the next save, until resumed or dismissed.
+	if got := roundTrip(t, r.w.Snapshot(13, nil)).Tabs[1].Root.Agent; got == nil || *got != a {
+		t.Fatalf("kept = %+v", got)
+	}
+	p.Resumable = nil
+	if got := roundTrip(t, r.w.Snapshot(13, nil)).Tabs[1].Root.Agent; got != nil {
+		t.Fatalf("dismissed = %+v", got)
+	}
+	// A tab moving to another window keeps its running agent.
+	p.Agent = &a
+	moved, ok := r.w.Detach(r.w.Tabs()[1].ID, func(*PaneState) string { return "" })
+	if !ok {
+		t.Fatal("detach")
+	}
+	other := newSetup()
+	other.open(1)
+	if !other.w.Adopt(moved) {
+		t.Fatal("adopt")
+	}
+	if ap := other.w.ActivePane(); ap.Agent == nil || *ap.Agent != a || ap.Resumable != nil {
+		t.Fatalf("moved = %+v / %+v", ap.Agent, ap.Resumable)
 	}
 }

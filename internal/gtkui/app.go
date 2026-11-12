@@ -168,6 +168,8 @@ func (a *App) shutdown() {
 		a.cancel()
 	}
 	if a.be != nil {
+		// Before the shells end: the background agents, for next launch (#38).
+		a.saveBackgroundAgents()
 		a.be.Shutdown()
 	}
 }
@@ -242,6 +244,8 @@ func (a *App) activate() {
 	for i, sw := range saved {
 		a.openWindow(sw.Name, windowStart{session: sessions[i]})
 	}
+	// #38: agents that ran when wtf last quit, offered for resuming.
+	a.loadResumables()
 	// Once ever: which tools the side pane needs aren't installed.
 	if w := a.front(); w != nil {
 		w.toolsFirstRun()

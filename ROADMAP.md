@@ -846,22 +846,35 @@ Built 2026-11-11:
 
 Still to do: hands-on in the apps (the self-checks don't open the dialogs).
 
-### 38. Resume agents after a restart ☐
+### 38. Resume agents after a restart ☑
 
 Background agents and agent tabs end when wtf quits (the #34 decision
 stands). Asked 2026-11-11: get back to them after a relaunch, like herdr's
 `resume_agents_on_restore`, but never on its own.
 
-- The bridge keeps each agent's Claude Code `session_id` (from its hooks)
-  and its folder; the window session saves them with the pane.
-- After relaunch, a restored tab that had an agent shows a bar: **Resume
-  Claude Code** (types `claude --resume <id>` into that shell, in its
-  folder) or Dismiss. Background agents that were running come back as a
-  "Resumable" section in the Agents tab with the same choice, plus Resume
-  All…, which lists them first.
-- Only with `agent-status` on (the id comes from the status hooks); an id
-  whose transcript is gone (`~/.claude/projects/…`) is dropped quietly.
-- Manual: `agents.md`.
+Built 2026-11-11:
+
+- Hooks now carry Claude Code's `session_id` and `transcript_path`;
+  bridge.Status gains `claudeSession`, `project` (the folder that session
+  started in, where `claude --resume` looks) and `transcript`. Checked with
+  `claude -p`: `--resume` keeps the same session id and transcript.
+- Each pane keeps its agent (not Ask Claude panes); the session saves it
+  on the pane's leaf (`agent`). A restored pane offers it (`resumable`)
+  until you resume or dismiss it; a live tab move carries the running one.
+- `state`: BackgroundAgents / SaveBackgroundAgents
+  (`background-agents.json`, written when wtf quits: the background
+  window's agents plus those still offered) and StillResumable (a
+  well-formed id, its folder and transcript still there; others are
+  dropped quietly).
+- Both UIs: a bar on a restored pane (Resume types `claude --resume <id>`,
+  with a `cd` when needed, a new tab if the shell is busy; Dismiss), the
+  Agents tab's Resumable section (in a tab, in the background, dismiss;
+  Resume All… lists them first). A resumed agent gets its name back.
+- Tests: state (resumable checks, file), bridge (session/project), the
+  window models' save/restore/move on both. Manual: `agents` "After wtf
+  quits".
+
+Still to do: hands-on (the self-checks don't quit and relaunch).
 
 ## Also built
 

@@ -126,6 +126,9 @@ func hook(c client, in io.Reader, out io.Writer) int {
 		Message string `json:"message"`
 		Prompt  string `json:"prompt"`
 		Cwd     string `json:"cwd"`
+		// Claude Code's session, to resume it after a restart.
+		SessionID  string `json:"session_id"`
+		Transcript string `json:"transcript_path"`
 		// Sub-agents (SubagentStart/Stop, and tool events from inside one).
 		AgentID   string          `json:"agent_id"`
 		AgentType string          `json:"agent_type"`
@@ -162,6 +165,7 @@ func hook(c client, in io.Reader, out io.Writer) int {
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 	defer cancel()
 	req := wire.Request{Op: "hook", Event: ev.Event, Message: ev.Message, Prompt: ev.Prompt, Cwd: ev.Cwd,
+		ClaudeSession: ev.SessionID, Transcript: ev.Transcript,
 		AgentID: ev.AgentID, AgentType: ev.AgentType, Tool: ev.Tool, Input: ev.Input}
 	if ev.Event == "SubagentStop" && req.Message == "" {
 		req.Message = ev.Last

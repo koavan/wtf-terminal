@@ -5,12 +5,14 @@ package gtkui
 import (
 	"fmt"
 	"slices"
+	"strconv"
 	"strings"
 
 	coreglib "github.com/diamondburned/gotk4/pkg/core/glib"
 	"github.com/diamondburned/gotk4/pkg/gtk/v4"
 
 	"github.com/dayanraj/wtf/internal/bridge"
+	"github.com/dayanraj/wtf/internal/state"
 	"github.com/dayanraj/wtf/internal/uicore"
 )
 
@@ -44,11 +46,26 @@ func newAgentsTab(w *Window) *agentsTab {
 	t.list.onClick = t.activate
 	t.list.onActivate = t.activate
 	t.list.onDoubleClick = func(id string) {
+		if strings.HasPrefix(id, "resume") {
+			return
+		}
 		if session, toggle := agentRowSession(id); !toggle && id == session {
 			w.renameAgent(session)
 		}
 	}
 	t.list.onMenu = func(ids []string, x, y float64) {
+		if ag, ok := t.resumableAt(ids[0]); ok {
+			t.list.menu.show(x, y, []*menuItem{
+				{label: "Resume in Tab", run: func() { w.resumeBackground(ag, true) }},
+				{label: "Resume in Background", run: func() { w.resumeBackground(ag, false) }},
+				menuSection,
+				{label: "Dismiss", run: func() { w.app.forgetResumable(ag) }},
+			}, nil)
+			return
+		}
+		if ids[0] == "resume-all" {
+			return
+		}
 		session, _ := agentRowSession(ids[0])
 		open := "Go to Claude Code"
 		if aw := w.app.windowOf(session); aw != nil && aw.background {
@@ -88,6 +105,41 @@ func newAgentsTab(w *Window) *agentsTab {
 	return t
 }
 
+// resumableRows (#38): the background agents from before wtf last quit,
+// "resume:<i>", and "resume-all" when there are several. The button
+// resumes one in a tab; right-click for the background, or Dismiss.
+func (t *agentsTab) resumableRows() []sideRow {
+	a := t.w.app
+	var rows []sideRow
+	for i, ag := range a.agents.resumable {
+		ag := ag
+		cmd := "claude --resume " + ag.Session
+		rows = append(rows, sideRow{id: "resume:" + strconv.Itoa(i), dot: "agent-resumable", title: resumeTitle(ag),
+			detail: "Not running · " + uicore.PrettyPath(ag.Dir, a.home),
+			tip:    "Right-click: Resume in Tab, Resume in Background or Dismiss",
+			button: "media-playback-start-symbolic", buttonTip: "Resume in a new tab: runs " + cmd + " in its folder",
+			buttonRun: func() { t.w.resumeBackground(ag, true) }})
+	}
+	if len(rows) > 1 {
+		rows = append(rows, sideRow{id: "resume-all", icon: "media-playlist-repeat-symbolic", title: "Resume All…",
+			tip: "Resume each of them in the background (lists them first)"})
+	}
+	return rows
+}
+
+// resumableAt is the background agent a "resume:<i>" row is about.
+func (t *agentsTab) resumableAt(id string) (state.Agent, bool) {
+	s, ok := strings.CutPrefix(id, "resume:")
+	if !ok {
+		return state.Agent{}, false
+	}
+	i, err := strconv.Atoi(s)
+	if err != nil || i < 0 || i >= len(t.w.app.agents.resumable) {
+		return state.Agent{}, false
+	}
+	return t.w.app.agents.resumable[i], true
+}
+
 // Row ids: an agent's session; its sub-agents' toggle "subs:<session>";
 // a sub-agent "sub:<session>:<id>".
 func agentRowSession(id string) (session string, toggle bool) {
@@ -104,6 +156,13 @@ func agentRowSession(id string) (session string, toggle bool) {
 // activate: a click on an agent or one of its sub-agents goes to it; on
 // the toggle, shows or hides its sub-agents.
 func (t *agentsTab) activate(id string) {
+	if id == "resume-all" {
+		t.w.resumeAll()
+		return
+	}
+	if strings.HasPrefix(id, "resume:") {
+		return // its button resumes it; right-click for more
+	}
 	if session, toggle := agentRowSession(id); toggle {
 		t.w.app.agents.toggleSubagents(session)
 	} else {
@@ -231,7 +290,7 @@ func (t *agentsTab) rebuild() {
 		rows = append(append(rows, r), subs...)
 	}
 	sec := sideSection{rows: rows, always: true}
-	if len(a.agents.all) == 0 {
+	if len(a.agents.all) == 0 && len(a.agents.resumable) == 0 {
 		if !a.settings.config().AgentStatus {
 			sec.empty = "No Claude Code running. Only Ask Claude panes are listed: agent-status is off (Settings → General), so a claude you start yourself doesn't report what it's doing."
 		} else {
@@ -243,6 +302,10 @@ func (t *agentsTab) rebuild() {
 	sections := []sideSection{sec}
 	if len(parked) > 0 {
 		sections = append(sections, sideSection{title: "Background", tip: "Running after their tab closed; they end when wtf quits", rows: parked, always: true})
+	}
+	if rs := t.resumableRows(); len(rs) > 0 {
+		sections = append(sections, sideSection{title: "Resumable",
+			tip: "Running in the background when wtf last quit: claude --resume brings each back, on your click", rows: rs, always: true})
 	}
 	t.list.set(sections)
 }

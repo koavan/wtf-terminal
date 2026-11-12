@@ -10,6 +10,7 @@ import (
 
 	"github.com/dayanraj/wtf/internal/bridge"
 	"github.com/dayanraj/wtf/internal/notify"
+	"github.com/dayanraj/wtf/internal/state"
 	"github.com/dayanraj/wtf/internal/uicore"
 )
 
@@ -35,10 +36,23 @@ type agentList struct {
 	subagentsShown map[string]bool
 	// When an agent notification last played its sound (agent-sound).
 	lastSound time.Time
+	// #38: background agents saved when wtf last quit, not yet resumed or
+	// dismissed; and Claude Code session → the name its agent had, given
+	// back when it reports in again after resuming.
+	resumable    []state.Agent
+	pendingNames map[string]string
 }
 
 func newAgentList() *agentList {
-	return &agentList{all: map[string]bridge.Status{}, observers: map[int]func(){}, subagentsShown: map[string]bool{}}
+	return &agentList{all: map[string]bridge.Status{}, observers: map[int]func(){}, subagentsShown: map[string]bool{},
+		pendingNames: map[string]string{}}
+}
+
+// changed tells the observers something they show changed.
+func (l *agentList) changed() {
+	for _, f := range l.observers {
+		f()
+	}
 }
 
 // toggleSubagents shows or hides an agent's sub-agents in the Agents tab.
@@ -304,6 +318,9 @@ func (a *App) agentStatus(st bridge.Status) {
 		l.all[st.Session] = st
 	}
 	w := a.windowOf(st.Session)
+	if w != nil {
+		w.noteResumable(st)
+	}
 	if w != nil && !w.background {
 		if !had && st.State != bridge.StateEnded {
 			a.autoGroup(st.Session)

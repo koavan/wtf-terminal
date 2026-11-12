@@ -772,6 +772,25 @@ func TestAgentFolder(t *testing.T) {
 	hook("UserPromptSubmit", "/src/metrics")
 	waitFor("moved", func(a Status) bool { return a.Folder == "/src/metrics" && a.Git.Branch == "feat/metrics" })
 
+	// Its Claude Code session, and the folder that started in (kept when
+	// it moves); a new session (after /clear) replaces both.
+	hook2 := func(event, cwd, id string) {
+		t.Helper()
+		if r := s.do(context.Background(), wire.Request{V: wire.Version, Pane: "s1", Token: s.token("s1"), Op: "hook", Event: event,
+			Cwd: cwd, ClaudeSession: id, Transcript: "/t/" + id + ".jsonl"}); r.Error != "" {
+			t.Fatal(r.Error)
+		}
+	}
+	hook2("Stop", "/src/metrics", "c1")
+	hook2("UserPromptSubmit", "/src/metrics/sub", "c1")
+	waitFor("session", func(a Status) bool {
+		return a.ClaudeSession == "c1" && a.Project == "/src/metrics" && a.Transcript == "/t/c1.jsonl"
+	})
+	hook2("SessionStart", "/src/metrics", "c2")
+	waitFor("new session", func(a Status) bool {
+		return a.ClaudeSession == "c2" && a.Project == "/src/metrics" && a.Transcript == "/t/c2.jsonl"
+	})
+
 	if got := s.AgentsIn("/src"); len(got) != 1 || got[0] != "in metrics" {
 		t.Fatalf("AgentsIn(/src) = %v", got)
 	}

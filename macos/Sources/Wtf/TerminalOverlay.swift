@@ -77,6 +77,21 @@ final class TerminalContainer: NSView {
         tints.frame = bounds
         tints.needsDisplay = true
         layer?.sublayers?.filter { $0.name == "broadcast" }.forEach { $0.frame = bounds.insetBy(dx: 2, dy: 2) }
+        if let bar = resumeBar {
+            let h: CGFloat = 34
+            bar.frame = NSRect(x: 8, y: 6, width: max(0, bounds.width - 16), height: h)
+        }
+    }
+
+    /// The bar offering to resume the Claude Code that ran here when wtf
+    /// quit (#38); nil hides it.
+    private(set) var resumeBar: NSView?
+
+    func setResumeBar(_ bar: NSView?) {
+        resumeBar?.removeFromSuperview()
+        resumeBar = bar
+        if let bar { addSubview(bar) }
+        needsLayout = true
     }
 
     /// The orange outline of a pane that receives broadcast input.

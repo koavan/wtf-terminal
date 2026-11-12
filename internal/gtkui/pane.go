@@ -52,6 +52,9 @@ type Pane struct {
 	// The veil over an unfocused split pane, and the outline of one that
 	// receives broadcast input.
 	dim, outline *gtk.Box
+	// The bar offering to resume the Claude Code that ran here when wtf
+	// quit (#38), while it shows.
+	resumeBar *gtk.Box
 }
 
 // Links that Ctrl-click opens: URLs, as VTE matches them (PCRE2).

@@ -529,3 +529,27 @@ private func json(_ text: String) -> SavedSession { try! JSONDecoder().decode(Sa
     let payload = try! JSONDecoder().decode(SavedTab.Payload.self, from: JSONEncoder().encode(moved))
     #expect(o.w.adopt(payload) && o.w.active?.customTitle == "db")
 }
+
+@Test func savesAgentsAndOffersThemAfterARestore() {
+    let s = Setup()
+    s.open(2)
+    let a = Go.state.Agent(session: "c1", dir: "/t1", name: "fixer", transcript: "/p/c1.jsonl")
+    s.w.activePane!.agent = a
+    let snap = roundTrip(s.w.snapshot(fontSize: 13))
+    let r = Setup()
+    #expect(r.w.restore(snap))
+    let p = r.w.panes[r.w.tabs[1].root.leaves[0]]!
+    #expect(p.resumable == a && p.agent == nil)
+    #expect(r.w.panes[r.w.tabs[0].root.leaves[0]]!.resumable == nil)
+    // Still offered after the next save, until resumed or dismissed.
+    #expect(roundTrip(r.w.snapshot(fontSize: 13)).tabs![1].root!.agent == a)
+    p.resumable = nil
+    #expect(roundTrip(r.w.snapshot(fontSize: 13)).tabs![1].root!.agent == nil)
+    // A tab moving to another window keeps its running agent.
+    p.agent = a
+    let moved = r.w.detach(r.w.tabs[1].id) { _ in "" }!
+    let other = Setup()
+    other.open(1)
+    #expect(other.w.adopt(moved))
+    #expect(other.w.activePane!.agent == a && other.w.activePane!.resumable == nil)
+}

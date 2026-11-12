@@ -8,6 +8,7 @@ import (
 	"strconv"
 
 	"github.com/dayanraj/wtf/internal/apiclient"
+	"github.com/dayanraj/wtf/internal/state"
 )
 
 // The session.json shapes every build writes, older versions (the Wails
@@ -27,6 +28,8 @@ type SavedNode struct {
 	Buffer    *string
 	// An API pane's request (a terminal pane has none).
 	API *apiclient.Request
+	// The Claude Code that ran in it, to offer resuming after a restart (#38).
+	Agent *state.Agent
 	// Split
 	Dir   *string
 	Ratio *float64
@@ -166,6 +169,17 @@ func lenientRequest(raw json.RawMessage) *apiclient.Request {
 	return &r
 }
 
+func lenientAgent(raw json.RawMessage) *state.Agent {
+	if _, ok := object(raw); !ok {
+		return nil
+	}
+	var a state.Agent
+	if json.Unmarshal(raw, &a) != nil {
+		return nil
+	}
+	return &a
+}
+
 func parseNode(raw json.RawMessage) *SavedNode {
 	m, ok := object(raw)
 	if !ok {
@@ -177,6 +191,7 @@ func parseNode(raw json.RawMessage) *SavedNode {
 		SessionID:   lenientString(m["sessionId"]),
 		Buffer:      lenientString(m["buffer"]),
 		API:         lenientRequest(m["api"]),
+		Agent:       lenientAgent(m["agent"]),
 		Dir:         lenientString(m["dir"]),
 		Ratio:       lenientFloat(m["ratio"]),
 		A:           parseNode(m["a"]),
@@ -313,7 +328,8 @@ func (n SavedNode) MarshalJSON() ([]byte, error) {
 			SessionID   *string            `json:"sessionId,omitempty"`
 			Buffer      *string            `json:"buffer,omitempty"`
 			API         *apiclient.Request `json:"api,omitempty"`
-		}{*n.Cwd, n.GitIdentity, n.SessionID, n.Buffer, n.API})
+			Agent       *state.Agent       `json:"agent,omitempty"`
+		}{*n.Cwd, n.GitIdentity, n.SessionID, n.Buffer, n.API, n.Agent})
 	}
 	return json.Marshal(struct {
 		Dir   *string    `json:"dir,omitempty"`

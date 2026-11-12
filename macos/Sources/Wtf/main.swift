@@ -429,7 +429,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     func applicationShouldTerminateAfterLastWindowClosed(_ app: NSApplication) -> Bool { true }
 
-    func applicationWillTerminate(_ note: Notification) { Backend.shutdown() }
+    func applicationWillTerminate(_ note: Notification) {
+        // Before the shells end: the background agents, for next launch (#38).
+        Resume.saveAtQuit()
+        Backend.shutdown()
+    }
 
     func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows: Bool) -> Bool {
         if !hasVisibleWindows { WindowManager.shared.newWindow() }

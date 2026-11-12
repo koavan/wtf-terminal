@@ -24,6 +24,7 @@ extension Go { public enum procs {} }
 extension Go { public enum review {} }
 extension Go { public enum snippets {} }
 extension Go { public enum sshhosts {} }
+extension Go { public enum state {} }
 extension Go { public enum terminal {} }
 extension Go { public enum tools {} }
 extension Go { public enum usage {} }
@@ -719,8 +720,11 @@ extension Go.bridge {
         public var started: Int
         public var folder: String
         public var git: Go.worktree.Branch
+        public var claudeSession: String
+        public var project: String
+        public var transcript: String
 
-        public init(session: String = "", state: String = "", message: String = "", prompt: String = "", since: Int = 0, unseen: Bool = false, subagents: [Go.bridge.Subagent] = [], name: String = "", started: Int = 0, folder: String = "", git: Go.worktree.Branch = Go.worktree.Branch()) {
+        public init(session: String = "", state: String = "", message: String = "", prompt: String = "", since: Int = 0, unseen: Bool = false, subagents: [Go.bridge.Subagent] = [], name: String = "", started: Int = 0, folder: String = "", git: Go.worktree.Branch = Go.worktree.Branch(), claudeSession: String = "", project: String = "", transcript: String = "") {
             self.session = session
             self.state = state
             self.message = message
@@ -732,6 +736,9 @@ extension Go.bridge {
             self.started = started
             self.folder = folder
             self.git = git
+            self.claudeSession = claudeSession
+            self.project = project
+            self.transcript = transcript
         }
 
         enum CodingKeys: String, CodingKey {
@@ -746,6 +753,9 @@ extension Go.bridge {
             case started = "started"
             case folder = "folder"
             case git = "git"
+            case claudeSession = "claudeSession"
+            case project = "project"
+            case transcript = "transcript"
         }
 
         public init(from decoder: Decoder) throws {
@@ -761,6 +771,9 @@ extension Go.bridge {
             self.started = (try? c.decodeIfPresent(Int.self, forKey: .started)) ?? 0
             self.folder = (try? c.decodeIfPresent(String.self, forKey: .folder)) ?? ""
             self.git = (try? c.decodeIfPresent(Go.worktree.Branch.self, forKey: .git)) ?? Go.worktree.Branch()
+            self.claudeSession = (try? c.decodeIfPresent(String.self, forKey: .claudeSession)) ?? ""
+            self.project = (try? c.decodeIfPresent(String.self, forKey: .project)) ?? ""
+            self.transcript = (try? c.decodeIfPresent(String.self, forKey: .transcript)) ?? ""
         }
     }
 }
@@ -4061,6 +4074,38 @@ extension Go.sshhosts {
             self.error = (try? c.decodeIfPresent(String.self, forKey: .error)) ?? ""
             self.since = (try? c.decodeIfPresent(Int.self, forKey: .since)) ?? 0
             self.command = (try? c.decodeIfPresent(String.self, forKey: .command)) ?? ""
+        }
+    }
+}
+
+extension Go.state {
+    /// state.Agent
+    public struct Agent: Codable, Equatable, Sendable {
+        public var session: String
+        public var dir: String
+        public var name: String
+        public var transcript: String
+
+        public init(session: String = "", dir: String = "", name: String = "", transcript: String = "") {
+            self.session = session
+            self.dir = dir
+            self.name = name
+            self.transcript = transcript
+        }
+
+        enum CodingKeys: String, CodingKey {
+            case session = "session"
+            case dir = "dir"
+            case name = "name"
+            case transcript = "transcript"
+        }
+
+        public init(from decoder: Decoder) throws {
+            let c = try decoder.container(keyedBy: CodingKeys.self)
+            self.session = (try? c.decodeIfPresent(String.self, forKey: .session)) ?? ""
+            self.dir = (try? c.decodeIfPresent(String.self, forKey: .dir)) ?? ""
+            self.name = (try? c.decodeIfPresent(String.self, forKey: .name)) ?? ""
+            self.transcript = (try? c.decodeIfPresent(String.self, forKey: .transcript)) ?? ""
         }
     }
 }

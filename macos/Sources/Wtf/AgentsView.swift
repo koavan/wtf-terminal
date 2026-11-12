@@ -75,7 +75,7 @@ final class AgentsView: NSView, SidePaneTab {
         form.clear()
         // Fixed order (when each started), so a row never moves.
         let list = Agents.listed()
-        if list.isEmpty {
+        if list.isEmpty, Resume.background.isEmpty {
             form.add(form.label("No Claude Code running", bold: true))
             if Settings.shared.config?.agentStatus == false {
                 form.add(form.note("Only Ask Claude panes (⌘I) are listed: agent-status is off, so a claude you start yourself doesn't report what it's doing."))
@@ -95,6 +95,17 @@ final class AgentsView: NSView, SidePaneTab {
             h.toolTip = "Running after their tab closed; they end when wtf quits"
             form.add(h, full: false)
             for st in parked { form.add(AgentRow(st, owner: owner)) }
+        }
+        if !Resume.background.isEmpty {
+            let h = NSTextField(labelWithString: "RESUMABLE")
+            h.font = .systemFont(ofSize: 10.5, weight: .bold)
+            h.textColor = .secondaryLabelColor
+            h.toolTip = "Running in the background when wtf last quit: claude --resume brings each back, on your click"
+            form.add(h, full: false)
+            for a in Resume.background { form.add(ResumableRow(a, owner: owner)) }
+            if Resume.background.count > 1 {
+                form.add(form.link("Resume All…") { [weak owner] in if let owner { Resume.resumeAll(from: owner) } }, full: false)
+            }
         }
         if !list.isEmpty {
             form.add(form.note("Go to Agent… ⌥⌘A · Next Agent Needing You ⌥⌘N"))
@@ -276,6 +287,69 @@ private final class AgentRow: NSView {
         m.addItem(ClosureMenuItem(title: "End Claude Code…", keyEquivalent: "") { [session, weak owner] in Background.end(session, from: owner?.window) })
         return m
     }
+}
+
+/// A background agent from before wtf last quit: its name or folder, and
+/// Resume in Tab / in Background / Dismiss.
+@MainActor
+private final class ResumableRow: NSView {
+    init(_ a: Go.state.Agent, owner: WindowController) {
+        super.init(frame: .zero)
+        let dot = NSView()
+        dot.wantsLayer = true
+        dot.layer?.cornerRadius = 4
+        dot.layer?.borderWidth = 1
+        dot.layer?.borderColor = NSColor.tertiaryLabelColor.cgColor
+        dot.translatesAutoresizingMaskIntoConstraints = false
+        NSLayoutConstraint.activate([dot.widthAnchor.constraint(equalToConstant: 8), dot.heightAnchor.constraint(equalToConstant: 8)])
+        let name = NSTextField(labelWithString: Resume.title(a))
+        name.font = .systemFont(ofSize: 12, weight: .semibold)
+        name.lineBreakMode = .byTruncatingTail
+        name.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
+        let top = NSStackView(views: [dot, name])
+        top.spacing = 6
+        let folder = NSTextField(labelWithString: "Not running · " + WindowModel.prettyPath(a.dir))
+        folder.font = .systemFont(ofSize: 11)
+        folder.textColor = .secondaryLabelColor
+        folder.lineBreakMode = .byTruncatingMiddle
+        folder.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
+        func button(_ t: String, _ tip: String, _ run: @escaping () -> Void) -> NSButton {
+            let b = ClosureButton(title: t, run)
+            b.bezelStyle = .accessoryBarAction
+            b.controlSize = .small
+            b.font = .systemFont(ofSize: 11)
+            b.toolTip = tip
+            return b
+        }
+        let cmd = "claude --resume " + a.session
+        let buttons = NSStackView(views: [
+            button("Resume in Tab", "Runs \(cmd) in a new tab in its folder") { [weak owner] in
+                if let owner { Resume.resumeBackground(a, inTab: true, from: owner) }
+            },
+            button("In Background", "Runs \(cmd) in the background, in its folder") { [weak owner] in
+                if let owner { Resume.resumeBackground(a, inTab: false, from: owner) }
+            },
+            button("Dismiss", "Stop offering it") { Resume.forget(a) },
+        ])
+        buttons.spacing = 2
+        let stack = NSStackView(views: [top, folder, buttons])
+        stack.orientation = .vertical
+        stack.alignment = .leading
+        stack.spacing = 2
+        stack.edgeInsets = NSEdgeInsets(top: 6, left: 8, bottom: 7, right: 8)
+        stack.translatesAutoresizingMaskIntoConstraints = false
+        addSubview(stack)
+        NSLayoutConstraint.activate([
+            stack.leadingAnchor.constraint(equalTo: leadingAnchor), stack.trailingAnchor.constraint(equalTo: trailingAnchor),
+            stack.topAnchor.constraint(equalTo: topAnchor), stack.bottomAnchor.constraint(equalTo: bottomAnchor),
+            top.widthAnchor.constraint(lessThanOrEqualTo: stack.widthAnchor, constant: -16),
+            folder.widthAnchor.constraint(lessThanOrEqualTo: stack.widthAnchor, constant: -16),
+        ])
+        setAccessibilityElement(true)
+        setAccessibilityLabel("\(Resume.title(a)): not running, can be resumed")
+    }
+
+    required init?(coder: NSCoder) { fatalError() }
 }
 
 /// One sub-agent under its agent: its type and task, then what it's doing

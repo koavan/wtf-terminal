@@ -41,7 +41,10 @@ enum Services {
     }
 
     enum state {
+        static func BackgroundAgents() async throws -> [Go.state.Agent] { try await Backend.call("state", "BackgroundAgents", [], as: [Go.state.Agent].self) }
+        static func SaveBackgroundAgents(_ a0: [Go.state.Agent]) async throws { try await Backend.run("state", "SaveBackgroundAgents", [a0]) }
         static func SaveWindow(_ a0: String, _ a1: String) async throws { try await Backend.run("state", "SaveWindow", [a0, a1]) }
+        static func StillResumable(_ a0: [Go.state.Agent]) async throws -> [Bool] { try await Backend.call("state", "StillResumable", [a0], as: [Bool].self) }
     }
 
     enum notify {

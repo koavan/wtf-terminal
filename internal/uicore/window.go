@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/dayanraj/wtf/internal/apiclient"
+	"github.com/dayanraj/wtf/internal/state"
 )
 
 // One window's tabs, panes and groups, and the rules that keep them
@@ -60,6 +61,20 @@ type PaneState struct {
 	GitIdentity string
 	// Scrollback brought from another window, written once.
 	RestoreBuffer string
+	// The Claude Code running in it (#38), saved with the session so a
+	// restart can offer to resume it. Set by the UI from its hooks.
+	Agent *state.Agent
+	// Restored from the session: the Claude Code that ran here when wtf
+	// quit, offered for resuming until you resume or dismiss it.
+	Resumable *state.Agent
+}
+
+func cloneAgent(a *state.Agent) *state.Agent {
+	if a == nil {
+		return nil
+	}
+	c := *a
+	return &c
 }
 
 func newPaneState(id int, cwd string) *PaneState {
@@ -1250,8 +1265,16 @@ func (w *WindowModel) save(t Tab, live bool, buffers func(*PaneState) string) Sa
 			if buffers != nil {
 				n.Buffer = strPtr(buffers(p))
 			}
-		} else if id := p.Identity(); id != "" {
-			n.GitIdentity = &id
+			n.Agent = cloneAgent(p.Agent)
+		} else {
+			if id := p.Identity(); id != "" {
+				n.GitIdentity = &id
+			}
+			if p.Agent != nil {
+				n.Agent = cloneAgent(p.Agent)
+			} else {
+				n.Agent = cloneAgent(p.Resumable)
+			}
 		}
 		return n
 	}
@@ -1308,6 +1331,9 @@ func (w *WindowModel) load(n *SavedNode, depth int, live bool) *Layout {
 			if n.Buffer != nil {
 				p.RestoreBuffer = *n.Buffer
 			}
+			p.Agent = cloneAgent(n.Agent)
+		} else {
+			p.Resumable = cloneAgent(n.Agent)
 		}
 		return Leaf(p.ID)
 	}

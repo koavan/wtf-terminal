@@ -37,6 +37,12 @@ public final class Pane {
     public var gitIdentity: String?
     /// Scrollback brought from another window, written once.
     public var restoreBuffer: String?
+    /// The Claude Code running in it (#38), saved with the session so a
+    /// restart can offer to resume it. Set by the app from its hooks.
+    public var agent: Go.state.Agent?
+    /// Restored from the session: the Claude Code that ran here when wtf
+    /// quit, offered for resuming until you resume or dismiss it.
+    public var resumable: Go.state.Agent?
 
     init(id: Int, cwd: String, kind: PaneKind = .terminal) {
         self.id = id
@@ -654,7 +660,8 @@ public final class WindowModel {
                     return SavedNode(cwd: p.cwd, api: live ? r : Api.forSaving(r))
                 }
                 return SavedNode(cwd: p?.cwd ?? "", gitIdentity: live ? nil : p?.identity,
-                                 sessionId: live ? p?.sessionId : nil, buffer: live ? p.map(buffers) : nil)
+                                 sessionId: live ? p?.sessionId : nil, buffer: live ? p.map(buffers) : nil,
+                                 agent: live ? p?.agent : (p?.agent ?? p?.resumable))
             case .split(let d, let r, let a, let b):
                 return SavedNode(dir: d.rawValue, ratio: r, a: node(a), b: node(b))
             }
@@ -679,6 +686,9 @@ public final class WindowModel {
             if live {
                 p.sessionId = n.sessionId
                 p.restoreBuffer = n.buffer
+                p.agent = n.agent
+            } else {
+                p.resumable = n.agent
             }
             return .pane(p.id)
         }

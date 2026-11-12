@@ -46,6 +46,7 @@ func (a Status) equal(b Status) bool {
 	return a.Session == b.Session && a.State == b.State && a.Message == b.Message && a.Prompt == b.Prompt &&
 		a.Since == b.Since && a.Unseen == b.Unseen && a.Name == b.Name && a.Started == b.Started &&
 		a.Folder == b.Folder && a.Git == b.Git &&
+		a.ClaudeSession == b.ClaudeSession && a.Project == b.Project && a.Transcript == b.Transcript &&
 		slices.Equal(a.Subagents, b.Subagents)
 }
 

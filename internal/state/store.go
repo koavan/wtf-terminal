@@ -125,10 +125,15 @@ func (s *Store) write(windows []Window) error {
 	if err != nil {
 		return err
 	}
+	return s.writeFile(sessionFile, data)
+}
+
+// writeFile atomically replaces a file in the store's folder.
+func (s *Store) writeFile(name string, data []byte) error {
 	if err := os.MkdirAll(s.dir, 0o700); err != nil {
 		return err
 	}
-	tmp, err := os.CreateTemp(s.dir, sessionFile+".*.tmp")
+	tmp, err := os.CreateTemp(s.dir, name+".*.tmp")
 	if err != nil {
 		return err
 	}
@@ -144,7 +149,7 @@ func (s *Store) write(windows []Window) error {
 	if err := tmp.Close(); err != nil {
 		return err
 	}
-	return os.Rename(tmp.Name(), filepath.Join(s.dir, sessionFile))
+	return os.Rename(tmp.Name(), filepath.Join(s.dir, name))
 }
 
 // Service exposes the store to the UI.
