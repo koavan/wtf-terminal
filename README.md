@@ -296,6 +296,20 @@ waits until AWS accepts it, then deactivates — and optionally deletes — the
 old one. If AWS never accepts the new key, the old one is put back and the
 new one deleted. The new secret goes straight from AWS into the file.
 
+**Check Permissions (iam)…** shows who a profile is (user, role or root),
+its permissions boundary, and every policy attached to it, inline and through
+its groups; click one to read its document. The Kubernetes tab's **Access**
+section does the same for a cluster: `kubectl auth whoami` and
+`kubectl auth can-i --list`, as rules you can scan.
+
+The **Cloud Secrets** tab (⌘⇧X / Ctrl+Alt+X) browses AWS Secrets Manager,
+SSM Parameter Store and HashiCorp Vault (KV 1 and 2) with the focused
+shell's AWS profile, region and `VAULT_ADDR`. Values stay masked until you
+reveal one, and Hide Secrets blocks revealing, copying and editing. New
+values and edits go through a plan you confirm, and are checked against the
+version you read first, so you can't overwrite someone else's change. Values
+reach the CLIs on stdin, never on a command line.
+
 The **Kubernetes** tab (⌘⇧K) shows the focused shell's context and namespace:
 deployments, StatefulSets, DaemonSets, Jobs, CronJobs and pods; Services and
 Ingresses; ConfigMaps and Secrets; PersistentVolumeClaims; autoscalers;
@@ -587,6 +601,19 @@ one (or Rename…) to give it a name, shown in the list, the picker and its
 notifications, and given to its tab too. A short sound plays with an agent's notification, one for
 needs you and one for finished (`agent-sound`), and tabs running Claude Code
 join their window's **agents** tab group (`agent-group`).
+
+Several agents on one repository each get their own **worktree**: **New
+Worktree…** (palette, or the Files tab's git bar) checks out a new or
+existing branch, or a detached commit, in its own folder, then opens a tab
+or starts Claude Code there. **Remove Worktree…** shows what isn't committed
+first, never deletes the branch, and asks again before `--force`. Agent rows
+show their branch, with ↑/↓ against its upstream.
+
+Quitting wtf ends its agents, but they can come back: a tab that ran Claude
+Code returns with a **Resume** bar (`claude --resume`, in the folder it
+started in), and background agents are listed under **Resumable** in the
+Agents tab. Nothing resumes until you click, and a resumed agent keeps its
+name.
 
 ## Resource usage
 
