@@ -87,11 +87,11 @@ func children(pid int) []int {
 }
 
 // scanDetached finds the processes wtf is responsible for (as Activity
-// Monitor groups them): WebKit's helpers, and programs that left the
-// shell they were started from. Descendants are sorted out by the caller.
+// Monitor groups them): programs that left the shell they were started
+// from (and WebKit helpers, which the native app no longer has). Descendants are sorted out by the caller.
 func scanDetached(self int) ([]detachedProc, string) {
 	if C.wtf_has_responsible() == 0 {
-		return nil, "This macOS doesn't say which processes belong to wtf, so the window's WebKit processes aren't counted."
+		return nil, "This macOS doesn't say which processes belong to wtf, so programs that left their shell aren't listed."
 	}
 	n := int(C.proc_listallpids(nil, 0))
 	if n <= 0 {

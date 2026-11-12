@@ -619,13 +619,13 @@ name.
 
 wtf can show its own CPU and memory in the address bar (`show-usage`, or
 **Toggle Resource Usage in Address Bar** in the palette); click it, or
-**Resource Usage…**, for the breakdown: the app, the WebKit processes that draw
-its windows (on macOS found as Activity Monitor groups them, by the process
-macOS says each works for), and — listed but not counted in wtf's total — the
-shells and programs run in it. Memory is the footprint on macOS, RSS on Linux.
+**Resource Usage…**, for the breakdown: the app, and — listed but not counted
+in wtf's total — the shells and programs run in it (on macOS including ones
+that left their shell, found as Activity Monitor groups them, by the process
+macOS says each works for). Memory is the footprint on macOS, RSS on Linux.
 Measured with direct system calls (libproc, `/proc`; no `ps`), every 2 seconds
 only while shown and the window is in front: about 11 µs a sample on macOS,
-plus a ~1 ms scan for WebKit's processes every 10 seconds. Code: `internal/usage`.
+plus a ~1 ms scan for detached programs every 10 seconds. Code: `internal/usage`.
 
 ## Recording and saving
 

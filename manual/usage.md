@@ -4,11 +4,10 @@ wtf can show its own CPU and memory in the address bar, for example `2.1% · 412
 
 Click the readout, or use **Resource Usage…** in the palette{{mac: (or **View → Resource Usage…**)|other:}}, for the breakdown, process by process:
 
-- **wtf**: the app itself, and what it runs on its own: background tunnels, and the quick `git` and `kubectl` checks behind the address bar and side pane.
-- **Windows**: the WebKit processes that draw wtf's windows. {{mac:On macOS they're separate system processes (`com.apple.WebKit.WebContent`, `…GPU`, `…Networking`); wtf finds its own the way Activity Monitor groups them, by asking macOS which app each one works for.|other:With WebKitGTK they're wtf's child processes (`WebKitWebProcess`, `WebKitNetworkProcess`…).}}
-- **Your programs**: the shells and everything running in them, including programs that detached from their shell{{mac:|other: (on Linux, a program that detached is no longer counted)}}. They're listed but not added to wtf's total, so a busy build doesn't look like wtf.
+- **wtf**: the app itself (its windows, terminals and backend), and what it runs on its own: background tunnels, and the quick `git` and `kubectl` checks behind the address bar and side pane.
+- **Your programs**: the shells and everything running in them, including programs that detached from their shell{{mac: (wtf finds those the way Activity Monitor groups them, by asking macOS which app each process works for)|other: (on Linux, a program that detached is no longer counted)}}. They're listed but not added to wtf's total, so a busy build doesn't look like wtf.
 
-The readout's numbers are **wtf** plus **Windows**.
+The readout's numbers are **wtf**'s.
 
 ## What the numbers mean
 
@@ -17,6 +16,6 @@ The readout's numbers are **wtf** plus **Windows**.
 
 ## What it costs
 
-Nothing while it's hidden: no timer runs and nothing is measured. While the readout or the dialog is on screen, wtf measures every 2 seconds, only while its window is in front. Each measurement asks the system directly ({{mac:libproc|other:`/proc`}}) without starting `ps` or `top`, and takes well under a millisecond. {{mac:Every 10 seconds it also looks through all processes for the WebKit ones, which takes about a millisecond.|other:}} The measuring is included in the numbers it shows.
+Nothing while it's hidden: no timer runs and nothing is measured. While the readout or the dialog is on screen, wtf measures every 2 seconds, only while its window is in front. Each measurement asks the system directly ({{mac:libproc|other:`/proc`}}) without starting `ps` or `top`, and takes well under a millisecond. {{mac:Every 10 seconds it also looks through all processes for the ones that left their shell, which takes about a millisecond.|other:}} The measuring is included in the numbers it shows.
 
-{{mac:If a future macOS stops saying which app a process works for, the dialog says so and counts only wtf's own processes.|other:}}
+{{mac:If a future macOS stops saying which app a process works for, the dialog says so and lists only the programs still under their shells.|other:}}

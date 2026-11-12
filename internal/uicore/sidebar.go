@@ -37,11 +37,12 @@ const (
 	SidebarSecrets SidebarTab = "secrets"
 )
 
-// SidebarTabs lists every tab, in order.
+// SidebarTabs lists every tab, in the rail's order (as the macOS app's
+// Sidebar.tabs): Agents first.
 var SidebarTabs = []SidebarTab{
-	SidebarFiles, SidebarSSH, SidebarAWS, SidebarKube, SidebarSecrets, SidebarSnippets, SidebarWorkspaces,
+	SidebarAgents, SidebarFiles, SidebarSSH, SidebarAWS, SidebarKube, SidebarSecrets, SidebarSnippets, SidebarWorkspaces,
 	SidebarNetwork, SidebarProcesses, SidebarHistory, SidebarPins, SidebarFindings, SidebarShare, SidebarGenerate,
-	SidebarInvestigate, SidebarAgents,
+	SidebarInvestigate,
 }
 
 const (

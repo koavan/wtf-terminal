@@ -16,9 +16,9 @@
 | [Processes](#processes) | {{key:sidebar.processes}} | what's running in your terminals |
 | [History](#history) | {{key:sidebar.history}} | commands run in a shell |
 | [Pinned output](#pins) | {{key:sidebar.pins}} | output you pinned to keep in view |
+| [Findings](#findings) | {{key:sidebar.findings}} | security scanners' results (SARIF) for the shell's repository, and running a scan |
 | [Share & Record](#share) | {{key:sidebar.share}} | Hide Secrets, recording, and saving a terminal's output |
 | [Generate](#generate) | {{key:sidebar.generate}} | new SSH keys and passwords, from a form |
-| [Findings](#findings) | {{key:sidebar.findings}} | security scanners' results (SARIF) for the shell's repository, and running a scan |
 
 Hover an icon for the tab's name and shortcut. Pressing a tab's shortcut again closes the pane. Drag its right edge to resize it; double-click the edge for the default width. The **?** at the bottom of the icons opens this manual at the page for the tab you're on. The wrench above it opens [Command-line tools](#tools): which of kubectl, the AWS CLI, git and OpenSSH the tabs can use, and installing a missing one.
 
