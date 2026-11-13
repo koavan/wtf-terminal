@@ -705,3 +705,7 @@ Each window's tabs, groups, split layouts, folders and text size are saved to
 `session.json` in the user config dir (`~/Library/Application Support/wtf`
 on macOS, `~/.config/wtf` on Linux) and restored on launch. Shells start
 fresh in their saved folders.
+
+## License
+
+[MIT](LICENSE)
