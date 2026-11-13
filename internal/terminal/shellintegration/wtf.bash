@@ -144,6 +144,10 @@ if [ -n "$WTF_SHELL_INTEGRATION" ] && [ -z "$__wtf_loaded" ]; then
       for e in SessionStart UserPromptSubmit PermissionRequest PostToolUse Stop Interrupt SessionEnd SubagentStart SubagentStop; do
         wtf_codex_args+=( -c "hooks.$e=[{hooks=[{type=\"command\",command=$WTF_CODEX_HOOK}]}]" )
       done
+      # Codex's own SessionStart hook fires with the first prompt, not at
+      # launch like Claude's: tell wtf directly so the agent appears in the
+      # Agents tab right away, best effort.
+      eval "$WTF_CODEX_HOOK" <<<"{\"hook_event_name\":\"SessionStart\",\"cwd\":\"$PWD\"}" >/dev/null 2>&1 &
       command codex "${wtf_codex_args[@]}" "$@"
     }
   fi
