@@ -8,6 +8,17 @@ after 1.7.1 (roadmap #21).
 
 What's next: see [ROADMAP.md](ROADMAP.md).
 
+## Install on macOS
+
+Download `wtf-<version>-macos-universal.dmg` from the release (macOS 14+,
+Apple silicon and Intel), open it and drag wtf to Applications. wtf is ad-hoc
+signed, not notarized by Apple, so macOS blocks it the first time: allow it in
+System Settings → Privacy & Security → **Open Anyway**, or run
+
+```sh
+xattr -dr com.apple.quarantine /Applications/wtf.app
+```
+
 ## Install on Linux
 
 The `.deb` (Ubuntu 24.04+, Debian 13+) or `.rpm` (Fedora 40+) for your
