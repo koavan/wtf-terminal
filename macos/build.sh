@@ -19,11 +19,14 @@ cd "$(dirname "$0")/.."
 version=$(cat VERSION)
 commit=$(git describe --always --dirty 2>/dev/null || echo unknown)
 date=$(date -u +%Y-%m-%d)
+# The oldest macOS wtf runs on: Package.swift's platforms (.v14). Everything
+# compiled here targets it too, or clang targets the macOS it runs on.
+macos_min=14.0
 
 goarchive() { # goarchive <goarch> <clang arch> <out>
 	# Go won't overwrite a fat archive from a universal build.
 	rm -f "$3"
-	CGO_ENABLED=1 GOARCH=$1 CC="clang -arch $2" go build -trimpath -buildvcs=false -buildmode=c-archive \
+	CGO_ENABLED=1 GOARCH=$1 CC="clang -arch $2 -mmacosx-version-min=$macos_min" go build -trimpath -buildvcs=false -buildmode=c-archive \
 		-o "$3" ./cmd/libwtf
 }
 if [ -n "$universal" ]; then
@@ -51,7 +54,7 @@ cp "$bin/wtf" "$app/Contents/MacOS/wtf"
 # Starts shells with a clean signal mask (see macos/exec/wtf-exec.c).
 if [ -n "$universal" ]; then helper_archs="-arch arm64 -arch x86_64"; else helper_archs=; fi
 # shellcheck disable=SC2086
-cc -O2 -Wall $helper_archs -mmacosx-version-min=14.0 -o "$app/Contents/MacOS/wtf-exec" macos/exec/wtf-exec.c
+cc -O2 -Wall $helper_archs -mmacosx-version-min=$macos_min -o "$app/Contents/MacOS/wtf-exec" macos/exec/wtf-exec.c
 # The wtf plugin's MCP server, which Claude Code starts in a wtf shell (#32).
 gohelper() { # gohelper <goarch> <out>
 	CGO_ENABLED=0 GOARCH=$1 go build -trimpath -buildvcs=false \
@@ -82,7 +85,7 @@ cp macos/Resources/Info.plist "$plist"
 pb() { /usr/libexec/PlistBuddy -c "$1" "$plist"; }
 pb "Set :CFBundleVersion $version"
 pb "Set :CFBundleShortVersionString $version"
-pb "Set :LSMinimumSystemVersion 14.0.0"
+pb "Set :LSMinimumSystemVersion $macos_min.0"
 pb "Add :ATSApplicationFontsPath string Fonts"
 pb "Add :WtfCommit string $commit"
 pb "Add :WtfBuildDate string $date"
