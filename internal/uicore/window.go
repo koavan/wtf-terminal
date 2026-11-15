@@ -1129,22 +1129,23 @@ func (w *WindowModel) Detach(id int, buffers func(*PaneState) string) (*TabPaylo
 
 // DetachPane takes one pane out of its tab, as a one-pane tab with its live
 // shell, for another window to adopt (parking an agent in the background
-// window, #34). A tab's only pane takes the whole tab, without its group.
+// window, #34). A tab's only pane takes the whole tab. Either way it keeps
+// its tab's group, so it goes back into that group when it's opened again.
 func (w *WindowModel) DetachPane(id int, buffers func(*PaneState) string) (*TabPayload, bool) {
 	t, ok := w.TabOf(id)
 	if !ok || w.Panes[id] == nil {
 		return nil, false
 	}
 	if len(t.Root.Leaves()) == 1 {
-		payload, ok := w.Detach(t.ID, buffers)
-		if ok {
-			payload.Group, payload.Tab.GroupID = nil, nil
-		}
-		return payload, ok
+		return w.Detach(t.ID, buffers)
+	}
+	var group *PayloadGroup
+	if g, ok := w.Group(t.GroupID); t.GroupID != 0 && ok {
+		group = &PayloadGroup{Name: g.Name, Color: string(g.Color)}
 	}
 	saved := w.save(Tab{Root: Leaf(id), FocusedPaneID: id}, true, buffers)
 	w.ClosePane(id)
-	return &TabPayload{Kind: "tab", Tab: saved}, true
+	return &TabPayload{Kind: "tab", Tab: saved, Group: group}, true
 }
 
 func prefixRunes(s string, n int) string {

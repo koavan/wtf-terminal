@@ -891,7 +891,8 @@ func TestPaneTitles(t *testing.T) {
 }
 
 // #34: one pane of a split leaves for the background window with its shell;
-// the tab keeps the others. A tab's only pane takes the tab, without its group.
+// the tab keeps the others. A tab's only pane takes the tab. Both keep the
+// tab's group, and adopting puts them back in it.
 func TestDetachesOnePaneWithItsSession(t *testing.T) {
 	s := newSetup()
 	ts := s.open(2)
@@ -917,17 +918,33 @@ func TestDetachesOnePaneWithItsSession(t *testing.T) {
 		t.Fatalf("adopted %+v", o.w.ActivePane())
 	}
 
-	// The only pane: the whole tab, out of its group.
+	// The only pane: the whole tab, with its group.
 	g := s.w.CreateGroup(ts[1])
 	s.w.SetGroup(g, ptr("api"), nil)
+	group, _ := s.w.Group(g)
 	payload, ok = s.w.DetachPane(left, nil)
-	if !ok || payload.Group != nil || payload.Tab.GroupID != nil || *payload.Tab.Root.SessionID != "s1" {
+	if !ok || payload.Group == nil || payload.Group.Name != "api" || payload.Group.Color != string(group.Color) || *payload.Tab.Root.SessionID != "s1" {
 		t.Fatalf("payload = %+v", payload)
 	}
 	if !slices.Equal(s.ids(), []int{ts[0]}) || len(s.w.Groups()) != 0 {
 		t.Errorf("ids = %v, groups = %d", s.ids(), len(s.w.Groups()))
 	}
 	checkInvariants(t, s.w, "")
+	if !o.w.Adopt(payload) {
+		t.Fatal("didn't adopt the tab")
+	}
+	if a, _ := o.w.Tab(o.w.ActiveID()); a.GroupID == 0 || a.GroupID != o.w.GroupNamed("api") {
+		t.Errorf("adopted tab's group = %d", a.GroupID)
+	}
+
+	// A pane of a grouped split keeps the group too.
+	s.w.Activate(ts[0])
+	g = s.w.CreateGroup(ts[0])
+	s.w.Split(SplitRow, nil, "")
+	payload, ok = s.w.DetachPane(s.w.ActivePane().ID, nil)
+	if want, _ := s.w.Group(g); !ok || payload.Group == nil || payload.Group.Color != string(want.Color) {
+		t.Fatalf("payload = %+v", payload)
+	}
 	if _, ok := s.w.DetachPane(9999, nil); ok {
 		t.Error("detached a pane that isn't there")
 	}

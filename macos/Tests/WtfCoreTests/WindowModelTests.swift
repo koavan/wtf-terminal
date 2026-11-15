@@ -454,13 +454,23 @@ private func json(_ text: String) -> SavedSession { try! JSONDecoder().decode(Sa
     o.open(1)
     #expect(o.w.adopt(payload) && o.w.activePane?.sessionId == "s2")
 
-    // The only pane: the whole tab, out of its group.
+    // The only pane: the whole tab, with its group, which adopting restores.
     let g = s.w.createGroup(t[1])!
     s.w.setGroup(g, name: "api")
+    let color = s.w.group(g)!.color
     let whole = s.w.detachPane(left) { _ in "" }!
-    #expect(whole.group == nil && whole.tab.groupId == nil && whole.tab.root?.sessionId == "s1")
+    #expect(whole.group?.name == "api" && whole.group?.color == color.rawValue && whole.tab.root?.sessionId == "s1")
     #expect(s.ids == [t[0]] && s.w.groups.isEmpty)
     checkInvariants(s.w)
+    #expect(o.w.adopt(whole))
+    #expect(o.w.active?.groupId != nil && o.w.active?.groupId == o.w.groupNamed("api"))
+
+    // A pane of a grouped split keeps the group too.
+    s.w.activate(t[0])
+    let g2 = s.w.createGroup(t[0])!
+    s.w.split(.row)
+    let part = s.w.detachPane(s.w.activePane!.id) { _ in "" }!
+    #expect(part.group?.color == s.w.group(g2)?.color.rawValue)
     #expect(s.w.detachPane(9999) { _ in "" } == nil)
 }
 

@@ -18,7 +18,7 @@ Agents are listed in the order they started, and a row stays where it is whateve
 
 ## The ungrouped agents tab group
 
-Every tab running Claude Code joins its window's **ungrouped agents** [tab group](#tabs), so your agents sit together in the tab strip. wtf makes the group, in the next free colour, when the first agent starts, and a tab leaves it when its Claude Code ends (unless another agent runs in one of its panes). The group goes when its last tab leaves. A tab that was already in another group stays in it. Agents kept running in the background aren't in a window's tabs, so they're left out until you open them in a tab again.
+Every tab running Claude Code joins its window's **ungrouped agents** [tab group](#tabs), so your agents sit together in the tab strip. wtf makes the group, in the next free colour, when the first agent starts, and a tab leaves it when its Claude Code ends (unless another agent runs in one of its panes). The group goes when its last tab leaves. A tab that was already in another group stays in it. Agents kept running in the background aren't in a window's tabs, so they're left out until you open them in a tab again. An agent goes back into the group its tab was in when it went to the background (made again if it's gone), and only joins **ungrouped agents** if it wasn't in one.
 
 You can collapse, rename or recolour the group like any other. Turn this off with **Group tabs running Claude Code under "ungrouped agents"** in **Settings** ({{mac:⌘,|other:Ctrl+,}}) → **General**, or `agent-group = false` in `config.toml`.
 
