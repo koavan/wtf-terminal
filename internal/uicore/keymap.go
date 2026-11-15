@@ -27,6 +27,7 @@ func cmd(id, title, keys string) Command { return Command{id, title, keys} }
 var Commands = func() []Command {
 	c := []Command{
 		cmd("app.about", "About wtf", ""),
+		cmd("app.updates", "Check for Updates…", ""),
 		cmd("config.open", "Settings…", "Ctrl+Comma"),
 		cmd("config.file", "Open config.toml", ""),
 		cmd("theme.pick", "Change Theme…", ""),

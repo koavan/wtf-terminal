@@ -124,6 +124,31 @@ func (s *settingsWindow) generalPage() *adw.PreferencesPage {
 	files.Add(themes)
 	page.Add(files)
 
+	updates := adw.NewPreferencesGroup()
+	updates.SetTitle("Updates")
+	check := adw.NewSwitchRow()
+	check.SetUseMarkup(false)
+	check.SetTitle("Check for a newer wtf once a day")
+	check.SetSubtitle("update-check; asks GitHub for the latest release and says so in the window. Nothing is downloaded or installed")
+	check.SetActive(s.w.app.settings.config().UpdateCheck)
+	check.Connect("notify::active", func() {
+		on := check.Active()
+		if on == s.w.app.settings.config().UpdateCheck {
+			return
+		}
+		if err := s.w.app.be.Config.SetUpdateCheck(on); err != nil {
+			check.SetActive(!on)
+			s.w.toast("Couldn't change the setting: " + err.Error())
+		}
+	})
+	updates.Add(check)
+	now := adw.NewActionRow()
+	now.SetTitle("Check now")
+	now.SetSubtitle("You have wtf " + s.w.app.build.Version)
+	now.AddSuffix(button("Check for Updates…", s.w.checkForUpdates))
+	updates.Add(now)
+	page.Add(updates)
+
 	claude := adw.NewPreferencesGroup()
 	claude.SetTitle("Ask Claude")
 	claude.SetDescription("Ask Claude (Ctrl+Shift+I) runs your own Claude Code in a split beside the shell, with wtf's tools for that shell. " +

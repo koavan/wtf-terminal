@@ -201,6 +201,10 @@ final class SettingsWindow: NSObject, NSWindowDelegate, NSToolbarDelegate {
         }
         themes.toolTip = "Add your own themes as files here"
         bar([file, themes, spacer()])
+        let updates = NSButton(checkboxWithTitle: "Check for a newer wtf once a day (update-check)", target: self, action: #selector(toggleUpdateCheck(_:)))
+        updates.state = Settings.shared.config?.updateCheck == false ? .off : .on
+        updates.toolTip = "Asks GitHub for the latest release and says so in the window. Nothing is downloaded or installed"
+        content.addArrangedSubview(updates)
         separator()
         let claude = NSTextField(labelWithString: "Ask Claude")
         claude.font = .systemFont(ofSize: 12.5, weight: .semibold)
@@ -236,6 +240,16 @@ final class SettingsWindow: NSObject, NSWindowDelegate, NSToolbarDelegate {
         let mode = ["ask", "background", "end"][max(0, sender.indexOfSelectedItem)]
         Task {
             do { try await Services.config.SetAgentClose(mode) } catch {
+                Toast.show("Couldn't change the setting: \(error.localizedDescription)", in: window.contentView)
+            }
+        }
+    }
+
+    @objc private func toggleUpdateCheck(_ sender: NSButton) {
+        let on = sender.state == .on
+        Task {
+            do { try await Services.config.SetUpdateCheck(on) } catch {
+                sender.state = on ? .off : .on
                 Toast.show("Couldn't change the setting: \(error.localizedDescription)", in: window.contentView)
             }
         }

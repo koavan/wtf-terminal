@@ -108,6 +108,11 @@ func (s *Service) SetAgentSound(on bool) error {
 	return s.set("agent-sound", strconv.FormatBool(on))
 }
 
+// SetUpdateCheck turns the daily check for a newer wtf on or off.
+func (s *Service) SetUpdateCheck(on bool) error {
+	return s.set("update-check", strconv.FormatBool(on))
+}
+
 // SetAgentGroup turns agent-group on or off.
 func (s *Service) SetAgentGroup(on bool) error {
 	return s.set("agent-group", strconv.FormatBool(on))

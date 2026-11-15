@@ -35,6 +35,8 @@ public struct Config: Decodable, Equatable, Sendable {
     public var agentSound: Bool?
     /// agent-group (older backends lack it).
     public var agentGroup: Bool?
+    /// update-check (older backends lack it).
+    public var updateCheck: Bool?
 }
 
 public struct Theme: Decodable, Equatable, Sendable {

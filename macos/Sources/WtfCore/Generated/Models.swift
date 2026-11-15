@@ -27,6 +27,7 @@ extension Go { public enum sshhosts {} }
 extension Go { public enum state {} }
 extension Go { public enum terminal {} }
 extension Go { public enum tools {} }
+extension Go { public enum update {} }
 extension Go { public enum usage {} }
 extension Go { public enum worktree {} }
 
@@ -1481,8 +1482,9 @@ extension Go.config {
         public var agentSound: Bool
         public var agentGroup: Bool
         public var worktreeDir: String
+        public var updateCheck: Bool
 
-        public init(theme: String = "", fontFamily: String = "", fontSize: Double = 0, lineHeight: Double = 0, cursorStyle: String = "", cursorBlink: Bool = false, scrollback: Int = 0, optionAsMeta: Bool = false, copyOnSelect: Bool = false, shell: String = "", shellIntegration: Bool = false, notifyAfter: Double = 0, unfocusedSplitDim: Double = 0, sidebarAutoRefresh: Bool = false, sidebarRefreshInterval: Double = 0, contextBadges: Bool = false, logHighlighting: Bool = false, redactSecrets: Bool = false, clipboardClear: Double = 0, confirmPaste: Bool = false, showUsage: Bool = false, historyDays: Int = 0, claudeAutoMode: Bool = false, agentStatus: Bool = false, agentClose: String = "", agentSound: Bool = false, agentGroup: Bool = false, worktreeDir: String = "") {
+        public init(theme: String = "", fontFamily: String = "", fontSize: Double = 0, lineHeight: Double = 0, cursorStyle: String = "", cursorBlink: Bool = false, scrollback: Int = 0, optionAsMeta: Bool = false, copyOnSelect: Bool = false, shell: String = "", shellIntegration: Bool = false, notifyAfter: Double = 0, unfocusedSplitDim: Double = 0, sidebarAutoRefresh: Bool = false, sidebarRefreshInterval: Double = 0, contextBadges: Bool = false, logHighlighting: Bool = false, redactSecrets: Bool = false, clipboardClear: Double = 0, confirmPaste: Bool = false, showUsage: Bool = false, historyDays: Int = 0, claudeAutoMode: Bool = false, agentStatus: Bool = false, agentClose: String = "", agentSound: Bool = false, agentGroup: Bool = false, worktreeDir: String = "", updateCheck: Bool = false) {
             self.theme = theme
             self.fontFamily = fontFamily
             self.fontSize = fontSize
@@ -1511,6 +1513,7 @@ extension Go.config {
             self.agentSound = agentSound
             self.agentGroup = agentGroup
             self.worktreeDir = worktreeDir
+            self.updateCheck = updateCheck
         }
 
         enum CodingKeys: String, CodingKey {
@@ -1542,6 +1545,7 @@ extension Go.config {
             case agentSound = "agentSound"
             case agentGroup = "agentGroup"
             case worktreeDir = "worktreeDir"
+            case updateCheck = "updateCheck"
         }
 
         public init(from decoder: Decoder) throws {
@@ -1574,6 +1578,7 @@ extension Go.config {
             self.agentSound = (try? c.decodeIfPresent(Bool.self, forKey: .agentSound)) ?? false
             self.agentGroup = (try? c.decodeIfPresent(Bool.self, forKey: .agentGroup)) ?? false
             self.worktreeDir = (try? c.decodeIfPresent(String.self, forKey: .worktreeDir)) ?? ""
+            self.updateCheck = (try? c.decodeIfPresent(Bool.self, forKey: .updateCheck)) ?? false
         }
     }
 }
@@ -4346,6 +4351,62 @@ extension Go.tools {
             self.methods = (try? c.decodeIfPresent([Go.tools.Method].self, forKey: .methods)) ?? []
             self.builtIn = (try? c.decodeIfPresent(String.self, forKey: .builtIn)) ?? ""
             self.scanner = (try? c.decodeIfPresent(Bool.self, forKey: .scanner)) ?? false
+        }
+    }
+}
+
+extension Go.update {
+    /// update.Release
+    public struct Release: Codable, Equatable, Sendable {
+        public var version: String
+        public var title: String
+        public var url: String
+        public var notes: String
+
+        public init(version: String = "", title: String = "", url: String = "", notes: String = "") {
+            self.version = version
+            self.title = title
+            self.url = url
+            self.notes = notes
+        }
+
+        enum CodingKeys: String, CodingKey {
+            case version = "version"
+            case title = "title"
+            case url = "url"
+            case notes = "notes"
+        }
+
+        public init(from decoder: Decoder) throws {
+            let c = try decoder.container(keyedBy: CodingKeys.self)
+            self.version = (try? c.decodeIfPresent(String.self, forKey: .version)) ?? ""
+            self.title = (try? c.decodeIfPresent(String.self, forKey: .title)) ?? ""
+            self.url = (try? c.decodeIfPresent(String.self, forKey: .url)) ?? ""
+            self.notes = (try? c.decodeIfPresent(String.self, forKey: .notes)) ?? ""
+        }
+    }
+}
+
+extension Go.update {
+    /// update.Status
+    public struct Status: Codable, Equatable, Sendable {
+        public var current: String
+        public var available: Go.update.Release?
+
+        public init(current: String = "", available: Go.update.Release? = nil) {
+            self.current = current
+            self.available = available
+        }
+
+        enum CodingKeys: String, CodingKey {
+            case current = "current"
+            case available = "available"
+        }
+
+        public init(from decoder: Decoder) throws {
+            let c = try decoder.container(keyedBy: CodingKeys.self)
+            self.current = (try? c.decodeIfPresent(String.self, forKey: .current)) ?? ""
+            self.available = (try? c.decodeIfPresent(Go.update.Release.self, forKey: .available)) ?? nil
         }
     }
 }

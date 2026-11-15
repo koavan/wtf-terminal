@@ -20,6 +20,7 @@ enum Services {
         static func SetShowUsage(_ a0: Bool) async throws { try await Backend.run("config", "SetShowUsage", [a0]) }
         static func SetSidebarAutoRefresh(_ a0: Bool) async throws { try await Backend.run("config", "SetSidebarAutoRefresh", [a0]) }
         static func SetTheme(_ a0: String) async throws { try await Backend.run("config", "SetTheme", [a0]) }
+        static func SetUpdateCheck(_ a0: Bool) async throws { try await Backend.run("config", "SetUpdateCheck", [a0]) }
         static func Themes() async throws -> [Go.config.Theme] { try await Backend.call("config", "Themes", [], as: [Go.config.Theme].self) }
     }
 
@@ -231,5 +232,10 @@ enum Services {
         static func Remove(_ a0: String, _ a1: String, _ a2: Bool) async throws -> Go.worktree.RemoveResult { try await Backend.call("worktree", "Remove", [a0, a1, a2], as: Go.worktree.RemoveResult.self) }
         static func Repo(_ a0: String) async throws -> Go.worktree.Repo { try await Backend.call("worktree", "Repo", [a0], as: Go.worktree.Repo.self) }
         static func Suggest(_ a0: String, _ a1: String) async throws -> String { try await Backend.call("worktree", "Suggest", [a0, a1], as: String.self) }
+    }
+
+    enum update {
+        static func Check() async throws -> Go.update.Status { try await Backend.call("update", "Check", [], as: Go.update.Status.self) }
+        static func Skip(_ a0: String) async throws { try await Backend.run("update", "Skip", [a0]) }
     }
 }

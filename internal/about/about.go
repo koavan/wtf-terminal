@@ -39,7 +39,11 @@ type Info struct {
 	Repository string `json:"repository"`
 }
 
-const repository = "https://github.com/dayanraj-rently/wtf-terminal"
+// RepoPath is wtf's GitHub repository, owner/name: the About window links to
+// it and the update check reads its releases.
+const RepoPath = "koavan/wtf-terminal"
+
+const repository = "https://github.com/" + RepoPath
 
 type Service struct {
 	version, commit, buildDate string

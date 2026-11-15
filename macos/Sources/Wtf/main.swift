@@ -480,6 +480,7 @@ func buildMenu() -> NSMenu {
 
     let appMenu = submenu("wtf", [
         cmd("About wtf", "app.about"),
+        cmd("Check for Updates…", "app.updates"),
         .separator(),
         cmd("Settings…", "config.open", ","),
         cmd("Change Theme…", "theme.pick"),

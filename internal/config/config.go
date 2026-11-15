@@ -71,6 +71,10 @@ type Config struct {
 	// Where New Worktree… puts worktrees (#37): "" beside the repository
 	// (<repo>.worktrees/<branch>), else <dir>/<repo>/<branch>.
 	WorktreeDir string `toml:"worktree-dir" json:"worktreeDir"`
+
+	// Ask GitHub once a day whether a newer wtf has been released, and say
+	// so in the window. It never downloads or installs anything.
+	UpdateCheck bool `toml:"update-check" json:"updateCheck"`
 }
 
 func Defaults() Config {
@@ -102,6 +106,8 @@ func Defaults() Config {
 		AgentClose:  "ask",
 		AgentSound:  true,
 		AgentGroup:  true,
+
+		UpdateCheck: true,
 	}
 }
 
@@ -226,6 +232,11 @@ const template = `# wtf settings. Changes apply as soon as you save (or switch b
 # after its branch. Unset: beside the repository, in <repo>.worktrees/.
 # Set: <worktree-dir>/<repo>/<branch>. A full path, or one starting with ~/.
 # worktree-dir = "~/worktrees"
+
+# Ask GitHub once a day whether a newer wtf has been released, and say so in
+# the window (Download opens the release page). Nothing is downloaded or
+# installed, and nothing about you is sent. Check for Updates… asks any time.
+# update-check = true
 `
 
 // Dir is $XDG_CONFIG_HOME/wtf, or ~/.config/wtf, on every platform.

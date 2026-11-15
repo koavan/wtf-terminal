@@ -34,6 +34,7 @@ enum Commands {
     static var all: [Command] { [
         Command("palette", "Command Palette", "⌘⇧P") { Palette.toggle(.commands, in: $0) },
         Command("app.about", "About wtf") { AboutDialog.show(in: $0) },
+        Command("app.updates", "Check for Updates…") { Updates.check(in: $0) },
         Command("inspect.tls", "Inspect TLS Certificate…") { CertViewer(.host(""), owner: $0).show() },
         Command("tools.show", "Command-Line Tools (kubectl, AWS CLI, git…)") { ToolsDialog.show(in: $0) },
         Command("claude.ask", "Ask Claude (runs Claude Code beside this shell)", "⌘I") { ClaudePane.ask(in: $0) },

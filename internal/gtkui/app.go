@@ -154,6 +154,7 @@ func (a *App) startup() {
 			w.refreshContexts()
 		}
 	})
+	a.listenUpdates()
 	a.events.on(terminal.EventExit, func(data any) {
 		if e, ok := data.(terminal.ExitEvent); ok {
 			if w := a.windowOf(e.ID); w != nil {

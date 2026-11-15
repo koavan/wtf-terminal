@@ -23,6 +23,7 @@
 | `agent-group` | a tab running Claude Code that isn't in a group joins its window's **ungrouped agents** tab group, and leaves it when Claude Code ends (on) |
 | `agent-sound` | a short sound with an agent's notification when it needs you or finishes while you're looking elsewhere, a different one for each (on) |
 | `worktree-dir` | where New Worktree… puts worktrees: `<worktree-dir>/<repository>/<branch>`; unset, beside the repository in `<repository>.worktrees/` — see [Worktrees](#worktrees) |
+| `update-check` | ask GitHub once a day whether a newer wtf has been released, and say so in the window: **Download…** opens the release page, **Skip This Version** stops telling you about that one (on). Nothing is downloaded or installed. **Check for Updates…** (in the wtf menu and the palette) asks any time — see [Privacy](#privacy) |
 | `agent-status` | run a `claude` you start yourself with wtf's status hooks (for that run only), so the [Agents](#agents) tab and the tab badges show what it's doing (on; applies to new panes) |
 | `claude-auto-mode` | let Claude Code's own permission mode decide which commands in a Claude pane run without asking (off: wtf asks every time) — see [Ask Claude](#ask-claude) |
 | `history-days` | days History's **Saved** view keeps the commands you run, with their context (default 90, up to 3650); 0 saves nothing and removes what was saved — see [History](#history) |

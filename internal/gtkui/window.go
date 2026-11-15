@@ -588,6 +588,7 @@ func (w *Window) windowCommands() map[string]func() {
 		"snippets.run":        func() { w.togglePalette(paletteSnippets) },
 		"snippets.open":       w.openSnippetsFile,
 		"app.about":           w.showAbout,
+		"app.updates":         w.checkForUpdates,
 		"tools.show":          func() { w.showTools("") },
 		"help.manual":         w.showHelp,
 		"tab.rename":          func() { w.strip.rename(m.ActiveID()) },
@@ -713,7 +714,7 @@ func (w *Window) mainMenuButton() *gtk.MenuButton {
 		{"record.toggle", "export.text", "export.markdown"},
 		{"font.bigger", "font.smaller", "font.reset"},
 		{"tab.overview", "agents.pick", "agents.next", "agents.start", "worktree.new", "worktree.open", "worktree.remove", "tab.group", "broadcast.toggle", "pane.zoom", "pane.next", "pane.prev"},
-		{"help.manual", "help.shortcuts", "tools.show", "app.about"},
+		{"help.manual", "help.shortcuts", "tools.show", "app.about", "app.updates"},
 		{"app.quit"},
 	}
 	cmds := w.windowCommands()
