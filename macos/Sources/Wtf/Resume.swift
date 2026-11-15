@@ -135,7 +135,8 @@ final class ResumeBar: NSView {
         layer?.borderWidth = 1
         let icon = NSImageView(image: NSImage(systemSymbolName: "sparkles", accessibilityDescription: nil)!)
         icon.contentTintColor = .controlAccentColor
-        let text = a.name.isEmpty ? "Claude Code was running here when wtf quit." : "Claude Code “\(a.name)” was running here when wtf quit."
+        let product = Agents.product(provider: a.provider)
+        let text = a.name.isEmpty ? "\(product) was running here when wtf quit." : "\(product) “\(a.name)” was running here when wtf quit."
         let label = NSTextField(labelWithString: text)
         label.font = .systemFont(ofSize: 12)
         label.lineBreakMode = .byTruncatingTail

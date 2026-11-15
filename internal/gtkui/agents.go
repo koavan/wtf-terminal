@@ -110,11 +110,43 @@ func agentLabel(state string) string {
 // inBackground: what a paused turn waits on ("2 in background").
 func inBackground(n int) string { return fmt.Sprintf("%d in background", n) }
 
-func agentProduct(st bridge.Status) string {
-	if st.Provider == "codex" {
+func agentProduct(st bridge.Status) string { return productName(st.Provider) }
+
+// productName names an agent's provider: Codex, else Claude Code.
+func productName(provider string) string {
+	if provider == "codex" {
 		return "Codex"
 	}
 	return "Claude Code"
+}
+
+// sessionProduct names the agent in a session (Claude Code when unknown).
+func (a *App) sessionProduct(session string) string { return agentProduct(a.agents.all[session]) }
+
+// sessionsProduct names what runs in sessions: Claude Code or Codex when
+// they're all one, "" when they're mixed.
+func (a *App) sessionsProduct(sessions []string) string {
+	name := ""
+	for i, s := range sessions {
+		p := a.sessionProduct(s)
+		if i > 0 && p != name {
+			return ""
+		}
+		name = p
+	}
+	return name
+}
+
+// agentsRun: "Codex runs", "2 Claude Code sessions run" or, mixed, "3 agents
+// (Claude Code and Codex) run", for n agents of product (see sessionsProduct).
+func agentsRun(product string, n int) string {
+	switch {
+	case product == "":
+		return fmt.Sprintf("%d agents (Claude Code and Codex) run", n)
+	case n == 1:
+		return product + " runs"
+	}
+	return fmt.Sprintf("%d %s sessions run", n, product)
 }
 
 // sorted: most urgent first, then the longest in that state.

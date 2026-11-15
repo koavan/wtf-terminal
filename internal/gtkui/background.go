@@ -74,6 +74,13 @@ func (w *Window) agentPanes(ids []int) []int {
 // The last visible window keeps a fresh tab rather than closing.
 func (w *Window) park(ids []int) {
 	a := w.app
+	var sessions []string
+	for _, id := range ids {
+		if ps := w.model.Panes[id]; ps != nil && ps.SessionID != "" {
+			sessions = append(sessions, ps.SessionID)
+		}
+	}
+	product := a.sessionsProduct(sessions)
 	for _, id := range ids {
 		p, ps := w.panes[id], w.model.Panes[id]
 		if p == nil || ps == nil || p.session == "" {
@@ -100,8 +107,14 @@ func (w *Window) park(ids []int) {
 		}
 	}
 	if len(ids) > 0 {
-		w.toast(map[bool]string{true: "Claude Code keeps running in the background: the Agents tab opens it again",
-			false: "Claude Code sessions keep running in the background: the Agents tab opens them again"}[len(ids) == 1])
+		switch {
+		case len(ids) == 1 && product != "":
+			w.toast(product + " keeps running in the background: the Agents tab opens it again")
+		case product != "":
+			w.toast(product + " sessions keep running in the background: the Agents tab opens them again")
+		default:
+			w.toast("The agents keep running in the background: the Agents tab opens them again")
+		}
 	}
 }
 
@@ -143,7 +156,7 @@ func (a *App) endAgent(session string, parent *gtk.Window) {
 	}
 	title, _ := a.agentPlace(session)
 	id := ps.ID
-	a.confirm(parent, "End this Claude Code?", title+"\n\nIts shell closes too.", "End", func() { w.model.ClosePane(id) })
+	a.confirm(parent, "End this "+a.sessionProduct(session)+"?", title+"\n\nIts shell closes too.", "End", func() { w.model.ClosePane(id) })
 }
 
 // askAgentClose: some of the panes being closed run Claude Code. Keep them
@@ -159,7 +172,11 @@ func (w *Window) askAgentClose(agents []int, done func(keep bool)) {
 		done(false)
 		return
 	}
-	var lines []string
+	var lines, sessions []string
+	for _, id := range agents {
+		sessions = append(sessions, w.model.Panes[id].SessionID)
+	}
+	product := a.sessionsProduct(sessions)
 	for i, id := range agents {
 		if i == 6 {
 			lines = append(lines, fmt.Sprintf("and %d more", len(agents)-6))
@@ -169,16 +186,19 @@ func (w *Window) askAgentClose(agents []int, done func(keep bool)) {
 		title, _ := a.agentPlace(ps.SessionID)
 		lines = append(lines, title+" — "+strings.ToLower(agentLabel(agentState(a.agents.all[ps.SessionID]))))
 	}
-	head := "Keep Claude Code running?"
-	body := "Claude Code runs in what you're closing. It can keep running in the background: the Agents tab shows it and opens it again. It ends when wtf quits."
+	head, end := "Keep "+product+" running?", "End "+product
+	if product == "" {
+		head, end = "Keep the agents running?", "End Them"
+	}
+	body := agentsRun(product, len(agents)) + " in what you're closing. It can keep running in the background: the Agents tab shows it and opens it again. It ends when wtf quits."
 	if len(agents) > 1 {
-		body = fmt.Sprintf("%d Claude Code sessions run in what you're closing. They can keep running in the background: the Agents tab shows them and opens them again. They end when wtf quits.", len(agents))
+		body = agentsRun(product, len(agents)) + " in what you're closing. They can keep running in the background: the Agents tab shows them and opens them again. They end when wtf quits."
 	}
 	d := adw.NewMessageDialog(&w.win.Window, head, body+"\n\n"+strings.Join(lines, "\n"))
 	again := gtk.NewCheckButtonWithLabel("Don't ask again (agent-close)")
 	d.SetExtraChild(again)
 	d.AddResponse("cancel", "Cancel")
-	d.AddResponse("end", "End Claude Code")
+	d.AddResponse("end", end)
 	d.AddResponse("keep", "Keep Running in Background")
 	d.SetResponseAppearance("end", adw.ResponseDestructive)
 	d.SetResponseAppearance("keep", adw.ResponseSuggested)
@@ -209,8 +229,9 @@ func (a *App) peekAgent(session string, parent *gtk.Window) {
 		return
 	}
 	title, cwd := a.agentPlace(session)
+	product := a.sessionProduct(session)
 	d := adw.NewWindow()
-	d.SetTitle("Claude Code — " + title)
+	d.SetTitle(product + " — " + title)
 	d.SetTransientFor(parent)
 	d.SetDefaultSize(760, 520)
 
@@ -240,7 +261,7 @@ func (a *App) peekAgent(session string, parent *gtk.Window) {
 	refresh := func() bool {
 		p := pane()
 		if p == nil {
-			state.SetText("It's gone: Claude Code quit or its shell closed.")
+			state.SetText("It's gone: " + product + " quit or its shell closed.")
 			return false
 		}
 		screen.Buffer().SetText(a.settings.text(strings.Join(p.lastLines(40), "\n")))
@@ -273,7 +294,7 @@ func (a *App) peekAgent(session string, parent *gtk.Window) {
 	}
 	reply := gtk.NewEntry()
 	reply.SetHExpand(true)
-	reply.SetPlaceholderText("Reply to Claude Code (sent with Enter)")
+	reply.SetPlaceholderText("Reply to " + product + " (sent with Enter)")
 	sendReply := func() {
 		text := reply.Text()
 		if strings.TrimSpace(text) == "" {
@@ -293,15 +314,15 @@ func (a *App) peekAgent(session string, parent *gtk.Window) {
 	}
 	row := gtk.NewBox(gtk.OrientationHorizontal, 6)
 	row.Append(reply)
-	row.Append(button("Send", "Type it in Claude Code, then Enter", sendReply))
-	row.Append(button("Enter", "Press Enter in Claude Code (accepts what its prompt has selected)", func() { send("\r") }))
-	row.Append(button("Esc", "Press Esc in Claude Code (cancels its prompt or stops it)", func() { send("\x1b") }))
+	row.Append(button("Send", "Type it in "+product+", then Enter", sendReply))
+	row.Append(button("Enter", "Press Enter in "+product+" (accepts what its prompt has selected)", func() { send("\r") }))
+	row.Append(button("Esc", "Press Esc in "+product+" (cancels its prompt or stops it)", func() { send("\x1b") }))
 	actions := gtk.NewBox(gtk.OrientationHorizontal, 6)
 	actions.Append(button("Open in Tab", "Show it in a tab", func() {
 		d.Close()
 		a.goToAgent(session)
 	}))
-	actions.Append(button("End…", "End this Claude Code and its shell", func() { a.endAgent(session, &d.Window) }))
+	actions.Append(button("End…", "End this "+product+" and its shell", func() { a.endAgent(session, &d.Window) }))
 
 	box := gtk.NewBox(gtk.OrientationVertical, 8)
 	box.SetMarginTop(10)

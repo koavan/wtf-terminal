@@ -18,13 +18,13 @@ Agents are listed in the order they started, and a row stays where it is whateve
 
 ## Codex
 
-A `codex` you start in a wtf shell is an agent like a Claude Code: it gets a row (marked **Codex** in {{cmd:agents.pick}} and in its notifications), a tab badge, a name, the **ungrouped agents** tab group, the choice to keep it running in the background when you close its tab, and a **Resume** after wtf quits (with `codex resume`). The dialogs and settings below say "Claude Code", but they apply to Codex as well. What's only for Claude Code: [Ask Claude](#ask-claude) and its plugin, {{cmd:agents.start}}, and starting an agent from [New Worktree…](#worktrees). See **How wtf knows** below for how Codex is hooked up.
+A `codex` you start in a wtf shell is an agent like a Claude Code: it gets a row (marked **Codex** in {{cmd:agents.pick}} and in its notifications), a tab badge, a name, the **ungrouped agents** tab group, the choice to keep it running in the background when you close its tab, and a **Resume** after wtf quits (with `codex resume`). Its dialogs and menus name it **Codex** where they say **Claude Code** below. What's only for Claude Code: [Ask Claude](#ask-claude) and its plugin, {{cmd:agents.start}}, and starting an agent from [New Worktree…](#worktrees). See **How wtf knows** below for how Codex is hooked up.
 
 ## The ungrouped agents tab group
 
 Every tab running Claude Code joins its window's **ungrouped agents** [tab group](#tabs), so your agents sit together in the tab strip. wtf makes the group, in the next free colour, when the first agent starts, and a tab leaves it when its Claude Code ends (unless another agent runs in one of its panes). The group goes when its last tab leaves. A tab that was already in another group stays in it. Agents kept running in the background aren't in a window's tabs, so they're left out until you open them in a tab again. An agent goes back into the group its tab was in when it went to the background (made again if it's gone), and only joins **ungrouped agents** if it wasn't in one.
 
-You can collapse, rename or recolour the group like any other. Turn this off with **Group tabs running Claude Code under "ungrouped agents"** in **Settings** ({{mac:⌘,|other:Ctrl+,}}) → **General**, or `agent-group = false` in `config.toml`.
+You can collapse, rename or recolour the group like any other. Turn this off with **Group tabs running Claude Code or Codex under "ungrouped agents"** in **Settings** ({{mac:⌘,|other:Ctrl+,}}) → **General**, or `agent-group = false` in `config.toml`.
 
 ## Name an agent
 
@@ -47,12 +47,12 @@ Secrets are hidden in all of it. A sub-agent's steps don't change its agent's st
 
 ## Keep agents running after you close their tab
 
-Close a tab or pane running Claude Code and wtf asks:
+Close a tab or pane running Claude Code (or Codex) and wtf asks:
 
 - **Keep Running in Background**: it keeps working where you can't see it, with its shell and scrollback. The Agents tab lists it under **Background**, with its badge and notifications as before.
-- **End Claude Code**: it ends with the tab, as before.
+- **End Claude Code** (**End Codex**; **End Them** for a mix): it ends with the tab, as before.
 
-Tick **Don't ask again** to always do the same; **Settings** ({{mac:⌘,|other:Ctrl+,}}) → **General** → **Closing a tab running Claude Code**, or `agent-close` (`ask`, `background` or `end`) in `config.toml`, changes it back. Closing a whole window asks once for all its agents.
+Tick **Don't ask again** to always do the same; **Settings** ({{mac:⌘,|other:Ctrl+,}}) → **General** → **Closing a tab running Claude Code or Codex**, or `agent-close` (`ask`, `background` or `end`) in `config.toml`, changes it back. Closing a whole window asks once for all its agents.
 
 Background agents run while wtf does: quitting wtf ends them (it asks first, listing them), and offers them for resuming next time (see **After wtf quits** below). Closing the last window you can see, with agents in it or in the background, is quitting.
 
@@ -60,13 +60,13 @@ For each agent, in the Agents tab (the eye button, or right-click):
 
 - **Open in Tab** (or click the row): back into a tab of the window in front, scrollback and all.
 - **Peek and Reply…**: its screen as it is now (secrets hidden), updated every second, and a box to answer it: what you type is sent with {{mac:Return|other:Enter}}; **{{mac:Return|other:Enter}}** and **Esc** send just that key, for Claude Code's own prompts (Return accepts what its prompt has selected, Esc cancels). You see the screen and choose; wtf never answers for you.
-- **End Claude Code…**: ends it and its shell, after asking.
+- **End Claude Code…** (or **End Codex…**): ends it and its shell, after asking.
 
 ## After wtf quits
 
 Quitting wtf ends every Claude Code running in it, in tabs and in the background. Their conversations aren't lost: Claude Code keeps each one, and `claude --resume` picks it up where it stopped. wtf remembers which ones were running so you can bring them back with a click, and never resumes them on its own.
 
-- **A tab that ran Claude Code** comes back with your other tabs, with a bar at the top of its pane: *Claude Code was running here when wtf quit.* **Resume** types `claude --resume <its session>` into that shell (with a `cd` to the folder it started in, if the shell is elsewhere; a new tab if the shell is busy). **Dismiss** stops offering it. Until you choose, the bar comes back each time wtf restarts. Starting Claude Code in that shell yourself replaces the offer.
+- **A tab that ran Claude Code** comes back with your other tabs, with a bar at the top of its pane: *Claude Code was running here when wtf quit.* (or *Codex …*). **Resume** types `claude --resume <its session>` (`codex resume <its session>` for Codex) into that shell (with a `cd` to the folder it started in, if the shell is elsewhere; a new tab if the shell is busy). **Dismiss** stops offering it. Until you choose, the bar comes back each time wtf restarts. Starting Claude Code in that shell yourself replaces the offer.
 - **Agents running in the background** are listed in the Agents tab under **Resumable**: {{mac:**Resume in Tab**, **In Background**, or **Dismiss**|other:the play button resumes one in a tab; right-click for **Resume in Tab**, **Resume in Background** or **Dismiss**}}. With more than one, **Resume All…** lists them first, then resumes each in the background.
 
 A resumed agent gets back the name you gave it. A Codex agent resumes the same way, with `codex resume <its session>`. Agents whose conversation is gone (its transcript deleted from `~/.claude`, or `~/.codex` for Codex) or whose folder is gone aren't offered. Ask Claude panes aren't offered either: open Ask Claude again instead. This needs `agent-status` (on by default), which is how wtf learns each agent's session.
@@ -81,7 +81,7 @@ To run several agents on one repository without them editing the same files, giv
 
 - {{cmd:agents.pick}} lists the same agents in the command palette, most urgent first: needs you, then done, working and idle. Type to filter: `needs`, `done`, `working`, `idle`, or part of a name, tab title, folder, branch or prompt.
 - {{cmd:agents.next}} goes to the next agent that needs you, then to the next one that's done, round and round.
-- The tab strip shows a badge on every tab running Claude Code: {{mac:an orange speech bubble|other:an orange !}} needs you, {{mac:a green check|other:a green ✓}} done, {{mac:a sparkle|other:✦}} working, {{mac:a grey sparkle|other:a grey ✦}} idle.
+- The tab strip shows a badge on every tab running Claude Code or Codex: {{mac:an orange speech bubble|other:an orange !}} needs you, {{mac:a green check|other:a green ✓}} done, {{mac:a sparkle|other:✦}} working, {{mac:a grey sparkle|other:a grey ✦}} idle.
 - When one needs you or finishes and you're looking at something else (another tab, another window, another app), wtf shows a notification and plays a short sound: {{mac:*Glass* when it needs you, *Pop* when it finishes|other:your desktop's "new message" sound when it needs you, its "complete" sound when it finishes}}. Several at once make one sound. Turn the sound off with **Play a sound when an agent needs you or finishes** in **Settings** ({{mac:⌘,|other:Ctrl+,}}) → **General**, or `agent-sound = false` in `config.toml`.{{mac:|other: On Linux the notification daemon plays it (so Do Not Disturb applies); if it can't, wtf uses `canberra-gtk-play` when it's installed.}}
 - On macOS, the Dock icon shows how many need you.
 
@@ -98,7 +98,7 @@ wtf leaves `claude` alone when:
 
 - the command line has its own `--settings` or `--plugin-dir`;
 - your `.bashrc`, `.bash_profile` or `.zshrc` defines a `claude` alias or function (yours wins);
-- `agent-status = false` is set in `config.toml`, or **Show every claude you start in the Agents tab** is off in **Settings** ({{mac:⌘,|other:Ctrl+,}}) → **General**. This applies to new panes; only Ask Claude panes are listed then.
+- `agent-status = false` is set in `config.toml`, or **Show every claude or codex you start in the Agents tab** is off in **Settings** ({{mac:⌘,|other:Ctrl+,}}) → **General**. This applies to new panes; only Ask Claude panes are listed then.
 
 wtf leaves `codex` alone when your startup files define a `codex` alias or function, and when `agent-status` is off (the same setting covers both). Unlike `claude`, a `codex` with its own `--config` arguments still gets wtf's hooks added.
 

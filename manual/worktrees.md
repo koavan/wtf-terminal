@@ -36,7 +36,7 @@ wtf won't remove:
 
 - the repository's main checkout (the folder with `.git` in it);
 - a worktree locked with `git worktree lock` (unlock it first);
-- a worktree a Claude Code agent is working in. End it first (Agents tab → right-click → **End Claude Code…**).
+- a worktree a Claude Code or Codex agent is working in. End it first (Agents tab → right-click → **End Claude Code…** or **End Codex…**).
 
 A worktree whose folder you deleted yourself is shown as **folder gone**. Removing it runs `git worktree prune`, which only drops git's record of it (and of any other worktree whose folder is gone).
 

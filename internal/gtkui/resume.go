@@ -130,9 +130,9 @@ func (w *Window) showResumeBar(id int) {
 	if p.resumeBar != nil {
 		p.root.RemoveOverlay(p.resumeBar)
 	}
-	text := "Claude Code was running here when wtf quit."
+	text := productName(ag.Provider) + " was running here when wtf quit."
 	if ag.Name != "" {
-		text = "Claude Code “" + ag.Name + "” was running here when wtf quit."
+		text = productName(ag.Provider) + " “" + ag.Name + "” was running here when wtf quit."
 	}
 	bar := gtk.NewBox(gtk.OrientationHorizontal, 8)
 	bar.AddCSSClass("find-bar")

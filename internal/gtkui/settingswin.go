@@ -171,8 +171,8 @@ func (s *settingsWindow) generalPage() *adw.PreferencesPage {
 	claude.Add(auto)
 	agents := adw.NewSwitchRow()
 	agents.SetUseMarkup(false)
-	agents.SetTitle("Show every claude you start in the Agents tab")
-	agents.SetSubtitle("agent-status; wtf's shell integration adds hooks that report what it's doing, for that run only (nothing is written to ~/.claude); applies to new panes")
+	agents.SetTitle("Show every claude or codex you start in the Agents tab")
+	agents.SetSubtitle("agent-status; wtf's shell integration adds hooks that report what it's doing, for that run only (nothing is written to ~/.claude or ~/.codex); applies to new panes")
 	agents.SetActive(s.w.app.settings.config().AgentStatus)
 	agents.Connect("notify::active", func() {
 		on := agents.Active()
@@ -208,8 +208,8 @@ func (s *settingsWindow) generalPage() *adw.PreferencesPage {
 	claude.Add(sound)
 	group := adw.NewSwitchRow()
 	group.SetUseMarkup(false)
-	group.SetTitle("Group tabs running Claude Code under “ungrouped agents”")
-	group.SetSubtitle("agent-group; a tab not already in a group joins its window's “ungrouped agents” tab group when Claude Code starts in it, and leaves when it ends")
+	group.SetTitle("Group tabs running Claude Code or Codex under “ungrouped agents”")
+	group.SetSubtitle("agent-group; a tab not already in a group joins its window's “ungrouped agents” tab group when Claude Code or Codex starts in it, and leaves when it ends")
 	group.SetActive(s.w.app.settings.config().AgentGroup)
 	group.Connect("notify::active", func() {
 		on := group.Active()
@@ -225,7 +225,7 @@ func (s *settingsWindow) generalPage() *adw.PreferencesPage {
 	modes := []string{"ask", "background", "end"}
 	closing := adw.NewComboRow()
 	closing.SetUseMarkup(false)
-	closing.SetTitle("Closing a tab running Claude Code")
+	closing.SetTitle("Closing a tab running Claude Code or Codex")
 	closing.SetSubtitle("agent-close; background keeps it running (the Agents tab opens it again) until wtf quits")
 	closing.SetModel(gtk.NewStringList([]string{"Ask", "Keep running in background", "End it"}))
 	closing.SetSelected(uint(max(0, slices.Index(modes, s.w.app.settings.config().AgentClose))))

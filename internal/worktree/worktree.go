@@ -514,7 +514,7 @@ func (s *Service) refuse(w Worktree) error {
 	}
 	if s.Busy != nil {
 		if names := s.Busy(w.Path); len(names) > 0 {
-			return fmt.Errorf("Claude Code is working there (%s): end it first", strings.Join(names, ", "))
+			return fmt.Errorf("An agent is working there (%s): end it first", strings.Join(names, ", "))
 		}
 	}
 	return nil

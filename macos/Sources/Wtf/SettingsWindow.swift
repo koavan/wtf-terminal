@@ -214,17 +214,17 @@ final class SettingsWindow: NSObject, NSWindowDelegate, NSToolbarDelegate {
         auto.state = Settings.shared.config?.claudeAutoMode == true ? .on : .off
         auto.toolTip = "Applies to Claude panes opened from now on"
         content.addArrangedSubview(auto)
-        let agents = NSButton(checkboxWithTitle: "Show every claude you start in the Agents tab (agent-status)", target: self, action: #selector(toggleAgentStatus(_:)))
+        let agents = NSButton(checkboxWithTitle: "Show every claude or codex you start in the Agents tab (agent-status)", target: self, action: #selector(toggleAgentStatus(_:)))
         agents.state = Settings.shared.config?.agentStatus == false ? .off : .on
-        agents.toolTip = "wtf's shell integration adds hooks that report what claude is doing, for that run only; nothing is written to ~/.claude. Applies to new panes"
+        agents.toolTip = "wtf's shell integration adds hooks that report what claude or codex is doing, for that run only; nothing is written to ~/.claude or ~/.codex. Applies to new panes"
         content.addArrangedSubview(agents)
         let sound = NSButton(checkboxWithTitle: "Play a sound when an agent needs you or finishes (agent-sound)", target: self, action: #selector(toggleAgentSound(_:)))
         sound.state = Settings.shared.config?.agentSound == false ? .off : .on
         sound.toolTip = "With its notification: Glass when it needs you, Pop when it finishes"
         content.addArrangedSubview(sound)
-        let group = NSButton(checkboxWithTitle: "Group tabs running Claude Code under “ungrouped agents” (agent-group)", target: self, action: #selector(toggleAgentGroup(_:)))
+        let group = NSButton(checkboxWithTitle: "Group tabs running Claude Code or Codex under “ungrouped agents” (agent-group)", target: self, action: #selector(toggleAgentGroup(_:)))
         group.state = Settings.shared.config?.agentGroup == false ? .off : .on
-        group.toolTip = "A tab not already in a group joins its window's “ungrouped agents” tab group when Claude Code starts in it, and leaves when it ends"
+        group.toolTip = "A tab not already in a group joins its window's “ungrouped agents” tab group when Claude Code or Codex starts in it, and leaves when it ends"
         content.addArrangedSubview(group)
         let closing = NSPopUpButton()
         closing.addItems(withTitles: ["Ask", "Keep running in background", "End it"])
@@ -232,7 +232,7 @@ final class SettingsWindow: NSObject, NSWindowDelegate, NSToolbarDelegate {
         closing.target = self
         closing.action = #selector(changeAgentClose(_:))
         closing.toolTip = "agent-close; background keeps it running (the Agents tab opens it again) until wtf quits"
-        let closingRow = NSStackView(views: [NSTextField(labelWithString: "Closing a tab running Claude Code:"), closing])
+        let closingRow = NSStackView(views: [NSTextField(labelWithString: "Closing a tab running Claude Code or Codex:"), closing])
         content.addArrangedSubview(closingRow)
     }
 

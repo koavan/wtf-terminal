@@ -46,6 +46,7 @@ extension WindowController {
     /// Moves panes to the background window, their shells still running.
     /// The last window you can see keeps a fresh tab rather than closing.
     func park(_ ids: [Int]) {
+        let product = Agents.product(sessions: ids.compactMap { model.panes[$0]?.sessionId })
         for id in ids {
             guard let term = terminals[id], let s = model.panes[id]?.sessionId else { continue }
             if model.tabs.count == 1, model.tabOf(pane: id)?.root.leaves.count == 1, WindowManager.shared.visibleWindows.count == 1 {
@@ -56,8 +57,12 @@ extension WindowController {
             WindowManager.shared.park(payload, terminals: [s: term])
         }
         if !ids.isEmpty {
-            Toast.show(ids.count == 1 ? "Claude Code keeps running in the background: the Agents tab opens it again"
-                : "Claude Code sessions keep running in the background: the Agents tab opens them again", in: rootView)
+            let text = switch (product, ids.count) {
+            case let (p?, 1): p + " keeps running in the background: the Agents tab opens it again"
+            case let (p?, _): p + " sessions keep running in the background: the Agents tab opens them again"
+            case (nil, _): "The agents keep running in the background: the Agents tab opens them again"
+            }
+            Toast.show(text, in: rootView)
         }
     }
 
@@ -76,14 +81,15 @@ extension WindowController {
             let title = model.tabOf(pane: id).map { model.title($0) } ?? s
             return Redaction.shared.text(title) + " — " + (Agents.state(session: s)?.label.lowercased() ?? "running")
         } + (agents.count > 6 ? ["and \(agents.count - 6) more"] : [])
+        let product = Agents.product(sessions: agents.compactMap { model.panes[$0]?.sessionId })
         let alert = NSAlert()
-        alert.messageText = "Keep Claude Code running?"
-        alert.informativeText = (agents.count == 1
-            ? "Claude Code runs in what you're closing. It can keep running in the background: the Agents tab shows it and opens it again. It ends when wtf quits."
-            : "\(agents.count) Claude Code sessions run in what you're closing. They can keep running in the background: the Agents tab shows them and opens them again. They end when wtf quits.")
+        alert.messageText = product.map { "Keep \($0) running?" } ?? "Keep the agents running?"
+        alert.informativeText = Agents.run(product, count: agents.count) + (agents.count == 1
+            ? " in what you're closing. It can keep running in the background: the Agents tab shows it and opens it again. It ends when wtf quits."
+            : " in what you're closing. They can keep running in the background: the Agents tab shows them and opens them again. They end when wtf quits.")
             + "\n\n" + lines.joined(separator: "\n")
         alert.addButton(withTitle: "Keep Running in Background")
-        alert.addButton(withTitle: "End Claude Code")
+        alert.addButton(withTitle: product.map { "End \($0)" } ?? "End Them")
         alert.addButton(withTitle: "Cancel")
         alert.buttons[1].hasDestructiveAction = true
         alert.showsSuppressionButton = true
@@ -169,7 +175,7 @@ enum Background {
     static func end(_ session: String, from parent: NSWindow?) {
         guard let (w, p) = Agents.find(session) else { return }
         let alert = NSAlert()
-        alert.messageText = "End this Claude Code?"
+        alert.messageText = "End this \(Agents.product(session: session))?"
         let title = w.model.tabOf(pane: p.id).map { w.model.title($0) } ?? session
         alert.informativeText = Redaction.shared.text(title) + "\n\nIts shell closes too."
         alert.addButton(withTitle: "End")
@@ -204,17 +210,20 @@ final class PeekWindow: NSObject, NSWindowDelegate {
     let screen = NSTextView()
     let reply = NSTextField()
     private let state = NSTextField(labelWithString: "")
+    /// Claude Code or Codex, named when the panel opens.
+    private let product: String
     private var timer: Timer?
 
     init(session: String) {
         self.session = session
+        product = Agents.product(session: session)
         panel = NSPanel(contentRect: NSRect(x: 0, y: 0, width: 760, height: 520), styleMask: [.titled, .closable, .resizable, .utilityWindow],
                         backing: .buffered, defer: false)
         super.init()
         panel.isReleasedWhenClosed = false
         panel.delegate = self
         let title = Agents.find(session).flatMap { w, p in w.model.tabOf(pane: p.id).map { w.model.title($0) } } ?? session
-        panel.title = "Claude Code — " + Redaction.shared.text(title)
+        panel.title = product + " — " + Redaction.shared.text(title)
 
         screen.isEditable = false
         screen.isSelectable = true
@@ -226,7 +235,7 @@ final class PeekWindow: NSObject, NSWindowDelegate {
         screen.autoresizingMask = [.width]
         state.textColor = .secondaryLabelColor
         state.lineBreakMode = .byTruncatingTail
-        reply.placeholderString = "Reply to Claude Code (sent with Return)"
+        reply.placeholderString = "Reply to \(product) (sent with Return)"
         reply.target = self
         reply.action = #selector(sendReply)
         func button(_ title: String, _ tip: String, _ run: @escaping () -> Void) -> NSButton {
@@ -235,9 +244,9 @@ final class PeekWindow: NSObject, NSWindowDelegate {
             return b
         }
         let replyRow = NSStackView(views: [reply,
-                                           button("Send", "Type it in Claude Code, then Return") { [weak self] in self?.sendReply() },
-                                           button("Return", "Press Return in Claude Code (accepts what its prompt has selected)") { [weak self] in self?.send("\r") },
-                                           button("Esc", "Press Esc in Claude Code (cancels its prompt or stops it)") { [weak self] in self?.send("\u{1b}") }])
+                                           button("Send", "Type it in \(product), then Return") { [weak self] in self?.sendReply() },
+                                           button("Return", "Press Return in \(product) (accepts what its prompt has selected)") { [weak self] in self?.send("\r") },
+                                           button("Esc", "Press Esc in \(product) (cancels its prompt or stops it)") { [weak self] in self?.send("\u{1b}") }])
         reply.setContentHuggingPriority(.init(1), for: .horizontal)
         let actions = NSStackView(views: [
             button("Open in Tab", "Show it in a tab") { [weak self] in
@@ -245,7 +254,7 @@ final class PeekWindow: NSObject, NSWindowDelegate {
                 panel.close()
                 Agents.go(to: session)
             },
-            button("End…", "End this Claude Code and its shell") { [weak self] in Background.end(session, from: self?.panel) },
+            button("End…", "End this \(product) and its shell") { [weak self] in Background.end(session, from: self?.panel) },
         ])
         let stack = NSStackView(views: [state, scroll, replyRow, actions])
         stack.orientation = .vertical
@@ -281,7 +290,7 @@ final class PeekWindow: NSObject, NSWindowDelegate {
 
     private func refresh() {
         guard let (w, p) = Agents.find(session), let t = w.terminals[p.id] else {
-            state.stringValue = "It's gone: Claude Code quit or its shell closed."
+            state.stringValue = "It's gone: \(product) quit or its shell closed."
             timer?.invalidate()
             return
         }

@@ -22,7 +22,7 @@ The tab uses the focused shell's PATH: tabs opened before an update of wtf may n
 
 The [Agents](#agents) tab learns about a `claude` or `codex` you start yourself through [shell integration](#shell-integration), in shells opened after it was turned on. Check that:
 
-- **Show every claude you start in the Agents tab** is on in **Settings** → **General** (`agent-status` in `config.toml`), then open a new tab: it applies to new shells.
+- **Show every claude or codex you start in the Agents tab** is on in **Settings** → **General** (`agent-status` in `config.toml`), then open a new tab: it applies to new shells.
 - Your `.bashrc`, `.bash_profile` or `.zshrc` doesn't define a `claude` or `codex` alias or function: yours wins, and wtf leaves it alone.
 - The `claude` command line has no `--settings` or `--plugin-dir` of its own.
 - It isn't running inside tmux, or over SSH: its hooks run there, not in wtf's shell.

@@ -54,7 +54,27 @@ enum Agents {
 
     static func state(session: String) -> AgentState? { all[session].map(state) }
 
-    static func product(_ st: Go.bridge.Status) -> String { st.provider == "codex" ? "Codex" : "Claude Code" }
+    static func product(_ st: Go.bridge.Status) -> String { product(provider: st.provider) }
+
+    /// Names an agent's provider: Codex, else Claude Code.
+    static func product(provider: String) -> String { provider == "codex" ? "Codex" : "Claude Code" }
+
+    /// Names the agent in a session (Claude Code when unknown).
+    static func product(session: String) -> String { all[session].map(product) ?? "Claude Code" }
+
+    /// Names what runs in sessions: Claude Code or Codex when they're all
+    /// one, nil when they're mixed.
+    static func product(sessions: [String]) -> String? {
+        let names = Set(sessions.map { product(session: $0) })
+        return names.count > 1 ? nil : names.first ?? "Claude Code"
+    }
+
+    /// "Codex runs", "2 Claude Code sessions run" or, mixed, "3 agents
+    /// (Claude Code and Codex) run".
+    static func run(_ product: String?, count n: Int) -> String {
+        guard let product else { return "\(n) agents (Claude Code and Codex) run" }
+        return n == 1 ? product + " runs" : "\(n) \(product) sessions run"
+    }
 
     /// The badge for a tab: its most urgent agent.
     static func state(tab: Int, in w: WindowController) -> AgentState? {
