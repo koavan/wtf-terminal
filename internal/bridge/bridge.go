@@ -136,6 +136,9 @@ type Status struct {
 	ClaudeSession string `json:"claudeSession"`
 	Project       string `json:"project"`
 	Transcript    string `json:"transcript"`
+	// The permission prompts it's waiting on, oldest first (#39): answer
+	// them in the pane or with Answer.
+	Approvals []Approval `json:"approvals"`
 }
 
 // maxName is how long an agent's name can be.
@@ -145,13 +148,13 @@ const maxName = 60
 const maxPrompt = 160
 
 var hookStates = map[string]string{
-	"SessionStart": StateIdle, "Stop": StateIdle, "UserPromptSubmit": StateBusy, "PostToolUse": StateBusy,
+	"SessionStart": StateIdle, "Stop": StateIdle, "UserPromptSubmit": StateBusy, "PostToolUse": StateBusy, "PostToolUseFailure": StateBusy,
 	"Notification": StateWaiting, "PermissionRequest": StateWaiting, "Interrupt": StateIdle, "SessionEnd": StateEnded,
 }
 
-// Codex names these lifecycle points differently from Claude Code. They
-// belong in the shared state machine, but not in Claude's bundled hooks.
-var codexOnlyHookEvents = map[string]bool{"PermissionRequest": true, "Interrupt": true}
+// Codex names this lifecycle point differently from Claude Code. It
+// belongs in the shared state machine, but not in Claude's bundled hooks.
+var codexOnlyHookEvents = map[string]bool{"Interrupt": true}
 
 // EnvAuto, set on a Claude pane's claude when claude-auto-mode is on, makes
 // the plugin's PreToolUse hook leave commands to Claude Code's own
@@ -218,6 +221,8 @@ type Service struct {
 	agents map[string]*Status
 	// Session → the name you gave its agent, kept until its shell closes.
 	names map[string]string
+	// Approval id → the PermissionRequest hook waiting for its answer (#39).
+	waits map[string]*waiter
 	// The status-only settings for claude (claude-plugin/status-settings.json);
 	// "" without the plugin.
 	statusSettings string
@@ -239,7 +244,7 @@ type Service struct {
 
 func NewService(in *infra.Service) *Service {
 	s := &Service{infra: in, pending: map[string]chan Reply{}, targets: map[string]string{}, agents: map[string]*Status{}, names: map[string]string{},
-		branchOf: worktree.BranchOf}
+		waits: map[string]*waiter{}, branchOf: worktree.BranchOf}
 	// Next to the app (macOS: Contents/MacOS; a Linux dev build), or where
 	// the Linux packages put it (/usr/bin/wtf → /usr/lib/wtf/wtf-mcp).
 	if exe, err := os.Executable(); err == nil {
@@ -585,6 +590,7 @@ func (s *Service) AgentsIn(dir string) []string {
 // Forget drops session's Claude Code: its shell closed, or is back at its
 // prompt (a claude killed before its SessionEnd hook).
 func (s *Service) Forget(session string) {
+	s.settleApprovals(wire.Request{Pane: session, Event: "SessionEnd"})
 	if st, ok := s.setState(session, "", StateEnded, "", "", false, 0); ok {
 		events.Emit(EventStatus, st)
 	}
@@ -681,8 +687,17 @@ func (s *Service) handle(c net.Conn) {
 	if err := json.Unmarshal(line, &req); err != nil {
 		resp.Error = "bad request"
 	} else {
+		// The helper sends nothing more: a read that ends means it's gone
+		// (Claude Code killed a waiting PermissionRequest hook).
 		c.SetReadDeadline(time.Time{})
-		resp = s.do(context.Background(), req)
+		ctx, cancel := context.WithCancel(context.Background())
+		go func() {
+			var b [1]byte
+			c.Read(b[:])
+			cancel()
+		}()
+		resp = s.do(ctx, req)
+		cancel()
 	}
 	out, _ := json.Marshal(resp)
 	c.SetWriteDeadline(time.Now().Add(ioTimeout))
@@ -706,7 +721,15 @@ func (s *Service) do(ctx context.Context, req wire.Request) wire.Response {
 			return wire.Response{Text: err.Error(), IsError: true}
 		}
 		return wire.Response{Text: text}
+	case "facts":
+		return wire.Response{Text: s.facts(ctx, req)}
 	case "hook":
+		// A permission prompt (#39): listed in the inbox until it's
+		// answered, there or in the pane. Codex's is its own (phase 3).
+		if req.Event == "PermissionRequest" && req.Provider != "codex" {
+			return s.awaitApproval(ctx, req)
+		}
+		s.settleApprovals(req)
 		// From inside a sub-agent, or about one: its parent's state stays.
 		if req.AgentID != "" || subagentEvents[req.Event] {
 			if st, ok := s.subagentHook(req.Pane, req); ok {

@@ -47,6 +47,24 @@ type sideRow struct {
 	// A letter at the end (git status), or a dot there (a CSS class).
 	letter   string
 	trailDot string
+	// More lines under the rest, wrapped (an approval's command, #39), and
+	// text buttons under them.
+	more    []sideText
+	actions []sideAction
+}
+
+// sideText is a wrapped line of a row, with CSS classes.
+type sideText struct {
+	text    string
+	classes []string
+}
+
+// sideAction is a small text button under a row.
+type sideAction struct {
+	label, tip string
+	// The suggested action (bold).
+	key bool
+	run func()
 }
 
 type sideSection struct {
@@ -357,6 +375,30 @@ func sideRowWidget(r sideRow) *gtk.Box {
 		a := wrapLabel(r.alert, class)
 		a.AddCSSClass("wtf-side-detail")
 		lines.Append(a)
+	}
+	for _, m := range r.more {
+		t := wrapLabel(m.text, "wtf-side-detail")
+		for _, c := range m.classes {
+			t.AddCSSClass(c)
+		}
+		t.SetSelectable(true)
+		lines.Append(t)
+	}
+	if len(r.actions) > 0 {
+		row := gtk.NewBox(gtk.OrientationHorizontal, 4)
+		row.SetMarginTop(3)
+		for _, a := range r.actions {
+			b := gtk.NewButtonWithLabel(a.label)
+			b.AddCSSClass("wtf-side-action")
+			if a.key {
+				b.AddCSSClass("suggested-action")
+			}
+			b.SetTooltipText(a.tip)
+			b.SetFocusOnClick(false)
+			b.ConnectClicked(a.run)
+			row.Append(b)
+		}
+		lines.Append(row)
 	}
 	box.Append(lines)
 	for _, p := range r.pills {

@@ -8,6 +8,8 @@ import (
 	"strings"
 	"time"
 
+	coreglib "github.com/diamondburned/gotk4/pkg/core/glib"
+
 	"github.com/dayanraj/wtf/internal/bridge"
 	"github.com/dayanraj/wtf/internal/notify"
 	"github.com/dayanraj/wtf/internal/state"
@@ -171,6 +173,57 @@ func (l *agentList) sorted() []bridge.Status {
 		return 1
 	})
 	return out
+}
+
+// approval is one permission prompt with the agent asking (#39).
+type approval struct {
+	st bridge.Status
+	ap bridge.Approval
+}
+
+// approvals: every permission prompt waiting, oldest first.
+func (l *agentList) approvals() []approval {
+	var out []approval
+	for _, st := range l.all {
+		for _, ap := range st.Approvals {
+			out = append(out, approval{st, ap})
+		}
+	}
+	slices.SortFunc(out, func(a, b approval) int {
+		if a.ap.Since != b.ap.Since {
+			if a.ap.Since < b.ap.Since {
+				return -1
+			}
+			return 1
+		}
+		return strings.Compare(a.ap.ID, b.ap.ID)
+	})
+	return out
+}
+
+// toolName is a tool as the inbox names it: wtf's own by what they do.
+func toolName(tool string) string {
+	switch tool {
+	case "mcp__plugin_wtf_wtf__type_at_prompt":
+		return "Type at your prompt"
+	case "mcp__plugin_wtf_wtf__run_readonly":
+		return "Run read-only"
+	}
+	if strings.HasPrefix(tool, "mcp__") {
+		return tool[strings.LastIndex(tool, "__")+2:]
+	}
+	return tool
+}
+
+// answerApproval answers a permission prompt from the inbox; one answered
+// in the pane meanwhile says so.
+func (w *Window) answerApproval(id, decision string) {
+	b := w.app.be.Bridge
+	go func() {
+		if err := b.Answer(id, decision); err != nil {
+			coreglib.IdleAdd(func() { w.toast("Already answered in the pane") })
+		}
+	}()
 }
 
 // agentGroupName is the tab group agents' tabs join (agent-group).
@@ -392,7 +445,15 @@ func (a *App) agentStatus(st bridge.Status) {
 		return
 	}
 	now := agentState(st)
-	if had && agentState(old) == now {
+	// #39: a new permission prompt says what it asks and where.
+	var ask *bridge.Approval
+	for i, ap := range st.Approvals {
+		if !slices.ContainsFunc(old.Approvals, func(o bridge.Approval) bool { return o.ID == ap.ID }) {
+			ask = &st.Approvals[i]
+			break
+		}
+	}
+	if had && agentState(old) == now && ask == nil {
 		return
 	}
 	ps := w.model.PaneBySession(st.Session)
@@ -411,6 +472,9 @@ func (a *App) agentStatus(st bridge.Status) {
 	switch now {
 	case bridge.StateWaiting:
 		head, body, sound = agentProduct(st)+" needs you", a.settings.text(st.Message), notify.SoundAttention
+		if ask != nil {
+			body = a.settings.text(strings.Join(append([]string{toolName(ask.Tool) + ": " + ask.What}, ask.Facts...), "\n"))
+		}
 	case agentDone:
 		head, body, sound = agentProduct(st)+" finished", a.settings.text(st.Prompt), notify.SoundComplete
 	default:

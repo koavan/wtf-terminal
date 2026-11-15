@@ -20,6 +20,39 @@ Agents are listed in the order they started, and a row stays where it is whateve
 
 A `codex` you start in a wtf shell is an agent like a Claude Code: it gets a row (marked **Codex** in {{cmd:agents.pick}} and in its notifications), a tab badge, a name, the **ungrouped agents** tab group, the choice to keep it running in the background when you close its tab, and a **Resume** after wtf quits (with `codex resume`). Its dialogs and menus name it **Codex** where they say **Claude Code** below. What's only for Claude Code: [Ask Claude](#ask-claude) and its plugin, {{cmd:agents.start}}, and starting an agent from [New Worktree…](#worktrees). See **How wtf knows** below for how Codex is hooked up.
 
+## Approvals
+
+When Claude Code asks your permission (to run a command, change a file, or use a tool), the request shows at the top of the Agents tab under **Approvals**, from every window and the background, oldest first. You don't have to find the agent's tab to answer it. Each one shows:
+
+- which agent asks (and which of its sub-agents, if one does);
+- the tool, with Claude Code's description of the command;
+- the command it would run, or the file it would change, with the lines an edit removes and adds;
+- **where the command would act** (see below);
+- **Allow**, **Deny** and **Go to Agent**.
+
+**Allow** is **Yes** in Claude Code's own dialog: it runs this once. **Deny** is **No**: Claude Code doesn't run it and stops its turn, waiting for you. For the dialog's other choices (allow always, or tell Claude what to do instead), **Go to Agent**. Claude Code's dialog stays open in its pane while the request is in the Approvals list, and whichever you answer first applies; the other goes away.
+
+The agent's notification shows the command and where it would act, so you can tell from the notification alone whether you need to look.
+
+Only Claude Code's own permission prompts show here: wtf doesn't add any. A claude you start yourself asks exactly what it asked before, under its own permission mode; wtf only shows the same request in a second place. Codex's approvals show as **Needs you** on its row, to answer in its pane.
+
+### Where a command would act
+
+For commands that act on infrastructure, the request lists where they would run, as facts from what wtf already knows about the agent's shell (the same as its [context badges](#context-badges)):
+
+| Command | Shows |
+|---|---|
+| `kubectl`, `oc`, `helm` | the context, its cluster and the namespace |
+| `aws`, `sam`, `cdk` | the profile, account and region |
+| `gcloud`, `gsutil`, `bq` | the project |
+| `terraform`, `tofu`, `terragrunt` | the folder and the workspace |
+| `ssh` | the host, and the jump host |
+| `git push` | the branch, where it pushes, and whether it forces |
+
+What the command says wins over the shell, and each fact says where it came from: `kubectl: context prod-eks (from --context), namespace payments (from -n)`. wtf follows `--context`, `--kube-context`, `--kubeconfig`, `-n`, `-A`, `--profile`, `--region`, `--project`, `--configuration`, `-chdir=`, `NAME=value` before a command, `export`, `cd … &&`, `env`, `sudo`, `aws-vault exec`, `kubectl config use-context` and `sh -c '…'`. When the command sets one in a way wtf can't read (a variable, `$(…)`, `eval`), it says *not known from this command* rather than showing the shell's.
+
+These are facts, not warnings: wtf doesn't label a context as production or dangerous. Nothing is asked of a cloud to work them out, except the AWS account, which wtf looks up the way the AWS badge does when a profile's files don't say. Secrets are hidden in all of it.
+
 ## The ungrouped agents tab group
 
 Every tab running Claude Code joins its window's **ungrouped agents** [tab group](#tabs), so your agents sit together in the tab strip. wtf makes the group, in the next free colour, when the first agent starts, and a tab leaves it when its Claude Code ends (unless another agent runs in one of its panes). The group goes when its last tab leaves. A tab that was already in another group stays in it. Agents kept running in the background aren't in a window's tabs, so they're left out until you open them in a tab again. An agent goes back into the group its tab was in when it went to the background (made again if it's gone), and only joins **ungrouped agents** if it wasn't in one.
@@ -87,7 +120,7 @@ To run several agents on one repository without them editing the same files, giv
 
 ## How wtf knows
 
-Claude Code reports what it's doing through hooks: small commands it runs when you send a prompt, when it needs your approval, when it finishes, when it starts or finishes a sub-agent, after each tool call and when it quits. wtf never reads the screen to guess.
+Claude Code reports what it's doing through hooks: small commands it runs when you send a prompt, when it needs your approval (its `PermissionRequest` hook, which also carries the request to the Approvals list and your answer back), when it finishes, when it starts or finishes a sub-agent, after each tool call and when it quits. wtf never reads the screen to guess.
 
 Codex reports through its matching lifecycle hooks. The shell integration adds wtf's command hooks to that `codex` run with temporary `--config` arguments, so nothing is written to `~/.codex`. Its session, prompt, approvals, completion, interrupts, tool calls and sub-agents use the same rows and badges; saved Codex conversations resume with `codex resume`.
 

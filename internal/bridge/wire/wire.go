@@ -76,6 +76,20 @@ type ToolInput struct {
 	Query        string `json:"query,omitempty"`
 	// SubagentHandback: a sub-agent's final report.
 	Message string `json:"message,omitempty"`
+	// PermissionRequest only (the helper leaves them out of other events):
+	// the change an Edit, MultiEdit or Write asks to make, and the argv
+	// of wtf's run_readonly.
+	OldString string     `json:"old_string,omitempty"`
+	NewString string     `json:"new_string,omitempty"`
+	Content   string     `json:"content,omitempty"`
+	Edits     []EditPair `json:"edits,omitempty"`
+	Argv      []string   `json:"argv,omitempty"`
+}
+
+// EditPair is one change of a MultiEdit.
+type EditPair struct {
+	OldString string `json:"old_string"`
+	NewString string `json:"new_string"`
 }
 
 // Response is the app's answer.
@@ -86,6 +100,10 @@ type Response struct {
 	IsError bool   `json:"isError,omitempty"`
 	// The request itself failed (bad token, unknown op).
 	Error string `json:"error,omitempty"`
+	// A PermissionRequest hook: "allow" or "deny" when you answered in
+	// wtf's Approvals inbox (#39); "" when it was answered in the pane, so
+	// the hook says nothing.
+	Decision string `json:"decision,omitempty"`
 }
 
 // Tool is one MCP tool as the helper registers it.

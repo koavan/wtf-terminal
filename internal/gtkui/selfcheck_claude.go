@@ -23,7 +23,7 @@ d=%DIR%
 echo "$*" > $d/args
 h() { printf '%s' "$1" | "$WTF_MCP" hook; }
 h '{"hook_event_name":"SessionStart"}'
-h '{"hook_event_name":"PreToolUse","tool_name":"Bash"}' > $d/pre.tmp && mv $d/pre.tmp $d/pre
+h '{"hook_event_name":"PreToolUse","tool_name":"Bash","cwd":"/tmp","tool_input":{"command":"kubectl --context wtf-check-ctx get pods"}}' > $d/pre.tmp && mv $d/pre.tmp $d/pre
 (printf '%s\n' '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-06-18","capabilities":{},"clientInfo":{"name":"check","version":"1"}}}' \
 	'{"jsonrpc":"2.0","method":"notifications/initialized"}' \
 	'{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"recent_commands","arguments":{"count":5}}}'; sleep 3) | "$WTF_MCP" > $d/mcp.out 2> $d/mcp.err
@@ -102,6 +102,9 @@ func (w *Window) checkClaude() {
 	check(mapped == targetSession && targetSession != "", "its tools work on the shell it came from (%s → %s)", claudeSession, mapped)
 	check(waitUntil(10*time.Second, func() bool { return exists("pre") }) && strings.Contains(read("pre"), `"permissionDecision":"ask"`),
 		"the plugin asks before Bash: %q", read("pre"))
+	// #40: and says where the command would act, in Claude Code's dialog.
+	check(strings.Contains(read("pre"), `Where it acts:\nkubectl: context wtf-check-ctx, which isn't in the kubeconfig files (from --context)`),
+		"with where it would act: %q", read("pre"))
 
 	check(waitUntil(20*time.Second, func() bool { return exists("waiting") }), "the hooks ran")
 	out := read("mcp.out")
@@ -286,6 +289,12 @@ touch $d/done
 while [ ! -e $d/substop ]; do sleep 0.1; done
 h '{"hook_event_name":"SubagentStop","agent_id":"a1","agent_type":"Explore","last_assistant_message":"It is TestDeploy."}'
 touch $d/substopped
+# #39: a permission prompt, answered from the inbox.
+while [ ! -e $d/ask ]; do sleep 0.1; done
+h '{"hook_event_name":"UserPromptSubmit","prompt":"restart the api"}'
+h '{"hook_event_name":"PermissionRequest","cwd":"/tmp","tool_name":"Bash","tool_input":{"command":"kubectl --context wtf-check-ctx -n shop rollout restart deploy/api","description":"Restart the api"}}' > $d/answer.tmp
+mv $d/answer.tmp $d/answer
+h '{"hook_event_name":"Stop"}'
 while [ ! -e $d/quit ]; do sleep 0.1; done
 `
 
@@ -393,6 +402,44 @@ func (w *Window) checkAgents() {
 	})
 	ids = tabIDs()
 	check(slices.Equal(ids, []string{session, "subs:" + session}), "another click hides them: %q", ids)
+
+	// #39, #40: a permission prompt in the inbox, with where the command
+	// would act; its Allow answers the waiting hook.
+	_ = os.WriteFile(dir+"/ask", nil, 0o644)
+	var aps []bridge.Approval
+	check(waitUntil(10*time.Second, func() bool {
+		onMain(func() { aps = a.agents.all[session].Approvals })
+		return len(aps) == 1
+	}), "a permission prompt shows in the inbox")
+	if len(aps) == 1 {
+		ap := aps[0]
+		check(ap.Tool == "Bash" && ap.What == "kubectl --context wtf-check-ctx -n shop rollout restart deploy/api" && ap.Description == "Restart the api",
+			"with its command: %+v", ap)
+		check(slices.Equal(ap.Facts, []string{"kubectl: context wtf-check-ctx, which isn't in the kubeconfig files (from --context)"}),
+			"and where it would act: %q", ap.Facts)
+		check(badge() == bridge.StateWaiting, "its tab shows it needs you: %q", badge())
+		askID := "ask:" + session + ":" + ap.ID
+		ids = tabIDs()
+		check(len(ids) > 0 && ids[0] == askID, "the Agents tab lists it first: %q", ids)
+		w.shot("agents-approval")
+		var rows []sideRow
+		onMain(func() {
+			if t, ok := w.sidePane().(*agentsTab); ok {
+				rows = t.approvalRows()
+			}
+		})
+		check(len(rows) == 1 && len(rows[0].actions) == 3 && rows[0].actions[0].label == "Allow", "with Allow, Deny and Go to Agent")
+		if len(rows) == 1 && len(rows[0].actions) > 0 {
+			onMain(rows[0].actions[0].run)
+		}
+		check(waitUntil(5*time.Second, func() bool { return exists("answer") }), "Allow answers the hook")
+		check(read("answer") == `{"hookSpecificOutput":{"decision":{"behavior":"allow"},"hookEventName":"PermissionRequest"}}`, "with allow: %q", read("answer"))
+		check(waitUntil(5*time.Second, func() bool {
+			onMain(func() { aps = a.agents.all[session].Approvals })
+			return len(aps) == 0 && badge() != bridge.StateWaiting
+		}), "and it leaves the inbox: %q", badge())
+		go a.be.Bridge.Seen(session)
+	}
 
 	// A name you give it: the Agents tab and the picker show it.
 	onMain(func() { a.renameAgentTab(session, "", "deploy fixer") })

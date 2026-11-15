@@ -140,6 +140,26 @@ type kubeconfig struct {
 // sets current-context wins, and so does the first definition of a context
 // or user.
 func (s *Service) kube(env map[string]string, c *Context) {
+	configs := s.kubeconfigs(env)
+	ctx := ""
+	for _, f := range configs {
+		if ctx = f.CurrentContext; ctx != "" {
+			break
+		}
+	}
+	if ctx == "" {
+		return
+	}
+	c.KubeContext = ctx
+	if cluster, ns, user, ok := kubeContext(configs, ctx); ok {
+		c.KubeCluster, c.KubeNamespace = cluster, ns
+		c.Expiries = append(c.Expiries, s.kubeUserExpiries(configs, user)...)
+	}
+}
+
+// kubeconfigs are the files $KUBECONFIG names (else ~/.kube/config) that
+// could be read, in order.
+func (s *Service) kubeconfigs(env map[string]string) []kubeconfig {
 	var paths []string
 	if list, ok := env["KUBECONFIG"]; ok && list != "" {
 		for _, p := range filepath.SplitList(list) {
@@ -150,30 +170,33 @@ func (s *Service) kube(env map[string]string, c *Context) {
 	} else if s.home != "" {
 		paths = []string{filepath.Join(s.home, ".kube", "config")}
 	}
-
 	var configs []kubeconfig
-	ctx := ""
 	for _, p := range paths {
 		if f, ok := s.load(p, kubeFormat); ok {
 			configs = append(configs, f.kube)
-			if ctx == "" {
-				ctx = f.kube.CurrentContext
-			}
 		}
 	}
-	if ctx == "" {
-		return
-	}
-	c.KubeContext = ctx
+	return configs
+}
+
+// kubeContext is a context's definition: the first one with that name.
+func kubeContext(configs []kubeconfig, name string) (cluster, namespace, user string, ok bool) {
 	for _, f := range configs {
 		for _, def := range f.Contexts {
-			if def.Name == ctx {
-				c.KubeCluster, c.KubeNamespace = def.Context.Cluster, def.Context.Namespace
-				c.Expiries = append(c.Expiries, s.kubeUserExpiries(configs, def.Context.User)...)
-				return
+			if def.Name == name {
+				return def.Context.Cluster, def.Context.Namespace, def.Context.User, true
 			}
 		}
 	}
+	return "", "", "", false
+}
+
+// KubeContext looks up a context by name in the shell's kubeconfig files
+// (a command's --context): its cluster and namespace, and whether it's
+// defined at all.
+func (s *Service) KubeContext(env map[string]string, name string) (cluster, namespace string, ok bool) {
+	cluster, namespace, _, ok = kubeContext(s.kubeconfigs(env), name)
+	return cluster, namespace, ok
 }
 
 // ── AWS ──────────────────────────────────────────────────────────────────

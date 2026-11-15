@@ -19,6 +19,11 @@ import (
 func init() {
 	registerSidebarTab(sidebarTabInfo{tab: uicore.SidebarAgents, label: "Agents", icon: "view-list-bullet-symbolic", cmd: "sidebar.agents",
 		make: func(w *Window) sidePaneTab { return newAgentsTab(w) }})
+	extraCSS = append(extraCSS, `
+.wtf-side-action { min-height: 22px; padding: 0 8px; font-size: 0.9em; }
+.wtf-approval-diff-del { color: @error_color; }
+.wtf-approval-diff-add { color: @success_color; }
+`)
 }
 
 // agentsTab is the Agents tab (#33): every Claude Code in wtf's shells,
@@ -46,7 +51,7 @@ func newAgentsTab(w *Window) *agentsTab {
 	t.list.onClick = t.activate
 	t.list.onActivate = t.activate
 	t.list.onDoubleClick = func(id string) {
-		if strings.HasPrefix(id, "resume") {
+		if strings.HasPrefix(id, "resume") || strings.HasPrefix(id, "ask:") {
 			return
 		}
 		if session, toggle := agentRowSession(id); !toggle && id == session {
@@ -54,6 +59,16 @@ func newAgentsTab(w *Window) *agentsTab {
 		}
 	}
 	t.list.onMenu = func(ids []string, x, y float64) {
+		if session, ap, ok := t.approvalAt(ids[0]); ok {
+			t.list.menu.show(x, y, []*menuItem{
+				{label: "Allow", run: func() { w.answerApproval(ap.ID, bridge.Allow) }},
+				{label: "Deny", run: func() { w.answerApproval(ap.ID, bridge.Deny) }},
+				menuSection,
+				{label: "Go to " + agentProduct(w.app.agents.all[session]), run: func() { w.app.goToAgent(session) }},
+				{label: "Copy Command", run: func() { w.win.Clipboard().SetText(ap.What) }},
+			}, nil)
+			return
+		}
 		if ag, ok := t.resumableAt(ids[0]); ok {
 			t.list.menu.show(x, y, []*menuItem{
 				{label: "Resume in Tab", run: func() { w.resumeBackground(ag, true) }},
@@ -157,6 +172,10 @@ func agentRowSession(id string) (session string, toggle bool) {
 // activate: a click on an agent or one of its sub-agents goes to it; on
 // the toggle, shows or hides its sub-agents.
 func (t *agentsTab) activate(id string) {
+	if session, _, ok := t.approvalAt(id); ok {
+		t.w.app.goToAgent(session)
+		return
+	}
 	if id == "resume-all" {
 		t.w.resumeAll()
 		return
@@ -169,6 +188,74 @@ func (t *agentsTab) activate(id string) {
 	} else {
 		t.w.app.goToAgent(session)
 	}
+}
+
+// approvalAt is the agent and permission prompt an "ask:<session>:<id>"
+// row is about.
+func (t *agentsTab) approvalAt(id string) (string, bridge.Approval, bool) {
+	rest, ok := strings.CutPrefix(id, "ask:")
+	if !ok {
+		return "", bridge.Approval{}, false
+	}
+	session, apID, _ := strings.Cut(rest, ":")
+	for _, ap := range t.w.app.agents.all[session].Approvals {
+		if ap.ID == apID {
+			return session, ap, true
+		}
+	}
+	return "", bridge.Approval{}, false
+}
+
+// approvalRows (#39): every permission prompt waiting, oldest first: which
+// agent asks, the command or file, where a command would act (#40), the
+// change an edit makes, and Allow / Deny / Go to Agent.
+func (t *agentsTab) approvalRows() []sideRow {
+	a := t.w.app
+	var rows []sideRow
+	for _, ask := range a.agents.approvals() {
+		st, ap := ask.st, ask.ap
+		title, _ := a.agentTitle(st)
+		if ap.Subagent != "" {
+			title += " · " + ap.Subagent
+		}
+		detail := toolName(ap.Tool)
+		if ap.Description != "" {
+			detail += " · " + a.settings.text(ap.Description)
+		}
+		r := sideRow{id: "ask:" + st.Session + ":" + ap.ID, dot: "agent-waiting", title: title, detail: detail,
+			tip: "Allow or Deny here, or answer in its pane: whichever is first applies. Click to go to it; right-click for more."}
+		if ap.What != "" {
+			r.more = append(r.more, sideText{text: a.settings.text(ap.What), classes: []string{"monospace"}})
+		}
+		for _, f := range ap.Facts {
+			r.more = append(r.more, sideText{text: a.settings.text(f)})
+		}
+		if ap.Diff != "" {
+			lines := strings.Split(ap.Diff, "\n")
+			shown := lines[:min(len(lines), 12)]
+			for _, l := range shown {
+				class := "dim-label"
+				switch {
+				case strings.HasPrefix(l, "- "):
+					class = "wtf-approval-diff-del"
+				case strings.HasPrefix(l, "+ "):
+					class = "wtf-approval-diff-add"
+				}
+				r.more = append(r.more, sideText{text: a.settings.text(l), classes: []string{"monospace", class}})
+			}
+			if n := len(lines) - len(shown); n > 0 {
+				r.more = append(r.more, sideText{text: fmt.Sprintf("… %d more lines in the pane", n), classes: []string{"dim-label"}})
+			}
+		}
+		id, session, product := ap.ID, st.Session, agentProduct(st)
+		r.actions = []sideAction{
+			{label: "Allow", key: true, tip: "Let " + product + " do this once, as Yes in its own dialog", run: func() { t.w.answerApproval(id, bridge.Allow) }},
+			{label: "Deny", tip: "Refuse it and stop " + product + "'s turn, as No in its own dialog", run: func() { t.w.answerApproval(id, bridge.Deny) }},
+			{label: "Go to Agent", tip: "Show its pane: its dialog has more choices (always allow, tell it what to do instead)", run: func() { a.goToAgent(session) }},
+		}
+		rows = append(rows, r)
+	}
+	return rows
 }
 
 // subagentRows: "▸ 3 sub-agents · 1 working", and when it's open each
@@ -304,6 +391,10 @@ func (t *agentsTab) rebuild() {
 		sec.title = strings.TrimSpace("Go to Agent… " + keyOf("agents.pick") + " · Next Needing You " + keyOf("agents.next"))
 	}
 	sections := []sideSection{sec}
+	if asks := t.approvalRows(); len(asks) > 0 {
+		sections = append([]sideSection{{title: "Approvals", rows: asks,
+			tip: "What your agents are asking to do. Allow or Deny here, or answer in the agent's pane: whichever is first applies."}}, sections...)
+	}
 	if len(parked) > 0 {
 		sections = append(sections, sideSection{title: "Background", tip: "Running after their tab closed; they end when wtf quits", rows: parked, always: true})
 	}

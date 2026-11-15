@@ -6,12 +6,15 @@
 // logic of its own, so the tools always match the app that's running.
 //
 // "wtf-mcp hook" is the plugin's hook command: it reads a Claude Code hook
-// event on stdin. For PreToolUse it answers "ask" without asking the app,
-// so every command shows Claude Code's own prompt even if wtf is gone; the
-// other events tell the app whether Claude Code is busy, idle or waiting
-// for the user. With WTF_CLAUDE_AUTO=1 (claude-auto-mode, set by the app
-// when it starts claude) PreToolUse answers nothing, so Claude Code's own
-// permission mode decides.
+// event on stdin. For PreToolUse it answers "ask", so every command shows
+// Claude Code's own prompt even if wtf is gone (the app only adds, within
+// two seconds, where a command would act); the other events tell the app
+// whether Claude Code is busy, idle or waiting for the user. With
+// WTF_CLAUDE_AUTO=1 (claude-auto-mode, set by the app when it starts
+// claude) PreToolUse answers nothing, so Claude Code's own permission mode
+// decides. A PermissionRequest waits for your answer in wtf's Approvals
+// inbox (#39) while Claude Code shows its own dialog; answered in the pane,
+// it says nothing.
 package main
 
 import (
@@ -145,7 +148,7 @@ func hook(c client, provider string, in io.Reader, out io.Writer) int {
 			Status string `json:"status"`
 		} `json:"background_tasks"`
 	}
-	data, err := io.ReadAll(io.LimitReader(in, 1<<20))
+	data, err := io.ReadAll(io.LimitReader(in, 16<<20))
 	if err == nil {
 		err = json.Unmarshal(data, &ev)
 	}
@@ -158,8 +161,12 @@ func hook(c client, provider string, in io.Reader, out io.Writer) int {
 		if os.Getenv("WTF_CLAUDE_AUTO") == "1" {
 			return 0
 		}
+		reason := askReason
+		if facts := toolFacts(c, ev.Tool, ev.Input, ev.Cwd); facts != "" {
+			reason += "\n\nWhere it acts:\n" + facts
+		}
 		answer, _ := json.Marshal(map[string]any{"hookSpecificOutput": map[string]any{
-			"hookEventName": "PreToolUse", "permissionDecision": "ask", "permissionDecisionReason": askReason,
+			"hookEventName": "PreToolUse", "permissionDecision": "ask", "permissionDecisionReason": reason,
 		}})
 		if _, err := fmt.Fprintf(out, "%s\n", answer); err != nil {
 			return 2
@@ -169,8 +176,18 @@ func hook(c client, provider string, in io.Reader, out io.Writer) int {
 	if c.sock == "" || c.pane == "" || c.token == "" {
 		return 0
 	}
-	// Best effort: a status the app misses changes nothing.
+	if ev.Event != "PermissionRequest" && ev.Input != nil {
+		// Only a permission prompt shows the change.
+		ev.Input.OldString, ev.Input.NewString, ev.Input.Content, ev.Input.Edits = "", "", "", nil
+	}
+	// Best effort: a status the app misses changes nothing. A permission
+	// prompt waits as long as Claude Code lets the hook run.
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	if ev.Event == "PermissionRequest" && provider == "claude" {
+		cancel()
+		ctx, cancel = context.WithCancel(context.Background())
+		clipEdit(ev.Input)
+	}
 	defer cancel()
 	req := wire.Request{Op: "hook", Provider: provider, Event: ev.Event, Message: ev.Message, Prompt: ev.Prompt, Cwd: ev.Cwd,
 		ClaudeSession: ev.SessionID, Transcript: ev.Transcript,
@@ -200,8 +217,59 @@ func hook(c client, provider string, in io.Reader, out io.Writer) int {
 			req.SpawnedDone = r.Status != "" && r.Status != "async_launched"
 		}
 	}
-	if _, err := c.do(ctx, req); err != nil {
+	resp, err := c.do(ctx, req)
+	if err != nil {
 		log.Print(err)
+		return 0
+	}
+	if ev.Event == "PermissionRequest" && provider == "claude" && (resp.Decision == "allow" || resp.Decision == "deny") {
+		decision := map[string]any{"behavior": resp.Decision}
+		if resp.Decision == "deny" {
+			decision["message"] = denyMessage
+			decision["interrupt"] = true
+		}
+		answer, _ := json.Marshal(map[string]any{"hookSpecificOutput": map[string]any{
+			"hookEventName": "PermissionRequest", "decision": decision,
+		}})
+		if _, err := fmt.Fprintf(out, "%s\n", answer); err != nil {
+			return 1
+		}
 	}
 	return 0
+}
+
+// denyMessage tells Claude why its tool call was refused.
+const denyMessage = "The user denied this in wtf's Approvals inbox. Wait for their next instruction."
+
+// maxEdit is how much of an edit the helper sends; the inbox shows less.
+const maxEdit = 64 << 10
+
+func clipEdit(in *wire.ToolInput) {
+	if in == nil {
+		return
+	}
+	for _, p := range []*string{&in.OldString, &in.NewString, &in.Content} {
+		if len(*p) > maxEdit {
+			*p = (*p)[:maxEdit]
+		}
+	}
+	if len(in.Edits) > 50 {
+		in.Edits = in.Edits[:50]
+	}
+}
+
+// toolFacts asks the app where a command would act (#40), for Claude Code's
+// own dialog; "" when it isn't a command, or the app doesn't answer within
+// two seconds.
+func toolFacts(c client, tool string, in *wire.ToolInput, cwd string) string {
+	if c.sock == "" || c.pane == "" || c.token == "" || in == nil || (in.Command == "" && len(in.Argv) == 0) {
+		return ""
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+	resp, err := c.do(ctx, wire.Request{Op: "facts", Tool: tool, Input: &wire.ToolInput{Command: in.Command, Argv: in.Argv}, Cwd: cwd})
+	if err != nil {
+		return ""
+	}
+	return resp.Text
 }

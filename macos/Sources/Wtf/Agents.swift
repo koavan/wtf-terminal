@@ -96,6 +96,20 @@ enum Agents {
         all.values.sorted { $0.started != $1.started ? $0.started < $1.started : $0.session < $1.session }
     }
 
+    /// #39: every permission prompt waiting, with its agent, oldest first.
+    static func approvals() -> [(Go.bridge.Status, Go.bridge.Approval)] {
+        all.values.flatMap { st in st.approvals.map { (st, $0) } }.sorted { $0.1.since != $1.1.since ? $0.1.since < $1.1.since : $0.1.id < $1.1.id }
+    }
+
+    /// A tool as the inbox names it: wtf's own by what they do.
+    static func toolName(_ tool: String) -> String {
+        switch tool {
+        case "mcp__plugin_wtf_wtf__type_at_prompt": "Type at your prompt"
+        case "mcp__plugin_wtf_wtf__run_readonly": "Run read-only"
+        default: tool.hasPrefix("mcp__") ? tool.split(separator: "__").last.map(String.init) ?? tool : tool
+        }
+    }
+
     /// The tab an agent runs in, as titled.
     static func tabTitle(_ session: String) -> String? {
         find(session).flatMap { w, p in w.model.tabOf(pane: p.id).map { w.model.title($0) } }
@@ -221,6 +235,7 @@ enum Agents {
 
     private static func apply(_ st: Go.bridge.Status) {
         let old = all[st.session].map(state)
+        let oldAsks = Set(all[st.session]?.approvals.map(\.id) ?? [])
         if st.state == "ended" {
             all[st.session] = nil
             subagentsShown.remove(st.session)
@@ -247,11 +262,16 @@ enum Agents {
             if st.unseen { Task { try? await Services.bridge.Seen(st.session) } }
             return
         }
-        guard now != old, let tab = w.model.tabOf(pane: p.id) else { return }
+        // #39: a new permission prompt says what it asks and where.
+        let ask = st.approvals.first { !oldAsks.contains($0.id) }
+        guard now != old || ask != nil, let tab = w.model.tabOf(pane: p.id) else { return }
         let title = st.name.isEmpty ? w.model.title(tab) : st.name
         switch now {
         case .waiting:
-            let body = Redaction.shared.text(st.message)
+            var body = Redaction.shared.text(st.message)
+            if let ask {
+                body = Redaction.shared.text(([toolName(ask.tool) + ": " + ask.what] + ask.facts).joined(separator: "\n"))
+            }
             Task { try? await Backend.run("notify", "Notify", [product(st) + " needs you", title, body]) }
             playSound(.attention)
         case .done:

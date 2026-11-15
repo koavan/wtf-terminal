@@ -876,6 +876,102 @@ Built 2026-11-11:
 
 Still to do: hands-on (the self-checks don't quit and relaunch).
 
+### 39. Approvals inbox ◐
+
+Agreed 2026-11-15: with several agents running in worktrees, most of the
+waiting is finding the one that needs you. One list of every pending
+approval, in every window and the background, each answerable from the side
+pane. No model call; it's what the agents already ask.
+
+Phase 0, checked 2026-11-15 with Claude Code 2.1.325 (a pty driving the
+real TUI, and the real helper and bridge): `PermissionRequest` fires only
+when Claude Code would ask anyway, with `tool_name`, `tool_input`, `cwd`,
+`permission_mode` and `permission_suggestions` (no `tool_use_id`). Claude
+Code shows its own dialog while the hook runs, and a later allow or deny
+from the hook closes it ("Allowed by PermissionRequest hook"), so the hook
+can simply wait: no keys sent to the pane. The default hook timeout is
+600 s; wtf's is 86400. Answered in the pane: **No** interrupts the turn,
+sends no Stop and kills the hook (SIGTERM); **Yes** leaves the hook running
+until it exits, so wtf has to notice the tool ran. Exit 2 is ignored on
+this event.
+
+Built 2026-11-15:
+
+1. ☑ Bridge: `PermissionRequest` and `PostToolUseFailure` in both hook
+   files (status-settings.json still has no PreToolUse, so a claude you
+   start yourself keeps its permission mode). The helper sends the request
+   (edits' old/new text and Write's content only on this event, clipped to
+   64 KiB) and waits with no deadline; the bridge lists an `Approval` on the
+   agent's status (tool, command or file, description, a `- `/`+ ` diff cut
+   at 40 lines, facts from #40, sub-agent type), setting it waiting in the
+   same status, and waits for `Answer(id, allow|deny)`, the connection
+   closing (a read on the socket ends), or the tool's
+   PostToolUse/PostToolUseFailure (same tool and command or file), Stop,
+   UserPromptSubmit or SessionStart (main conversation only: a sub-agent's
+   request outlives its parent's Stop), SessionEnd or Forget. Allow → busy;
+   deny or a killed hook → idle. Deny answers `interrupt: true` with a note
+   to Claude. Tests: the helper driven through allow, deny, pane allow
+   (another command's PostToolUse doesn't clear it), pane deny (killed),
+   a sub-agent's request across Stop, SessionEnd.
+2. ☑ Both UIs: an **Approvals** section above the agents, oldest first:
+   agent (· sub-agent type), tool · description, the command (wrapped,
+   monospace), facts, the diff in red and green (12 lines, then a count),
+   **Allow** / **Deny** / **Go to Agent** (Linux: also a right-click menu
+   with Copy Command; a click goes to the agent). "Already answered in the
+   pane" when it lost the race. A new approval notifies with the command and
+   facts instead of Claude Code's generic message. Linux's side list gained
+   wrapped extra lines and text-button rows (`sideRow.more`, `.actions`).
+3. ☐ Codex: its approval prompts, if its hooks report them (its
+   PermissionRequest stays a plain "needs you" for now).
+4. ☑ Manual (`agents` → Approvals, `ask-claude`); self-check `claude` on
+   both: a stand-in's PermissionRequest through the real helper, listed with
+   its facts, Allow pressed in the tab, the hook prints allow, the row goes.
+   Passing on macOS and Linux (`linux/check.sh`: all passed).
+
+Still to do: Next Approval in the palette, and Allow/Deny actions on the
+notification itself; hands-on in the apps with real Claude Code (the
+bridge was checked end to end with it, not the windows).
+
+Dropped from the plan: confirming an Allow on a production context (wtf
+has no production label; the badges are facts only).
+
+### 40. Context facts on approvals ◐
+
+Agreed 2026-11-15, built with #39: the riskiest moment with agents is
+approving a command without noticing where it runs. Every approval that
+touches infrastructure shows where it would run, as facts from what wtf
+already reads (#1 context badges), never a guessed danger label.
+
+Built 2026-11-15:
+
+- `internal/agentctx` (Go only: the UIs get the lines on the approval, so
+  there's no Swift copy): a POSIX-enough word splitter (quotes, `$`/backtick
+  marking a word dynamic, operators, comments), simple commands with
+  `NAME=value` prefixes, `export`, `cd`/`pushd`, wrappers (`sudo`, `env`,
+  `time`, `nohup`, `nice`, `timeout`, `command`, `exec`, `watch`, `doas`),
+  `sh|bash|zsh -c '…'` read recursively, `aws-vault exec P --`,
+  `kubectl config use-context X` carried to later commands, `eval` →
+  unknown. Facts for kubectl/oc/helm (context, cluster, namespace; `-A`;
+  `--kubeconfig`; local subcommands skipped), terraform/tofu/terragrunt
+  (folder, workspace from TF_WORKSPACE or `.terraform/environment`,
+  "not initialized"; `workspace select`), aws/sam/cdk (profile, account,
+  region; `--profile` beats env keys), gcloud/gsutil/bq (project,
+  `--configuration`), ssh (host, `-J`), git push (branch, target, force).
+  Each fact says where it came from; a value only the shell knows says
+  "not known from this command". `infra.KubeContext` looks up a named
+  context. Table tests (40 commands, env keys, Terraform in a temp folder).
+- The bridge works them out for Claude Code's Bash and Monitor in the
+  agent's shell (the env its shell integration reported, the hook's `cwd`),
+  and for wtf's `type_at_prompt`/`run_readonly` in the target shell; 3 s
+  limit on the UI's pane answer; redacted.
+- In Ask Claude panes, the plugin's PreToolUse reason gets "Where it acts:"
+  and the lines (the helper asks the app, op `facts`, within 2 s, else the
+  plain reason).
+
+Still to do: docker contexts and Azure (no badge reads them yet). The AWS
+account for a `--profile` the badge never saw is looked up the badge's way
+(STS, in the background), so it can say "asking AWS…" on the approval.
+
 ## Also built
 
 - Resource usage (2026-10-13): wtf's own CPU and memory in the address bar

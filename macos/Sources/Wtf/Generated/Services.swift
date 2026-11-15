@@ -64,6 +64,7 @@ enum Services {
     }
 
     enum infra {
+        static func KubeContext(_ a0: [String: String], _ a1: String) async throws -> [JSONValue] { try await Backend.call("infra", "KubeContext", [a0, a1], as: [JSONValue].self) }
         static func Resolve(_ a0: [String: String]) async throws -> Go.infra.Context { try await Backend.call("infra", "Resolve", [a0], as: Go.infra.Context.self) }
     }
 
@@ -194,6 +195,7 @@ enum Services {
     enum bridge {
         static func Agents() async throws -> [Go.bridge.Status] { try await Backend.call("bridge", "Agents", [], as: [Go.bridge.Status].self) }
         static func AgentsIn(_ a0: String) async throws -> [String] { try await Backend.call("bridge", "AgentsIn", [a0], as: [String].self) }
+        static func Answer(_ a0: String, _ a1: String) async throws { try await Backend.run("bridge", "Answer", [a0, a1]) }
         static func ClaudeCommand() async throws -> String { try await Backend.call("bridge", "ClaudeCommand", [], as: String.self) }
         static func Forget(_ a0: String) async throws { try await Backend.run("bridge", "Forget", [a0]) }
         static func Rename(_ a0: String, _ a1: String) async throws { try await Backend.run("bridge", "Rename", [a0, a1]) }
