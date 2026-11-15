@@ -5,6 +5,7 @@
 package notify
 
 import (
+	"bufio"
 	"context"
 	"os/exec"
 	"runtime"
@@ -75,6 +76,105 @@ func (s *Service) NotifySound(title, subtitle, body, sound string) error {
 	return cmd.Run()
 }
 
+// Action is a button on a notification: its key, and its label.
+type Action struct{ Key, Label string }
+
+// Asked is a notification with buttons, shown by NotifyActions.
+type Asked struct {
+	// Chosen receives the key of the button clicked, or "" when the
+	// notification goes without one (dismissed, expired, or closed).
+	Chosen <-chan string
+	id     string
+	cancel context.CancelFunc
+}
+
+// Close takes the notification away (it was answered elsewhere).
+func (a *Asked) Close() {
+	if a == nil {
+		return
+	}
+	if a.id != "" {
+		closeNotification(a.id)
+	}
+	a.cancel()
+}
+
+// Ask shows a notification with buttons, on Linux, when the notification
+// daemon has them (its "actions" capability) and notify-send can wait for
+// one (libnotify 0.7.9 and later). Otherwise, and on macOS (whose app posts
+// its own), it shows a plain notification and returns nil. Not a Service
+// method: only the Linux app calls it, directly.
+func Ask(s *Service, title, subtitle, body, sound string, actions []Action) (*Asked, error) {
+	if runtime.GOOS == "darwin" || !daemonHasActions() {
+		return nil, s.NotifySound(title, subtitle, body, sound)
+	}
+	path, err := exec.LookPath("notify-send")
+	if err != nil {
+		return nil, nil
+	}
+	title, subtitle, body = clip(title), clip(subtitle), clip(body)
+	byDaemon := sound != "" && daemonPlaysSounds()
+	if sound != "" && !byDaemon {
+		go playSound(sound)
+	}
+	summary := title
+	if subtitle != "" {
+		summary += " — " + subtitle
+	}
+	args := []string{"--app-name=wtf", "--print-id", "--wait"}
+	if byDaemon {
+		args = append(args, "--hint=string:sound-name:"+sound)
+	}
+	for _, a := range actions {
+		args = append(args, "--action="+a.Key+"="+a.Label)
+	}
+	// It waits for a click; a day is longer than any approval waits.
+	ctx, cancel := context.WithTimeout(context.Background(), 24*time.Hour)
+	cmd := exec.CommandContext(ctx, path, append(args, "--", summary, body)...)
+	out, err := cmd.StdoutPipe()
+	if err != nil {
+		cancel()
+		return nil, err
+	}
+	if err := cmd.Start(); err != nil {
+		cancel()
+		return nil, s.NotifySound(title, subtitle, body, "")
+	}
+	ch := make(chan string, 1)
+	asked := &Asked{Chosen: ch, cancel: cancel}
+	lines := bufio.NewScanner(out)
+	// The first line is the notification's id, the next the button's key.
+	if lines.Scan() {
+		asked.id = strings.TrimSpace(lines.Text())
+	}
+	go func() {
+		chosen := ""
+		if lines.Scan() {
+			chosen = strings.TrimSpace(lines.Text())
+		}
+		cmd.Wait()
+		cancel()
+		ch <- chosen
+	}()
+	return asked, nil
+}
+
+// closeNotification asks the daemon to take a notification away.
+func closeNotification(id string) {
+	path, err := exec.LookPath("gdbus")
+	if err != nil {
+		return
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+	_ = exec.CommandContext(ctx, path, "call", "--session", "--dest", "org.freedesktop.Notifications",
+		"--object-path", "/org/freedesktop/Notifications", "--method", "org.freedesktop.Notifications.CloseNotification", id).Run()
+}
+
+// daemonHasActions: the notification daemon shows buttons (its "actions"
+// capability), asked once.
+var daemonHasActions = sync.OnceValue(func() bool { return daemonCapability("actions") })
+
 // PlaySound plays a sound theme sound by itself (Settings' preview), on
 // Linux; it does nothing elsewhere.
 func (s *Service) PlaySound(sound string) {
@@ -95,7 +195,11 @@ func playSound(sound string) {
 
 // daemonPlaysSounds: the notification daemon says it has the "sound"
 // capability (asked once, through gdbus).
-var daemonPlaysSounds = sync.OnceValue(func() bool {
+var daemonPlaysSounds = sync.OnceValue(func() bool { return daemonCapability("sound") })
+
+// daemonCapability asks the notification daemon, through gdbus, whether it
+// has a capability.
+func daemonCapability(name string) bool {
 	path, err := exec.LookPath("gdbus")
 	if err != nil {
 		return false
@@ -104,8 +208,8 @@ var daemonPlaysSounds = sync.OnceValue(func() bool {
 	defer cancel()
 	out, err := exec.CommandContext(ctx, path, "call", "--session", "--dest", "org.freedesktop.Notifications",
 		"--object-path", "/org/freedesktop/Notifications", "--method", "org.freedesktop.Notifications.GetCapabilities").Output()
-	return err == nil && hasCapability(string(out), "sound")
-})
+	return err == nil && hasCapability(string(out), name)
+}
 
 // hasCapability reads gdbus's answer: (['actions', 'body', 'sound'],)
 func hasCapability(out, name string) bool {

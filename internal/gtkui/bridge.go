@@ -58,6 +58,10 @@ func (a *App) bridgeRequest(req bridge.UIRequest) {
 		case copiedInstead:
 			fail("The command has several lines and this shell would run each as it's typed, so it was copied to the clipboard instead")
 		}
+	case bridge.KindKeys:
+		// A Codex approval prompt's key, from the Approvals inbox (#39).
+		p.write(req.Text)
+		reply(bridge.Reply{})
 	case bridge.KindRun:
 		a.bridgeRun(req, p, reply, fail)
 	case bridge.KindSnippet:

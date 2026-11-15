@@ -623,6 +623,7 @@ func (w *Window) windowCommands() map[string]func() {
 		"tab.overview":    w.toggleOverview,
 		"agents.pick":     func() { w.togglePalette(paletteAgents) },
 		"agents.next":     w.nextAgent,
+		"agents.approval": w.nextApproval,
 		"agents.start":    w.startAgent,
 		"worktree.new":    func() { w.newWorktree(w.worktreeHere()) },
 		"worktree.open":   func() { w.openWorktree(w.worktreeHere()) },
@@ -713,7 +714,7 @@ func (w *Window) mainMenuButton() *gtk.MenuButton {
 		{"find", "term.copyOutput", "term.pinOutput", "claude.ask", "ai.explain", "ai.ask", "ai.investigate", "ai.logs", "ai.runbook", "ai.postmortem", "ai.history", "review.last", "term.clear", "secrets.toggle"},
 		{"record.toggle", "export.text", "export.markdown"},
 		{"font.bigger", "font.smaller", "font.reset"},
-		{"tab.overview", "agents.pick", "agents.next", "agents.start", "worktree.new", "worktree.open", "worktree.remove", "tab.group", "broadcast.toggle", "pane.zoom", "pane.next", "pane.prev"},
+		{"tab.overview", "agents.pick", "agents.next", "agents.approval", "agents.start", "worktree.new", "worktree.open", "worktree.remove", "tab.group", "broadcast.toggle", "pane.zoom", "pane.next", "pane.prev"},
 		{"help.manual", "help.shortcuts", "tools.show", "app.about", "app.updates"},
 		{"app.quit"},
 	}

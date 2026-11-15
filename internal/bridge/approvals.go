@@ -11,6 +11,7 @@ import (
 	"github.com/dayanraj/wtf/internal/agentctx"
 	"github.com/dayanraj/wtf/internal/bridge/wire"
 	"github.com/dayanraj/wtf/internal/events"
+	"github.com/dayanraj/wtf/internal/infra"
 	"github.com/dayanraj/wtf/internal/uicore"
 )
 
@@ -61,11 +62,22 @@ const (
 	Deny  = "deny"
 )
 
-// waiter is a hook connection waiting for its answer.
+// waiter is a hook connection waiting for its answer. A Codex approval
+// has none: Codex shows its own prompt only once the hook has returned, so
+// its hook doesn't wait, and the inbox answers by pressing the prompt's
+// keys in its pane (y, Esc).
 type waiter struct {
 	session, agentID, tool, key string
 	ch                          chan string
+	codex                       bool
 }
+
+// Codex's approval prompt: y is "Yes, proceed", Esc is "No, and tell Codex
+// what to do differently" (Codex 0.167).
+const (
+	codexAllowKey = "y"
+	codexDenyKey  = "\x1b"
+)
 
 // approvalKey is what tells a tool call apart from another of the same
 // tool: its command or file.
@@ -89,7 +101,8 @@ func approvalKey(tool string, in *wire.ToolInput) string {
 // goes (ctx: Claude Code killed it, or it timed out).
 func (s *Service) awaitApproval(ctx context.Context, req wire.Request) wire.Response {
 	ap := s.approvalOf(ctx, req)
-	w := &waiter{session: req.Pane, agentID: req.AgentID, tool: req.Tool, key: approvalKey(req.Tool, req.Input), ch: make(chan string, 1)}
+	w := &waiter{session: req.Pane, agentID: req.AgentID, tool: req.Tool, key: approvalKey(req.Tool, req.Input), ch: make(chan string, 1),
+		codex: req.Provider == "codex"}
 	msg := firstOf(strings.TrimSpace(req.Message), req.Tool)
 	if req.Input != nil && req.Input.Command != "" {
 		msg = req.Tool + ": " + req.Input.Command
@@ -109,6 +122,13 @@ func (s *Service) awaitApproval(ctx context.Context, req wire.Request) wire.Resp
 	st := a.clone()
 	s.mu.Unlock()
 	events.Emit(EventStatus, st)
+	if pendingAccount(ap.Facts) {
+		go s.refreshFacts(ap.ID, req)
+	}
+	if w.codex {
+		// Codex's prompt shows once this returns; its events clear it.
+		return wire.Response{}
+	}
 
 	var decision string
 	gone := false
@@ -163,10 +183,90 @@ func (s *Service) approvalOf(ctx context.Context, req wire.Request) Approval {
 	ap.What = clipText(uicore.Redact(firstOf(command, in.FilePath, in.Path, in.URL, in.Query, in.Pattern)), maxWhat)
 	ap.Description = shortLine(in.Description, maxPrompt)
 	ap.Diff = diffOf(in)
+	if req.Tool == "apply_patch" {
+		// Codex's file edits: the patch is the command.
+		ap.What, ap.Diff = patchOf(in.Command)
+		return ap
+	}
 	if command != "" {
 		ap.Facts = s.factsOf(ctx, req, command)
 	}
 	return ap
+}
+
+// patchOf reads a Codex apply_patch: the files it touches, and its lines
+// removed and added.
+func patchOf(patch string) (files, diff string) {
+	var names, lines []string
+	for _, l := range strings.Split(patch, "\n") {
+		for _, p := range []string{"*** Add File: ", "*** Update File: ", "*** Delete File: ", "*** Move to: "} {
+			if f, ok := strings.CutPrefix(l, p); ok {
+				names = append(names, strings.TrimSpace(f))
+			}
+		}
+		switch {
+		case strings.HasPrefix(l, "***") || strings.HasPrefix(l, "@@"):
+		case strings.HasPrefix(l, "+"):
+			lines = append(lines, "+ "+l[1:])
+		case strings.HasPrefix(l, "-"):
+			lines = append(lines, "- "+l[1:])
+		}
+	}
+	if len(lines) > maxDiffLines {
+		more := len(lines) - maxDiffLines
+		lines = append(lines[:maxDiffLines], "… "+strconv.Itoa(more)+" more lines")
+	}
+	return uicore.Redact(strings.Join(names, ", ")), uicore.Redact(strings.Join(lines, "\n"))
+}
+
+// pendingAccount: a fact waits on the AWS account lookup the badges share.
+func pendingAccount(facts []string) bool {
+	for _, f := range facts {
+		if strings.Contains(f, infra.AccountPending) {
+			return true
+		}
+	}
+	return false
+}
+
+// refreshFacts works an approval's facts out again while the AWS account
+// lookup they wait on runs (it's in the background, at most a few seconds),
+// until it's answered or the approval goes.
+func (s *Service) refreshFacts(id string, req wire.Request) {
+	for i := 0; i < 40; i++ {
+		time.Sleep(500 * time.Millisecond)
+		s.mu.Lock()
+		_, ok := s.waits[id]
+		s.mu.Unlock()
+		if !ok {
+			return
+		}
+		command := req.Input.Command
+		if len(req.Input.Argv) > 0 {
+			command = joinArgv(req.Input.Argv)
+		}
+		facts := s.factsOf(context.Background(), req, command)
+		if pendingAccount(facts) {
+			continue
+		}
+		s.mu.Lock()
+		w := s.waits[id]
+		if w == nil || s.agents[w.session] == nil {
+			s.mu.Unlock()
+			return
+		}
+		a := s.agents[w.session]
+		at := slices.IndexFunc(a.Approvals, func(ap Approval) bool { return ap.ID == id })
+		if at < 0 {
+			s.mu.Unlock()
+			return
+		}
+		a.Approvals[at].Facts = facts
+		st := a.clone()
+		s.mu.Unlock()
+		events.Emit(EventStatus, st)
+		return
+	}
 }
 
 // factsOf works out where command would act (#40). Claude Code's own Bash
@@ -243,12 +343,19 @@ func (s *Service) dropApproval(id string) {
 
 // settleApprovals clears the approvals a hook event shows were answered in
 // the pane: the tool ran (PostToolUse, PostToolUseFailure) or the turn
-// ended, which leaves sub-agents' own prompts be; SessionEnd clears all.
+// ended (Codex: Interrupt, its No), which leaves sub-agents' own prompts
+// be; SessionEnd clears all.
 func (s *Service) settleApprovals(req wire.Request) {
 	s.mu.Lock()
-	defer s.mu.Unlock()
 	key := approvalKey(req.Tool, req.Input)
-	for _, w := range s.waits {
+	var drop []string
+	defer func() {
+		s.mu.Unlock()
+		for _, id := range drop {
+			s.dropApproval(id)
+		}
+	}()
+	for id, w := range s.waits {
 		if w.session != req.Pane {
 			continue
 		}
@@ -256,12 +363,14 @@ func (s *Service) settleApprovals(req wire.Request) {
 		switch req.Event {
 		case "PostToolUse", "PostToolUseFailure":
 			done = w.agentID == req.AgentID && w.tool == req.Tool && w.key == key
-		case "Stop", "UserPromptSubmit", "SessionStart":
+		case "Stop", "UserPromptSubmit", "SessionStart", "Interrupt":
 			done = w.agentID == ""
 		case "SessionEnd":
 			done = true
 		}
-		if done {
+		if done && w.codex {
+			drop = append(drop, id)
+		} else if done {
 			select {
 			case w.ch <- "":
 			default:
@@ -281,6 +390,20 @@ func (s *Service) Answer(id, decision string) error {
 	s.mu.Unlock()
 	if w == nil {
 		return errors.New("it was answered already")
+	}
+	if w.codex {
+		// Codex's own prompt is showing: press its key.
+		key := codexAllowKey
+		if decision == Deny {
+			key = codexDenyKey
+		}
+		ctx, cancel := context.WithTimeout(context.Background(), queryTimeout)
+		defer cancel()
+		if _, err := s.ask(ctx, UIRequest{Kind: KindKeys, Session: w.session, Text: key}); err != nil {
+			return err
+		}
+		s.dropApproval(id)
+		return nil
 	}
 	select {
 	case w.ch <- decision:

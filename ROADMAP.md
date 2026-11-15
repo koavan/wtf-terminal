@@ -876,7 +876,7 @@ Built 2026-11-11:
 
 Still to do: hands-on (the self-checks don't quit and relaunch).
 
-### 39. Approvals inbox ◐
+### 39. Approvals inbox ☑
 
 Agreed 2026-11-15: with several agents running in worktrees, most of the
 waiting is finding the one that needs you. One list of every pending
@@ -921,21 +921,50 @@ Built 2026-11-15:
    pane" when it lost the race. A new approval notifies with the command and
    facts instead of Claude Code's generic message. Linux's side list gained
    wrapped extra lines and text-button rows (`sideRow.more`, `.actions`).
-3. ☐ Codex: its approval prompts, if its hooks report them (its
-   PermissionRequest stays a plain "needs you" for now).
+3. ☑ Codex (2026-11-15, checked with codex-cli 0.167.2 and a throwaway
+   CODEX_HOME): its PermissionRequest hook runs *before* its approval
+   prompt, which shows only once the hook returns without a decision (a
+   waiting hook would hide it), and `interrupt` in a deny fails closed. So
+   a Codex request is listed and its hook returns at once; Allow and Deny
+   press the prompt's own keys in its pane (`y`, Esc) through a new UI
+   request (`keys`). Its y is followed by PostToolUse for the command, its
+   Esc by Interrupt; both (and Stop, a new prompt, SessionEnd) clear it. A
+   sandboxed attempt's PostToolUse comes before the request, so it can't
+   clear it. `apply_patch` shows its files and a diff, no facts.
 4. ☑ Manual (`agents` → Approvals, `ask-claude`); self-check `claude` on
    both: a stand-in's PermissionRequest through the real helper, listed with
    its facts, Allow pressed in the tab, the hook prints allow, the row goes.
    Passing on macOS and Linux (`linux/check.sh`: all passed).
 
-Still to do: Next Approval in the palette, and Allow/Deny actions on the
-notification itself; hands-on in the apps with real Claude Code (the
-bridge was checked end to end with it, not the windows).
+Also built 2026-11-15:
+
+- **Next Approval** (`agents.approval`, ⌥⌘Y / Ctrl+Alt+Shift+Y): the next
+  agent asking after the focused one, with the Agents tab open.
+- Allow and Deny on the notification. Linux: `notify.Ask` runs
+  `notify-send --print-id --wait --action=…` when the daemon has the
+  "actions" capability, and closes it (gdbus CloseNotification) once the
+  request is answered anywhere; else the plain notification. macOS: the
+  app posts approval notifications itself through UNUserNotificationCenter
+  (category with Allow / Deny; a click on the body goes to the agent),
+  asking for notification permission the first time; denied, it falls back
+  to the osascript one. wtf's other notifications are unchanged.
+- Hands-on with the real agents in the macOS app, as opt-in self-checks
+  that use your login (never in the regular runs):
+  `WTF_NATIVE_DEBUG=realclaude WTF_REAL_CLAUDE_DIR=<trusted folder>` types
+  a real `claude --model haiku` in a tab, presses Allow in the Agents tab
+  (the command ran, "Allowed by PermissionRequest hook"), then Deny (it
+  didn't, Claude Code waits); `WTF_NATIVE_DEBUG=realcodex` with a
+  `CODEX_HOME` of its own does the same with `codex -a on-request -s
+  read-only` (answering its folder and hook trust questions there). Both
+  passed on 2026-11-15.
+
+Not covered by a check: clicking a notification's buttons (macOS asks for
+permission on screen; the Linux daemon is stood in for by a test).
 
 Dropped from the plan: confirming an Allow on a production context (wtf
 has no production label; the badges are facts only).
 
-### 40. Context facts on approvals ◐
+### 40. Context facts on approvals ☑
 
 Agreed 2026-11-15, built with #39: the riskiest moment with agents is
 approving a command without noticing where it runs. Every approval that
@@ -968,9 +997,19 @@ Built 2026-11-15:
   and the lines (the helper asks the app, op `facts`, within 2 s, else the
   plain reason).
 
-Still to do: docker contexts and Azure (no badge reads them yet). The AWS
-account for a `--profile` the badge never saw is looked up the badge's way
-(STS, in the background), so it can say "asking AWS…" on the approval.
+Also built 2026-11-15:
+
+- docker / docker-compose: the context (`--context`/`-c` and `-H` before the
+  subcommand only, so `docker run -c` is CPU shares; DOCKER_HOST,
+  DOCKER_CONTEXT, `docker context use`) and its daemon's endpoint, from
+  the CLI's `config.json` and context meta files (`infra.DockerContext`).
+- az: the subscription, name and id (`--subscription`, `az account set`,
+  AZURE_CONFIG_DIR) from `azureProfile.json` (`infra.AzureSubscription`).
+  Neither is a badge.
+- The AWS account for a `--profile` the badge never saw is looked up the
+  badge's way (STS, in the background): the approval says "asking AWS…",
+  and the bridge works its facts out again every half second (up to 20 s)
+  until the account is known, then updates it.
 
 ## Also built
 

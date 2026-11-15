@@ -43,11 +43,14 @@ type agentList struct {
 	// back when it reports in again after resuming.
 	resumable    []state.Agent
 	pendingNames map[string]string
+	// #39: approval id → its notification with Allow and Deny, taken away
+	// when it's answered anywhere else.
+	asked map[string]*notify.Asked
 }
 
 func newAgentList() *agentList {
 	return &agentList{all: map[string]bridge.Status{}, observers: map[int]func(){}, subagentsShown: map[string]bool{},
-		pendingNames: map[string]string{}}
+		pendingNames: map[string]string{}, asked: map[string]*notify.Asked{}}
 }
 
 // changed tells the observers something they show changed.
@@ -213,6 +216,34 @@ func toolName(tool string) string {
 		return tool[strings.LastIndex(tool, "__")+2:]
 	}
 	return tool
+}
+
+// nextApproval (Next Approval) goes to the agent of the oldest permission
+// prompt after the focused pane's, round and round, with the Agents tab
+// showing it.
+func (w *Window) nextApproval() {
+	var sessions []string
+	for _, ask := range w.app.agents.approvals() {
+		if !slices.Contains(sessions, ask.st.Session) {
+			sessions = append(sessions, ask.st.Session)
+		}
+	}
+	if len(sessions) == 0 {
+		w.toast("No agent is asking for approval")
+		return
+	}
+	current := ""
+	if t, ok := w.model.Active(); ok {
+		if ps := w.model.Panes[t.FocusedPaneID]; ps != nil {
+			current = ps.SessionID
+		}
+	}
+	next := sessions[(slices.Index(sessions, current)+1)%len(sessions)]
+	w.app.goToAgent(next)
+	// showSidebar toggles: only when the Agents tab isn't showing already.
+	if aw := w.app.windowOf(next); aw != nil && !aw.background && !(aw.sidebarState.Open && aw.sidebarState.Tab == uicore.SidebarAgents) {
+		aw.showSidebar(uicore.SidebarAgents)
+	}
 }
 
 // answerApproval answers a permission prompt from the inbox; one answered
@@ -406,6 +437,16 @@ func (w *Window) agentsSeen() {
 func (a *App) agentStatus(st bridge.Status) {
 	l := a.agents
 	old, had := l.all[st.Session]
+	// Approvals answered (here, in the pane, or gone with their agent)
+	// take their notification away.
+	for _, ap := range old.Approvals {
+		if !slices.ContainsFunc(st.Approvals, func(o bridge.Approval) bool { return o.ID == ap.ID }) {
+			if n := l.asked[ap.ID]; n != nil {
+				delete(l.asked, ap.ID)
+				go n.Close()
+			}
+		}
+	}
 	if st.State == bridge.StateEnded {
 		delete(l.all, st.Session)
 		delete(l.subagentsShown, st.Session)
@@ -484,7 +525,31 @@ func (a *App) agentStatus(st bridge.Status) {
 		sound = ""
 	}
 	n := a.be.Notify
-	go func() { _ = n.NotifySound(head, title, body, sound) }()
+	if ask == nil || now != bridge.StateWaiting {
+		go func() { _ = n.NotifySound(head, title, body, sound) }()
+		return
+	}
+	// A permission prompt: Allow and Deny on the notification itself.
+	id := ask.ID
+	go func() {
+		asked, _ := notify.Ask(n, head, title, body, sound, []notify.Action{{Key: bridge.Allow, Label: "Allow"}, {Key: bridge.Deny, Label: "Deny"}})
+		if asked == nil {
+			return
+		}
+		coreglib.IdleAdd(func() {
+			if !slices.ContainsFunc(l.all[st.Session].Approvals, func(o bridge.Approval) bool { return o.ID == id }) {
+				asked.Close() // answered meanwhile
+				return
+			}
+			l.asked[id] = asked
+		})
+		if k := <-asked.Chosen; k == bridge.Allow || k == bridge.Deny {
+			coreglib.IdleAdd(func() {
+				delete(l.asked, id)
+				w.answerApproval(id, k)
+			})
+		}
+	}()
 }
 
 // soundGap: agents that change together make one sound.

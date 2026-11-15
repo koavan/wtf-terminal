@@ -69,6 +69,9 @@ const (
 	KindRun    = "run"
 	// snippet: open wtf's snippet editor filled in with Snippet (#29).
 	KindSnippet = "snippet"
+	// keys: send Text to the pane as typed, whatever runs there: a Codex
+	// approval prompt's key, from the Approvals inbox (#39).
+	KindKeys = "keys"
 )
 
 // UIRequest is EventRequest's payload.
@@ -726,7 +729,7 @@ func (s *Service) do(ctx context.Context, req wire.Request) wire.Response {
 	case "hook":
 		// A permission prompt (#39): listed in the inbox until it's
 		// answered, there or in the pane. Codex's is its own (phase 3).
-		if req.Event == "PermissionRequest" && req.Provider != "codex" {
+		if req.Event == "PermissionRequest" {
 			return s.awaitApproval(ctx, req)
 		}
 		s.settleApprovals(req)
