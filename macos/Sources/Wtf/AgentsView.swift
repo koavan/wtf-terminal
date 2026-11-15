@@ -67,6 +67,7 @@ final class AgentsView: NSView, SidePaneTab {
     func debugSummary() -> String {
         "agents: " + Agents.sorted().map {
             "\($0.session) \(Agents.state($0).rawValue)" + (Agents.find($0.session)?.0.background == true ? " background" : "")
+                + ($0.approvals.isEmpty ? "" : " approvals=\($0.approvals.count)")
                 + ($0.subagents.isEmpty ? "" : " subagents=\($0.subagents.count)" + (Agents.subagentsShown.contains($0.session) ? " shown" : ""))
         }.joined(separator: ", ")
     }
@@ -83,6 +84,16 @@ final class AgentsView: NSView, SidePaneTab {
             } else {
                 form.add(form.note("Start codex or claude in any tab, or Ask Claude (⌘I). Each one shows here: needs you, working, done or idle, with its last prompt. A click goes to it."))
             }
+        }
+        // #39: every permission prompt waiting, oldest first, above the agents.
+        let asks = Agents.approvals()
+        if !asks.isEmpty {
+            let h = NSTextField(labelWithString: "APPROVALS")
+            h.font = .systemFont(ofSize: 10.5, weight: .bold)
+            h.textColor = .systemOrange
+            h.toolTip = "What your agents are asking to do. Allow or Deny here, or answer in the agent's pane: whichever is first applies."
+            form.add(h, full: false)
+            for (st, ap) in asks { form.add(ApprovalRow(ap, of: st, owner: owner)) }
         }
         let parked = list.filter { Agents.find($0.session)?.0.background == true }
         for st in list where !parked.contains(st) {
@@ -289,6 +300,137 @@ private final class AgentRow: NSView {
         m.addItem(.separator())
 		m.addItem(ClosureMenuItem(title: "End " + product + "…", keyEquivalent: "") { [session, weak owner] in Background.end(session, from: owner?.window) })
         return m
+    }
+}
+
+/// One permission prompt (#39): which agent asks, the command or file, where
+/// a command would act (#40), the change an edit makes, and Allow / Deny /
+/// Go to Agent. Claude Code's own dialog in the pane answers it too.
+@MainActor
+private final class ApprovalRow: NSView {
+    private let session: String
+    private let id: String
+
+    init(_ ap: Go.bridge.Approval, of st: Go.bridge.Status, owner: WindowController) {
+        session = st.session
+        id = ap.id
+        super.init(frame: .zero)
+        wantsLayer = true
+        layer?.cornerRadius = 7
+        layer?.borderWidth = 1
+        layer?.borderColor = NSColor.systemOrange.withAlphaComponent(0.55).cgColor
+        layer?.backgroundColor = NSColor.systemOrange.withAlphaComponent(0.06).cgColor
+        let r = Redaction.shared
+
+        let dot = NSView()
+        dot.wantsLayer = true
+        dot.layer?.cornerRadius = 4
+        dot.layer?.backgroundColor = NSColor.systemOrange.cgColor
+        dot.translatesAutoresizingMaskIntoConstraints = false
+        NSLayoutConstraint.activate([dot.widthAnchor.constraint(equalToConstant: 8), dot.heightAnchor.constraint(equalToConstant: 8)])
+        var who = Agents.title(st)
+        if !ap.subagent.isEmpty { who += " · " + ap.subagent }
+        let name = NSTextField(labelWithString: who)
+        name.font = .systemFont(ofSize: 12, weight: .semibold)
+        name.lineBreakMode = .byTruncatingTail
+        name.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
+        let age = NSTextField(labelWithString: Agents.age(since: ap.since))
+        age.font = .systemFont(ofSize: 10.5)
+        age.textColor = .secondaryLabelColor
+        age.setContentCompressionResistancePriority(.required, for: .horizontal)
+        let spacer = NSView()
+        spacer.setContentHuggingPriority(.init(1), for: .horizontal)
+        let top = NSStackView(views: [dot, name, spacer, age])
+        top.spacing = 6
+
+        var lines: [NSView] = [top]
+        var wide: [NSView] = []
+        func text(_ s: String, mono: Bool = false, size: CGFloat = 11, color: NSColor = .secondaryLabelColor, max: Int = 0) -> NSTextField {
+            let l = NSTextField(wrappingLabelWithString: s)
+            l.font = mono ? .monospacedSystemFont(ofSize: size, weight: .regular) : .systemFont(ofSize: size)
+            l.textColor = color
+            l.maximumNumberOfLines = max
+            // Wrapped: the command and where it acts matter most here.
+            l.lineBreakMode = mono ? .byCharWrapping : .byWordWrapping
+            l.cell?.truncatesLastVisibleLine = true
+            l.isSelectable = true
+            l.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
+            lines.append(l)
+            wide.append(l)
+            return l
+        }
+        let tool = Agents.toolName(ap.tool)
+        _ = text(ap.description.isEmpty ? tool : tool + " · " + r.text(ap.description))
+        if !ap.what.isEmpty { _ = text(r.text(ap.what), mono: true, color: .labelColor, max: 6) }
+        for f in ap.facts {
+            let l = text(r.text(f), size: 10.5, color: .labelColor)
+            l.toolTip = "Where it would act, from this shell's context and what the command says. wtf doesn't judge it."
+        }
+        if !ap.diff.isEmpty {
+            let shown = ap.diff.split(separator: "\n", omittingEmptySubsequences: false).prefix(12)
+            let a = NSMutableAttributedString()
+            for (i, line) in shown.enumerated() {
+                let color: NSColor = line.hasPrefix("- ") ? .systemRed : line.hasPrefix("+ ") ? .systemGreen : .secondaryLabelColor
+                a.append(NSAttributedString(string: (i > 0 ? "\n" : "") + r.text(String(line)), attributes: [
+                    .font: NSFont.monospacedSystemFont(ofSize: 10.5, weight: .regular), .foregroundColor: color,
+                ]))
+            }
+            let more = ap.diff.split(separator: "\n").count - shown.count
+            if more > 0 {
+                a.append(NSAttributedString(string: "\n… \(more) more lines in the pane", attributes: [
+                    .font: NSFont.systemFont(ofSize: 10.5), .foregroundColor: NSColor.secondaryLabelColor,
+                ]))
+            }
+            let l = text("")
+            l.attributedStringValue = a
+        }
+        func button(_ t: String, _ tip: String, key: Bool = false, _ run: @escaping () -> Void) -> NSButton {
+            let b = ClosureButton(title: t, run)
+            b.bezelStyle = .accessoryBarAction
+            b.controlSize = .small
+            b.font = .systemFont(ofSize: 11, weight: key ? .semibold : .regular)
+            b.toolTip = tip
+            return b
+        }
+        let product = Agents.product(st)
+        let buttons = NSStackView(views: [
+            button("Allow", "Let \(product) do this once, as Yes in its own dialog", key: true) { [weak self] in self?.answer("allow") },
+            button("Deny", "Refuse it and stop \(product)'s turn, as No in its own dialog") { [weak self] in self?.answer("deny") },
+            button("Go to Agent", "Show its pane: its dialog has more choices (always allow, tell it what to do instead)") { [session] in
+                Agents.go(to: session)
+            },
+        ])
+        buttons.spacing = 2
+        lines.append(buttons)
+
+        let stack = NSStackView(views: lines)
+        stack.orientation = .vertical
+        stack.alignment = .leading
+        stack.spacing = 3
+        stack.edgeInsets = NSEdgeInsets(top: 6, left: 8, bottom: 7, right: 8)
+        stack.translatesAutoresizingMaskIntoConstraints = false
+        addSubview(stack)
+        NSLayoutConstraint.activate([
+            stack.leadingAnchor.constraint(equalTo: leadingAnchor), stack.trailingAnchor.constraint(equalTo: trailingAnchor),
+            stack.topAnchor.constraint(equalTo: topAnchor), stack.bottomAnchor.constraint(equalTo: bottomAnchor),
+            top.widthAnchor.constraint(equalTo: stack.widthAnchor, constant: -16),
+        ])
+        for v in wide { v.widthAnchor.constraint(equalTo: stack.widthAnchor, constant: -16).isActive = true }
+        setAccessibilityElement(false)
+        setAccessibilityLabel("\(who) asks: \(tool) \(r.text(ap.what))")
+    }
+
+    required init?(coder: NSCoder) { fatalError() }
+
+    private func answer(_ decision: String) {
+        let id = id
+        Task { @MainActor [weak self] in
+            do {
+                try await Services.bridge.Answer(id, decision)
+            } catch {
+                Toast.show("Already answered in the pane", in: self)
+            }
+        }
     }
 }
 

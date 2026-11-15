@@ -38,7 +38,7 @@ enum ClaudeCheck {
         echo "$*" > "$d/args"
         h() { printf '%s' "$1" | "$WTF_MCP" hook; }
         h '{"hook_event_name":"SessionStart"}'
-        h '{"hook_event_name":"PreToolUse","tool_name":"Bash"}' > "$d/pre.tmp" && mv "$d/pre.tmp" "$d/pre"
+        h '{"hook_event_name":"PreToolUse","tool_name":"Bash","cwd":"/tmp","tool_input":{"command":"kubectl --context wtf-check-ctx get pods"}}' > "$d/pre.tmp" && mv "$d/pre.tmp" "$d/pre"
         (printf '%s\\n' '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-06-18","capabilities":{},"clientInfo":{"name":"check","version":"1"}}}' \\
             '{"jsonrpc":"2.0","method":"notifications/initialized"}' \\
             '{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"recent_commands","arguments":{"count":5}}}'; sleep 3) | "$WTF_MCP" > "$d/mcp.out" 2> "$d/mcp.err"
@@ -104,6 +104,9 @@ enum ClaudeCheck {
         check(ClaudePane.isClaude(claudePane) && ClaudePane.target(of: claudePane) == targetSession,
               "its tools work on the shell it came from (→ \(ClaudePane.target(of: claudePane) ?? "none"))")
         check(await waitUntil(10) { exists("pre") } && read("pre").contains(#""permissionDecision":"ask""#), "the plugin asks before Bash: \(read("pre").debugDescription)")
+        // #40: and says where the command would act, in Claude Code's dialog.
+        check(read("pre").contains(#"Where it acts:\nkubectl: context wtf-check-ctx, which isn't in the kubeconfig files (from --context)"#),
+              "with where it would act: \(read("pre").debugDescription)")
 
         check(await waitUntil(20) { exists("waiting") }, "the hooks ran")
         let out = read("mcp.out")
@@ -200,6 +203,11 @@ enum ClaudeCheck {
         touch "$d/done"
         while [ ! -e "$d/substop" ]; do sleep 0.1; done
         h '{"hook_event_name":"SubagentStop","agent_id":"a1","agent_type":"Explore","last_assistant_message":"It is TestDeploy."}'
+        while [ ! -e "$d/ask" ]; do sleep 0.1; done
+        h '{"hook_event_name":"UserPromptSubmit","prompt":"restart the api"}'
+        h '{"hook_event_name":"PermissionRequest","cwd":"/tmp","tool_name":"Bash","tool_input":{"command":"kubectl --context wtf-check-ctx -n shop rollout restart deploy/api","description":"Restart the api"}}' > "$d/answer.tmp"
+        mv "$d/answer.tmp" "$d/answer"
+        h '{"hook_event_name":"Stop"}'
         while [ ! -e "$d/quit" ]; do sleep 0.1; done
 
         """
@@ -272,6 +280,38 @@ enum ClaudeCheck {
               "then done, with its result: \(String(describing: Agents.all[session]?.subagents.first))")
         Agents.toggleSubagents(session)
         check(!Agents.subagentsShown.contains(session), "another click hides them")
+
+        // #39, #40: a permission prompt in the inbox, with where the command
+        // would act; its Allow answers the waiting hook.
+        fm.createFile(atPath: "\(dir)/ask", contents: nil)
+        check(await waitUntil(10) { Agents.all[session]?.approvals.count == 1 }, "a permission prompt shows in the inbox")
+        let ap = Agents.all[session]?.approvals.first
+        check(ap?.tool == "Bash" && ap?.what == "kubectl --context wtf-check-ctx -n shop rollout restart deploy/api" && ap?.description == "Restart the api",
+              "with its command: \(String(describing: ap))")
+        check(ap?.facts == ["kubectl: context wtf-check-ctx, which isn't in the kubeconfig files (from --context)"],
+              "and where it would act: \(String(describing: ap?.facts))")
+        check(badge() == .waiting, "its tab shows it needs you: \(String(describing: badge()))")
+        check(await waitUntil(5) { summary = w.sidePane?.debugSummary() ?? ""; return summary == "agents: \(session) waiting approvals=1" },
+              "the Agents tab lists it: \(summary.debugDescription)")
+        if let snap = ProcessInfo.processInfo.environment["WTF_NATIVE_SNAPSHOT_DIR"], let v = w.sidePane {
+            v.layoutSubtreeIfNeeded()
+            if let rep = v.bitmapImageRepForCachingDisplay(in: v.bounds) {
+                v.cacheDisplay(in: v.bounds, to: rep)
+                try? rep.representation(using: .png, properties: [:])?.write(to: URL(fileURLWithPath: snap + "/approvals.png"))
+            }
+        }
+        func allow(_ v: NSView) -> NSButton? {
+            if let b = v as? NSButton, b.title == "Allow" { return b }
+            for s in v.subviews { if let b = allow(s) { return b } }
+            return nil
+        }
+        let button = w.sidePane.flatMap { allow($0) }
+        check(button != nil, "with an Allow button")
+        button?.performClick(nil)
+        check(await waitUntil(5) { exists("answer") }, "Allow answers the hook")
+        check(read("answer") == #"{"hookSpecificOutput":{"decision":{"behavior":"allow"},"hookEventName":"PermissionRequest"}}"#,
+              "with allow: \(read("answer").debugDescription)")
+        check(await waitUntil(5) { Agents.all[session]?.approvals.isEmpty == true && badge() != .waiting }, "and it leaves the inbox: \(String(describing: badge()))")
 
         // A name you give it: the Agents tab and the picker show it.
         Task { try? await Services.bridge.Rename(session, "deploy fixer") }

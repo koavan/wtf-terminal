@@ -37,6 +37,7 @@ type hookFile struct {
 		Hooks   []struct {
 			Type    string `json:"type"`
 			Command string `json:"command"`
+			Timeout int    `json:"timeout"`
 		} `json:"hooks"`
 	} `json:"hooks"`
 }
@@ -386,5 +387,141 @@ func TestStatusSettings(t *testing.T) {
 		if h := groups[0].Hooks[0]; h.Type != "command" || h.Command != `"${WTF_MCP}" hook || true` {
 			t.Errorf("%s: %+v", ev, h)
 		}
+	}
+}
+
+// TestHookApprovals drives the helper's PermissionRequest hook as Claude
+// Code 2.1.325 does (#39): it waits for an answer from the inbox, says
+// nothing when it was answered in the pane, and goes when it's killed.
+func TestHookApprovals(t *testing.T) {
+	if testing.Short() {
+		t.Skip("builds wtf-mcp")
+	}
+	f := newFake(t)
+	bin := filepath.Join(t.TempDir(), "wtf-mcp")
+	if out, err := exec.Command("go", "build", "-o", bin, "../../cmd/wtf-mcp").CombinedOutput(); err != nil {
+		t.Fatalf("build: %v\n%s", err, out)
+	}
+	var hooks hookFile
+	readJSON(t, StatusSettingsFile, &hooks)
+	if h := hooks.Hooks["PermissionRequest"]; len(h) != 1 || h[0].Hooks[0].Timeout < 3600 {
+		t.Fatalf("PermissionRequest hook = %+v: it must be allowed to wait", h)
+	}
+	env := append(append(os.Environ(), f.s.shellEnv("s1")...), "WTF_MCP="+bin)
+	start := func(ev string) (*exec.Cmd, *strings.Builder) {
+		var e struct {
+			Event string `json:"hook_event_name"`
+		}
+		json.Unmarshal([]byte(ev), &e)
+		cmd := exec.Command(bin, "hook")
+		var out strings.Builder
+		cmd.Env, cmd.Stdin, cmd.Stdout = env, strings.NewReader(ev), &out
+		if err := cmd.Start(); err != nil {
+			t.Fatal(err)
+		}
+		return cmd, &out
+	}
+	run := func(ev string) {
+		cmd, out := start(ev)
+		if err := cmd.Wait(); err != nil || out.Len() != 0 {
+			t.Fatalf("%s: %v %q", ev, err, out.String())
+		}
+	}
+	// waitFor polls the agent until cond holds.
+	waitFor := func(what string, cond func(Status) bool) Status {
+		t.Helper()
+		for i := 0; i < 200; i++ {
+			if a := f.s.Agents(); len(a) == 1 && cond(a[0]) {
+				return a[0]
+			}
+			time.Sleep(10 * time.Millisecond)
+		}
+		t.Fatalf("never %s: %+v", what, f.s.Agents())
+		return Status{}
+	}
+	asking := func(st Status) bool { return len(st.Approvals) == 1 && st.State == StateWaiting }
+	run(`{"hook_event_name":"UserPromptSubmit","prompt":"restart the api"}`)
+
+	// Allowed in the inbox.
+	cmd, out := start(`{"hook_event_name":"PermissionRequest","cwd":"/tmp","tool_name":"Bash","tool_input":{"command":"kubectl -n shop rollout restart deploy/api","description":"Restart the api"},"permission_suggestions":[]}`)
+	st := waitFor("asking", asking)
+	ap := st.Approvals[0]
+	if ap.Tool != "Bash" || ap.What != "kubectl -n shop rollout restart deploy/api" || ap.Description != "Restart the api" || st.Message != "Bash: kubectl -n shop rollout restart deploy/api" {
+		t.Fatalf("approval = %+v, message %q", ap, st.Message)
+	}
+	if err := f.s.Answer(ap.ID, "maybe"); err == nil {
+		t.Fatal("answered maybe")
+	}
+	if err := f.s.Answer(ap.ID, Allow); err != nil {
+		t.Fatal(err)
+	}
+	if err := cmd.Wait(); err != nil {
+		t.Fatal(err)
+	}
+	if want := `{"hookSpecificOutput":{"decision":{"behavior":"allow"},"hookEventName":"PermissionRequest"}}` + "\n"; out.String() != want {
+		t.Fatalf("allow: %q", out.String())
+	}
+	waitFor("working after allow", func(st Status) bool { return len(st.Approvals) == 0 && st.State == StateBusy })
+	if err := f.s.Answer(ap.ID, Allow); err == nil {
+		t.Fatal("answered twice")
+	}
+
+	// Denied in the inbox: the edit shows as a diff, and the turn stops.
+	cmd, out = start(`{"hook_event_name":"PermissionRequest","tool_name":"Edit","tool_input":{"file_path":"/tmp/a.go","old_string":"x := 1\n","new_string":"x := 2\ny := 3\n"}}`)
+	st = waitFor("asking about the edit", asking)
+	if ap := st.Approvals[0]; ap.What != "/tmp/a.go" || ap.Diff != "- x := 1\n+ x := 2\n+ y := 3" || len(ap.Facts) != 0 {
+		t.Fatalf("edit approval = %+v", ap)
+	}
+	f.s.Answer(st.Approvals[0].ID, Deny)
+	cmd.Wait()
+	if !strings.Contains(out.String(), `"behavior":"deny"`) || !strings.Contains(out.String(), `"interrupt":true`) {
+		t.Fatalf("deny: %q", out.String())
+	}
+	waitFor("idle after deny", func(st Status) bool { return len(st.Approvals) == 0 && st.State == StateIdle })
+
+	// Allowed in the pane: the tool's PostToolUse ends the wait, silently.
+	run(`{"hook_event_name":"UserPromptSubmit","prompt":"again"}`)
+	cmd, out = start(`{"hook_event_name":"PermissionRequest","tool_name":"Bash","tool_input":{"command":"make deploy"}}`)
+	waitFor("asking about make", asking)
+	run(`{"hook_event_name":"PostToolUse","tool_name":"Bash","tool_input":{"command":"make other"},"tool_response":{}}`)
+	if st := f.s.Agents()[0]; len(st.Approvals) != 1 {
+		t.Fatalf("another command's PostToolUse cleared it: %+v", st)
+	}
+	run(`{"hook_event_name":"PostToolUse","tool_name":"Bash","tool_input":{"command":"make deploy"},"tool_response":{}}`)
+	if err := cmd.Wait(); err != nil || out.Len() != 0 {
+		t.Fatalf("answered in the pane: %v %q", err, out.String())
+	}
+	waitFor("working after the pane's allow", func(st Status) bool { return len(st.Approvals) == 0 && st.State == StateBusy })
+
+	// Denied in the pane: Claude Code kills the hook.
+	cmd, _ = start(`{"hook_event_name":"PermissionRequest","tool_name":"Write","tool_input":{"file_path":"/tmp/b","content":"hi\n"}}`)
+	st = waitFor("asking about the write", asking)
+	if st.Approvals[0].Diff != "+ hi" {
+		t.Fatalf("write diff %q", st.Approvals[0].Diff)
+	}
+	cmd.Process.Signal(os.Interrupt)
+	cmd.Wait()
+	waitFor("idle after the hook went", func(st Status) bool { return len(st.Approvals) == 0 && st.State == StateIdle })
+
+	// A sub-agent's prompt outlives its parent's Stop; SessionEnd ends it.
+	run(`{"hook_event_name":"UserPromptSubmit","prompt":"explore"}`)
+	cmd, out = start(`{"hook_event_name":"PermissionRequest","agent_id":"a1","agent_type":"Explore","tool_name":"Bash","tool_input":{"command":"ls /"}}`)
+	st = waitFor("asking for the sub-agent", asking)
+	if st.Approvals[0].Subagent != "Explore" {
+		t.Fatalf("sub-agent approval %+v", st.Approvals[0])
+	}
+	run(`{"hook_event_name":"Stop","background_tasks":[{"status":"running"}]}`)
+	if st := f.s.Agents()[0]; len(st.Approvals) != 1 {
+		t.Fatalf("Stop cleared a sub-agent's approval: %+v", st)
+	}
+	run(`{"hook_event_name":"SessionEnd"}`)
+	if err := cmd.Wait(); err != nil || out.Len() != 0 {
+		t.Fatalf("after SessionEnd: %v %q", err, out.String())
+	}
+}
+
+func TestJoinArgv(t *testing.T) {
+	if got := joinArgv([]string{"kubectl", "get", "pods", "-l", "app=api web", "it's"}); got != `kubectl get pods -l 'app=api web' 'it'\''s'` {
+		t.Fatalf("joinArgv = %s", got)
 	}
 }

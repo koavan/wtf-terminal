@@ -592,6 +592,54 @@ extension Go.awsprofiles {
 }
 
 extension Go.bridge {
+    /// bridge.Approval
+    public struct Approval: Codable, Equatable, Sendable {
+        public var id: String
+        public var tool: String
+        public var what: String
+        public var description: String
+        public var diff: String
+        public var facts: [String]
+        public var since: Int
+        public var subagent: String
+
+        public init(id: String = "", tool: String = "", what: String = "", description: String = "", diff: String = "", facts: [String] = [], since: Int = 0, subagent: String = "") {
+            self.id = id
+            self.tool = tool
+            self.what = what
+            self.description = description
+            self.diff = diff
+            self.facts = facts
+            self.since = since
+            self.subagent = subagent
+        }
+
+        enum CodingKeys: String, CodingKey {
+            case id = "id"
+            case tool = "tool"
+            case what = "what"
+            case description = "description"
+            case diff = "diff"
+            case facts = "facts"
+            case since = "since"
+            case subagent = "subagent"
+        }
+
+        public init(from decoder: Decoder) throws {
+            let c = try decoder.container(keyedBy: CodingKeys.self)
+            self.id = (try? c.decodeIfPresent(String.self, forKey: .id)) ?? ""
+            self.tool = (try? c.decodeIfPresent(String.self, forKey: .tool)) ?? ""
+            self.what = (try? c.decodeIfPresent(String.self, forKey: .what)) ?? ""
+            self.description = (try? c.decodeIfPresent(String.self, forKey: .description)) ?? ""
+            self.diff = (try? c.decodeIfPresent(String.self, forKey: .diff)) ?? ""
+            self.facts = (try? c.decodeIfPresent([String].self, forKey: .facts)) ?? []
+            self.since = (try? c.decodeIfPresent(Int.self, forKey: .since)) ?? 0
+            self.subagent = (try? c.decodeIfPresent(String.self, forKey: .subagent)) ?? ""
+        }
+    }
+}
+
+extension Go.bridge {
     /// bridge.Block
     public struct Block: Codable, Equatable, Sendable {
         public var id: Int
@@ -726,8 +774,9 @@ extension Go.bridge {
         public var claudeSession: String
         public var project: String
         public var transcript: String
+        public var approvals: [Go.bridge.Approval]
 
-        public init(session: String = "", provider: String = "", state: String = "", message: String = "", prompt: String = "", since: Int = 0, unseen: Bool = false, subagents: [Go.bridge.Subagent] = [], background: Int = 0, name: String = "", started: Int = 0, folder: String = "", git: Go.worktree.Branch = Go.worktree.Branch(), claudeSession: String = "", project: String = "", transcript: String = "") {
+        public init(session: String = "", provider: String = "", state: String = "", message: String = "", prompt: String = "", since: Int = 0, unseen: Bool = false, subagents: [Go.bridge.Subagent] = [], background: Int = 0, name: String = "", started: Int = 0, folder: String = "", git: Go.worktree.Branch = Go.worktree.Branch(), claudeSession: String = "", project: String = "", transcript: String = "", approvals: [Go.bridge.Approval] = []) {
             self.session = session
             self.provider = provider
             self.state = state
@@ -744,6 +793,7 @@ extension Go.bridge {
             self.claudeSession = claudeSession
             self.project = project
             self.transcript = transcript
+            self.approvals = approvals
         }
 
         enum CodingKeys: String, CodingKey {
@@ -763,6 +813,7 @@ extension Go.bridge {
             case claudeSession = "claudeSession"
             case project = "project"
             case transcript = "transcript"
+            case approvals = "approvals"
         }
 
         public init(from decoder: Decoder) throws {
@@ -783,6 +834,7 @@ extension Go.bridge {
             self.claudeSession = (try? c.decodeIfPresent(String.self, forKey: .claudeSession)) ?? ""
             self.project = (try? c.decodeIfPresent(String.self, forKey: .project)) ?? ""
             self.transcript = (try? c.decodeIfPresent(String.self, forKey: .transcript)) ?? ""
+            self.approvals = (try? c.decodeIfPresent([Go.bridge.Approval].self, forKey: .approvals)) ?? []
         }
     }
 }

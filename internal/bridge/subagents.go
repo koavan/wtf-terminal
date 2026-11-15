@@ -47,11 +47,14 @@ func (a Status) equal(b Status) bool {
 		a.Since == b.Since && a.Unseen == b.Unseen && a.Name == b.Name && a.Started == b.Started && a.Background == b.Background &&
 		a.Folder == b.Folder && a.Git == b.Git &&
 		a.ClaudeSession == b.ClaudeSession && a.Project == b.Project && a.Transcript == b.Transcript &&
-		slices.Equal(a.Subagents, b.Subagents)
+		slices.Equal(a.Subagents, b.Subagents) && slices.EqualFunc(a.Approvals, b.Approvals, func(x, y Approval) bool {
+		return x.ID == y.ID && x.What == y.What && x.Diff == y.Diff && slices.Equal(x.Facts, y.Facts)
+	})
 }
 
 func (a Status) clone() Status {
 	a.Subagents = slices.Clone(a.Subagents)
+	a.Approvals = slices.Clone(a.Approvals)
 	return a
 }
 
