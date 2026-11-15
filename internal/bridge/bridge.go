@@ -115,6 +115,10 @@ type Status struct {
 	// The sub-agents it started, oldest first: the running ones and those
 	// done since its last prompt.
 	Subagents []Subagent `json:"subagents"`
+	// While busy only because its turn paused on background work (shells,
+	// sub-agents, monitors; Claude Code's Stop said so): how much is still
+	// in flight. That work wakes it when it ends; 0 otherwise.
+	Background int `json:"background"`
 	// The name you gave it in the Agents tab ("" for none). It stays with
 	// its shell: a claude started there again gets it back.
 	Name string `json:"name"`
@@ -357,7 +361,8 @@ func (s *Service) target(session string) string {
 // Claude Code works (a permission prompt); one while it's idle is its
 // reminder that it's waiting for a prompt, which changes nothing.
 // A new prompt (newPrompt) forgets the sub-agents that are done.
-func (s *Service) setState(session, provider, state, message, prompt string, newPrompt bool) (Status, bool) {
+// background is how much background work a paused turn waits on.
+func (s *Service) setState(session, provider, state, message, prompt string, newPrompt bool, background int) (Status, bool) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	a := s.agents[session]
@@ -386,6 +391,7 @@ func (s *Service) setState(session, provider, state, message, prompt string, new
 	if a.State != state {
 		a.Since = time.Now().UnixMilli()
 	}
+	a.Background = background
 	switch state {
 	case StateWaiting:
 		a.Message = uicore.Redact(strings.TrimSpace(message))
@@ -447,6 +453,12 @@ func (s *Service) ShellClosed(session string) {
 
 // shortPrompt is a prompt's first non-empty line, redacted and shortened.
 func shortPrompt(p string) string { return shortLine(p, maxPrompt) }
+
+// isTaskNotification: the prompt Claude Code wakes a session with when
+// its background work (a shell, a sub-agent) ends.
+func isTaskNotification(p string) bool {
+	return strings.HasPrefix(strings.TrimSpace(p), "<task-notification>")
+}
 
 // shortLine is s's first non-empty line, spaces squeezed, redacted and
 // at most max runes.
@@ -573,7 +585,7 @@ func (s *Service) AgentsIn(dir string) []string {
 // Forget drops session's Claude Code: its shell closed, or is back at its
 // prompt (a claude killed before its SessionEnd hook).
 func (s *Service) Forget(session string) {
-	if st, ok := s.setState(session, "", StateEnded, "", "", false); ok {
+	if st, ok := s.setState(session, "", StateEnded, "", "", false, 0); ok {
 		events.Emit(EventStatus, st)
 	}
 }
@@ -706,7 +718,17 @@ func (s *Service) do(ctx context.Context, req wire.Request) wire.Response {
 		if state == "" {
 			return wire.Response{Error: "unknown hook event " + strconv.Quote(req.Event)}
 		}
-		st, ok := s.setState(req.Pane, req.Provider, state, req.Message, req.Prompt, req.Event == "UserPromptSubmit")
+		// A turn that stopped with background work in flight only paused:
+		// that work wakes it when it ends, so it's still working.
+		if req.Event == "Stop" && req.Background > 0 {
+			state = StateBusy
+		}
+		// That wake-up comes as a prompt of its own; it isn't the user's.
+		prompt, newPrompt := req.Prompt, req.Event == "UserPromptSubmit"
+		if newPrompt && isTaskNotification(prompt) {
+			prompt, newPrompt = "", false
+		}
+		st, ok := s.setState(req.Pane, req.Provider, state, req.Message, prompt, newPrompt, req.Background)
 		// An Agent call: the sub-agent it started (named in its response).
 		if req.Spawned != "" {
 			if st2, ok2 := s.subagentHook(req.Pane, req); ok2 {

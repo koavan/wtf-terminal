@@ -257,6 +257,9 @@ func (t *agentsTab) rebuild() {
 		_, cwd := a.agentPlace(st.Session)
 		title, tab := a.agentTitle(st)
 		detail := agentLabel(state)
+		if state == bridge.StateBusy && st.Background > 0 {
+			detail += " · " + inBackground(st.Background)
+		}
 		for _, s := range []string{tab, cwd} {
 			if s != "" {
 				detail += " · " + s

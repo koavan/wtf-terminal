@@ -140,6 +140,10 @@ func hook(c client, provider string, in io.Reader, out io.Writer) int {
 		Tool      string          `json:"tool_name"`
 		Input     *wire.ToolInput `json:"tool_input"`
 		Response  json.RawMessage `json:"tool_response"`
+		// Stop: the session's background work in flight.
+		Background []struct {
+			Status string `json:"status"`
+		} `json:"background_tasks"`
 	}
 	data, err := io.ReadAll(io.LimitReader(in, 1<<20))
 	if err == nil {
@@ -171,6 +175,13 @@ func hook(c client, provider string, in io.Reader, out io.Writer) int {
 	req := wire.Request{Op: "hook", Provider: provider, Event: ev.Event, Message: ev.Message, Prompt: ev.Prompt, Cwd: ev.Cwd,
 		ClaudeSession: ev.SessionID, Transcript: ev.Transcript,
 		AgentID: ev.AgentID, AgentType: ev.AgentType, Tool: ev.Tool, Input: ev.Input}
+	if ev.Event == "Stop" {
+		for _, t := range ev.Background {
+			if t.Status == "running" || t.Status == "pending" {
+				req.Background++
+			}
+		}
+	}
 	if ev.Event == "SubagentStop" && req.Message == "" {
 		req.Message = ev.Last
 	}

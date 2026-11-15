@@ -518,6 +518,38 @@ func TestAgents(t *testing.T) {
 
 // New shells get WTF_AGENT_SETTINGS while agent-status is on and the
 // plugin has its settings file.
+// TestBackgroundWork: a turn that stops with background work in flight
+// (shells, sub-agents) only paused, so it stays working until a turn ends
+// with none; the task notification that wakes it isn't a prompt of yours.
+func TestBackgroundWork(t *testing.T) {
+	f := newFake(t)
+	s := f.s
+	hook := func(event, prompt string, background int) Status {
+		t.Helper()
+		r := s.do(context.Background(), wire.Request{V: wire.Version, Pane: "s1", Token: s.token("s1"), Op: "hook",
+			Event: event, Prompt: prompt, Background: background})
+		if r.Error != "" {
+			t.Fatal(r.Error)
+		}
+		return s.Agents()[0]
+	}
+	hook("UserPromptSubmit", "run the tests in the background", 0)
+	if st := hook("Stop", "", 2); st.State != StateBusy || st.Background != 2 || st.Unseen {
+		t.Fatalf("paused on background work = %+v", st)
+	}
+	st := hook("UserPromptSubmit", "<task-notification>\n<task-id>b1</task-id>\n<status>completed</status>", 0)
+	if st.State != StateBusy || st.Background != 0 || st.Prompt != "run the tests in the background" {
+		t.Fatalf("woken = %+v", st)
+	}
+	if st := hook("Stop", "", 1); st.State != StateBusy || st.Background != 1 {
+		t.Fatalf("one left = %+v", st)
+	}
+	hook("UserPromptSubmit", "<task-notification>…", 0)
+	if st := hook("Stop", "", 0); st.State != StateIdle || st.Background != 0 || !st.Unseen {
+		t.Fatalf("all done = %+v", st)
+	}
+}
+
 func TestAgentSettingsEnv(t *testing.T) {
 	s := NewService(nil)
 	if err := s.startup(); err != nil {

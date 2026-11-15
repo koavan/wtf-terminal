@@ -57,6 +57,10 @@ type Request struct {
 	// status isn't "async_launched"): some sub-agents (web-fetch) send no
 	// SubagentStart or SubagentStop, so this is the only end wtf hears of.
 	SpawnedDone bool `json:"spawnedDone,omitempty"`
+	// Stop: how much of its background work (shells, sub-agents, monitors)
+	// is still in flight, from Claude Code's background_tasks. More than
+	// none means the turn only paused: that work wakes it when it ends.
+	Background int `json:"background,omitempty"`
 }
 
 // ToolInput is what wtf shows of a tool call's input: an Agent call's

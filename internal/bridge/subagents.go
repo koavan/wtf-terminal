@@ -44,7 +44,7 @@ var subagentEvents = map[string]bool{"SubagentStart": true, "SubagentStop": true
 // equal: Status has a slice, so it isn't comparable with ==.
 func (a Status) equal(b Status) bool {
 	return a.Session == b.Session && a.Provider == b.Provider && a.State == b.State && a.Message == b.Message && a.Prompt == b.Prompt &&
-		a.Since == b.Since && a.Unseen == b.Unseen && a.Name == b.Name && a.Started == b.Started &&
+		a.Since == b.Since && a.Unseen == b.Unseen && a.Name == b.Name && a.Started == b.Started && a.Background == b.Background &&
 		a.Folder == b.Folder && a.Git == b.Git &&
 		a.ClaudeSession == b.ClaudeSession && a.Project == b.Project && a.Transcript == b.Transcript &&
 		slices.Equal(a.Subagents, b.Subagents)
@@ -57,7 +57,7 @@ func (a Status) clone() Status {
 
 // subagentHook records what a hook says about a session's sub-agents, and
 // returns the session's status when that changed. Nothing here changes the
-// session's own state: a background sub-agent works while it's idle.
+// session's own state: its Stop hook says when a turn paused on one.
 func (s *Service) subagentHook(session string, req wire.Request) (Status, bool) {
 	s.mu.Lock()
 	defer s.mu.Unlock()

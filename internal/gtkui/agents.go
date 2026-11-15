@@ -107,6 +107,9 @@ func agentLabel(state string) string {
 	return "Idle"
 }
 
+// inBackground: what a paused turn waits on ("2 in background").
+func inBackground(n int) string { return fmt.Sprintf("%d in background", n) }
+
 func agentProduct(st bridge.Status) string {
 	if st.Provider == "codex" {
 		return "Codex"

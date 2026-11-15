@@ -285,6 +285,9 @@ func TestHookSubagents(t *testing.T) {
 		`{"hook_event_name":"PostToolUse","tool_name":"Agent","tool_input":{"description":"Read a.txt","prompt":"Read the file a.txt and report it.","subagent_type":"Explore"},"tool_response":{"isAsync":true,"status":"async_launched","agentId":"aac03e4bdb4890928","description":"Read a.txt"},"tool_use_id":"toolu_1"}`,
 		`{"agent_id":"aac03e4bdb4890928","agent_type":"Explore","hook_event_name":"SubagentStart"}`,
 		`{"agent_id":"aac03e4bdb4890928","agent_type":"Explore","hook_event_name":"PostToolUse","tool_name":"Read","tool_input":{"file_path":"/tmp/work/a.txt"},"tool_response":{"type":"text","file":{"content":"hello\n"}},"tool_use_id":"toolu_2"}`,
+		// Its turn ends with the sub-agent and a shell still going (as
+		// Claude Code 2.1.325 sends it): it's still working.
+		`{"hook_event_name":"Stop","stop_hook_active":false,"last_assistant_message":"started","background_tasks":[{"id":"aac03e4bdb4890928","type":"subagent","status":"running","description":"Read a.txt","agent_type":"Explore"},{"id":"b67oxxhdr","type":"shell","status":"running","description":"Sleep","command":"sleep 15"},{"id":"b2","type":"shell","status":"completed","description":"Done"}],"session_crons":[]}`,
 	} {
 		var e struct {
 			Event string `json:"hook_event_name"`
@@ -301,7 +304,7 @@ func TestHookSubagents(t *testing.T) {
 		t.Fatalf("agents = %+v", a)
 	}
 	want := Subagent{ID: "aac03e4bdb4890928", Type: "Explore", Task: "Read a.txt", Doing: "Read a.txt", Running: true, Since: a[0].Subagents[0].Since}
-	if a[0].State != StateBusy || a[0].Subagents[0] != want {
+	if a[0].State != StateBusy || a[0].Background != 2 || a[0].Subagents[0] != want {
 		t.Fatalf("got %+v, want %+v", a[0], want)
 	}
 }

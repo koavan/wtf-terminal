@@ -153,7 +153,8 @@ private final class AgentRow: NSView {
         let top = NSStackView(views: [dot, name, spacer, age])
         top.spacing = 6
 
-        let what = NSTextField(labelWithString: [state.label, tab, cwd].filter { !$0.isEmpty }.joined(separator: " · "))
+        let background = state == .busy && st.background > 0 ? "\(st.background) in background" : ""
+        let what = NSTextField(labelWithString: [state.label, background, tab, cwd].filter { !$0.isEmpty }.joined(separator: " · "))
         what.font = .systemFont(ofSize: 11, weight: state == .waiting ? .semibold : .regular)
         what.textColor = state == .waiting ? .systemOrange : .secondaryLabelColor
         what.lineBreakMode = .byTruncatingMiddle

@@ -718,6 +718,7 @@ extension Go.bridge {
         public var since: Int
         public var unseen: Bool
         public var subagents: [Go.bridge.Subagent]
+        public var background: Int
         public var name: String
         public var started: Int
         public var folder: String
@@ -726,7 +727,7 @@ extension Go.bridge {
         public var project: String
         public var transcript: String
 
-        public init(session: String = "", provider: String = "", state: String = "", message: String = "", prompt: String = "", since: Int = 0, unseen: Bool = false, subagents: [Go.bridge.Subagent] = [], name: String = "", started: Int = 0, folder: String = "", git: Go.worktree.Branch = Go.worktree.Branch(), claudeSession: String = "", project: String = "", transcript: String = "") {
+        public init(session: String = "", provider: String = "", state: String = "", message: String = "", prompt: String = "", since: Int = 0, unseen: Bool = false, subagents: [Go.bridge.Subagent] = [], background: Int = 0, name: String = "", started: Int = 0, folder: String = "", git: Go.worktree.Branch = Go.worktree.Branch(), claudeSession: String = "", project: String = "", transcript: String = "") {
             self.session = session
             self.provider = provider
             self.state = state
@@ -735,6 +736,7 @@ extension Go.bridge {
             self.since = since
             self.unseen = unseen
             self.subagents = subagents
+            self.background = background
             self.name = name
             self.started = started
             self.folder = folder
@@ -753,6 +755,7 @@ extension Go.bridge {
             case since = "since"
             case unseen = "unseen"
             case subagents = "subagents"
+            case background = "background"
             case name = "name"
             case started = "started"
             case folder = "folder"
@@ -772,6 +775,7 @@ extension Go.bridge {
             self.since = (try? c.decodeIfPresent(Int.self, forKey: .since)) ?? 0
             self.unseen = (try? c.decodeIfPresent(Bool.self, forKey: .unseen)) ?? false
             self.subagents = (try? c.decodeIfPresent([Go.bridge.Subagent].self, forKey: .subagents)) ?? []
+            self.background = (try? c.decodeIfPresent(Int.self, forKey: .background)) ?? 0
             self.name = (try? c.decodeIfPresent(String.self, forKey: .name)) ?? ""
             self.started = (try? c.decodeIfPresent(Int.self, forKey: .started)) ?? 0
             self.folder = (try? c.decodeIfPresent(String.self, forKey: .folder)) ?? ""
