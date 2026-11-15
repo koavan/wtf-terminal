@@ -78,8 +78,11 @@ final class TerminalController: NSObject, @MainActor TerminalViewDelegate, Outpu
     /// switch and the first command, if any.
     func start(cwd: String, identity: String?, command: String?) async throws -> String {
         let term = view.getTerminal()
-        let id = try await Backend.call("terminal", "Create", [windowName, term.cols, term.rows, cwd], as: String.self)
+        let (cols, rows) = (term.cols, term.rows)
+        let id = try await Backend.call("terminal", "Create", [windowName, cols, rows, cwd], as: String.self)
         self.id = id
+        // Resized while the shell was starting (id was nil, so it wasn't sent).
+        if term.cols != cols || term.rows != rows { Backend.resize(id, cols: term.cols, rows: term.rows) }
         if closed {
             close()
             return id
@@ -822,7 +825,7 @@ final class TerminalController: NSObject, @MainActor TerminalViewDelegate, Outpu
         tracker?.relocate()
         scheduleTints()
         guard let id else { return }
-        Task { try? await Backend.run("terminal", "Resize", [id, newCols, newRows]) }
+        Backend.resize(id, cols: newCols, rows: newRows)
     }
 
     // Called for every line output scrolls by: coalesced like output.

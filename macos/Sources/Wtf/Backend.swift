@@ -17,6 +17,13 @@ enum Backend {
     // Writes to a PTY can block while the shell isn't reading; one queue
     // keeps keystrokes in order.
     private static let writes = DispatchQueue(label: "wtf.backend.writes", qos: .userInteractive)
+    // Resizes go one at a time, in order: on the concurrent calls queue a
+    // stale size from mid-drag could land last and leave the PTY (and the
+    // TUI running in it) smaller than the view.
+    private static let resizes = DispatchQueue(label: "wtf.backend.resizes", qos: .userInteractive)
+    // The newest size asked for per session; only that one is sent.
+    nonisolated(unsafe) private static var pendingSize: [String: (Int, Int)] = [:]
+    private static let pendingLock = NSLock()
 
     @MainActor private static var handlers: [String: [(Data) -> Void]] = [:]
 
@@ -134,6 +141,22 @@ enum Backend {
                     wtf_write(id, UnsafeMutablePointer(mutating: $0.baseAddress), Int64(bytes.count))
                 }
             }
+        }
+    }
+
+    /// Sets a session's PTY size. Sizes are applied in order and a burst
+    /// (dragging the window edge) collapses to its newest.
+    static func resize(_ id: String, cols: Int, rows: Int) {
+        pendingLock.lock()
+        let queued = pendingSize.updateValue((cols, rows), forKey: id) != nil
+        pendingLock.unlock()
+        if queued { return }
+        resizes.async {
+            pendingLock.lock()
+            let size = pendingSize.removeValue(forKey: id)
+            pendingLock.unlock()
+            guard let (c, r) = size, let json = try? encode([id, c, r] as [any Encodable]) else { return }
+            wtf_free(wtf_call("terminal", "Resize", json))
         }
     }
 
