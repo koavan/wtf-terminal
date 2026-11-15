@@ -1,6 +1,7 @@
 // Package agentctx says where a command an agent asks to run would act
 // (#40): the Kubernetes context and namespace, AWS profile, account and
-// region, Google Cloud project, Terraform workspace, ssh host or git branch,
+// region, Google Cloud project, Azure subscription, docker context, Terraform
+// workspace, ssh host or git branch,
 // as facts. They come from the shell the agent runs in (what wtf's context
 // badges read, from files: nothing asks a cloud), overridden by what the
 // command itself says (--context, -n, --profile, AWS_PROFILE=…, cd … &&),
@@ -36,6 +37,8 @@ type Fact struct {
 type Resolver interface {
 	Resolve(env map[string]string) infra.Context
 	KubeContext(env map[string]string, name string) (cluster, namespace string, ok bool)
+	DockerContext(env map[string]string, name string) (context, endpoint string)
+	AzureSubscription(env map[string]string, want string) (name, id string, ok bool)
 }
 
 // Shell is where the command runs: the environment the agent inherited
@@ -69,6 +72,8 @@ type reader struct {
 	cwdChanged, cwdUnknown bool
 	// kubectl config use-context earlier in the line.
 	kubeSwitch string
+	// docker context use, az account set earlier in the line.
+	dockerSwitch, azSwitch string
 }
 
 func (st *reader) add(f Fact) {
@@ -129,7 +134,8 @@ func (st *reader) command(ws []word, depth int) {
 				st.unknownIn(v.text)
 				return
 			}
-			sub := &reader{r: st.r, env: st.merged(local), cwd: st.cwd, cwdChanged: st.cwdChanged, cwdUnknown: st.cwdUnknown, kubeSwitch: st.kubeSwitch}
+			sub := &reader{r: st.r, env: st.merged(local), cwd: st.cwd, cwdChanged: st.cwdChanged, cwdUnknown: st.cwdUnknown, kubeSwitch: st.kubeSwitch,
+				dockerSwitch: st.dockerSwitch, azSwitch: st.azSwitch}
 			sub.line(v.text, depth+1)
 			for _, f := range sub.facts {
 				st.add(f)

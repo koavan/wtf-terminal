@@ -54,6 +54,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         if env["WTF_NATIVE_DEBUG"] == "claude" {
             await ClaudeCheck.run(w)
         }
+        if env["WTF_NATIVE_DEBUG"] == "realclaude" {
+            await RealClaudeCheck.run(w)
+        }
+        if env["WTF_NATIVE_DEBUG"] == "realcodex" {
+            await RealClaudeCheck.runCodex(w)
+        }
         if env["WTF_NATIVE_DEBUG"] == "background" {
             await BackgroundCheck.run(w)
         }
@@ -579,6 +585,7 @@ func buildMenu() -> NSMenu {
         cmd("Show All Tabs", "tab.overview", "\\", [.command, .shift]),
         cmd("Go to Agent…", "agents.pick", "a", [.command, .option]),
         cmd("Next Agent Needing You", "agents.next", "n", [.command, .option]),
+        cmd("Next Approval", "agents.approval", "y", [.command, .option]),
         cmd("Start Claude Code…", "agents.start"),
         .separator(),
         cmd("Show Next Tab", "tab.next", "]", [.command, .shift]),

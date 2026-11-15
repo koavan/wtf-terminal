@@ -4,6 +4,7 @@ package notify
 
 import (
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -63,5 +64,59 @@ func TestNotifySound(t *testing.T) {
 	time.Sleep(200 * time.Millisecond)
 	if got := read("canberra-gtk-play"); got != "" || strings.Contains(read("notify-send"), "sound") {
 		t.Errorf("Notify played %q", got)
+	}
+}
+
+// NotifyActions with a stand-in notify-send that prints its id and "clicks"
+// the button its test names; Close asks the daemon through gdbus.
+func TestNotifyActions(t *testing.T) {
+	dir := t.TempDir()
+	write := func(name, script string) {
+		if err := os.WriteFile(filepath.Join(dir, name), []byte("#!/bin/sh\n"+script), 0o755); err != nil {
+			t.Fatal(err)
+		}
+	}
+	write("notify-send", `echo "$*" >> `+filepath.Join(dir, "args")+`
+echo 42
+read k < `+filepath.Join(dir, "click")+`
+echo "$k"
+`)
+	write("gdbus", `echo "$*" >> `+filepath.Join(dir, "gdbus")+"\n")
+	t.Setenv("PATH", dir)
+	defer func(f, g func() bool) { daemonHasActions, daemonPlaysSounds = f, g }(daemonHasActions, daemonPlaysSounds)
+	daemonHasActions = func() bool { return true }
+	daemonPlaysSounds = func() bool { return false }
+	if err := exec.Command("mkfifo", filepath.Join(dir, "click")).Run(); err != nil {
+		t.Skip("no mkfifo")
+	}
+	s := NewService()
+	asked, err := Ask(s, "Claude Code needs you", "deploy", "Bash: make deploy", "", []Action{{"allow", "Allow"}, {"deny", "Deny"}})
+	if err != nil || asked == nil || asked.id != "42" {
+		t.Fatalf("asked %+v, %v", asked, err)
+	}
+	os.WriteFile(filepath.Join(dir, "click"), []byte("allow\n"), 0o644)
+	select {
+	case k := <-asked.Chosen:
+		if k != "allow" {
+			t.Fatalf("chosen %q", k)
+		}
+	case <-time.After(5 * time.Second):
+		t.Fatal("no answer")
+	}
+	b, _ := os.ReadFile(filepath.Join(dir, "args"))
+	if got := strings.TrimSpace(string(b)); got != "--app-name=wtf --print-id --wait --action=allow=Allow --action=deny=Deny -- Claude Code needs you — deploy Bash: make deploy" {
+		t.Errorf("notify-send %q", got)
+	}
+	asked.Close()
+	b, _ = os.ReadFile(filepath.Join(dir, "gdbus"))
+	if !strings.Contains(string(b), "CloseNotification 42") {
+		t.Errorf("gdbus %q", b)
+	}
+
+	// Without the daemon's buttons: a plain notification, nothing to wait on.
+	daemonHasActions = func() bool { return false }
+	write("notify-send", `echo "$*" > `+filepath.Join(dir, "args")+"\n")
+	if asked, err := Ask(s, "t", "", "b", "", []Action{{"allow", "Allow"}}); asked != nil || err != nil {
+		t.Fatalf("without actions: %+v %v", asked, err)
 	}
 }

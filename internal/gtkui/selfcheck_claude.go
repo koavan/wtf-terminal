@@ -421,6 +421,15 @@ func (w *Window) checkAgents() {
 		askID := "ask:" + session + ":" + ap.ID
 		ids = tabIDs()
 		check(len(ids) > 0 && ids[0] == askID, "the Agents tab lists it first: %q", ids)
+		// Next Approval goes to it from another tab.
+		onMain(func() { w.model.Open(uicore.OpenOptions{}) })
+		check(waitUntil(5*time.Second, func() bool { return w.active() != p }), "another tab")
+		elsewhere := w.active()
+		onMain(w.nextApproval)
+		check(waitUntil(5*time.Second, func() bool { return w.active() == p }), "Next Approval goes to the agent asking")
+		if elsewhere != nil && elsewhere != p {
+			onMain(func() { w.model.ClosePane(elsewhere.id) })
+		}
 		w.shot("agents-approval")
 		var rows []sideRow
 		onMain(func() {

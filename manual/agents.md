@@ -22,7 +22,7 @@ A `codex` you start in a wtf shell is an agent like a Claude Code: it gets a row
 
 ## Approvals
 
-When Claude Code asks your permission (to run a command, change a file, or use a tool), the request shows at the top of the Agents tab under **Approvals**, from every window and the background, oldest first. You don't have to find the agent's tab to answer it. Each one shows:
+When Claude Code or Codex asks your permission (to run a command, change a file, or use a tool), the request shows at the top of the Agents tab under **Approvals**, from every window and the background, oldest first. You don't have to find the agent's tab to answer it. Each one shows:
 
 - which agent asks (and which of its sub-agents, if one does);
 - the tool, with Claude Code's description of the command;
@@ -32,9 +32,13 @@ When Claude Code asks your permission (to run a command, change a file, or use a
 
 **Allow** is **Yes** in Claude Code's own dialog: it runs this once. **Deny** is **No**: Claude Code doesn't run it and stops its turn, waiting for you. For the dialog's other choices (allow always, or tell Claude what to do instead), **Go to Agent**. Claude Code's dialog stays open in its pane while the request is in the Approvals list, and whichever you answer first applies; the other goes away.
 
-The agent's notification shows the command and where it would act, so you can tell from the notification alone whether you need to look.
+{{cmd:agents.approval}} goes to the next agent asking, with the Agents tab open.
 
-Only Claude Code's own permission prompts show here: wtf doesn't add any. A claude you start yourself asks exactly what it asked before, under its own permission mode; wtf only shows the same request in a second place. Codex's approvals show as **Needs you** on its row, to answer in its pane.
+**The notification.** When a request comes while you're looking elsewhere, its notification shows the command and where it would act, with **Allow** and **Deny** buttons: you can answer without coming back to wtf. {{mac:The first one asks you to allow wtf's notifications; without that, it's a plain notification like wtf's others (click it to go to the agent).|other:The buttons need a notification daemon that shows them (GNOME's, KDE's, dunst, mako and most others do) and libnotify 0.7.9 or later; otherwise it's a plain notification.}} Answered anywhere else, the notification goes away.
+
+**Codex** asks the same way, with one difference: it shows its own approval prompt only once wtf has listed the request, so wtf doesn't wait for your answer there. **Allow** and **Deny** press the keys its prompt names (**y** for *Yes, proceed*, **Esc** for *No*) in its pane, as if you did. A Codex file change (`apply_patch`) shows the files and the lines it changes.
+
+Only the agents' own permission prompts show here: wtf doesn't add any. A claude or codex you start yourself asks exactly what it asked before, under its own permission mode and approval policy; wtf only shows the same request in a second place.
 
 ### Where a command would act
 
@@ -45,13 +49,15 @@ For commands that act on infrastructure, the request lists where they would run,
 | `kubectl`, `oc`, `helm` | the context, its cluster and the namespace |
 | `aws`, `sam`, `cdk` | the profile, account and region |
 | `gcloud`, `gsutil`, `bq` | the project |
+| `az` | the subscription, its name and id |
+| `docker`, `docker-compose` | the context and the daemon it talks to |
 | `terraform`, `tofu`, `terragrunt` | the folder and the workspace |
 | `ssh` | the host, and the jump host |
 | `git push` | the branch, where it pushes, and whether it forces |
 
-What the command says wins over the shell, and each fact says where it came from: `kubectl: context prod-eks (from --context), namespace payments (from -n)`. wtf follows `--context`, `--kube-context`, `--kubeconfig`, `-n`, `-A`, `--profile`, `--region`, `--project`, `--configuration`, `-chdir=`, `NAME=value` before a command, `export`, `cd … &&`, `env`, `sudo`, `aws-vault exec`, `kubectl config use-context` and `sh -c '…'`. When the command sets one in a way wtf can't read (a variable, `$(…)`, `eval`), it says *not known from this command* rather than showing the shell's.
+What the command says wins over the shell, and each fact says where it came from: `kubectl: context prod-eks (from --context), namespace payments (from -n)`. wtf follows `--context`, `--kube-context`, `--kubeconfig`, `-n`, `-A`, `--profile`, `--region`, `--project`, `--configuration`, `--subscription`, docker's `-c` and `-H`, `-chdir=`, `NAME=value` before a command, `export`, `cd … &&`, `env`, `sudo`, `aws-vault exec`, `kubectl config use-context`, `docker context use`, `az account set` and `sh -c '…'`. When the command sets one in a way wtf can't read (a variable, `$(…)`, `eval`), it says *not known from this command* rather than showing the shell's.
 
-These are facts, not warnings: wtf doesn't label a context as production or dangerous. Nothing is asked of a cloud to work them out, except the AWS account, which wtf looks up the way the AWS badge does when a profile's files don't say. Secrets are hidden in all of it.
+These are facts, not warnings: wtf doesn't label a context as production or dangerous. Nothing is asked of a cloud to work them out (Docker's contexts and Azure's subscriptions come from `~/.docker` and `~/.azure`), except the AWS account, which wtf looks up the way the AWS badge does when a profile's files don't say; the request shows *asking AWS…* until the answer comes, then the account. Secrets are hidden in all of it.
 
 ## The ungrouped agents tab group
 

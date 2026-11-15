@@ -55,6 +55,32 @@ func (fake) KubeContext(env map[string]string, name string) (string, string, boo
 	return d[0], d[1], ok
 }
 
+func (fake) DockerContext(env map[string]string, name string) (string, string) {
+	if name == "" {
+		if h := env["DOCKER_HOST"]; h != "" && env["DOCKER_CONTEXT"] == "" {
+			return "", h
+		}
+		name = env["DOCKER_CONTEXT"]
+	}
+	switch name {
+	case "", "default":
+		return "default", "the local daemon"
+	case "prod":
+		return "prod", "ssh://deploy@prod-1"
+	}
+	return name, ""
+}
+
+func (fake) AzureSubscription(env map[string]string, want string) (string, string, bool) {
+	switch want {
+	case "", "Dev", "1111":
+		return "Dev", "1111", true
+	case "Prod", "2222":
+		return "Prod", "2222", true
+	}
+	return "", "", false
+}
+
 func TestOf(t *testing.T) {
 	sh := Shell{Env: map[string]string{"AWS_PROFILE": "dev", "PATH": "/bin"}, Cwd: "/repo/app"}
 	cases := []struct {
@@ -105,6 +131,19 @@ func TestOf(t *testing.T) {
 			"kubectl: context dev-eks, cluster arn:aws:eks:eu-west-1:111:cluster/dev, namespace dev",
 			"aws: profile dev, account 111111111111, region eu-west-1"}},
 		{"echo 'kubectl delete ns prod'", nil},
+		{"docker ps", []string{"docker: context default, daemon the local daemon"}},
+		{"docker --context prod compose up -d", []string{"docker: context prod (from --context), daemon ssh://deploy@prod-1 (from --context)"}},
+		{"docker -c nope ps", []string{"docker: context nope (from --context), daemon not known: no such context (from --context)"}},
+		{"docker run -c 512 alpine", []string{"docker: context default, daemon the local daemon"}},
+		{"DOCKER_HOST=tcp://10.0.0.5:2376 docker ps", []string{"docker: daemon tcp://10.0.0.5:2376 (from DOCKER_HOST=)"}},
+		{"docker -H ssh://x ps", []string{"docker: daemon ssh://x (from -H)"}},
+		{"docker context use prod && docker rm -f api", []string{"docker: switches context to prod, context prod (from context use), daemon ssh://deploy@prod-1 (from context use)"}},
+		{"docker context ls", nil},
+		{"az vm list", []string{"az: subscription Dev (1111)"}},
+		{"az group delete -n rg --subscription Prod", []string{"az: subscription Prod (2222) (from --subscription)"}},
+		{"az account set --subscription 2222; az group list", []string{"az: switches subscription to 2222, subscription Prod (2222) (from account set)"}},
+		{"az --subscription nope vm list", []string{"az: subscription nope, which isn't in the CLI's profile (from --subscription)"}},
+		{"az login", nil},
 	}
 	for _, c := range cases {
 		got := Lines(Of(c.cmd, sh, fake{}))

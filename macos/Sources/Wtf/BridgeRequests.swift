@@ -59,6 +59,10 @@ enum BridgeRequests {
             case .busy: fail(req.id, "The shell is busy: a program is running in it")
             case .copied: fail(req.id, "The command has several lines and this shell would run each as it's typed, so it was copied to the clipboard instead")
             }
+        case "keys":
+            // A Codex approval prompt's key, from the Approvals inbox (#39).
+            term.type(req.text ?? "")
+            reply(req.id, Go.bridge.Reply())
         case "run":
             run(req, p, term)
         case "snippet":

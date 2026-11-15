@@ -392,7 +392,7 @@ func (t *agentsTab) rebuild() {
 	}
 	sections := []sideSection{sec}
 	if asks := t.approvalRows(); len(asks) > 0 {
-		sections = append([]sideSection{{title: "Approvals", rows: asks,
+		sections = append([]sideSection{{title: strings.TrimSpace("Approvals · Next " + keyOf("agents.approval")), rows: asks,
 			tip: "What your agents are asking to do. Allow or Deny here, or answer in the agent's pane: whichever is first applies."}}, sections...)
 	}
 	if len(parked) > 0 {

@@ -525,3 +525,90 @@ func TestJoinArgv(t *testing.T) {
 		t.Fatalf("joinArgv = %s", got)
 	}
 }
+
+// TestHookCodexApprovals: Codex shows its own prompt only once the hook
+// returns (0.167), so its PermissionRequest is listed without waiting; the
+// inbox answers with the prompt's keys, and Codex's events clear it.
+func TestHookCodexApprovals(t *testing.T) {
+	if testing.Short() {
+		t.Skip("builds wtf-mcp")
+	}
+	f := newFake(t)
+	bin := filepath.Join(t.TempDir(), "wtf-mcp")
+	if out, err := exec.Command("go", "build", "-o", bin, "../../cmd/wtf-mcp").CombinedOutput(); err != nil {
+		t.Fatalf("build: %v\n%s", err, out)
+	}
+	env := append(append(os.Environ(), f.s.shellEnv("s1")...), "WTF_MCP="+bin)
+	run := func(ev string) {
+		t.Helper()
+		cmd := exec.Command(bin, "codex-hook")
+		var out strings.Builder
+		cmd.Env, cmd.Stdin, cmd.Stdout = env, strings.NewReader(ev), &out
+		done := make(chan error, 1)
+		go func() { done <- cmd.Run() }()
+		select {
+		case err := <-done:
+			if err != nil || out.Len() != 0 {
+				t.Fatalf("%s: %v %q", ev, err, out.String())
+			}
+		case <-time.After(5 * time.Second):
+			cmd.Process.Kill()
+			t.Fatalf("%s: the hook waited (Codex wouldn't show its prompt)", ev)
+		}
+	}
+	agent := func() Status {
+		a := f.s.Agents()
+		if len(a) != 1 {
+			t.Fatalf("agents = %+v", a)
+		}
+		return a[0]
+	}
+	run(`{"hook_event_name":"SessionStart","cwd":"/tmp"}`)
+	run(`{"hook_event_name":"UserPromptSubmit","prompt":"make the file"}`)
+	// A sandboxed attempt's PostToolUse comes before the request: it mustn't
+	// clear one made after it.
+	run(`{"hook_event_name":"PostToolUse","tool_name":"Bash","tool_input":{"command":"touch /x"}}`)
+	run(`{"hook_event_name":"PermissionRequest","turn_id":"t1","cwd":"/tmp","tool_name":"Bash","tool_input":{"command":"touch /x","description":"Create /x"}}`)
+	st := agent()
+	if st.Provider != "codex" || st.State != StateWaiting || len(st.Approvals) != 1 || st.Approvals[0].What != "touch /x" {
+		t.Fatalf("codex approval: %+v", st)
+	}
+	if err := f.s.Answer(st.Approvals[0].ID, Allow); err != nil {
+		t.Fatal(err)
+	}
+	f.mu.Lock()
+	keys := slices.Clone(f.keys)
+	f.mu.Unlock()
+	if !slices.Equal(keys, []string{"y"}) || len(agent().Approvals) != 0 {
+		t.Fatalf("allow pressed %q, approvals %+v", keys, agent().Approvals)
+	}
+	run(`{"hook_event_name":"PostToolUse","tool_name":"Bash","tool_input":{"command":"touch /x"}}`)
+	if agent().State != StateBusy {
+		t.Fatalf("after it ran: %+v", agent())
+	}
+
+	// Its No in the pane: Interrupt.
+	run(`{"hook_event_name":"PermissionRequest","tool_name":"Bash","tool_input":{"command":"rm -rf /y"}}`)
+	run(`{"hook_event_name":"Interrupt"}`)
+	if st := agent(); len(st.Approvals) != 0 || st.State != StateIdle {
+		t.Fatalf("after Interrupt: %+v", st)
+	}
+
+	// Deny from the inbox presses Esc; an edit is an apply_patch.
+	run(`{"hook_event_name":"UserPromptSubmit","prompt":"edit"}`)
+	run(`{"hook_event_name":"PermissionRequest","tool_name":"apply_patch","tool_input":{"command":"*** Begin Patch\n*** Update File: a.go\n@@\n-x := 1\n+x := 2\n*** End Patch\n"}}`)
+	st = agent()
+	if len(st.Approvals) != 1 || st.Approvals[0].What != "a.go" || st.Approvals[0].Diff != "- x := 1\n+ x := 2" || len(st.Approvals[0].Facts) != 0 {
+		t.Fatalf("apply_patch approval: %+v", st.Approvals)
+	}
+	f.s.Answer(st.Approvals[0].ID, Deny)
+	f.mu.Lock()
+	keys = slices.Clone(f.keys)
+	f.mu.Unlock()
+	if !slices.Equal(keys, []string{"y", "\x1b"}) {
+		t.Fatalf("deny pressed %q", keys)
+	}
+	if err := f.s.Answer(st.Approvals[0].ID, Deny); err == nil {
+		t.Fatal("answered twice")
+	}
+}

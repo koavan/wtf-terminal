@@ -119,7 +119,7 @@ final class AgentsView: NSView, SidePaneTab {
             }
         }
         if !list.isEmpty {
-            form.add(form.note("Go to Agent… ⌥⌘A · Next Agent Needing You ⌥⌘N"))
+            form.add(form.note("Go to Agent… ⌥⌘A · Next Agent Needing You ⌥⌘N" + (asks.isEmpty ? "" : " · Next Approval ⌥⌘Y")))
         }
         needsLayout = true
     }
@@ -573,6 +573,21 @@ extension Agents {
         case ..<86400: return "\(s / 3600)h"
         default: return "\(s / 86400)d"
         }
+    }
+
+    /// Next Approval: the agent of the oldest permission prompt after the
+    /// focused pane's, round and round, with the Agents tab showing it.
+    static func nextApproval(from w: WindowController) {
+        var sessions: [String] = []
+        for (st, _) in approvals() where !sessions.contains(st.session) { sessions.append(st.session) }
+        guard !sessions.isEmpty else {
+            Toast.show("No agent is asking for approval", in: w.rootView)
+            return
+        }
+        let current = w.model.active.flatMap { w.model.focusedPane($0) }?.sessionId
+        let i = sessions.firstIndex { $0 == current }.map { ($0 + 1) % sessions.count } ?? 0
+        go(to: sessions[i])
+        if let (aw, _) = find(sessions[i]), !aw.background, !(aw.sidebar.open && aw.sidebar.tab == .agents) { aw.showSidebar(.agents) }
     }
 
     /// The next agent that needs you (then the next done one), after the

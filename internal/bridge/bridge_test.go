@@ -37,6 +37,7 @@ type fakeUI struct {
 	nextBlk int
 	status  []Status
 	drafts  []snippets.Snippet
+	keys    []string
 }
 
 func newFake(t *testing.T) *fakeUI {
@@ -91,6 +92,9 @@ func (f *fakeUI) answer(req UIRequest) Reply {
 		return Reply{Block: &b}
 	case KindSnippet:
 		f.drafts = append(f.drafts, *req.Snippet)
+		return Reply{}
+	case KindKeys:
+		f.keys = append(f.keys, req.Text)
 		return Reply{}
 	}
 	return Reply{Error: "unknown"}

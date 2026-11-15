@@ -300,6 +300,11 @@ enum ClaudeCheck {
                 try? rep.representation(using: .png, properties: [:])?.write(to: URL(fileURLWithPath: snap + "/approvals.png"))
             }
         }
+        // Next Approval goes to it from another tab.
+        if let other = m.tabs.first(where: { !$0.root.leaves.contains(id) }) { m.activate(other.id) }
+        check(m.active?.root.leaves.contains(id) == false, "another tab")
+        Agents.nextApproval(from: w)
+        check(await waitUntil(5) { m.active?.focusedPaneId == id }, "Next Approval goes to the agent asking")
         func allow(_ v: NSView) -> NSButton? {
             if let b = v as? NSButton, b.title == "Allow" { return b }
             for s in v.subviews { if let b = allow(s) { return b } }
@@ -329,7 +334,7 @@ enum ClaudeCheck {
         // the agents group, which goes with its last tab.
         Task { try? await Services.bridge.Forget(session) }
         check(await waitUntil(5) { !inAgents() }, "when it ends, its tab leaves the agents group")
-        check(m.groupNamed(Agents.groupName) == nil, "and the empty group goes")
+        check(m.groupNamed(Agents.groupName) == nil, "and the empty group goes: \(m.tabs.map { "tab \($0.id) group \(String(describing: $0.groupId)) panes \($0.root.leaves)" }) agents \(Agents.all.keys.sorted())")
 
         // Its pane closes: nothing's left of it.
         m.closePane(id)

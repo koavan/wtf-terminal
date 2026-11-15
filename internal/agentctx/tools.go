@@ -17,6 +17,10 @@ func toolOf(prog string) string {
 		return "aws"
 	case "gcloud", "gsutil", "bq":
 		return "gcloud"
+	case "az":
+		return "azure"
+	case "docker", "docker-compose":
+		return "docker"
 	case "ssh":
 		return "ssh"
 	case "git":
@@ -52,6 +56,10 @@ func (st *reader) program(prog string, args []word, local map[string]word, via s
 		st.aws(prog, args, env, from)
 	case "gcloud":
 		st.gcloud(prog, args, env, from)
+	case "azure":
+		st.azure(prog, args, env, from)
+	case "docker":
+		st.docker(prog, args, env, from)
 	case "ssh":
 		st.ssh(args)
 	case "git":
@@ -324,6 +332,123 @@ func (st *reader) gcloud(prog string, args []word, env map[string]string, from f
 		p = "none set"
 	}
 	st.add(Fact{Tool: prog, Label: "project", Value: p, From: pFrom})
+}
+
+// ── Azure: az ────────────────────────────────────────────────────────────
+
+func (st *reader) azure(prog string, args []word, env map[string]string, from func(string) string) {
+	sub := subcommand(args)
+	switch sub {
+	case "", "login", "logout", "configure", "version", "help", "extension", "upgrade", "find", "interactive", "init":
+		return
+	case "account":
+		// az account set --subscription X: later commands use X.
+		if subcommand(afterSub(args)) == "set" {
+			if v, ok := flag(args, "--subscription", "-s", "--name", "-n"); ok && !v.dynamic {
+				st.add(Fact{Tool: prog, Label: "switches subscription to", Value: v.text})
+				st.azSwitch = v.text
+			}
+		}
+		return
+	}
+	if dynamicVar(env["AZURE_CONFIG_DIR"]) {
+		st.add(Fact{Tool: prog, Label: "subscription", Unknown: true, From: "AZURE_CONFIG_DIR="})
+		return
+	}
+	want, wantFrom := st.azSwitch, ""
+	if want != "" {
+		wantFrom = "account set"
+	} else if from("AZURE_CONFIG_DIR") != "" {
+		wantFrom = "AZURE_CONFIG_DIR="
+	}
+	if v, ok := flag(args, "--subscription"); ok {
+		if v.dynamic {
+			st.add(Fact{Tool: prog, Label: "subscription", Unknown: true, From: "--subscription"})
+			return
+		}
+		want, wantFrom = v.text, "--subscription"
+	}
+	name, id, ok := st.r.AzureSubscription(env, want)
+	switch {
+	case ok:
+		st.add(Fact{Tool: prog, Label: "subscription", Value: name + " (" + id + ")", From: wantFrom})
+	case want != "":
+		st.add(Fact{Tool: prog, Label: "subscription", Value: want + ", which isn't in the CLI's profile", From: wantFrom})
+	default:
+		st.add(Fact{Tool: prog, Label: "subscription", Value: "none set", From: wantFrom})
+	}
+}
+
+// ── Docker: docker, docker-compose ───────────────────────────────────────
+
+func (st *reader) docker(prog string, args []word, env map[string]string, from func(string) string) {
+	// docker's own options come before the subcommand (docker run -c is
+	// CPU shares).
+	global := args[:len(args)-len(globalArgsSkipped(args))]
+	switch sub := subcommand(globalArgsSkipped(args)); sub {
+	case "", "context", "help", "completion", "login", "logout", "search", "manifest", "trust", "init":
+		if sub == "context" {
+			rest := afterSub(globalArgsSkipped(args))
+			if subcommand(rest) == "use" && len(rest) > 1 && !rest[len(rest)-1].dynamic {
+				st.add(Fact{Tool: prog, Label: "switches context to", Value: rest[len(rest)-1].text})
+				st.dockerSwitch = rest[len(rest)-1].text
+			}
+		}
+		return
+	}
+	if v, ok := flag(global, "-H", "--host"); ok {
+		if v.dynamic {
+			st.add(Fact{Tool: prog, Label: "daemon", Unknown: true, From: "-H"})
+		} else {
+			st.add(Fact{Tool: prog, Label: "daemon", Value: v.text, From: "-H"})
+		}
+		return
+	}
+	name, nameFrom := st.dockerSwitch, ""
+	if name != "" {
+		nameFrom = "context use"
+	}
+	if v, ok := flag(global, "--context", "-c"); ok && prog == "docker" {
+		if v.dynamic {
+			st.add(Fact{Tool: prog, Label: "context", Unknown: true, From: "--context"})
+			return
+		}
+		name, nameFrom = v.text, "--context"
+	}
+	for _, n := range []string{"DOCKER_HOST", "DOCKER_CONTEXT", "DOCKER_CONFIG"} {
+		if st.unknownVar(prog, "context", n, env) {
+			return
+		}
+		if name == "" && from(n) != "" && env[n] != "" {
+			nameFrom = n + "="
+		}
+	}
+	ctx, endpoint := st.r.DockerContext(env, name)
+	if ctx != "" {
+		st.add(Fact{Tool: prog, Label: "context", Value: ctx, From: nameFrom})
+	}
+	switch {
+	case endpoint != "":
+		st.add(Fact{Tool: prog, Label: "daemon", Value: endpoint, From: nameFrom})
+	case ctx != "":
+		st.add(Fact{Tool: prog, Label: "daemon", Value: "not known: no such context", From: nameFrom})
+	}
+}
+
+// globalArgsSkipped drops docker's options that come before the subcommand
+// and take a value, so the subcommand is found.
+func globalArgsSkipped(args []word) []word {
+	for i := 0; i < len(args); i++ {
+		switch a := args[i].text; {
+		case a == "--context" || a == "-c" || a == "-H" || a == "--host" || a == "--config" || a == "-l" || a == "--log-level" ||
+			a == "--tlscacert" || a == "--tlscert" || a == "--tlskey" || a == "-f" || a == "--file" || a == "-p" || a == "--project-name":
+			i++
+		case strings.HasPrefix(a, "-"):
+		default:
+			return args[i:]
+		}
+	}
+	return nil
 }
 
 // ── ssh ──────────────────────────────────────────────────────────────────

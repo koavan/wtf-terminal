@@ -110,6 +110,7 @@ var Commands = func() []Command {
 		cmd("tab.overview", "Show All Tabs", "Ctrl+Bar"),
 		cmd("agents.pick", "Go to Agent…", "Ctrl+Alt+Shift+M"),
 		cmd("agents.next", "Next Agent Needing You", "Ctrl+Alt+Shift+N"),
+		cmd("agents.approval", "Next Approval", "Ctrl+Alt+Shift+Y"),
 		cmd("agents.start", "Start Claude Code…", ""),
 		cmd("worktree.new", "New Worktree… (git)", ""),
 		cmd("worktree.open", "Open Worktree… (git)", ""),

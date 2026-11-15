@@ -64,6 +64,8 @@ enum Services {
     }
 
     enum infra {
+        static func AzureSubscription(_ a0: [String: String], _ a1: String) async throws -> [JSONValue] { try await Backend.call("infra", "AzureSubscription", [a0, a1], as: [JSONValue].self) }
+        static func DockerContext(_ a0: [String: String], _ a1: String) async throws -> [JSONValue] { try await Backend.call("infra", "DockerContext", [a0, a1], as: [JSONValue].self) }
         static func KubeContext(_ a0: [String: String], _ a1: String) async throws -> [JSONValue] { try await Backend.call("infra", "KubeContext", [a0, a1], as: [JSONValue].self) }
         static func Resolve(_ a0: [String: String]) async throws -> Go.infra.Context { try await Backend.call("infra", "Resolve", [a0], as: Go.infra.Context.self) }
     }

@@ -41,6 +41,7 @@ enum Agents {
     static func listen() {
         guard !listening else { return }
         listening = true
+        ApprovalNotifications.shared.setUp()
         Backend.on("bridge:status", Go.bridge.Status.self) { apply($0) }
         NotificationCenter.default.addObserver(forName: NSApplication.didBecomeActiveNotification, object: nil, queue: .main) { _ in
             MainActor.assumeIsolated { WindowManager.shared.windows.forEach { seen(in: $0) } }
@@ -236,6 +237,9 @@ enum Agents {
     private static func apply(_ st: Go.bridge.Status) {
         let old = all[st.session].map(state)
         let oldAsks = Set(all[st.session]?.approvals.map(\.id) ?? [])
+        // Approvals answered (here, in the pane, or gone with their agent)
+        // take their notification away.
+        for id in oldAsks.subtracting(st.approvals.map(\.id)) { ApprovalNotifications.shared.remove(id) }
         if st.state == "ended" {
             all[st.session] = nil
             subagentsShown.remove(st.session)
@@ -272,7 +276,16 @@ enum Agents {
             if let ask {
                 body = Redaction.shared.text(([toolName(ask.tool) + ": " + ask.what] + ask.facts).joined(separator: "\n"))
             }
-            Task { try? await Backend.run("notify", "Notify", [product(st) + " needs you", title, body]) }
+            let head = product(st) + " needs you"
+            Task {
+                // A permission prompt: Allow and Deny on the notification itself.
+                if let ask, await ApprovalNotifications.shared.post(id: ask.id, session: st.session, title: head, subtitle: title, body: body) {
+                    // Answered while it was posted.
+                    if all[st.session]?.approvals.contains(where: { $0.id == ask.id }) != true { ApprovalNotifications.shared.remove(ask.id) }
+                    return
+                }
+                try? await Backend.run("notify", "Notify", [head, title, body])
+            }
             playSound(.attention)
         case .done:
             Task { try? await Backend.run("notify", "Notify", [product(st) + " finished", title, Redaction.shared.text(st.prompt)]) }
