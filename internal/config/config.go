@@ -193,7 +193,7 @@ const template = `# wtf settings. Changes apply as soon as you save (or switch b
 # show-usage = false
 
 # Days wtf keeps the commands you run, with the Kubernetes context, AWS
-# account and region and the rest they ran under, for History's Everywhere
+# account and region and the rest they ran under, for History's Saved
 # view (across windows and restarts). Secrets are hidden before they're
 # saved, in history.jsonl in wtf's state folder. 0 saves nothing and removes
 # what was saved (History then lasts as long as each shell).
@@ -206,26 +206,27 @@ const template = `# wtf settings. Changes apply as soon as you save (or switch b
 # decide instead.
 # claude-auto-mode = false
 
-# The Agents tab shows what every Claude Code in your shells is doing
-# (working, needs you, done, idle). For a claude you start yourself, wtf's
-# shell integration adds hooks that report its state, for that run only:
-# nothing is written to ~/.claude. false leaves claude alone (only Ask
-# Claude panes are then listed). Applies to new panes.
+# The Agents tab shows what every Claude Code and Codex in your shells is
+# doing (working, needs you, done, idle). For a claude or codex you start
+# yourself, wtf's shell integration adds hooks that report its state, for
+# that run only: nothing is written to ~/.claude or ~/.codex. false leaves
+# both alone (only Ask Claude panes are then listed). Applies to new panes.
 # agent-status = true
 
-# Closing a tab or pane running Claude Code: "ask" (keep it running in the
-# background, or end it), "background" (always keep it running; the Agents
+# Closing a tab or pane running Claude Code or Codex: "ask" (keep it
+# running in the background, or end it), "background" (always keep it running; the Agents
 # tab opens it again) or "end". Background agents end when wtf quits.
 # agent-close = "ask"
 
-# A short sound with the notification when a Claude Code agent needs you or
-# finishes while you're looking elsewhere (a different one for each).
+# A short sound with the notification when an agent (Claude Code or Codex)
+# needs you or finishes while you're looking elsewhere (a different one for
+# each).
 # agent-sound = true
 
-# A tab running Claude Code that isn't in a group joins its window's
-# "ungrouped agents" tab group (made when needed) and leaves it when Claude
-# Code ends. Background agents aren't in a
-# window's tabs, so they're left out.
+# A tab running Claude Code or Codex that isn't in a group joins its
+# window's "ungrouped agents" tab group (made when needed) and leaves it when
+# the agent ends. Background agents aren't in a window's tabs, so they're
+# left out.
 # agent-group = true
 
 # Where New Worktree… puts a repository's worktrees, each in a folder named
@@ -233,9 +234,11 @@ const template = `# wtf settings. Changes apply as soon as you save (or switch b
 # Set: <worktree-dir>/<repo>/<branch>. A full path, or one starting with ~/.
 # worktree-dir = "~/worktrees"
 
-# Ask GitHub once a day whether a newer wtf has been released, and say so in
-# the window (Download opens the release page). Nothing is downloaded or
-# installed, and nothing about you is sent. Check for Updates… asks any time.
+# Ask GitHub at launch and once a day whether a newer wtf has been released,
+# and say so in the window (Download opens the release page). Nothing is
+# downloaded or installed, and nothing about you is sent beyond what any web
+# request carries (your IP address, wtf's version). Check for Updates… asks
+# any time.
 # update-check = true
 `
 
