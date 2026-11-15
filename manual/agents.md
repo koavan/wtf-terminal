@@ -7,7 +7,7 @@ Each row shows:
 - a coloured dot and what it's doing:
   - **Needs you** (orange): it's asking you something, usually to approve a command or a file change. The row shows what it asks.
   - **Done** (green): it finished while you were looking elsewhere. It stays done until you look at its pane.
-  - **Working** (accent colour).
+  - **Working** (accent colour). When Claude Code ends its turn with work still running in the background (a shell or monitor it started in the background, or a background sub-agent), it's still working: the row says so, as in **Working · 2 in background**, and it turns **Done** only after a turn ends with nothing left running.
   - **Idle** (grey): waiting for your next prompt.
 - its name, if you gave it one (otherwise the tab's title), and the folder it runs in;
 - the branch that folder is on, with ↑ and ↓ for commits ahead of and behind its upstream, so two agents in [worktrees](#worktrees) of one repository are easy to tell apart;
@@ -15,6 +15,10 @@ Each row shows:
 - how long it's been in that state.
 
 Agents are listed in the order they started, and a row stays where it is whatever its state, so you can find one at a glance. Click a row to go to that window, tab and pane; right-click for **Copy Folder Path**.
+
+## Codex
+
+A `codex` you start in a wtf shell is an agent like a Claude Code: it gets a row (marked **Codex** in {{cmd:agents.pick}} and in its notifications), a tab badge, a name, the **ungrouped agents** tab group, the choice to keep it running in the background when you close its tab, and a **Resume** after wtf quits (with `codex resume`). The dialogs and settings below say "Claude Code", but they apply to Codex as well. What's only for Claude Code: [Ask Claude](#ask-claude) and its plugin, {{cmd:agents.start}}, and starting an agent from [New Worktree…](#worktrees). See **How wtf knows** below for how Codex is hooked up.
 
 ## The ungrouped agents tab group
 
@@ -39,7 +43,7 @@ Each sub-agent shows:
 - once it's done (grey dot): the first line of its report;
 - how long ago it started, or finished.
 
-Secrets are hidden in all of it. A sub-agent's steps don't change its agent's state: one working in the background leaves the agent idle or done. Finished sub-agents are cleared when you send the agent its next prompt; running ones stay. Click a sub-agent to go to its agent.
+Secrets are hidden in all of it. A sub-agent's steps don't change its agent's state, but one still running in the background when the agent's turn ends keeps the agent **Working** (counted in its **N in background**) until a later turn ends without it. When that work finishes, Claude Code wakes itself with a note of its own; the row keeps showing your last prompt, and finished sub-agents aren't cleared by it. Finished sub-agents are cleared when you send the agent its next prompt; running ones stay. Click a sub-agent to go to its agent.
 
 ## Keep agents running after you close their tab
 
@@ -65,7 +69,7 @@ Quitting wtf ends every Claude Code running in it, in tabs and in the background
 - **A tab that ran Claude Code** comes back with your other tabs, with a bar at the top of its pane: *Claude Code was running here when wtf quit.* **Resume** types `claude --resume <its session>` into that shell (with a `cd` to the folder it started in, if the shell is elsewhere; a new tab if the shell is busy). **Dismiss** stops offering it. Until you choose, the bar comes back each time wtf restarts. Starting Claude Code in that shell yourself replaces the offer.
 - **Agents running in the background** are listed in the Agents tab under **Resumable**: {{mac:**Resume in Tab**, **In Background**, or **Dismiss**|other:the play button resumes one in a tab; right-click for **Resume in Tab**, **Resume in Background** or **Dismiss**}}. With more than one, **Resume All…** lists them first, then resumes each in the background.
 
-A resumed agent gets back the name you gave it. Agents whose conversation is gone (deleted from `~/.claude`) or whose folder is gone aren't offered. Ask Claude panes aren't offered either: open Ask Claude again instead. This needs `agent-status` (on by default), which is how wtf learns each agent's session.
+A resumed agent gets back the name you gave it. A Codex agent resumes the same way, with `codex resume <its session>`. Agents whose conversation is gone (its transcript deleted from `~/.claude`, or `~/.codex` for Codex) or whose folder is gone aren't offered. Ask Claude panes aren't offered either: open Ask Claude again instead. This needs `agent-status` (on by default), which is how wtf learns each agent's session.
 
 ## Start an agent
 
@@ -96,10 +100,12 @@ wtf leaves `claude` alone when:
 - your `.bashrc`, `.bash_profile` or `.zshrc` defines a `claude` alias or function (yours wins);
 - `agent-status = false` is set in `config.toml`, or **Show every claude you start in the Agents tab** is off in **Settings** ({{mac:⌘,|other:Ctrl+,}}) → **General**. This applies to new panes; only Ask Claude panes are listed then.
 
-A Claude Code that quits, or is killed, disappears from the list when its shell is back at its prompt or its pane closes.
+wtf leaves `codex` alone when your startup files define a `codex` alias or function, and when `agent-status` is off (the same setting covers both). Unlike `claude`, a `codex` with its own `--config` arguments still gets wtf's hooks added.
+
+A Claude Code or Codex that quits, or is killed, disappears from the list when its shell is back at its prompt or its pane closes.
 
 ## What it doesn't cover yet
 
 - Other coding agents (OpenCode and others).
-- Claude Code started inside tmux or over SSH from a wtf shell: its hooks run where it runs, not in wtf's shell.
+- Claude Code or Codex started inside tmux or over SSH from a wtf shell: its hooks run where it runs, not in wtf's shell.
 - fish (no shell integration).

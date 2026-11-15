@@ -24,7 +24,7 @@ Hover an icon for the tab's name and shortcut. Pressing a tab's shortcut again c
 
 ## Most tabs follow the focused shell
 
-Files, Kubernetes, the AWS "in use" marker and History all follow the pane you're typing in: click into another pane or tab and they switch with it.
+Files, Kubernetes, Cloud Secrets, Findings, the AWS "in use" marker and History all follow the pane you're typing in: click into another pane or tab and they switch with it.
 
 ## It only works while you look at it
 
@@ -32,5 +32,5 @@ Files, Kubernetes, the AWS "in use" marker and History all follow the pane you'r
 - Network and Processes pause while the window is in the background.
 - So does wtf's own checking of what each shell runs and where it is (tab titles, address bar) and of `config.toml`; both catch up the moment a wtf window comes back to the front.
 - Kubernetes reads a resource only when you expand its section.
-- **⏸** in a tab's header stops background updates everywhere (same as `sidebar-auto-refresh = false`); tabs then load when opened and refresh when you press **↻**. "Paused · updated …" says how old the data is.
+- **⏸** in a tab's header, or {{cmd:sidebar.autoRefresh}}, stops background updates everywhere (same as `sidebar-auto-refresh = false`); tabs then load when opened and refresh when you press **↻**. "Paused · updated …" says how old the data is.
 - `sidebar-refresh-interval` sets how often visible tabs update (3 seconds by default; Kubernetes waits at least 10).

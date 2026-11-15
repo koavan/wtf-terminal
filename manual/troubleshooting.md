@@ -18,6 +18,18 @@ The message under the section is kubectl's own. Common ones:
 
 The tab uses the focused shell's PATH: tabs opened before an update of wtf may need to be reopened.
 
+## An agent doesn't show in the Agents tab
+
+The [Agents](#agents) tab learns about a `claude` or `codex` you start yourself through [shell integration](#shell-integration), in shells opened after it was turned on. Check that:
+
+- **Show every claude you start in the Agents tab** is on in **Settings** → **General** (`agent-status` in `config.toml`), then open a new tab: it applies to new shells.
+- Your `.bashrc`, `.bash_profile` or `.zshrc` doesn't define a `claude` or `codex` alias or function: yours wins, and wtf leaves it alone.
+- The `claude` command line has no `--settings` or `--plugin-dir` of its own.
+- It isn't running inside tmux, or over SSH: its hooks run there, not in wtf's shell.
+- The shell is bash or zsh (fish has no shell integration yet).
+
+[Ask Claude](#ask-claude) panes are always listed.
+
 ## SSH tunnel shows "Permission denied (publickey)"
 
 Tunnels run without prompts. Load the key into ssh-agent: [SSH keys](#ssh-keys) → right-click → **Load into Agent**.

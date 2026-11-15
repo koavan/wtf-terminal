@@ -4,9 +4,9 @@ Some side-pane features run programs you'd run yourself: the same programs, your
 
 | Program | Used by |
 | --- | --- |
-| `kubectl` | [Kubernetes](#kubernetes) tab (and its Permissions), Test Connection in [Contexts](#kube-contexts), kubectl [port forwards](#ssh-tunnels) |
+| `kubectl` | [Kubernetes](#kubernetes) tab (and its Permissions), Test Connection in [Contexts](#kube-contexts), kubectl [port forwards](#network) |
 | AWS CLI (`aws`, version 2) | [AWS profiles](#aws): Check Identity, Access Keys and Permissions; the AWS account in the [address bar](#context-badges); Add EKS Cluster; [Cloud Secrets](#cloud-secrets): Secrets Manager and Parameter Store |
-| `git` | Branch and sync in the address bar, git status in [Files](#files) |
+| `git` | Branch and sync in the address bar, git status in [Files](#files), [worktrees](#worktrees), each agent's branch in [Agents](#agents) |
 | OpenSSH (`ssh`, `ssh-keygen`, `ssh-add`, `ssh-keyscan`) | [SSH](#ssh-hosts) tab: connect, test, keys, host keys, tunnels, file copies |
 | `lsof` (macOS), `ss` or `lsof` (Linux) | [Network](#network) tab |
 | `notify-send` (Linux) | Notifications when a long command finishes |
@@ -14,6 +14,8 @@ Some side-pane features run programs you'd run yourself: the same programs, your
 | Trivy, Semgrep, Checkov, Gitleaks, Grype | [Findings](#findings): Run Scan. Optional: listed, but not mentioned on first start |
 
 Everything else (profiles, contexts, SSH config, expiry clocks, the [inspector](#inspect)) reads files and needs nothing installed.
+
+Coding agents aren't in this list, and wtf doesn't install them: [Ask Claude](#ask-claude) needs your own Claude Code (`claude`), installed and logged in, and the [Agents](#agents) tab shows the `claude` and `codex` you run yourself.
 
 ## Seeing what's installed
 
