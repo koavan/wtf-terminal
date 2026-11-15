@@ -81,8 +81,9 @@ func NewService(version, stateDir string) *Service {
 	}
 }
 
-// ServiceStartup starts the daily check (15 seconds after launch, then every
-// day). A build without a release version (a development build) never checks
+// ServiceStartup starts the automatic check: 15 seconds after launch (always
+// asking GitHub, so a restart sees a release from earlier today), then every
+// day. A build without a release version (a development build) never checks
 // on its own.
 func (s *Service) ServiceStartup(ctx context.Context) error {
 	if _, ok := parse(s.version); !ok || os.Getenv("WTF_NATIVE_DEBUG") != "" {
@@ -104,38 +105,44 @@ func (s *Service) ServiceShutdown() error {
 
 func (s *Service) loop(ctx context.Context) {
 	defer close(s.done)
-	wait := firstWait
+	wait, launch := firstWait, true
 	for {
 		select {
 		case <-ctx.Done():
 			return
 		case <-time.After(wait):
 		}
-		s.auto(ctx)
+		s.auto(ctx, launch)
+		launch = false
 		// Checked hourly whether a day has passed: a sleeping laptop's timers
 		// don't count the time it slept.
 		wait = time.Hour
 	}
 }
 
-// auto checks if a day has passed since the last check (or uses what that
-// check found), and tells the UI about a newer, not skipped version.
-func (s *Service) auto(ctx context.Context) {
+// auto asks GitHub on launch and when a day has passed since the last check
+// (otherwise it uses what that check found), and tells the UI about a newer,
+// not skipped version.
+func (s *Service) auto(ctx context.Context, launch bool) {
 	if s.Enabled != nil && !s.Enabled() {
 		return
 	}
 	st := s.load()
 	latest := st.Latest
-	if s.now().Sub(st.LastChecked) >= interval || s.now().Before(st.LastChecked) {
+	if launch || s.now().Sub(st.LastChecked) >= interval || s.now().Before(st.LastChecked) {
 		r, err := s.fetch(ctx)
-		if err != nil {
+		switch {
+		case err == nil:
+			latest = r
+			st = s.load() // Skip may have run meanwhile
+			st.LastChecked, st.Latest = s.now(), r
+			s.save(st)
+		case !launch:
 			// Offline, or GitHub's rate limit: try again in an hour.
 			return
 		}
-		latest = r
-		st = s.load() // Skip may have run meanwhile
-		st.LastChecked, st.Latest = s.now(), r
-		s.save(st)
+		// A failed launch check uses what the last check found; the hourly
+		// check asks again once a day has passed.
 	}
 	if latest == nil || !newer(latest.Version, s.version) || latest.Version == st.Skipped {
 		return

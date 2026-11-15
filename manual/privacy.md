@@ -40,7 +40,7 @@ Backups are readable only by you. wtf's cache folder is {{mac:`~/Library/Caches/
 
 Listing SSH hosts, keys, AWS profiles and kubeconfig contexts reads local files only. Requests to AWS or a cluster happen when you open a section, press a check or test button (such as **Test GitHub Login**), or run an action — and side-pane tabs stop when you close them. **Inspect TLS Certificate…** connects to the server you chose and sends only the TLS handshake. Decoding a JWT or base64 happens on this computer.
 
-The one request wtf makes on its own: once a day it asks GitHub (`api.github.com`) for wtf's latest release, to say when there's a newer one. It sends nothing about you but what any web request does (your IP address, and wtf's version in the User-Agent), and downloads nothing else. `update-check = false` in [Settings](#settings) turns it off; **Check for Updates…** still asks when you choose it.
+The one request wtf makes on its own: when it starts and once a day after that, it asks GitHub (`api.github.com`) for wtf's latest release, to say when there's a newer one. It sends nothing about you but what any web request does (your IP address, and wtf's version in the User-Agent), and downloads nothing else. `update-check = false` in [Settings](#settings) turns it off; **Check for Updates…** still asks when you choose it.
 
 ## AI assistance
 

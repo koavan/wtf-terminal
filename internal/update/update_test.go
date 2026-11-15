@@ -73,29 +73,52 @@ func TestAutoNotifiesOnceAndChecksDaily(t *testing.T) {
 	s, got, now := newTest(t, "1.9.3", gh)
 	ctx := context.Background()
 
-	s.auto(ctx)
+	s.auto(ctx, true)
 	if len(*got) != 1 || (*got)[0].Version != "1.9.4" || (*got)[0].Title != "wtf v1.9.4 — things" {
 		t.Fatalf("events = %+v", *got)
 	}
 	// An hour later: no request (checked today), no second event.
 	*now = now.Add(time.Hour)
-	s.auto(ctx)
+	s.auto(ctx, false)
 	if gh.calls != 1 || len(*got) != 1 {
 		t.Fatalf("calls %d, events %d", gh.calls, len(*got))
-	}
-	// A restart within the day uses the saved answer and tells again.
-	s2 := NewService("1.9.3", s.stateDir)
-	s2.api, s2.now = s.api, s.now
-	s2.auto(ctx)
-	if gh.calls != 1 || len(*got) != 2 {
-		t.Fatalf("after restart: calls %d, events %d", gh.calls, len(*got))
 	}
 	// A day later it asks again, and tells about a newer version.
 	gh.tag = "v1.9.5"
 	*now = now.Add(interval)
-	s.auto(ctx)
-	if gh.calls != 2 || len(*got) != 3 || (*got)[2].Version != "1.9.5" {
+	s.auto(ctx, false)
+	if gh.calls != 2 || len(*got) != 2 || (*got)[1].Version != "1.9.5" {
 		t.Fatalf("next day: calls %d, events %+v", gh.calls, *got)
+	}
+}
+
+// A release published soon after the last check is seen by the next launch,
+// not a day later.
+func TestLaunchAsksEvenWhenCheckedToday(t *testing.T) {
+	gh := &fakeGitHub{tag: "v1.9.4"}
+	s, got, now := newTest(t, "1.9.4", gh)
+	ctx := context.Background()
+
+	s.auto(ctx, true) // up to date
+	if gh.calls != 1 || len(*got) != 0 {
+		t.Fatalf("calls %d, events %+v", gh.calls, *got)
+	}
+	gh.tag = "v1.9.5"
+	*now = now.Add(30 * time.Minute)
+	s2 := NewService("1.9.4", s.stateDir)
+	s2.api, s2.now = s.api, s.now
+	s2.auto(ctx, true)
+	if gh.calls != 2 || len(*got) != 1 || (*got)[0].Version != "1.9.5" {
+		t.Fatalf("restart: calls %d, events %+v", gh.calls, *got)
+	}
+
+	// Offline at launch: what the last check found is still told.
+	gh.code = http.StatusForbidden
+	s3 := NewService("1.9.4", s.stateDir)
+	s3.api, s3.now = s.api, s.now
+	s3.auto(ctx, true)
+	if len(*got) != 2 || (*got)[1].Version != "1.9.5" {
+		t.Fatalf("offline launch: events %+v", *got)
 	}
 }
 
@@ -106,7 +129,7 @@ func TestSkip(t *testing.T) {
 	if err := s.Skip("v1.9.4"); err != nil {
 		t.Fatal(err)
 	}
-	s.auto(ctx)
+	s.auto(ctx, false)
 	if len(*got) != 0 {
 		t.Fatalf("skipped version told: %+v", *got)
 	}
@@ -118,7 +141,7 @@ func TestSkip(t *testing.T) {
 	// A newer one is told about.
 	gh.tag = "v1.9.5"
 	*now = now.Add(interval)
-	s.auto(ctx)
+	s.auto(ctx, false)
 	if len(*got) != 1 || (*got)[0].Version != "1.9.5" {
 		t.Fatalf("events = %+v", *got)
 	}
@@ -136,7 +159,7 @@ func TestUpToDateDisabledAndErrors(t *testing.T) {
 	s.Enabled = func() bool { return false }
 	gh.tag = "v2.0.0"
 	*now = now.Add(interval)
-	s.auto(ctx)
+	s.auto(ctx, false)
 	if gh.calls != 1 || len(*got) != 0 {
 		t.Fatalf("update-check off: calls %d, events %d", gh.calls, len(*got))
 	}
@@ -146,7 +169,7 @@ func TestUpToDateDisabledAndErrors(t *testing.T) {
 		t.Fatal("rate limited: no error")
 	}
 	s.Enabled = nil
-	s.auto(ctx) // fails quietly
+	s.auto(ctx, false) // fails quietly
 	if len(*got) != 0 {
 		t.Fatalf("events after an error: %+v", *got)
 	}
