@@ -321,7 +321,7 @@ func (w *Window) checkAgents() {
 	}
 	var st string
 	check(waitUntil(5*time.Second, func() bool { st = badge(); return st == bridge.StateWaiting }), "its tab shows it needs you: %q", st)
-	// agent-group: its tab joined the window's "agents" group.
+	// agent-group: its tab joined the window's "ungrouped agents" group.
 	inAgents := func() (in bool) {
 		onMain(func() {
 			if t, ok := w.model.TabOf(p.id); ok {

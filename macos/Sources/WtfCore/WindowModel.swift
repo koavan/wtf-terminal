@@ -403,7 +403,7 @@ public final class WindowModel {
     /// The first group called `name`.
     public func groupNamed(_ name: String) -> Int? { groups.first { $0.name == name }?.id }
 
-    /// Puts a tab in the group called `name` (agent-group's "agents"),
+    /// Puts a tab in the group called `name` (agent-group's "ungrouped agents"),
     /// making that group, in the next colour, when there's none.
     public func joinNamedGroup(_ id: Int, _ name: String) {
         if let g = groupNamed(name) {

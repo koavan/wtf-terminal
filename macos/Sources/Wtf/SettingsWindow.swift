@@ -218,9 +218,9 @@ final class SettingsWindow: NSObject, NSWindowDelegate, NSToolbarDelegate {
         sound.state = Settings.shared.config?.agentSound == false ? .off : .on
         sound.toolTip = "With its notification: Glass when it needs you, Pop when it finishes"
         content.addArrangedSubview(sound)
-        let group = NSButton(checkboxWithTitle: "Group tabs running Claude Code under “agents” (agent-group)", target: self, action: #selector(toggleAgentGroup(_:)))
+        let group = NSButton(checkboxWithTitle: "Group tabs running Claude Code under “ungrouped agents” (agent-group)", target: self, action: #selector(toggleAgentGroup(_:)))
         group.state = Settings.shared.config?.agentGroup == false ? .off : .on
-        group.toolTip = "A tab joins its window's agents tab group when Claude Code starts in it, and leaves when it ends"
+        group.toolTip = "A tab not already in a group joins its window's “ungrouped agents” tab group when Claude Code starts in it, and leaves when it ends"
         content.addArrangedSubview(group)
         let closing = NSPopUpButton()
         closing.addItems(withTitles: ["Ask", "Keep running in background", "End it"])

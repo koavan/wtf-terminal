@@ -183,8 +183,8 @@ func (s *settingsWindow) generalPage() *adw.PreferencesPage {
 	claude.Add(sound)
 	group := adw.NewSwitchRow()
 	group.SetUseMarkup(false)
-	group.SetTitle("Group tabs running Claude Code under “agents”")
-	group.SetSubtitle("agent-group; a tab joins its window's agents tab group when Claude Code starts in it, and leaves when it ends")
+	group.SetTitle("Group tabs running Claude Code under “ungrouped agents”")
+	group.SetSubtitle("agent-group; a tab not already in a group joins its window's “ungrouped agents” tab group when Claude Code starts in it, and leaves when it ends")
 	group.SetActive(s.w.app.settings.config().AgentGroup)
 	group.Connect("notify::active", func() {
 		on := group.Active()

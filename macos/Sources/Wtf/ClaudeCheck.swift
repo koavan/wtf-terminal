@@ -232,7 +232,7 @@ enum ClaudeCheck {
               "the shell runs it with wtf's status hooks: \(read("args").debugDescription)")
         func badge() -> AgentState? { m.tabOf(pane: id).flatMap { Agents.state(tab: $0.id, in: w) } }
         check(await waitUntil(5) { badge() == .waiting }, "its tab shows it needs you: \(String(describing: badge()))")
-        // agent-group: its tab joined the window's "agents" group.
+        // agent-group: its tab joined the window's "ungrouped agents" group.
         func inAgents() -> Bool {
             guard let t = m.tabOf(pane: id), let g = m.groupNamed(Agents.groupName) else { return false }
             return t.groupId == g

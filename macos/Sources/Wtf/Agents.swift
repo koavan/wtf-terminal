@@ -123,17 +123,18 @@ enum Agents {
     }
 
     /// agent-group: the tab group agents' tabs join.
-    static let groupName = "agents"
+    static let groupName = "ungrouped agents"
 
-    /// agent-group: an agent's tab joins its window's "agents" group (made
-    /// when needed). Not in the background window, whose tabs aren't shown.
+    /// agent-group: an agent's tab joins its window's "ungrouped agents"
+    /// group (made when needed). A tab already in a group stays there. Not
+    /// in the background window, whose tabs aren't shown.
     static func autoGroup(_ session: String) {
         guard Settings.shared.config?.agentGroup != false, let (w, p) = find(session), !w.background,
-              let t = w.model.tabOf(pane: p.id), t.groupId == nil || t.groupId != w.model.groupNamed(groupName) else { return }
+              let t = w.model.tabOf(pane: p.id), t.groupId == nil else { return }
         w.model.joinNamedGroup(t.id, groupName)
     }
 
-    /// Its Claude Code ended: the tab leaves the "agents" group, unless
+    /// Its Claude Code ended: the tab leaves the "ungrouped agents" group, unless
     /// another agent runs in one of its panes.
     private static func autoUngroup(_ pane: Int, in w: WindowController) {
         guard Settings.shared.config?.agentGroup != false, let t = w.model.tabOf(pane: pane),

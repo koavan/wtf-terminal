@@ -800,8 +800,8 @@ Built 2026-11-09:
   the picker and notifications; kept with the shell across claude restarts,
   dropped when it closes. Naming an agent also names its tab; clearing the
   name puts the tab back to automatic if it still carries that name.
-- `agent-group` (on): a tab running Claude Code joins its window's "agents"
-  tab group (made when needed) and leaves it when Claude Code ends, unless
+- `agent-group` (on): a tab running Claude Code joins its window's
+  "ungrouped agents" tab group (unless it's already in a group) (made when needed) and leaves it when Claude Code ends, unless
   another agent runs in it. Background agents are left out.
 - Self-check `claude` covers names and the group on macOS and Linux; a
   stand-in notify-send / canberra test covers the Linux sound.

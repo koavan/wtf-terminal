@@ -16,11 +16,11 @@ Each row shows:
 
 Agents are listed in the order they started, and a row stays where it is whatever its state, so you can find one at a glance. Click a row to go to that window, tab and pane; right-click for **Copy Folder Path**.
 
-## The agents tab group
+## The ungrouped agents tab group
 
-Every tab running Claude Code joins its window's **agents** [tab group](#tabs), so your agents sit together in the tab strip. wtf makes the group, in the next free colour, when the first agent starts, and a tab leaves it when its Claude Code ends (unless another agent runs in one of its panes). The group goes when its last tab leaves. A tab that was in another group moves over. Agents kept running in the background aren't in a window's tabs, so they're left out until you open them in a tab again.
+Every tab running Claude Code joins its window's **ungrouped agents** [tab group](#tabs), so your agents sit together in the tab strip. wtf makes the group, in the next free colour, when the first agent starts, and a tab leaves it when its Claude Code ends (unless another agent runs in one of its panes). The group goes when its last tab leaves. A tab that was already in another group stays in it. Agents kept running in the background aren't in a window's tabs, so they're left out until you open them in a tab again.
 
-You can collapse, rename or recolour the group like any other. Turn this off with **Group tabs running Claude Code under "agents"** in **Settings** ({{mac:⌘,|other:Ctrl+,}}) → **General**, or `agent-group = false` in `config.toml`.
+You can collapse, rename or recolour the group like any other. Turn this off with **Group tabs running Claude Code under "ungrouped agents"** in **Settings** ({{mac:⌘,|other:Ctrl+,}}) → **General**, or `agent-group = false` in `config.toml`.
 
 ## Name an agent
 

@@ -818,7 +818,7 @@ func (w *WindowModel) GroupNamed(name string) int {
 }
 
 // JoinNamedGroup puts a tab in the group called name (agent-group's
-// "agents"), making that group, in the next colour, when there's none.
+// "ungrouped agents"), making that group, in the next colour, when there's none.
 func (w *WindowModel) JoinNamedGroup(id int, name string) {
 	if g := w.GroupNamed(name); g != 0 {
 		w.AddToGroup(id, g)

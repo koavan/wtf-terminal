@@ -139,11 +139,11 @@ func (l *agentList) sorted() []bridge.Status {
 }
 
 // agentGroupName is the tab group agents' tabs join (agent-group).
-const agentGroupName = "agents"
+const agentGroupName = "ungrouped agents"
 
-// autoGroup (agent-group): an agent's tab joins its window's "agents"
-// group, made when needed. Not in the background window, whose tabs
-// aren't shown.
+// autoGroup (agent-group): an agent's tab joins its window's "ungrouped
+// agents" group, made when needed. A tab already in a group stays there.
+// Not in the background window, whose tabs aren't shown.
 func (a *App) autoGroup(session string) {
 	w := a.windowOf(session)
 	if w == nil || w.background || !a.settings.config().AgentGroup {
@@ -154,13 +154,13 @@ func (a *App) autoGroup(session string) {
 		return
 	}
 	t, ok := w.model.TabOf(ps.ID)
-	if !ok || (t.GroupID != 0 && t.GroupID == w.model.GroupNamed(agentGroupName)) {
+	if !ok || t.GroupID != 0 {
 		return
 	}
 	w.model.JoinNamedGroup(t.ID, agentGroupName)
 }
 
-// autoUngroup: its Claude Code ended, so the tab leaves the "agents" group,
+// autoUngroup: its Claude Code ended, so the tab leaves the "ungrouped agents" group,
 // unless another agent runs in one of its panes.
 func (w *Window) autoUngroup(session string) {
 	if !w.app.settings.config().AgentGroup {

@@ -63,8 +63,9 @@ type Config struct {
 	// one for each, so you can tell them apart by ear.
 	AgentSound bool `toml:"agent-sound" json:"agentSound"`
 
-	// A tab running Claude Code joins its window's "agents" tab group
-	// (made when needed), and leaves it when Claude Code ends.
+	// A tab running Claude Code that isn't in a group joins its window's
+	// "ungrouped agents" tab group (made when needed), and leaves it when
+	// Claude Code ends.
 	AgentGroup bool `toml:"agent-group" json:"agentGroup"`
 
 	// Where New Worktree… puts worktrees (#37): "" beside the repository
@@ -215,8 +216,9 @@ const template = `# wtf settings. Changes apply as soon as you save (or switch b
 # finishes while you're looking elsewhere (a different one for each).
 # agent-sound = true
 
-# A tab running Claude Code joins its window's "agents" tab group (made when
-# needed) and leaves it when Claude Code ends. Background agents aren't in a
+# A tab running Claude Code that isn't in a group joins its window's
+# "ungrouped agents" tab group (made when needed) and leaves it when Claude
+# Code ends. Background agents aren't in a
 # window's tabs, so they're left out.
 # agent-group = true
 
