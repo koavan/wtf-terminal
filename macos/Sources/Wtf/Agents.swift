@@ -284,11 +284,12 @@ enum Agents {
                     if all[st.session]?.approvals.contains(where: { $0.id == ask.id }) != true { ApprovalNotifications.shared.remove(ask.id) }
                     return
                 }
-                try? await Backend.run("notify", "Notify", [head, title, body])
+                ApprovalNotifications.shared.show(title: head, subtitle: title, body: body, session: st.session)
             }
             playSound(.attention)
         case .done:
-            Task { try? await Backend.run("notify", "Notify", [product(st) + " finished", title, Redaction.shared.text(st.prompt)]) }
+            ApprovalNotifications.shared.show(title: product(st) + " finished", subtitle: title,
+                                              body: Redaction.shared.text(st.prompt), session: st.session)
             playSound(.complete)
         default:
             break

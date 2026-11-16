@@ -1,8 +1,8 @@
-// #39: a permission prompt's notification with Allow and Deny. wtf's other
-// notifications go through osascript (Go's notify service), which can't have
-// buttons; this one uses the system's notification center, so the first one
-// asks you to allow wtf's notifications. Without that permission it falls
-// back to the plain notification.
+// wtf's notifications, through the system's notification center as wtf
+// (the first one asks you to allow them). #39: a permission prompt's has
+// Allow and Deny. Without that permission, or outside an .app, they fall
+// back to Go's notify service (osascript), which macOS credits to Script
+// Editor and often doesn't show.
 import AppKit
 import UserNotifications
 import WtfCore
@@ -29,6 +29,22 @@ final class ApprovalNotifications: NSObject, UNUserNotificationCenterDelegate {
     /// Posts an approval's notification with Allow and Deny. False when wtf
     /// may not: the caller posts the plain one instead.
     func post(id: String, session: String, title: String, subtitle: String, body: String) async -> Bool {
+        await add(id: id, title: title, subtitle: subtitle, body: body,
+                  category: Self.category, info: ["approval": id, "session": session])
+    }
+
+    /// Shows a plain notification; clicking it goes to the agent's pane when
+    /// there's a session. Falls back to osascript when wtf may not post.
+    func show(title: String, subtitle: String, body: String, session: String = "") {
+        Task {
+            if await add(id: UUID().uuidString, title: title, subtitle: subtitle, body: body,
+                         category: nil, info: session.isEmpty ? [:] : ["session": session]) { return }
+            try? await Backend.run("notify", "Notify", [title, subtitle, body])
+        }
+    }
+
+    private func add(id: String, title: String, subtitle: String, body: String,
+                     category: String?, info: [String: String]) async -> Bool {
         guard ready else { return false }
         let c = UNUserNotificationCenter.current()
         var status = await c.notificationSettings().authorizationStatus
@@ -41,8 +57,8 @@ final class ApprovalNotifications: NSObject, UNUserNotificationCenterDelegate {
         content.title = title
         content.subtitle = subtitle
         content.body = body
-        content.categoryIdentifier = Self.category
-        content.userInfo = ["approval": id, "session": session]
+        if let category { content.categoryIdentifier = category }
+        content.userInfo = info
         do {
             try await c.add(UNNotificationRequest(identifier: id, content: content, trigger: nil))
             return true
@@ -59,10 +75,15 @@ final class ApprovalNotifications: NSObject, UNUserNotificationCenterDelegate {
 
     nonisolated func userNotificationCenter(_ center: UNUserNotificationCenter, didReceive response: UNNotificationResponse) async {
         let info = response.notification.request.content.userInfo
-        guard let id = info["approval"] as? String, let session = info["session"] as? String else { return }
         let action = response.actionIdentifier
+        guard let session = info["session"] as? String else {
+            // A command's notification: bring wtf forward.
+            await MainActor.run { NSApp.activate(ignoringOtherApps: true) }
+            return
+        }
+        let id = info["approval"] as? String ?? ""
         await MainActor.run {
-            switch action {
+            switch id.isEmpty ? UNNotificationDefaultActionIdentifier : action {
             case "allow", "deny":
                 Task {
                     do {
