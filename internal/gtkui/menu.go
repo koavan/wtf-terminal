@@ -140,16 +140,29 @@ func (p *Pane) installMouse() {
 	})
 	p.term.AddController(click)
 
-	// A path dragged from the Files tab is typed at the prompt, quoted.
-	drop := gtk.NewDropTarget(coreglib.TypeString, gdk.ActionCopy)
+	// A path dragged from the Files tab, or files from the file manager or
+	// another app, is typed at the prompt, quoted.
+	drop := gtk.NewDropTarget(coreglib.TypeInvalid, gdk.ActionCopy)
+	drop.SetGTypes([]coreglib.Type{gdk.GTypeFileList, coreglib.TypeString})
 	drop.ConnectDrop(func(v *coreglib.Value, _, _ float64) bool {
-		text, _ := v.GoValue().(string)
-		path, ok := strings.CutPrefix(text, pathDragPrefix)
-		if !ok {
+		var paths []string
+		switch x := v.GoValue().(type) {
+		case *gdk.FileList:
+			for _, f := range x.Files() {
+				if path := f.Path(); path != "" {
+					paths = append(paths, uicore.ShellQuote(path))
+				}
+			}
+		case string:
+			if path, ok := strings.CutPrefix(x, pathDragPrefix); ok {
+				paths = append(paths, uicore.ShellQuote(path))
+			}
+		}
+		if len(paths) == 0 {
 			return false
 		}
 		p.term.GrabFocus()
-		p.term.PasteText(uicore.ShellQuote(path) + " ")
+		p.term.PasteText(strings.Join(paths, " ") + " ")
 		return true
 	})
 	p.term.AddController(drop)

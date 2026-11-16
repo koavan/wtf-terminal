@@ -23,13 +23,13 @@ final class TerminalContainer: NSView {
         addSubview(terminal)
         addSubview(tints)
         addSubview(overlay)
-        registerForDraggedTypes([FilesView.pathType])
+        registerForDraggedTypes([FilesView.pathType, .fileURL])
     }
 
-    // A path dragged from the Files tab: pasted at the prompt. The pane
-    // shows it'll take the drop.
+    // A path dragged from the Files tab, or files from Finder or another
+    // app: pasted at the prompt, quoted. The pane shows it'll take the drop.
     override func draggingEntered(_ sender: NSDraggingInfo) -> NSDragOperation {
-        let ok = sender.draggingPasteboard.availableType(from: [FilesView.pathType]) != nil
+        let ok = sender.draggingPasteboard.availableType(from: [FilesView.pathType, .fileURL]) != nil
         dropTarget = ok
         return ok ? .copy : []
     }
@@ -55,11 +55,21 @@ final class TerminalContainer: NSView {
 
     override func performDragOperation(_ sender: NSDraggingInfo) -> Bool {
         dropTarget = false
-        guard let text = sender.draggingPasteboard.string(forType: .string),
-              let view = terminal as? WtfTerminalView else { return false }
+        let pb = sender.draggingPasteboard
+        guard let view = terminal as? WtfTerminalView else { return false }
+        var text: String
+        if pb.availableType(from: [FilesView.pathType]) != nil, let s = pb.string(forType: .string) {
+            text = s
+        } else if let urls = pb.readObjects(forClasses: [NSURL.self], options: [.urlReadingFileURLsOnly: true]) as? [URL],
+                  !urls.isEmpty {
+            text = urls.map { Shell.quote($0.path) }.joined(separator: " ")
+        } else {
+            return false
+        }
         window?.makeFirstResponder(view)
         view.onFocus?()
-        view.pasteText(text + " ")
+        text += " "
+        view.pasteText(text)
         return true
     }
 
