@@ -14,6 +14,7 @@ enum Services {
         static func SetAgentGroup(_ a0: Bool) async throws { try await Backend.run("config", "SetAgentGroup", [a0]) }
         static func SetAgentSound(_ a0: Bool) async throws { try await Backend.run("config", "SetAgentSound", [a0]) }
         static func SetAgentStatus(_ a0: Bool) async throws { try await Backend.run("config", "SetAgentStatus", [a0]) }
+        static func SetApprovalCards(_ a0: Bool) async throws { try await Backend.run("config", "SetApprovalCards", [a0]) }
         static func SetClaudeAutoMode(_ a0: Bool) async throws { try await Backend.run("config", "SetClaudeAutoMode", [a0]) }
         static func SetConfirmPaste(_ a0: Bool) async throws { try await Backend.run("config", "SetConfirmPaste", [a0]) }
         static func SetRedactSecrets(_ a0: Bool) async throws { try await Backend.run("config", "SetRedactSecrets", [a0]) }

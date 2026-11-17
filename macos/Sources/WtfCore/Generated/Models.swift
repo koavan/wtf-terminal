@@ -1572,11 +1572,12 @@ extension Go.config {
         public var agentStatus: Bool
         public var agentClose: String
         public var agentSound: Bool
+        public var approvalCards: Bool
         public var agentGroup: Bool
         public var worktreeDir: String
         public var updateCheck: Bool
 
-        public init(theme: String = "", fontFamily: String = "", fontSize: Double = 0, lineHeight: Double = 0, cursorStyle: String = "", cursorBlink: Bool = false, scrollback: Int = 0, optionAsMeta: Bool = false, copyOnSelect: Bool = false, shell: String = "", shellIntegration: Bool = false, notifyAfter: Double = 0, unfocusedSplitDim: Double = 0, sidebarAutoRefresh: Bool = false, sidebarRefreshInterval: Double = 0, contextBadges: Bool = false, logHighlighting: Bool = false, redactSecrets: Bool = false, clipboardClear: Double = 0, confirmPaste: Bool = false, showUsage: Bool = false, historyDays: Int = 0, claudeAutoMode: Bool = false, agentStatus: Bool = false, agentClose: String = "", agentSound: Bool = false, agentGroup: Bool = false, worktreeDir: String = "", updateCheck: Bool = false) {
+        public init(theme: String = "", fontFamily: String = "", fontSize: Double = 0, lineHeight: Double = 0, cursorStyle: String = "", cursorBlink: Bool = false, scrollback: Int = 0, optionAsMeta: Bool = false, copyOnSelect: Bool = false, shell: String = "", shellIntegration: Bool = false, notifyAfter: Double = 0, unfocusedSplitDim: Double = 0, sidebarAutoRefresh: Bool = false, sidebarRefreshInterval: Double = 0, contextBadges: Bool = false, logHighlighting: Bool = false, redactSecrets: Bool = false, clipboardClear: Double = 0, confirmPaste: Bool = false, showUsage: Bool = false, historyDays: Int = 0, claudeAutoMode: Bool = false, agentStatus: Bool = false, agentClose: String = "", agentSound: Bool = false, approvalCards: Bool = false, agentGroup: Bool = false, worktreeDir: String = "", updateCheck: Bool = false) {
             self.theme = theme
             self.fontFamily = fontFamily
             self.fontSize = fontSize
@@ -1603,6 +1604,7 @@ extension Go.config {
             self.agentStatus = agentStatus
             self.agentClose = agentClose
             self.agentSound = agentSound
+            self.approvalCards = approvalCards
             self.agentGroup = agentGroup
             self.worktreeDir = worktreeDir
             self.updateCheck = updateCheck
@@ -1635,6 +1637,7 @@ extension Go.config {
             case agentStatus = "agentStatus"
             case agentClose = "agentClose"
             case agentSound = "agentSound"
+            case approvalCards = "approvalCards"
             case agentGroup = "agentGroup"
             case worktreeDir = "worktreeDir"
             case updateCheck = "updateCheck"
@@ -1668,6 +1671,7 @@ extension Go.config {
             self.agentStatus = (try? c.decodeIfPresent(Bool.self, forKey: .agentStatus)) ?? false
             self.agentClose = (try? c.decodeIfPresent(String.self, forKey: .agentClose)) ?? ""
             self.agentSound = (try? c.decodeIfPresent(Bool.self, forKey: .agentSound)) ?? false
+            self.approvalCards = (try? c.decodeIfPresent(Bool.self, forKey: .approvalCards)) ?? false
             self.agentGroup = (try? c.decodeIfPresent(Bool.self, forKey: .agentGroup)) ?? false
             self.worktreeDir = (try? c.decodeIfPresent(String.self, forKey: .worktreeDir)) ?? ""
             self.updateCheck = (try? c.decodeIfPresent(Bool.self, forKey: .updateCheck)) ?? false

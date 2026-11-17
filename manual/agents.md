@@ -22,15 +22,20 @@ A `codex` you start in a wtf shell is an agent like a Claude Code: it gets a row
 
 ## Approvals
 
-When Claude Code or Codex asks your permission (to run a command, change a file, or use a tool), the request shows at the top of the Agents tab under **Approvals**, from every window and the background, oldest first. You don't have to find the agent's tab to answer it. Each one shows:
+When Claude Code or Codex asks your permission (to run a command, change a file, or use a tool), or asks you a question, the request shows in two places, from every window and the background. You don't have to find the agent's tab to answer it.
+
+- **A card over the terminal**, bottom right of every window. The oldest request is on top, with "1 of 3" and the others peeking out under it; answer it and the next one slides up. It never takes the keyboard from your shell: click its buttons, or press {{cmd:approval.allow}} to allow it. A request from an agent whose pane is in front of you has no card: its own dialog is right there. The arrow on the card collapses the deck to a "3 waiting for you" pill, and a new request opens it again. Turn the cards off with **Float what agents wait on you for over the terminal** in **Settings** → **General**, or `approval-cards = false` in `config.toml`.
+- **The Agents tab**, under the agent asking, indented, with a colored line saying what kind it is (**wants to run**, **wants to edit**, **wants to use**, **asks you**). The tab's heading counts them: "2 waiting for you".
+
+Each one shows:
 
 - which agent asks (and which of its sub-agents, if one does);
-- the tool, with Claude Code's description of the command;
+- what kind of request it is, with Claude Code's description of the command;
 - the command it would run, or the file it would change, with the lines an edit removes and adds;
 - **where the command would act** (see below);
 - **Allow**, **Deny** and **Go to Agent**.
 
-**Allow** is **Yes** in Claude Code's own dialog: it runs this once. **Deny** is **No**: Claude Code doesn't run it and stops its turn, waiting for you. For the dialog's other choices (allow always, or tell Claude what to do instead), **Go to Agent**. Claude Code's dialog stays open in its pane while the request is in the Approvals list, and whichever you answer first applies; the other goes away. Answering in the pane (**Enter**, a choice's number, or **Esc**) takes the request off the list at once, even while the command it allowed is still running.
+**Allow** is **Yes** in Claude Code's own dialog: it runs this once. **Deny** is **No**: Claude Code doesn't run it and stops its turn, waiting for you. For the dialog's other choices (allow always, or tell Claude what to do instead), **Go to Agent**. Claude Code's dialog stays open in its pane while the request is waiting in wtf, and whichever you answer first applies; the other goes away. Answering in the pane (**Enter**, a choice's number, or **Esc**) takes the request away from the card and the Agents tab at once, even while the command it allowed is still running.
 
 {{cmd:agents.approval}} goes to the next agent asking, with the Agents tab open.
 
@@ -128,7 +133,7 @@ To run several agents on one repository without them editing the same files, giv
 
 ## How wtf knows
 
-Claude Code reports what it's doing through hooks: small commands it runs when you send a prompt, when it needs your approval (its `PermissionRequest` hook, which also carries the request to the Approvals list and your answer back), when it finishes, when it starts or finishes a sub-agent, after each tool call and when it quits. wtf never reads the screen to guess.
+Claude Code reports what it's doing through hooks: small commands it runs when you send a prompt, when it needs your approval (its `PermissionRequest` hook, which also carries the request to its card and the Agents tab, and your answer back), when it finishes, when it starts or finishes a sub-agent, after each tool call and when it quits. wtf never reads the screen to guess.
 
 Codex reports through its matching lifecycle hooks. The shell integration adds wtf's command hooks to that `codex` run with temporary `--config` arguments, so nothing is written to `~/.codex`. Its session, prompt, approvals, completion, interrupts, tool calls and sub-agents use the same rows and badges; saved Codex conversations resume with `codex resume`.
 

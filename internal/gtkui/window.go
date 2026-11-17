@@ -33,8 +33,9 @@ type Window struct {
 	strip  *tabStrip
 	stack  *gtk.Stack
 	toasts *adw.ToastOverlay
-	// Over the panes: the palette.
+	// Over the panes: the palette, and what agents wait on you for (#39).
 	overlay   *gtk.Overlay
+	deck      *approvalDeck
 	palette   *palette
 	broadcast *broadcast
 	shortcuts *gtk.ShortcutsWindow
@@ -99,6 +100,8 @@ func newWindow(a *App, name string) *Window {
 	w.stack.SetVExpand(true)
 	w.overlay = gtk.NewOverlay()
 	w.overlay.SetChild(w.stack)
+	w.deck = newApprovalDeck(w)
+	w.overlay.AddOverlay(w.deck.root)
 	w.split = w.newSidebarSplit(w.overlay)
 	w.toasts = adw.NewToastOverlay()
 	w.toasts.SetChild(w.split)
@@ -264,6 +267,7 @@ func (w *Window) sync() {
 		}
 	}
 	w.agentsSeen()
+	w.deck.refresh()
 	w.address.refresh()
 	w.strip.refresh()
 	w.updateTitle()
@@ -624,6 +628,7 @@ func (w *Window) windowCommands() map[string]func() {
 		"agents.pick":     func() { w.togglePalette(paletteAgents) },
 		"agents.next":     w.nextAgent,
 		"agents.approval": w.nextApproval,
+		"approval.allow":  func() { w.deck.allowTop() },
 		"agents.start":    w.startAgent,
 		"worktree.new":    func() { w.newWorktree(w.worktreeHere()) },
 		"worktree.open":   func() { w.openWorktree(w.worktreeHere()) },
@@ -714,7 +719,7 @@ func (w *Window) mainMenuButton() *gtk.MenuButton {
 		{"find", "term.copyOutput", "term.pinOutput", "claude.ask", "ai.explain", "ai.ask", "ai.investigate", "ai.logs", "ai.runbook", "ai.postmortem", "ai.history", "review.last", "term.clear", "secrets.toggle"},
 		{"record.toggle", "export.text", "export.markdown"},
 		{"font.bigger", "font.smaller", "font.reset"},
-		{"tab.overview", "agents.pick", "agents.next", "agents.approval", "agents.start", "worktree.new", "worktree.open", "worktree.remove", "tab.group", "broadcast.toggle", "pane.zoom", "pane.next", "pane.prev"},
+		{"tab.overview", "agents.pick", "agents.next", "agents.approval", "approval.allow", "agents.start", "worktree.new", "worktree.open", "worktree.remove", "tab.group", "broadcast.toggle", "pane.zoom", "pane.next", "pane.prev"},
 		{"help.manual", "help.shortcuts", "tools.show", "app.about", "app.updates"},
 		{"app.quit"},
 	}
@@ -915,6 +920,7 @@ func (w *Window) closeForGood() {
 	}
 	w.address.usage.stop()
 	w.unobserve()
+	w.deck.close()
 	if !w.background {
 		name, store := w.name, w.app.be.Store
 		go func() { _ = store.Forget(name) }()

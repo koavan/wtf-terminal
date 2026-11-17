@@ -69,6 +69,9 @@ enum Commands {
         Command("agents.pick", "Go to Agent…", "⌥⌘A") { Palette.toggle(.agents, in: $0) },
         Command("agents.next", "Next Agent Needing You", "⌥⌘N") { Agents.next(from: $0) },
         Command("agents.approval", "Next Approval", "⌥⌘Y") { Agents.nextApproval(from: $0) },
+        Command("approval.allow", "Allow the Waiting Request", "⌘⏎", available: { $0.approvalDeck.top?.questions.isEmpty == true }) {
+            _ = $0.approvalDeck.allowTop()
+        },
         Command("agents.start", "Start Claude Code…") { $0.startAgent() },
         Command("worktree.new", "New Worktree… (git)") { WorktreeUI.new(from: WorktreeUI.here($0), owner: $0) },
         Command("worktree.open", "Open Worktree… (git)") { WorktreeUI.open(from: WorktreeUI.here($0), owner: $0) },

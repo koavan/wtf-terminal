@@ -3,6 +3,7 @@
 package gtkui
 
 import (
+	"cmp"
 	"fmt"
 	"slices"
 	"strconv"
@@ -23,6 +24,11 @@ func init() {
 .wtf-side-action { min-height: 22px; padding: 0 8px; font-size: 0.9em; }
 .wtf-approval-diff-del { color: @error_color; }
 .wtf-approval-diff-add { color: @success_color; }
+.wtf-request-run, .wtf-request-edit, .wtf-request-tool { color: @warning_color; font-weight: bold; }
+.wtf-request-question { color: @accent_color; font-weight: bold; }
+.wtf-side-pill.wtf-request-chip-run, .wtf-side-pill.wtf-request-chip-edit, .wtf-side-pill.wtf-request-chip-tool {
+  color: @warning_color; background: alpha(@warning_color, 0.14); font-weight: bold; }
+.wtf-side-pill.wtf-request-chip-question { color: @accent_color; background: alpha(@accent_color, 0.14); font-weight: bold; }
 `)
 }
 
@@ -217,81 +223,26 @@ func (t *agentsTab) approvalAt(id string) (string, bridge.Approval, bool) {
 	return "", bridge.Approval{}, false
 }
 
-// approvalRows (#39): every permission prompt waiting, oldest first: which
-// agent asks, the command or file, where a command would act (#40), the
-// change an edit makes, and Allow / Deny / Go to Agent.
-func (t *agentsTab) approvalRows() []sideRow {
+// approvalRowsOf (#39): what an agent waits on you for, oldest first,
+// under its row: indented, with a chip saying what kind it is (so it reads
+// as the agent's, not as another agent), what it asks, and its buttons. The
+// floating cards (approvalDeck) show the same.
+func (t *agentsTab) approvalRowsOf(st bridge.Status) []sideRow {
 	a := t.w.app
+	aps := slices.Clone(st.Approvals)
+	slices.SortFunc(aps, func(x, y bridge.Approval) int { return cmp.Compare(x.Since, y.Since) })
 	var rows []sideRow
-	for _, ask := range a.agents.approvals() {
-		st, ap := ask.st, ask.ap
-		title, _ := a.agentTitle(st)
+	for _, ap := range aps {
+		kind := requestKind(ap)
+		title := requestVerb(ap)
 		if ap.Subagent != "" {
-			title += " · " + ap.Subagent
+			title = ap.Subagent + " " + title
 		}
-		detail := toolName(ap.Tool)
-		if ap.Description != "" {
-			detail += " · " + a.settings.text(ap.Description)
-		}
-		if len(ap.Questions) > 0 {
-			detail = "asks you"
-			if n := len(ap.Questions); n > 1 {
-				detail = fmt.Sprintf("asks you %d questions", n)
-			}
-		}
-		r := sideRow{id: "ask:" + st.Session + ":" + ap.ID, dot: "agent-waiting", title: title, detail: detail,
-			tip: "Allow or Deny here, or answer in its pane: whichever is first applies. Click to go to it; right-click for more."}
-		if ap.What != "" {
-			r.more = append(r.more, sideText{text: a.settings.text(ap.What), classes: []string{"monospace"}})
-		}
-		for _, q := range ap.Questions {
-			r.more = append(r.more, sideText{text: a.settings.text(q.Question)})
-			if !ap.Clickable() {
-				for _, o := range q.Options {
-					r.more = append(r.more, sideText{text: "· " + a.settings.text(o), classes: []string{"dim-label"}})
-				}
-			}
-		}
-		for _, f := range ap.Facts {
-			r.more = append(r.more, sideText{text: a.settings.text(f)})
-		}
-		if ap.Diff != "" {
-			lines := strings.Split(ap.Diff, "\n")
-			shown := lines[:min(len(lines), 12)]
-			for _, l := range shown {
-				class := "dim-label"
-				switch {
-				case strings.HasPrefix(l, "- "):
-					class = "wtf-approval-diff-del"
-				case strings.HasPrefix(l, "+ "):
-					class = "wtf-approval-diff-add"
-				}
-				r.more = append(r.more, sideText{text: a.settings.text(l), classes: []string{"monospace", class}})
-			}
-			if n := len(lines) - len(shown); n > 0 {
-				r.more = append(r.more, sideText{text: fmt.Sprintf("… %d more lines in the pane", n), classes: []string{"dim-label"}})
-			}
-		}
-		id, session, product := ap.ID, st.Session, agentProduct(st)
-		if len(ap.Questions) > 0 {
-			// A question: its options answer it, when one click can.
-			if ap.Clickable() {
-				for _, o := range ap.Questions[0].Options {
-					r.actions = append(r.actions, sideAction{label: a.settings.text(o), tip: "Answer " + a.settings.text(o) + ", as choosing it in " + product + "'s own dialog",
-						run: func() { t.w.answerQuestion(id, o) }})
-				}
-				r.actions = append(r.actions, sideAction{label: "Go to Agent", tip: "Show its pane: its dialog also lets you type your own answer", run: func() { a.goToAgent(session) }})
-			} else {
-				r.actions = []sideAction{{label: "Go to Agent", key: true, tip: "Answer in its pane: several questions, or several choices, are answered there", run: func() { a.goToAgent(session) }}}
-			}
-			rows = append(rows, r)
-			continue
-		}
-		r.actions = []sideAction{
-			{label: "Allow", key: true, tip: "Let " + product + " do this once, as Yes in its own dialog", run: func() { t.w.answerApproval(id, bridge.Allow) }},
-			{label: "Deny", tip: "Refuse it and stop " + product + "'s turn, as No in its own dialog", run: func() { t.w.answerApproval(id, bridge.Deny) }},
-			{label: "Go to Agent", tip: "Show its pane: its dialog has more choices (always allow, tell it what to do instead)", run: func() { a.goToAgent(session) }},
-		}
+		// Its title's color says what kind it is: the side pane is too
+		// narrow for chips beside the command.
+		r := sideRow{id: "ask:" + st.Session + ":" + ap.ID, title: title, titleClass: "wtf-request-" + kind, depth: 1,
+			more: approvalBody(a, ap, 12), actions: approvalActions(t.w, st, ap, false),
+			tip: "Answer here, on its card, or in its pane: whichever is first applies. Click to go to it; right-click for more."}
 		rows = append(rows, r)
 	}
 	return rows
@@ -411,7 +362,7 @@ func (t *agentsTab) rebuild() {
 		}
 		session := st.Session
 		r.button, r.buttonTip, r.buttonRun = "view-reveal-symbolic", "Peek and reply", func() { a.peekAgent(session, &t.w.win.Window) }
-		subs := t.subagentRows(st)
+		subs := append(t.approvalRowsOf(st), t.subagentRows(st)...)
 		if aw := a.windowOf(st.Session); aw != nil && aw.background {
 			r.tip = "Open it in a tab; double-click to name it"
 			parked = append(append(parked, r), subs...)
@@ -430,9 +381,10 @@ func (t *agentsTab) rebuild() {
 		sec.title = strings.TrimSpace("Go to Agent… " + keyOf("agents.pick") + " · Next Needing You " + keyOf("agents.next"))
 	}
 	sections := []sideSection{sec}
-	if asks := t.approvalRows(); len(asks) > 0 {
-		sections = append([]sideSection{{title: strings.TrimSpace("Approvals · Next " + keyOf("agents.approval")), rows: asks,
-			tip: "What your agents are asking to do. Allow or Deny here, or answer in the agent's pane: whichever is first applies."}}, sections...)
+	// #39: what they wait on you for, counted; each shows under its agent.
+	if n := len(a.agents.approvals()); n > 0 {
+		sections[0].title = strings.TrimSpace(fmt.Sprintf("%d waiting for you · Next ", n) + keyOf("agents.approval"))
+		sections[0].tip = "Requests your agents wait on, under each agent and floating over the terminal. Answer here, there, or in the agent's pane: whichever is first applies."
 	}
 	if len(parked) > 0 {
 		sections = append(sections, sideSection{title: "Background", tip: "Running after their tab closed; they end when wtf quits", rows: parked, always: true})

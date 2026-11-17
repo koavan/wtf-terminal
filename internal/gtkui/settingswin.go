@@ -206,6 +206,22 @@ func (s *settingsWindow) generalPage() *adw.PreferencesPage {
 		}
 	})
 	claude.Add(sound)
+	cards := adw.NewSwitchRow()
+	cards.SetUseMarkup(false)
+	cards.SetTitle("Float what agents wait on you for over the terminal")
+	cards.SetSubtitle("approval-cards; permission requests and questions as a card, bottom right of every window, with Allow (" + keyOf("approval.allow") + "), Deny or the question's options. Off, they're in the Agents tab only")
+	cards.SetActive(s.w.app.settings.config().ApprovalCards)
+	cards.Connect("notify::active", func() {
+		on := cards.Active()
+		if on == s.w.app.settings.config().ApprovalCards {
+			return
+		}
+		if err := s.w.app.be.Config.SetApprovalCards(on); err != nil {
+			cards.SetActive(!on)
+			s.w.toast("Couldn't change the setting: " + err.Error())
+		}
+	})
+	claude.Add(cards)
 	group := adw.NewSwitchRow()
 	group.SetUseMarkup(false)
 	group.SetTitle("Group tabs running Claude Code or Codex under “ungrouped agents”")

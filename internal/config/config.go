@@ -63,6 +63,10 @@ type Config struct {
 	// one for each, so you can tell them apart by ear.
 	AgentSound bool `toml:"agent-sound" json:"agentSound"`
 
+	// Requests your agents are waiting on (approvals, questions) float as
+	// cards over the terminal, in every window.
+	ApprovalCards bool `toml:"approval-cards" json:"approvalCards"`
+
 	// A tab running Claude Code that isn't in a group joins its window's
 	// "ungrouped agents" tab group (made when needed), and leaves it when
 	// Claude Code ends.
@@ -106,6 +110,8 @@ func Defaults() Config {
 		AgentClose:  "ask",
 		AgentSound:  true,
 		AgentGroup:  true,
+
+		ApprovalCards: true,
 
 		UpdateCheck: true,
 	}
@@ -222,6 +228,12 @@ const template = `# wtf settings. Changes apply as soon as you save (or switch b
 # needs you or finishes while you're looking elsewhere (a different one for
 # each).
 # agent-sound = true
+
+# What your agents are waiting on you for (a permission request, or a
+# question) floats as a card over the terminal, bottom right, in every
+# window: answer it there without opening the Agents tab. Off, they're in
+# the Agents tab only.
+# approval-cards = true
 
 # A tab running Claude Code or Codex that isn't in a group joins its
 # window's "ungrouped agents" tab group (made when needed) and leaves it when

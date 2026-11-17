@@ -222,6 +222,10 @@ final class SettingsWindow: NSObject, NSWindowDelegate, NSToolbarDelegate {
         sound.state = Settings.shared.config?.agentSound == false ? .off : .on
         sound.toolTip = "With its notification: Glass when it needs you, Pop when it finishes"
         content.addArrangedSubview(sound)
+        let cards = NSButton(checkboxWithTitle: "Float what agents wait on you for over the terminal (approval-cards)", target: self, action: #selector(toggleApprovalCards(_:)))
+        cards.state = Settings.shared.config?.approvalCards == false ? .off : .on
+        cards.toolTip = "Permission requests and questions as a card, bottom right of every window, with Allow (⌘⏎), Deny or the question's options. Off, they're in the Agents tab only"
+        content.addArrangedSubview(cards)
         let group = NSButton(checkboxWithTitle: "Group tabs running Claude Code or Codex under “ungrouped agents” (agent-group)", target: self, action: #selector(toggleAgentGroup(_:)))
         group.state = Settings.shared.config?.agentGroup == false ? .off : .on
         group.toolTip = "A tab not already in a group joins its window's “ungrouped agents” tab group when Claude Code or Codex starts in it, and leaves when it ends"
@@ -259,6 +263,16 @@ final class SettingsWindow: NSObject, NSWindowDelegate, NSToolbarDelegate {
         let on = sender.state == .on
         Task {
             do { try await Services.config.SetAgentGroup(on) } catch {
+                sender.state = on ? .off : .on
+                Toast.show("Couldn't change the setting: \(error.localizedDescription)", in: window.contentView)
+            }
+        }
+    }
+
+    @objc private func toggleApprovalCards(_ sender: NSButton) {
+        let on = sender.state == .on
+        Task {
+            do { try await Services.config.SetApprovalCards(on) } catch {
                 sender.state = on ? .off : .on
                 Toast.show("Couldn't change the setting: \(error.localizedDescription)", in: window.contentView)
             }

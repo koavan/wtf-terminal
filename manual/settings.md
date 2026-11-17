@@ -21,6 +21,7 @@
 | `confirm-paste` | show a paste first when it has more than one line, a final newline or control characters (default on) — see [Privacy](#privacy) |
 | `agent-close` | closing a tab or pane running Claude Code: `ask` (default), `background` (keep it running; the [Agents](#agents) tab opens it again) or `end` |
 | `agent-group` | a tab running Claude Code that isn't in a group joins its window's **ungrouped agents** tab group, and leaves it when Claude Code ends (on) |
+| `approval-cards` | what your agents wait on you for (permission requests and questions) floats as a card over the terminal, bottom right of every window (on) |
 | `agent-sound` | a short sound with an agent's notification when it needs you or finishes while you're looking elsewhere, a different one for each (on) |
 | `worktree-dir` | where New Worktree… puts worktrees: `<worktree-dir>/<repository>/<branch>`; unset, beside the repository in `<repository>.worktrees/` — see [Worktrees](#worktrees) |
 | `update-check` | ask GitHub at launch and once a day whether a newer wtf has been released, and say so in the window: **Download…** opens the release page, **Skip This Version** stops telling you about that one (on). Nothing is downloaded or installed. **Check for Updates…** (in the wtf menu and the palette) asks any time — see [Privacy](#privacy) |

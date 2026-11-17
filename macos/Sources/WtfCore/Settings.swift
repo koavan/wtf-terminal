@@ -33,6 +33,8 @@ public struct Config: Decodable, Equatable, Sendable {
     public var agentClose: String?
     /// agent-sound (older backends lack it).
     public var agentSound: Bool?
+    /// approval-cards (older backends lack it).
+    public var approvalCards: Bool?
     /// agent-group (older backends lack it).
     public var agentGroup: Bool?
     /// update-check (older backends lack it).

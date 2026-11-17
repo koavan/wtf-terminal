@@ -420,13 +420,30 @@ func (w *Window) checkAgents() {
 		check(badge() == bridge.StateWaiting, "its tab shows it needs you: %q", badge())
 		askID := "ask:" + session + ":" + ap.ID
 		ids = tabIDs()
-		check(len(ids) > 0 && ids[0] == askID, "the Agents tab lists it first: %q", ids)
-		// Next Approval goes to it from another tab.
+		check(len(ids) > 1 && ids[0] == session && ids[1] == askID, "the Agents tab lists it under its agent: %q", ids)
+		// Next Approval goes to it from another tab, where its card floats.
 		onMain(func() { w.model.Open(uicore.OpenOptions{}) })
 		check(waitUntil(5*time.Second, func() bool { return w.active() != p }), "another tab")
 		elsewhere := w.active()
+		var shown []string
+		var visible bool
+		deck := func() {
+			onMain(func() {
+				shown, visible = nil, w.deck.root.Visible()
+				for _, ask := range w.deck.shown {
+					shown = append(shown, ask.ap.ID)
+				}
+			})
+		}
+		check(waitUntil(5*time.Second, func() bool { deck(); return visible && slices.Equal(shown, []string{ap.ID}) }),
+			"a floating card shows it from another tab: %v %q", visible, shown)
+		var top bridge.Approval
+		onMain(func() { top, _ = w.deck.top() })
+		check(top.ID == ap.ID, "approval.allow would allow it: %q", top.ID)
+		w.shot("approval-card")
 		onMain(w.nextApproval)
 		check(waitUntil(5*time.Second, func() bool { return w.active() == p }), "Next Approval goes to the agent asking")
+		check(waitUntil(5*time.Second, func() bool { deck(); return !visible }), "its card hides with the agent's own dialog in front")
 		if elsewhere != nil && elsewhere != p {
 			onMain(func() { w.model.ClosePane(elsewhere.id) })
 		}
@@ -434,7 +451,7 @@ func (w *Window) checkAgents() {
 		var rows []sideRow
 		onMain(func() {
 			if t, ok := w.sidePane().(*agentsTab); ok {
-				rows = t.approvalRows()
+				rows = t.approvalRowsOf(a.agents.all[session])
 			}
 		})
 		check(len(rows) == 1 && len(rows[0].actions) == 3 && rows[0].actions[0].label == "Allow", "with Allow, Deny and Go to Agent")

@@ -11,6 +11,8 @@ final class WindowController: NSWindowController, NSWindowDelegate, NSMenuItemVa
     private let strip: TabStripView
     private let panes = PaneArea()
     private let root = RootView()
+    /// What your agents wait on you for, floating bottom right (#39).
+    private(set) var approvalDeck: ApprovalDeck!
     private let address = AddressBar()
     private let broadcastBar = BroadcastBar()
     private let middle = MiddleStack()
@@ -54,6 +56,14 @@ final class WindowController: NSWindowController, NSWindowDelegate, NSMenuItemVa
         middle.address = address
         middle.broadcast = broadcastBar
         root.middle = middle
+        approvalDeck = ApprovalDeck(owner: self)
+        root.addSubview(approvalDeck)
+        NSLayoutConstraint.activate([
+            approvalDeck.trailingAnchor.constraint(equalTo: root.trailingAnchor, constant: -14),
+            approvalDeck.bottomAnchor.constraint(equalTo: root.bottomAnchor, constant: -12),
+            approvalDeck.widthAnchor.constraint(equalToConstant: ApprovalDeck.width),
+            approvalDeck.topAnchor.constraint(greaterThanOrEqualTo: root.topAnchor, constant: TabStripView.height + 44),
+        ])
         window.contentView = root
         window.strip = strip
         window.onFirstResponder = { [weak self] in self?.firstResponderChanged($0) }
@@ -213,6 +223,7 @@ final class WindowController: NSWindowController, NSWindowDelegate, NSMenuItemVa
         // The keyboard moves only when another pane comes to the front:
         // renaming a group or a tab, or any other edit, keeps it where it is.
         sidePane?.paneChanged()
+        approvalDeck.refresh()
         let front = model.active.map { [$0.id, $0.focusedPaneId] }
         if front != lastFront {
             lastFront = front

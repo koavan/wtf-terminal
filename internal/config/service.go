@@ -108,6 +108,11 @@ func (s *Service) SetAgentSound(on bool) error {
 	return s.set("agent-sound", strconv.FormatBool(on))
 }
 
+// SetApprovalCards turns approval-cards on or off.
+func (s *Service) SetApprovalCards(on bool) error {
+	return s.set("approval-cards", strconv.FormatBool(on))
+}
+
 // SetUpdateCheck turns the daily check for a newer wtf on or off.
 func (s *Service) SetUpdateCheck(on bool) error {
 	return s.set("update-check", strconv.FormatBool(on))

@@ -586,6 +586,7 @@ func buildMenu() -> NSMenu {
         cmd("Go to Agent…", "agents.pick", "a", [.command, .option]),
         cmd("Next Agent Needing You", "agents.next", "n", [.command, .option]),
         cmd("Next Approval", "agents.approval", "y", [.command, .option]),
+        cmd("Allow the Waiting Request", "approval.allow", "\r", [.command]),
         cmd("Start Claude Code…", "agents.start"),
         .separator(),
         cmd("Show Next Tab", "tab.next", "]", [.command, .shift]),

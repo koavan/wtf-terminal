@@ -303,8 +303,21 @@ enum ClaudeCheck {
         // Next Approval goes to it from another tab.
         if let other = m.tabs.first(where: { !$0.root.leaves.contains(id) }) { m.activate(other.id) }
         check(m.active?.root.leaves.contains(id) == false, "another tab")
+        // The floating card shows it there, over the terminal.
+        check(await waitUntil(5) { !w.approvalDeck.isHidden && w.approvalDeck.shown.map(\.1.id) == [ap?.id ?? ""] },
+              "a floating card shows it from another tab")
+        check(w.approvalDeck.top?.id == ap?.id, "⌘⏎ would allow it")
+        if let snap = ProcessInfo.processInfo.environment["WTF_NATIVE_SNAPSHOT_DIR"] {
+            let v = w.rootView
+            v.layoutSubtreeIfNeeded()
+            if let rep = v.bitmapImageRepForCachingDisplay(in: v.bounds) {
+                v.cacheDisplay(in: v.bounds, to: rep)
+                try? rep.representation(using: .png, properties: [:])?.write(to: URL(fileURLWithPath: snap + "/approval-card.png"))
+            }
+        }
         Agents.nextApproval(from: w)
         check(await waitUntil(5) { m.active?.focusedPaneId == id }, "Next Approval goes to the agent asking")
+        check(await waitUntil(5) { w.approvalDeck.isHidden }, "its card hides with the agent's own dialog in front")
         func allow(_ v: NSView) -> NSButton? {
             if let b = v as? NSButton, b.title == "Allow" { return b }
             for s in v.subviews { if let b = allow(s) { return b } }
