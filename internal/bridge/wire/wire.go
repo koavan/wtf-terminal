@@ -84,6 +84,21 @@ type ToolInput struct {
 	Content   string     `json:"content,omitempty"`
 	Edits     []EditPair `json:"edits,omitempty"`
 	Argv      []string   `json:"argv,omitempty"`
+	// AskUserQuestion: what Claude asks you.
+	Questions []Question `json:"questions,omitempty"`
+}
+
+// Question is one of an AskUserQuestion's questions.
+type Question struct {
+	Question    string   `json:"question"`
+	Header      string   `json:"header,omitempty"`
+	Options     []Option `json:"options,omitempty"`
+	MultiSelect bool     `json:"multiSelect,omitempty"`
+}
+
+// Option is one of a Question's choices.
+type Option struct {
+	Label string `json:"label"`
 }
 
 // EditPair is one change of a MultiEdit.
@@ -104,6 +119,10 @@ type Response struct {
 	// wtf's Approvals inbox (#39); "" when it was answered in the pane, so
 	// the hook says nothing.
 	Decision string `json:"decision,omitempty"`
+	// An AskUserQuestion answered in wtf (with Decision "allow"): question
+	// → the option chosen, which the helper hands Claude Code as the
+	// tool's answers.
+	Answers map[string]string `json:"answers,omitempty"`
 }
 
 // Tool is one MCP tool as the helper registers it.

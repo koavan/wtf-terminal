@@ -36,6 +36,9 @@ type Session struct {
 	closed    atomic.Bool
 	attachMu  sync.Mutex // allows only one stream consumer at a time
 
+	// Hears every write (Service.OnInput); set before it starts.
+	onInput func(p []byte)
+
 	// Window that shows this session; guarded by Service.mu.
 	window string
 
@@ -135,7 +138,12 @@ func (s *Session) wait() {
 // ExitCode is only meaningful after Done is closed.
 func (s *Session) ExitCode() int { return s.exitCode }
 
-func (s *Session) Write(p []byte) (int, error) { return s.pty.Write(p) }
+func (s *Session) Write(p []byte) (int, error) {
+	if s.onInput != nil {
+		s.onInput(p)
+	}
+	return s.pty.Write(p)
+}
 
 func (s *Session) Resize(cols, rows uint16) error {
 	if s.size.Swap(uint32(cols)<<16|uint32(rows)) != uint32(cols)<<16|uint32(rows) {

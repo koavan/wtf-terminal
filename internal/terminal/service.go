@@ -66,6 +66,10 @@ type Service struct {
 	// at its shell (the bridge forgets the Claude Code that ran there).
 	OnExit    func(id string)
 	OnAtShell func(id string)
+	// Hears every write to a session's shell (the bridge: a key that
+	// answers an agent's permission dialog). Called on the writer's
+	// goroutine, so it must be quick.
+	OnInput func(id string, p []byte)
 
 	// Set while quitting: shells killed by shutdown must not be reported as
 	// exits, or the UI would close their tabs and save an empty session.
@@ -181,6 +185,9 @@ func (s *Service) Create(window string, cols, rows int, cwd string) (string, err
 		return "", fmt.Errorf("starting %s: %w", shell, err)
 	}
 
+	if on := s.OnInput; on != nil {
+		sess.onInput = func(p []byte) { on(id, p) }
+	}
 	s.mu.Lock()
 	sess.window = window
 	s.sessions[id] = sess

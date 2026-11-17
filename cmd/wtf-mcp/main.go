@@ -224,6 +224,17 @@ func hook(c client, provider string, in io.Reader, out io.Writer) int {
 	}
 	if ev.Event == "PermissionRequest" && provider == "claude" && (resp.Decision == "allow" || resp.Decision == "deny") {
 		decision := map[string]any{"behavior": resp.Decision}
+		// A question answered in wtf: its input as Claude Code sent it,
+		// with the answers.
+		if len(resp.Answers) > 0 {
+			var raw struct {
+				Input map[string]any `json:"tool_input"`
+			}
+			if json.Unmarshal(data, &raw) == nil && raw.Input != nil {
+				raw.Input["answers"] = resp.Answers
+				decision["updatedInput"] = raw.Input
+			}
+		}
 		if resp.Decision == "deny" {
 			decision["message"] = denyMessage
 			decision["interrupt"] = true

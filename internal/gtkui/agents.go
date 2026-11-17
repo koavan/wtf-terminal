@@ -5,6 +5,7 @@ package gtkui
 import (
 	"fmt"
 	"slices"
+	"strconv"
 	"strings"
 	"time"
 
@@ -43,14 +44,44 @@ type agentList struct {
 	// back when it reports in again after resuming.
 	resumable    []state.Agent
 	pendingNames map[string]string
-	// #39: approval id → its notification with Allow and Deny, taken away
-	// when it's answered anywhere else.
-	asked map[string]*notify.Asked
+	// Session → its agent's one notification: they don't pile up.
+	notes      map[string]*agentNote
+	noteSerial int
+}
+
+// agentNote is an agent's notification, its latest (a new one takes its
+// place), taken away once it's out of date: answered, the agent moved on,
+// or you look at it.
+type agentNote struct {
+	// The state it showed (agentState), and the approval it asks.
+	state, approval string
+	// notify-send's id, once known; or the one with Allow and Deny (#39).
+	id    string
+	asked *notify.Asked
+}
+
+func (n *agentNote) close() {
+	if n.asked != nil {
+		go n.asked.Close()
+	} else if n.id != "" {
+		go notify.Close(n.id)
+	}
+}
+
+// clearNote takes an agent's notification away unless it still says
+// unless ("": whatever it says).
+func (l *agentList) clearNote(session, unless string) {
+	n := l.notes[session]
+	if n == nil || unless != "" && n.state == unless {
+		return
+	}
+	delete(l.notes, session)
+	n.close()
 }
 
 func newAgentList() *agentList {
 	return &agentList{all: map[string]bridge.Status{}, observers: map[int]func(){}, subagentsShown: map[string]bool{},
-		pendingNames: map[string]string{}, asked: map[string]*notify.Asked{}}
+		pendingNames: map[string]string{}, notes: map[string]*agentNote{}}
 }
 
 // changed tells the observers something they show changed.
@@ -257,6 +288,16 @@ func (w *Window) answerApproval(id, decision string) {
 	}()
 }
 
+// answerQuestion answers a question Claude asks with one of its options.
+func (w *Window) answerQuestion(id, option string) {
+	b := w.app.be.Bridge
+	go func() {
+		if err := b.AnswerQuestion(id, []string{option}); err != nil {
+			coreglib.IdleAdd(func() { w.toast("Already answered in the pane") })
+		}
+	}()
+}
+
 // agentGroupName is the tab group agents' tabs join (agent-group).
 const agentGroupName = "ungrouped agents"
 
@@ -428,6 +469,8 @@ func (w *Window) agentsSeen() {
 		if ps == nil {
 			continue
 		}
+		// You're looking at it: its notification has nothing to add.
+		w.app.agents.clearNote(ps.SessionID, "")
 		if st, ok := w.app.agents.all[ps.SessionID]; ok && st.Unseen {
 			go w.app.be.Bridge.Seen(st.Session)
 		}
@@ -439,13 +482,15 @@ func (a *App) agentStatus(st bridge.Status) {
 	old, had := l.all[st.Session]
 	// Approvals answered (here, in the pane, or gone with their agent)
 	// take their notification away.
-	for _, ap := range old.Approvals {
-		if !slices.ContainsFunc(st.Approvals, func(o bridge.Approval) bool { return o.ID == ap.ID }) {
-			if n := l.asked[ap.ID]; n != nil {
-				delete(l.asked, ap.ID)
-				go n.Close()
-			}
-		}
+	if n := l.notes[st.Session]; n != nil && n.approval != "" &&
+		!slices.ContainsFunc(st.Approvals, func(o bridge.Approval) bool { return o.ID == n.approval }) {
+		l.clearNote(st.Session, "")
+	}
+	// So does one that no longer says how it is (working again, or quit).
+	if st.State == bridge.StateEnded {
+		l.clearNote(st.Session, "")
+	} else {
+		l.clearNote(st.Session, agentState(st))
 	}
 	if st.State == bridge.StateEnded {
 		delete(l.all, st.Session)
@@ -480,6 +525,7 @@ func (a *App) agentStatus(st bridge.Status) {
 		return
 	}
 	if w.agentVisible(st.Session) {
+		l.clearNote(st.Session, "")
 		if st.Unseen {
 			go a.be.Bridge.Seen(st.Session)
 		}
@@ -516,6 +562,14 @@ func (a *App) agentStatus(st bridge.Status) {
 		if ask != nil {
 			body = a.settings.text(strings.Join(append([]string{toolName(ask.Tool) + ": " + ask.What}, ask.Facts...), "\n"))
 		}
+		if ask != nil && len(ask.Questions) > 0 {
+			head = agentProduct(st) + " asks you"
+			var qs []string
+			for _, q := range ask.Questions {
+				qs = append(qs, q.Question)
+			}
+			body = a.settings.text(strings.Join(qs, "\n"))
+		}
 	case agentDone:
 		head, body, sound = agentProduct(st)+" finished", a.settings.text(st.Prompt), notify.SoundComplete
 	default:
@@ -524,31 +578,92 @@ func (a *App) agentStatus(st bridge.Status) {
 	if !a.agents.soundDue(a.settings.config().AgentSound) {
 		sound = ""
 	}
-	n := a.be.Notify
+	// It takes the place of the agent's last one.
+	n, session := a.be.Notify, st.Session
+	replace := ""
+	if prev := l.notes[session]; prev != nil {
+		if prev.asked != nil {
+			prev.close()
+		} else {
+			replace = prev.id
+		}
+	}
+	note := &agentNote{state: now}
+	l.notes[session] = note
 	if ask == nil || now != bridge.StateWaiting {
-		go func() { _ = n.NotifySound(head, title, body, sound) }()
+		go func() {
+			id := notify.Post(n, replace, head, title, body, sound)
+			coreglib.IdleAdd(func() {
+				if cur := l.notes[session]; cur == note {
+					note.id = id
+				} else if cur == nil || cur.id != id {
+					go notify.Close(id) // out of date while it was shown
+				}
+			})
+		}()
 		return
 	}
-	// A permission prompt: Allow and Deny on the notification itself.
+	// A permission prompt: Allow and Deny on the notification itself; a
+	// question: its options, when one click answers it (else none).
 	id := ask.ID
+	actions := []notify.Action{{Key: bridge.Allow, Label: "Allow"}, {Key: bridge.Deny, Label: "Deny"}}
+	if len(ask.Questions) > 0 {
+		actions = nil
+		if ask.Clickable() {
+			for i, o := range ask.Questions[0].Options {
+				actions = append(actions, notify.Action{Key: "option:" + strconv.Itoa(i), Label: a.settings.text(o)})
+			}
+		}
+	}
+	options := []string(nil)
+	if ask.Clickable() {
+		options = ask.Questions[0].Options
+	}
+	note.approval = id
+	if replace != "" {
+		go notify.Close(replace)
+	}
 	go func() {
-		asked, _ := notify.Ask(n, head, title, body, sound, []notify.Action{{Key: bridge.Allow, Label: "Allow"}, {Key: bridge.Deny, Label: "Deny"}})
+		if len(actions) == 0 {
+			id := notify.Post(n, "", head, title, body, sound)
+			coreglib.IdleAdd(func() {
+				if l.notes[session] == note {
+					note.id = id
+				} else {
+					go notify.Close(id)
+				}
+			})
+			return
+		}
+		asked, _ := notify.Ask(n, head, title, body, sound, actions)
 		if asked == nil {
 			return
 		}
 		coreglib.IdleAdd(func() {
-			if !slices.ContainsFunc(l.all[st.Session].Approvals, func(o bridge.Approval) bool { return o.ID == id }) {
-				asked.Close() // answered meanwhile
+			if l.notes[session] != note {
+				asked.Close() // answered, or out of date, meanwhile
 				return
 			}
-			l.asked[id] = asked
+			note.asked = asked
 		})
-		if k := <-asked.Chosen; k == bridge.Allow || k == bridge.Deny {
-			coreglib.IdleAdd(func() {
-				delete(l.asked, id)
-				w.answerApproval(id, k)
-			})
+		k := <-asked.Chosen
+		i, err := strconv.Atoi(strings.TrimPrefix(k, "option:"))
+		switch {
+		case k == bridge.Allow || k == bridge.Deny:
+		case strings.HasPrefix(k, "option:") && err == nil && i < len(options):
+		default:
+			return
 		}
+		coreglib.IdleAdd(func() {
+			if l.notes[session] == note {
+				delete(l.notes, session)
+			}
+			if strings.HasPrefix(k, "option:") {
+				w.answerQuestion(id, options[i])
+			} else {
+				w.answerApproval(id, k)
+			}
+		})
 	}()
 }
 

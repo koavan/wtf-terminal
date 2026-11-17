@@ -360,7 +360,18 @@ private final class ApprovalRow: NSView {
             return l
         }
         let tool = Agents.toolName(ap.tool)
-        _ = text(ap.description.isEmpty ? tool : tool + " · " + r.text(ap.description))
+        if ap.questions.isEmpty {
+            _ = text(ap.description.isEmpty ? tool : tool + " · " + r.text(ap.description))
+        } else {
+            // A question Claude asks you: its options answer it.
+            _ = text(ap.questions.count == 1 ? "asks you" : "asks you \(ap.questions.count) questions")
+            for q in ap.questions {
+                _ = text(r.text(q.question), size: 12, color: .labelColor)
+                if !Agents.clickable(ap) && !q.options.isEmpty {
+                    _ = text(q.options.map { "· " + r.text($0) }.joined(separator: "\n"), size: 10.5)
+                }
+            }
+        }
         if !ap.what.isEmpty { _ = text(r.text(ap.what), mono: true, color: .labelColor, max: 6) }
         for f in ap.facts {
             let l = text(r.text(f), size: 10.5, color: .labelColor)
@@ -393,15 +404,35 @@ private final class ApprovalRow: NSView {
             return b
         }
         let product = Agents.product(st)
-        let buttons = NSStackView(views: [
-            button("Allow", "Let \(product) do this once, as Yes in its own dialog", key: true) { [weak self] in self?.answer("allow") },
-            button("Deny", "Refuse it and stop \(product)'s turn, as No in its own dialog") { [weak self] in self?.answer("deny") },
-            button("Go to Agent", "Show its pane: its dialog has more choices (always allow, tell it what to do instead)") { [session] in
-                Agents.go(to: session)
-            },
-        ])
-        buttons.spacing = 2
-        lines.append(buttons)
+        if ap.questions.isEmpty {
+            let buttons = NSStackView(views: [
+                button("Allow", "Let \(product) do this once, as Yes in its own dialog", key: true) { [weak self] in self?.answer("allow") },
+                button("Deny", "Refuse it and stop \(product)'s turn, as No in its own dialog") { [weak self] in self?.answer("deny") },
+                button("Go to Agent", "Show its pane: its dialog has more choices (always allow, tell it what to do instead)") { [session] in
+                    Agents.go(to: session)
+                },
+            ])
+            buttons.spacing = 2
+            lines.append(buttons)
+        } else {
+            // One button per option, one under another (labels can be long).
+            var views: [NSView] = []
+            if Agents.clickable(ap) {
+                for o in ap.questions[0].options {
+                    let b = button(r.text(o), "Answer \(r.text(o)), as choosing it in \(product)'s own dialog") { [weak self] in self?.choose(o) }
+                    b.lineBreakMode = .byTruncatingTail
+                    views.append(b)
+                }
+            }
+            let tip = Agents.clickable(ap) ? "Show its pane: its dialog also lets you type your own answer"
+                : "Answer in its pane: several questions, or several choices, are answered there"
+            views.append(button("Go to Agent", tip, key: !Agents.clickable(ap)) { [session] in Agents.go(to: session) })
+            let options = NSStackView(views: views)
+            options.orientation = .vertical
+            options.alignment = .leading
+            options.spacing = 2
+            lines.append(options)
+        }
 
         let stack = NSStackView(views: lines)
         stack.orientation = .vertical
@@ -417,10 +448,22 @@ private final class ApprovalRow: NSView {
         ])
         for v in wide { v.widthAnchor.constraint(equalTo: stack.widthAnchor, constant: -16).isActive = true }
         setAccessibilityElement(false)
-        setAccessibilityLabel("\(who) asks: \(tool) \(r.text(ap.what))")
+        setAccessibilityLabel(ap.questions.isEmpty ? "\(who) asks: \(tool) \(r.text(ap.what))"
+            : "\(who) asks you: " + ap.questions.map { r.text($0.question) }.joined(separator: " "))
     }
 
     required init?(coder: NSCoder) { fatalError() }
+
+    private func choose(_ option: String) {
+        let id = id
+        Task { @MainActor [weak self] in
+            do {
+                try await Services.bridge.AnswerQuestion(id, [option])
+            } catch {
+                Toast.show("Already answered in the pane", in: self)
+            }
+        }
+    }
 
     private func answer(_ decision: String) {
         let id = id

@@ -55,6 +55,12 @@ enum Agents {
 
     static func state(session: String) -> AgentState? { all[session].map(state) }
 
+    /// A question Claude asks that one option click answers (one question,
+    /// one choice); others are answered in the pane.
+    static func clickable(_ ap: Go.bridge.Approval) -> Bool {
+        ap.questions.count == 1 && !ap.questions[0].multi && !ap.questions[0].options.isEmpty
+    }
+
     static func product(_ st: Go.bridge.Status) -> String { product(provider: st.provider) }
 
     /// Names an agent's provider: Codex, else Claude Code.
@@ -229,7 +235,10 @@ enum Agents {
     static func seen(in w: WindowController) {
         guard w.window?.isKeyWindow == true, NSApp.isActive, let leaves = w.model.active?.root.leaves else { return }
         for id in leaves {
-            guard let s = w.model.panes[id]?.sessionId, all[s]?.unseen == true else { continue }
+            guard let s = w.model.panes[id]?.sessionId else { continue }
+            // You're looking at it: its notification has nothing to add.
+            ApprovalNotifications.shared.clear(s)
+            guard all[s]?.unseen == true else { continue }
             Task { try? await Services.bridge.Seen(s) }
         }
     }
@@ -239,7 +248,14 @@ enum Agents {
         let oldAsks = Set(all[st.session]?.approvals.map(\.id) ?? [])
         // Approvals answered (here, in the pane, or gone with their agent)
         // take their notification away.
-        for id in oldAsks.subtracting(st.approvals.map(\.id)) { ApprovalNotifications.shared.remove(id) }
+        for id in oldAsks.subtracting(st.approvals.map(\.id)) { ApprovalNotifications.shared.remove(approval: id) }
+        // One that no longer says how it is (it's working again, or quit)
+        // goes too.
+        if st.state == "ended" {
+            ApprovalNotifications.shared.clear(st.session)
+        } else {
+            ApprovalNotifications.shared.clear(st.session, unless: state(st))
+        }
         if st.state == "ended" {
             all[st.session] = nil
             subagentsShown.remove(st.session)
@@ -263,6 +279,7 @@ enum Agents {
         guard st.state != "ended", let (w, p) = place else { return }
         let now = state(st)
         if visible(p, in: w) {
+            ApprovalNotifications.shared.clear(st.session)
             if st.unseen { Task { try? await Services.bridge.Seen(st.session) } }
             return
         }
@@ -277,19 +294,35 @@ enum Agents {
                 body = Redaction.shared.text(([toolName(ask.tool) + ": " + ask.what] + ask.facts).joined(separator: "\n"))
             }
             let head = product(st) + " needs you"
+            if let ask, !ask.questions.isEmpty {
+                // A question: its options answer it, when one click can.
+                let r = Redaction.shared
+                let q = ask.questions.map(\.question).joined(separator: "\n")
+                let options = clickable(ask) ? ask.questions[0].options : []
+                Task {
+                    if await ApprovalNotifications.shared.postQuestion(id: ask.id, session: st.session, title: product(st) + " asks you",
+                                                                       subtitle: title, body: r.text(q), options: options) {
+                        if all[st.session]?.approvals.contains(where: { $0.id == ask.id }) != true { ApprovalNotifications.shared.remove(approval: ask.id) }
+                        return
+                    }
+                    ApprovalNotifications.shared.show(title: product(st) + " asks you", subtitle: title, body: r.text(q), agent: st.session, state: .waiting)
+                }
+                playSound(.attention)
+                return
+            }
             Task {
                 // A permission prompt: Allow and Deny on the notification itself.
                 if let ask, await ApprovalNotifications.shared.post(id: ask.id, session: st.session, title: head, subtitle: title, body: body) {
                     // Answered while it was posted.
-                    if all[st.session]?.approvals.contains(where: { $0.id == ask.id }) != true { ApprovalNotifications.shared.remove(ask.id) }
+                    if all[st.session]?.approvals.contains(where: { $0.id == ask.id }) != true { ApprovalNotifications.shared.remove(approval: ask.id) }
                     return
                 }
-                ApprovalNotifications.shared.show(title: head, subtitle: title, body: body, session: st.session)
+                ApprovalNotifications.shared.show(title: head, subtitle: title, body: body, agent: st.session, state: .waiting)
             }
             playSound(.attention)
         case .done:
             ApprovalNotifications.shared.show(title: product(st) + " finished", subtitle: title,
-                                              body: Redaction.shared.text(st.prompt), session: st.session)
+                                              body: Redaction.shared.text(st.prompt), agent: st.session, state: .done)
             playSound(.complete)
         default:
             break

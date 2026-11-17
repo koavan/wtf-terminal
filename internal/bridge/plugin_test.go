@@ -493,6 +493,72 @@ func TestHookApprovals(t *testing.T) {
 	}
 	waitFor("working after the pane's allow", func(st Status) bool { return len(st.Approvals) == 0 && st.State == StateBusy })
 
+	// A question Claude asks: answered with an option, which the hook hands
+	// back as the tool's answers, with its input as Claude Code sent it.
+	cmd, out = start(`{"hook_event_name":"PermissionRequest","tool_name":"AskUserQuestion","tool_input":{"questions":[{"question":"Which database?","header":"DB","options":[{"label":"Postgres","description":"SQL"},{"label":"Redis"}],"multiSelect":false}]}}`)
+	st = waitFor("asking a question", asking)
+	if ap := st.Approvals[0]; !ap.Clickable() || ap.Questions[0].Question != "Which database?" || !slices.Equal(ap.Questions[0].Options, []string{"Postgres", "Redis"}) || st.Message != "Which database?" {
+		t.Fatalf("question = %+v, message %q", ap, st.Message)
+	}
+	if err := f.s.Answer(st.Approvals[0].ID, Allow); err == nil {
+		t.Fatal("a question answered Allow")
+	}
+	if err := f.s.AnswerQuestion(st.Approvals[0].ID, []string{"MySQL"}); err == nil {
+		t.Fatal("answered with an option it doesn't offer")
+	}
+	if err := f.s.AnswerQuestion(st.Approvals[0].ID, []string{"Redis"}); err != nil {
+		t.Fatal(err)
+	}
+	cmd.Wait()
+	if want := `{"hookSpecificOutput":{"decision":{"behavior":"allow","updatedInput":{"answers":{"Which database?":"Redis"},"questions":[{"header":"DB","multiSelect":false,"options":[{"description":"SQL","label":"Postgres"},{"label":"Redis"}],"question":"Which database?"}]}},"hookEventName":"PermissionRequest"}}` + "\n"; out.String() != want {
+		t.Fatalf("answered question: %q", out.String())
+	}
+	waitFor("working after the answer", func(st Status) bool { return len(st.Approvals) == 0 && st.State == StateBusy })
+
+	// Several questions, or several choices: answered in the pane.
+	cmd, _ = start(`{"hook_event_name":"PermissionRequest","tool_name":"AskUserQuestion","tool_input":{"questions":[{"question":"Which?","options":[{"label":"a"}]},{"question":"Port?","options":[{"label":"1"}]}]}}`)
+	st = waitFor("asking two questions", asking)
+	if st.Approvals[0].Clickable() || st.Message != "Which? (and 1 more)" {
+		t.Fatalf("two questions: %+v %q", st.Approvals[0], st.Message)
+	}
+	f.s.Typed("s1", []byte("\r"))
+	run(`{"hook_event_name":"PostToolUse","tool_name":"AskUserQuestion","tool_input":{},"tool_response":{}}`)
+	cmd.Wait()
+
+	// Allowed with a key in the pane: off the list at once, before the
+	// tool finishes; typing elsewhere, or other keys, leave it.
+	cmd, out = start(`{"hook_event_name":"PermissionRequest","tool_name":"Bash","tool_input":{"command":"make test"}}`)
+	st = waitFor("asking about make test", asking)
+	f.s.Typed("s2", []byte("\r"))
+	f.s.Typed("s1", []byte("\x1b[B"))
+	f.s.Typed("s1", []byte("x"))
+	if st := f.s.Agents()[0]; len(st.Approvals) != 1 {
+		t.Fatalf("a key that doesn't answer cleared it: %+v", st)
+	}
+	f.s.Typed("s1", []byte("1"))
+	if st := f.s.Agents()[0]; len(st.Approvals) != 0 || st.State != StateBusy {
+		t.Fatalf("after 1 in the pane: %+v", st)
+	}
+	if err := f.s.Answer(st.Approvals[0].ID, Allow); err == nil {
+		t.Fatal("answered from the inbox after the pane")
+	}
+	run(`{"hook_event_name":"PostToolUse","tool_name":"Bash","tool_input":{"command":"make test"},"tool_response":{}}`)
+	if err := cmd.Wait(); err != nil || out.Len() != 0 {
+		t.Fatalf("answered with a key: %v %q", err, out.String())
+	}
+
+	// No with a key in the pane: its hook killed, the turn stops.
+	cmd, _ = start(`{"hook_event_name":"PermissionRequest","tool_name":"Bash","tool_input":{"command":"rm -rf build"}}`)
+	waitFor("asking about rm", asking)
+	f.s.Typed("s1", []byte("3"))
+	if st := f.s.Agents()[0]; len(st.Approvals) != 0 {
+		t.Fatalf("after 3 in the pane: %+v", st)
+	}
+	cmd.Process.Signal(os.Interrupt)
+	cmd.Wait()
+	waitFor("idle after the key's No", func(st Status) bool { return len(st.Approvals) == 0 && st.State == StateIdle })
+	run(`{"hook_event_name":"UserPromptSubmit","prompt":"go on"}`)
+
 	// Denied in the pane: Claude Code kills the hook.
 	cmd, _ = start(`{"hook_event_name":"PermissionRequest","tool_name":"Write","tool_input":{"file_path":"/tmp/b","content":"hi\n"}}`)
 	st = waitFor("asking about the write", asking)
@@ -585,6 +651,13 @@ func TestHookCodexApprovals(t *testing.T) {
 	run(`{"hook_event_name":"PostToolUse","tool_name":"Bash","tool_input":{"command":"touch /x"}}`)
 	if agent().State != StateBusy {
 		t.Fatalf("after it ran: %+v", agent())
+	}
+
+	// Its Yes typed in the pane: off the list, working.
+	run(`{"hook_event_name":"PermissionRequest","tool_name":"Bash","tool_input":{"command":"touch /z"}}`)
+	f.s.Typed("s1", []byte("y"))
+	if st := agent(); len(st.Approvals) != 0 || st.State != StateBusy {
+		t.Fatalf("after y in the pane: %+v", st)
 	}
 
 	// Its No in the pane: Interrupt.

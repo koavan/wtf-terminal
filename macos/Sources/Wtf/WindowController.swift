@@ -432,7 +432,7 @@ final class WindowController: NSWindowController, NSWindowDelegate, NSMenuItemVa
         let dur = Format.duration(ms: ms)
         let title = code == 0 ? "✓ Finished in \(dur)" : "✗ Failed (exit \(code)) after \(dur)"
         let body = Redaction.shared.text(p.lastCommand?.text ?? p.process)
-        ApprovalNotifications.shared.show(title: title, subtitle: WindowModel.prettyPath(p.cwd), body: body)
+        ApprovalNotifications.shared.show(title: title, subtitle: WindowModel.prettyPath(p.cwd), body: body, key: "command.\(p.id)")
     }
 
     // MARK: Look

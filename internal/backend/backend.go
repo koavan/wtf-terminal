@@ -147,6 +147,7 @@ func New(version, commit, buildDate, stateDir string) (*Backend, error) {
 	b.Terminal.ExtraEnv = bridge.ShellEnv(b.Bridge)
 	b.Terminal.OnExit = b.Bridge.ShellClosed
 	b.Terminal.OnAtShell = b.Bridge.Forget
+	b.Terminal.OnInput = b.Bridge.Typed
 	return b, nil
 }
 

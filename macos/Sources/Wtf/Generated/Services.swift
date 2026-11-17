@@ -198,6 +198,7 @@ enum Services {
         static func Agents() async throws -> [Go.bridge.Status] { try await Backend.call("bridge", "Agents", [], as: [Go.bridge.Status].self) }
         static func AgentsIn(_ a0: String) async throws -> [String] { try await Backend.call("bridge", "AgentsIn", [a0], as: [String].self) }
         static func Answer(_ a0: String, _ a1: String) async throws { try await Backend.run("bridge", "Answer", [a0, a1]) }
+        static func AnswerQuestion(_ a0: String, _ a1: [String]) async throws { try await Backend.run("bridge", "AnswerQuestion", [a0, a1]) }
         static func ClaudeCommand() async throws -> String { try await Backend.call("bridge", "ClaudeCommand", [], as: String.self) }
         static func Forget(_ a0: String) async throws { try await Backend.run("bridge", "Forget", [a0]) }
         static func Rename(_ a0: String, _ a1: String) async throws { try await Backend.run("bridge", "Rename", [a0, a1]) }
@@ -205,6 +206,7 @@ enum Services {
         static func Seen(_ a0: String) async throws { try await Backend.run("bridge", "Seen", [a0]) }
         static func SetTarget(_ a0: String, _ a1: String) async throws { try await Backend.run("bridge", "SetTarget", [a0, a1]) }
         static func ShellClosed(_ a0: String) async throws { try await Backend.run("bridge", "ShellClosed", [a0]) }
+        static func Typed(_ a0: String, _ a1: String) async throws { try await Backend.run("bridge", "Typed", [a0, a1]) }
     }
 
     enum cmdhistory {

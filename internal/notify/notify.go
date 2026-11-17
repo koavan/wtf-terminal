@@ -76,6 +76,51 @@ func (s *Service) NotifySound(title, subtitle, body, sound string) error {
 	return cmd.Run()
 }
 
+// Post shows a notification in the place of the one replace names ("" for
+// none), so an agent's don't pile up, and gives its id for the next one or
+// Close ("" when it can't tell: macOS, or notify-send before libnotify
+// 0.7.9, which shows a plain one). Not a Service method: only the Linux
+// app calls it, directly.
+func Post(s *Service, replace, title, subtitle, body, sound string) string {
+	path, err := exec.LookPath("notify-send")
+	if runtime.GOOS == "darwin" || err != nil {
+		_ = s.NotifySound(title, subtitle, body, sound)
+		return ""
+	}
+	title, subtitle, body = clip(title), clip(subtitle), clip(body)
+	byDaemon := sound != "" && daemonPlaysSounds()
+	if sound != "" && !byDaemon {
+		go playSound(sound)
+	}
+	summary := title
+	if subtitle != "" {
+		summary += " — " + subtitle
+	}
+	args := []string{"--app-name=wtf", "--print-id"}
+	if replace != "" {
+		args = append(args, "--replace-id="+replace)
+	}
+	if byDaemon {
+		args = append(args, "--hint=string:sound-name:"+sound)
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	out, err := exec.CommandContext(ctx, path, append(args, "--", summary, body)...).Output()
+	if err != nil {
+		// An older notify-send: no ids, so no replacing.
+		_ = s.NotifySound(title, subtitle, body, "")
+		return ""
+	}
+	return strings.TrimSpace(string(out))
+}
+
+// Close takes a notification Post showed away (it's out of date).
+func Close(id string) {
+	if id != "" && runtime.GOOS != "darwin" {
+		closeNotification(id)
+	}
+}
+
 // Action is a button on a notification: its key, and its label.
 type Action struct{ Key, Label string }
 

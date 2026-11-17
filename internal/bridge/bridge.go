@@ -226,6 +226,8 @@ type Service struct {
 	names map[string]string
 	// Approval id → the PermissionRequest hook waiting for its answer (#39).
 	waits map[string]*waiter
+	// len(waits), read without mu on every keystroke (Typed).
+	asking atomic.Int32
 	// The status-only settings for claude (claude-plugin/status-settings.json);
 	// "" without the plugin.
 	statusSettings string

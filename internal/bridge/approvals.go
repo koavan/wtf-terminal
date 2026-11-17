@@ -3,6 +3,7 @@ package bridge
 import (
 	"context"
 	"errors"
+	"fmt"
 	"slices"
 	"strconv"
 	"strings"
@@ -25,8 +26,10 @@ import (
 // Checked with Claude Code 2.1.325: the dialog shows while the hook runs,
 // and a hook's later allow or deny closes it. Answered in the pane, a deny
 // interrupts the turn and kills the hook (its connection closes); an allow
-// leaves the hook running, so the approval is cleared when the tool's
-// PostToolUse (or PostToolUseFailure) comes, or the turn ends.
+// leaves the hook running, so the approval would stay until the tool's
+// PostToolUse (or PostToolUseFailure) came, or the turn ended. So the key
+// that answers its dialog, typed in that pane, takes it off the list at
+// once (Typed); its hook waits on, so a No still ends the turn.
 
 // Approval is one permission prompt waiting for you.
 type Approval struct {
@@ -47,6 +50,24 @@ type Approval struct {
 	Since int64 `json:"since"`
 	// Asked from inside a sub-agent: its type ("" for the agent itself).
 	Subagent string `json:"subagent"`
+	// An AskUserQuestion: what Claude asks you, answered with an option
+	// (AnswerQuestion) rather than Allow or Deny.
+	Questions []Question `json:"questions"`
+}
+
+// Question is one of the questions Claude asks you.
+type Question struct {
+	Question string   `json:"question"`
+	Header   string   `json:"header"`
+	Options  []string `json:"options"`
+	// More than one option may be chosen: wtf leaves that to the pane.
+	Multi bool `json:"multi"`
+}
+
+// Clickable: every question can be answered with one option click (one
+// question, one choice); otherwise it's answered in the pane.
+func (ap Approval) Clickable() bool {
+	return len(ap.Questions) == 1 && !ap.Questions[0].Multi && len(ap.Questions[0].Options) > 0
 }
 
 const (
@@ -68,8 +89,21 @@ const (
 // keys in its pane (y, Esc).
 type waiter struct {
 	session, agentID, tool, key string
-	ch                          chan string
-	codex                       bool
+	ch                          chan answer
+	// An AskUserQuestion's questions and options as Claude Code sent them
+	// (the inbox shows them redacted): what its answers must name.
+	questions []wire.Question
+	codex     bool
+	// Answered by a key typed in its pane: off the list, but the hook
+	// still waits (Claude Code kills it on No).
+	inPane bool
+}
+
+// answer is what the inbox tells a waiting hook: "" (answered in the
+// pane), allow or deny, and a question's answers.
+type answer struct {
+	decision string
+	answers  map[string]string
 }
 
 // Codex's approval prompt: y is "Yes, proceed", Esc is "No, and tell Codex
@@ -101,11 +135,17 @@ func approvalKey(tool string, in *wire.ToolInput) string {
 // goes (ctx: Claude Code killed it, or it timed out).
 func (s *Service) awaitApproval(ctx context.Context, req wire.Request) wire.Response {
 	ap := s.approvalOf(ctx, req)
-	w := &waiter{session: req.Pane, agentID: req.AgentID, tool: req.Tool, key: approvalKey(req.Tool, req.Input), ch: make(chan string, 1),
+	w := &waiter{session: req.Pane, agentID: req.AgentID, tool: req.Tool, key: approvalKey(req.Tool, req.Input), ch: make(chan answer, 1),
 		codex: req.Provider == "codex"}
+	if req.Tool == askUserQuestion && req.Input != nil {
+		w.questions = req.Input.Questions
+	}
 	msg := firstOf(strings.TrimSpace(req.Message), req.Tool)
 	if req.Input != nil && req.Input.Command != "" {
 		msg = req.Tool + ": " + req.Input.Command
+	}
+	if len(ap.Questions) > 0 {
+		msg = questionLine(ap.Questions)
 	}
 	// Waiting, with the approval, in one status: its notification can say
 	// what it asks and where it would act.
@@ -118,6 +158,7 @@ func (s *Service) awaitApproval(ctx context.Context, req wire.Request) wire.Resp
 	}
 	ap.ID = "a" + strconv.FormatUint(s.seq.Add(1), 10)
 	s.waits[ap.ID] = w
+	s.asking.Add(1)
 	a.Approvals = append(a.Approvals, ap)
 	st := a.clone()
 	s.mu.Unlock()
@@ -130,32 +171,63 @@ func (s *Service) awaitApproval(ctx context.Context, req wire.Request) wire.Resp
 		return wire.Response{}
 	}
 
-	var decision string
+	var got answer
 	gone := false
 	select {
-	case decision = <-w.ch:
+	case got = <-w.ch:
 	case <-ctx.Done():
 		gone = true
 	}
+	decision := got.decision
+	s.mu.Lock()
+	inPane := w.inPane
+	s.mu.Unlock()
 	s.dropApproval(ap.ID)
 	// What it does next, when no hook says: allowed, it works; denied in
 	// the inbox or the pane (which kills the hook), the turn stops there
-	// and no Stop hook comes.
+	// and no Stop hook comes, even after a key in the pane showed it working.
 	switch {
 	case decision == Allow:
-		s.afterApproval(req.Pane, StateBusy)
+		s.afterApproval(req.Pane, StateBusy, false)
 	case decision == Deny || gone:
-		s.afterApproval(req.Pane, StateIdle)
+		s.afterApproval(req.Pane, StateIdle, inPane)
 	}
-	return wire.Response{Decision: decision}
+	return wire.Response{Decision: decision, Answers: got.answers}
+}
+
+// Claude Code's multiple-choice question to you comes through the
+// PermissionRequest hook too. Allow alone doesn't answer it: the hook
+// hands back the option chosen (checked with Claude Code 2.1.326).
+const askUserQuestion = "AskUserQuestion"
+
+// questionsOf: what an AskUserQuestion asks, redacted.
+func questionsOf(in *wire.ToolInput) []Question {
+	var qs []Question
+	for _, q := range in.Questions {
+		x := Question{Question: shortLine(uicore.Redact(q.Question), maxWhat), Header: uicore.Redact(q.Header), Multi: q.MultiSelect}
+		for _, o := range q.Options {
+			x.Options = append(x.Options, o.Label)
+		}
+		qs = append(qs, x)
+	}
+	return qs
+}
+
+// questionLine is the agent's message while it asks: its first question.
+func questionLine(qs []Question) string {
+	msg := qs[0].Question
+	if n := len(qs) - 1; n > 0 {
+		msg += " (and " + strconv.Itoa(n) + " more)"
+	}
+	return shortLine(msg, maxPrompt)
 }
 
 // afterApproval moves an agent on from waiting once nothing is left to
-// approve.
-func (s *Service) afterApproval(session, state string) {
+// approve (or from working, after a key in its pane answered it).
+func (s *Service) afterApproval(session, state string, fromBusy bool) {
 	s.mu.Lock()
 	a := s.agents[session]
-	if a == nil || a.State != StateWaiting || len(a.Approvals) > 0 {
+	if a == nil || len(a.Approvals) > 0 || !(a.State == StateWaiting || fromBusy && a.State == StateBusy) {
 		s.mu.Unlock()
 		return
 	}
@@ -174,6 +246,10 @@ func (s *Service) approvalOf(ctx context.Context, req wire.Request) Approval {
 	}
 	in := req.Input
 	if in == nil {
+		return ap
+	}
+	if req.Tool == askUserQuestion {
+		ap.Questions = questionsOf(in)
 		return ap
 	}
 	command := in.Command
@@ -320,11 +396,12 @@ func (s *Service) facts(ctx context.Context, req wire.Request) string {
 func (s *Service) dropApproval(id string) {
 	s.mu.Lock()
 	w := s.waits[id]
-	delete(s.waits, id)
 	if w == nil {
 		s.mu.Unlock()
 		return
 	}
+	delete(s.waits, id)
+	s.asking.Add(-1)
 	a := s.agents[w.session]
 	if a == nil {
 		s.mu.Unlock()
@@ -372,7 +449,7 @@ func (s *Service) settleApprovals(req wire.Request) {
 			drop = append(drop, id)
 		} else if done {
 			select {
-			case w.ch <- "":
+			case w.ch <- answer{}:
 			default:
 			}
 		}
@@ -387,8 +464,47 @@ func (s *Service) Answer(id, decision string) error {
 	}
 	s.mu.Lock()
 	w := s.waits[id]
+	question := w != nil && len(w.questions) > 0
 	s.mu.Unlock()
-	if w == nil {
+	if question && decision == Allow {
+		// Allow alone leaves Claude Code's question waiting.
+		return errors.New("a question is answered with one of its options")
+	}
+	return s.answer(id, answer{decision: decision})
+}
+
+// AnswerQuestion answers a question Claude asks (an AskUserQuestion) from
+// the inbox with an option, one for each of its questions, in order. It
+// fails when it was answered already, or an option isn't one it offers.
+func (s *Service) AnswerQuestion(id string, options []string) error {
+	s.mu.Lock()
+	w := s.waits[id]
+	if w == nil || w.inPane || len(w.questions) == 0 {
+		s.mu.Unlock()
+		return errors.New("it was answered already")
+	}
+	qs := w.questions
+	s.mu.Unlock()
+	if len(options) != len(qs) {
+		return errors.New("one option for each question")
+	}
+	answers := map[string]string{}
+	for i, q := range qs {
+		if !slices.ContainsFunc(q.Options, func(o wire.Option) bool { return o.Label == options[i] }) {
+			return fmt.Errorf("%q isn't one of its options", options[i])
+		}
+		answers[q.Question] = options[i]
+	}
+	return s.answer(id, answer{decision: Allow, answers: answers})
+}
+
+func (s *Service) answer(id string, a answer) error {
+	decision := a.decision
+	s.mu.Lock()
+	w := s.waits[id]
+	answered := w == nil || w.inPane
+	s.mu.Unlock()
+	if answered {
 		return errors.New("it was answered already")
 	}
 	if w.codex {
@@ -406,11 +522,65 @@ func (s *Service) Answer(id, decision string) error {
 		return nil
 	}
 	select {
-	case w.ch <- decision:
+	case w.ch <- a:
 		return nil
 	default:
 		return errors.New("it was answered already")
 	}
+}
+
+// Typed hears every write to a shell (the terminal service's OnInput). A
+// key that answers the agent's own permission dialog there takes the
+// request the dialog shows (the oldest) off the list, so the inbox and its
+// notification let go now rather than when the tool finishes.
+func (s *Service) Typed(session string, p []byte) {
+	if s.asking.Load() == 0 || len(p) != 1 {
+		return
+	}
+	k := p[0]
+	s.mu.Lock()
+	a := s.agents[session]
+	if a == nil || len(a.Approvals) == 0 {
+		s.mu.Unlock()
+		return
+	}
+	id := a.Approvals[0].ID
+	w := s.waits[id]
+	if w == nil || !answersDialog(k, w.codex) {
+		s.mu.Unlock()
+		return
+	}
+	// Esc (and Codex's n) is No: the turn ends on its own event.
+	no := k == 0x1b || w.codex && k == 'n'
+	if w.codex {
+		s.mu.Unlock()
+		s.dropApproval(id)
+		if !no {
+			s.afterApproval(session, StateBusy, false)
+		}
+		return
+	}
+	w.inPane = true
+	a.Approvals = slices.Delete(a.Approvals, 0, 1)
+	if len(a.Approvals) == 0 && a.State == StateWaiting && !no {
+		a.State, a.Message, a.Since = StateBusy, "", time.Now().UnixMilli()
+	}
+	st := a.clone()
+	s.mu.Unlock()
+	events.Emit(EventStatus, st)
+}
+
+// answersDialog: a key that answers an agent's permission dialog: Enter
+// (its highlighted choice), a choice's number, or Esc (No); Codex's also
+// takes y, a and n (0.167).
+func answersDialog(k byte, codex bool) bool {
+	switch {
+	case k == '\r' || k == '\n' || k == 0x1b || k >= '1' && k <= '9':
+		return true
+	case codex:
+		return k == 'y' || k == 'a' || k == 'n'
+	}
+	return false
 }
 
 // diffOf is an edit's change: the lines removed and added.

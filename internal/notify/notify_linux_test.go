@@ -120,3 +120,48 @@ echo "$k"
 		t.Fatalf("without actions: %+v %v", asked, err)
 	}
 }
+
+// Post gives the notification's id, replaces the one it names, and falls
+// back to a plain one with a notify-send that has no ids; Close closes it.
+func TestPostReplaces(t *testing.T) {
+	dir := t.TempDir()
+	write := func(script string) {
+		if err := os.WriteFile(filepath.Join(dir, "notify-send"), []byte("#!/bin/sh\n"+script), 0o755); err != nil {
+			t.Fatal(err)
+		}
+	}
+	os.WriteFile(filepath.Join(dir, "gdbus"), []byte("#!/bin/sh\necho \"$*\" >> "+filepath.Join(dir, "gdbus.log")+"\n"), 0o755)
+	t.Setenv("PATH", dir)
+	defer func(f func() bool) { daemonPlaysSounds = f }(daemonPlaysSounds)
+	daemonPlaysSounds = func() bool { return false }
+	log := filepath.Join(dir, "args")
+	write(`echo "$*" >> ` + log + "\necho 7\n")
+	s := NewService()
+	if id := Post(s, "", "Claude Code needs you", "deploy", "Bash: make", ""); id != "7" {
+		t.Fatalf("first id %q", id)
+	}
+	if id := Post(s, "7", "Claude Code finished", "deploy", "make", ""); id != "7" {
+		t.Fatalf("second id %q", id)
+	}
+	b, _ := os.ReadFile(log)
+	want := "--app-name=wtf --print-id -- Claude Code needs you — deploy Bash: make\n" +
+		"--app-name=wtf --print-id --replace-id=7 -- Claude Code finished — deploy make\n"
+	if string(b) != want {
+		t.Errorf("notify-send:\n%s", b)
+	}
+	Close("7")
+	if b, _ := os.ReadFile(filepath.Join(dir, "gdbus.log")); !strings.Contains(string(b), "CloseNotification 7") {
+		t.Errorf("gdbus %q", b)
+	}
+
+	// libnotify before 0.7.9: no --print-id, so a plain one.
+	os.Remove(log)
+	write(`case "$*" in *--print-id*) exit 1;; esac
+echo "$*" >> ` + log + "\n")
+	if id := Post(s, "", "t", "", "b", ""); id != "" {
+		t.Fatalf("old notify-send id %q", id)
+	}
+	if b, _ := os.ReadFile(log); strings.TrimSpace(string(b)) != "--app-name=wtf -- t b" {
+		t.Errorf("fallback %q", b)
+	}
+}

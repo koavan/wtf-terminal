@@ -602,8 +602,9 @@ extension Go.bridge {
         public var facts: [String]
         public var since: Int
         public var subagent: String
+        public var questions: [Go.bridge.Question]
 
-        public init(id: String = "", tool: String = "", what: String = "", description: String = "", diff: String = "", facts: [String] = [], since: Int = 0, subagent: String = "") {
+        public init(id: String = "", tool: String = "", what: String = "", description: String = "", diff: String = "", facts: [String] = [], since: Int = 0, subagent: String = "", questions: [Go.bridge.Question] = []) {
             self.id = id
             self.tool = tool
             self.what = what
@@ -612,6 +613,7 @@ extension Go.bridge {
             self.facts = facts
             self.since = since
             self.subagent = subagent
+            self.questions = questions
         }
 
         enum CodingKeys: String, CodingKey {
@@ -623,6 +625,7 @@ extension Go.bridge {
             case facts = "facts"
             case since = "since"
             case subagent = "subagent"
+            case questions = "questions"
         }
 
         public init(from decoder: Decoder) throws {
@@ -635,6 +638,7 @@ extension Go.bridge {
             self.facts = (try? c.decodeIfPresent([String].self, forKey: .facts)) ?? []
             self.since = (try? c.decodeIfPresent(Int.self, forKey: .since)) ?? 0
             self.subagent = (try? c.decodeIfPresent(String.self, forKey: .subagent)) ?? ""
+            self.questions = (try? c.decodeIfPresent([Go.bridge.Question].self, forKey: .questions)) ?? []
         }
     }
 }
@@ -719,6 +723,38 @@ extension Go.bridge {
             self.running = (try? c.decodeIfPresent(Bool.self, forKey: .running)) ?? false
             self.process = (try? c.decodeIfPresent(String.self, forKey: .process)) ?? ""
             self.integrated = (try? c.decodeIfPresent(Bool.self, forKey: .integrated)) ?? false
+        }
+    }
+}
+
+extension Go.bridge {
+    /// bridge.Question
+    public struct Question: Codable, Equatable, Sendable {
+        public var question: String
+        public var header: String
+        public var options: [String]
+        public var multi: Bool
+
+        public init(question: String = "", header: String = "", options: [String] = [], multi: Bool = false) {
+            self.question = question
+            self.header = header
+            self.options = options
+            self.multi = multi
+        }
+
+        enum CodingKeys: String, CodingKey {
+            case question = "question"
+            case header = "header"
+            case options = "options"
+            case multi = "multi"
+        }
+
+        public init(from decoder: Decoder) throws {
+            let c = try decoder.container(keyedBy: CodingKeys.self)
+            self.question = (try? c.decodeIfPresent(String.self, forKey: .question)) ?? ""
+            self.header = (try? c.decodeIfPresent(String.self, forKey: .header)) ?? ""
+            self.options = (try? c.decodeIfPresent([String].self, forKey: .options)) ?? []
+            self.multi = (try? c.decodeIfPresent(Bool.self, forKey: .multi)) ?? false
         }
     }
 }

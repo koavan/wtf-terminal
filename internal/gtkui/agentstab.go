@@ -59,7 +59,18 @@ func newAgentsTab(w *Window) *agentsTab {
 		}
 	}
 	t.list.onMenu = func(ids []string, x, y float64) {
-		if session, ap, ok := t.approvalAt(ids[0]); ok {
+		if session, ap, ok := t.approvalAt(ids[0]); ok && len(ap.Questions) > 0 {
+			var items []*menuItem
+			if ap.Clickable() {
+				for _, o := range ap.Questions[0].Options {
+					items = append(items, &menuItem{label: w.app.settings.text(o), run: func() { w.answerQuestion(ap.ID, o) }})
+				}
+				items = append(items, menuSection)
+			}
+			items = append(items, &menuItem{label: "Go to " + agentProduct(w.app.agents.all[session]), run: func() { w.app.goToAgent(session) }})
+			t.list.menu.show(x, y, items, nil)
+			return
+		} else if ok {
 			t.list.menu.show(x, y, []*menuItem{
 				{label: "Allow", run: func() { w.answerApproval(ap.ID, bridge.Allow) }},
 				{label: "Deny", run: func() { w.answerApproval(ap.ID, bridge.Deny) }},
@@ -222,10 +233,24 @@ func (t *agentsTab) approvalRows() []sideRow {
 		if ap.Description != "" {
 			detail += " · " + a.settings.text(ap.Description)
 		}
+		if len(ap.Questions) > 0 {
+			detail = "asks you"
+			if n := len(ap.Questions); n > 1 {
+				detail = fmt.Sprintf("asks you %d questions", n)
+			}
+		}
 		r := sideRow{id: "ask:" + st.Session + ":" + ap.ID, dot: "agent-waiting", title: title, detail: detail,
 			tip: "Allow or Deny here, or answer in its pane: whichever is first applies. Click to go to it; right-click for more."}
 		if ap.What != "" {
 			r.more = append(r.more, sideText{text: a.settings.text(ap.What), classes: []string{"monospace"}})
+		}
+		for _, q := range ap.Questions {
+			r.more = append(r.more, sideText{text: a.settings.text(q.Question)})
+			if !ap.Clickable() {
+				for _, o := range q.Options {
+					r.more = append(r.more, sideText{text: "· " + a.settings.text(o), classes: []string{"dim-label"}})
+				}
+			}
 		}
 		for _, f := range ap.Facts {
 			r.more = append(r.more, sideText{text: a.settings.text(f)})
@@ -248,6 +273,20 @@ func (t *agentsTab) approvalRows() []sideRow {
 			}
 		}
 		id, session, product := ap.ID, st.Session, agentProduct(st)
+		if len(ap.Questions) > 0 {
+			// A question: its options answer it, when one click can.
+			if ap.Clickable() {
+				for _, o := range ap.Questions[0].Options {
+					r.actions = append(r.actions, sideAction{label: a.settings.text(o), tip: "Answer " + a.settings.text(o) + ", as choosing it in " + product + "'s own dialog",
+						run: func() { t.w.answerQuestion(id, o) }})
+				}
+				r.actions = append(r.actions, sideAction{label: "Go to Agent", tip: "Show its pane: its dialog also lets you type your own answer", run: func() { a.goToAgent(session) }})
+			} else {
+				r.actions = []sideAction{{label: "Go to Agent", key: true, tip: "Answer in its pane: several questions, or several choices, are answered there", run: func() { a.goToAgent(session) }}}
+			}
+			rows = append(rows, r)
+			continue
+		}
 		r.actions = []sideAction{
 			{label: "Allow", key: true, tip: "Let " + product + " do this once, as Yes in its own dialog", run: func() { t.w.answerApproval(id, bridge.Allow) }},
 			{label: "Deny", tip: "Refuse it and stop " + product + "'s turn, as No in its own dialog", run: func() { t.w.answerApproval(id, bridge.Deny) }},
