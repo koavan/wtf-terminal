@@ -46,6 +46,8 @@ if [[ -o interactive && -n "$WTF_SHELL_INTEGRATION" && -z "$__wtf_loaded" ]]; th
       for e in SessionStart UserPromptSubmit PermissionRequest PostToolUse Stop Interrupt SessionEnd SubagentStart SubagentStop; do
         wtf_codex_args+=( -c "hooks.$e=[{hooks=[{type=\"command\",command=$WTF_CODEX_HOOK}]}]" )
       done
+      # A question Codex asks you (request_user_input) has no other hook.
+      wtf_codex_args+=( -c "hooks.PreToolUse=[{matcher=\"^request_user_input\$\",hooks=[{type=\"command\",command=$WTF_CODEX_HOOK}]}]" )
       # Codex's own SessionStart hook fires with the first prompt, not at
       # launch like Claude's: tell wtf directly so the agent appears in the
       # Agents tab right away, best effort.

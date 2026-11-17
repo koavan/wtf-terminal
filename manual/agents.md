@@ -38,7 +38,7 @@ When Claude Code or Codex asks your permission (to run a command, change a file,
 
 **Codex** asks the same way, with one difference: it shows its own approval prompt only once wtf has listed the request, so wtf doesn't wait for your answer there. **Allow** and **Deny** press the keys its prompt names (**y** for *Yes, proceed*, **Esc** for *No*) in its pane, as if you did. A Codex file change (`apply_patch`) shows the files and the lines it changes.
 
-**Questions.** When Claude asks you a multiple-choice question, it's listed here too, with the question and its options as buttons (on its notification too): click one to answer, as choosing it in Claude's own dialog. Several questions at once, or a question that takes several choices, show their options but are answered in the pane (**Go to Agent**), and so is typing your own answer.
+**Questions.** When Claude or Codex asks you a multiple-choice question, it's listed here too, with the question and its options as buttons (on its notification too): click one to answer, as choosing it in the agent's own dialog. Several questions at once, or a question that takes several choices, show their options but are answered in the pane (**Go to Agent**), and so is typing your own answer (Codex's **Other**). Codex asks these in Plan mode; clicking an option presses its number in Codex's pane, as if you did.
 
 Only the agents' own permission prompts show here: wtf doesn't add any. A claude or codex you start yourself asks exactly what it asked before, under its own permission mode and approval policy; wtf only shows the same request in a second place.
 

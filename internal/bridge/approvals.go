@@ -104,6 +104,8 @@ type waiter struct {
 type answer struct {
 	decision string
 	answers  map[string]string
+	// Codex: the keys that answer its question (each option's number).
+	keys []string
 }
 
 // Codex's approval prompt: y is "Yes, proceed", Esc is "No, and tell Codex
@@ -137,7 +139,7 @@ func (s *Service) awaitApproval(ctx context.Context, req wire.Request) wire.Resp
 	ap := s.approvalOf(ctx, req)
 	w := &waiter{session: req.Pane, agentID: req.AgentID, tool: req.Tool, key: approvalKey(req.Tool, req.Input), ch: make(chan answer, 1),
 		codex: req.Provider == "codex"}
-	if req.Tool == askUserQuestion && req.Input != nil {
+	if isQuestion(req.Tool) && req.Input != nil {
 		w.questions = req.Input.Questions
 	}
 	msg := firstOf(strings.TrimSpace(req.Message), req.Tool)
@@ -200,6 +202,15 @@ func (s *Service) awaitApproval(ctx context.Context, req wire.Request) wire.Resp
 // hands back the option chosen (checked with Claude Code 2.1.326).
 const askUserQuestion = "AskUserQuestion"
 
+// Codex's question to you (request_user_input) has no permission hook: its
+// PreToolUse (scoped to it by the shell integration) lists it, and the
+// inbox answers by pressing the option's number in its pane, which picks
+// it and moves on to the next question (checked in Codex's source,
+// 2026-11-16).
+const codexQuestion = "request_user_input"
+
+func isQuestion(tool string) bool { return tool == askUserQuestion || tool == codexQuestion }
+
 // questionsOf: what an AskUserQuestion asks, redacted.
 func questionsOf(in *wire.ToolInput) []Question {
 	var qs []Question
@@ -248,7 +259,7 @@ func (s *Service) approvalOf(ctx context.Context, req wire.Request) Approval {
 	if in == nil {
 		return ap
 	}
-	if req.Tool == askUserQuestion {
+	if isQuestion(req.Tool) {
 		ap.Questions = questionsOf(in)
 		return ap
 	}
@@ -489,11 +500,17 @@ func (s *Service) AnswerQuestion(id string, options []string) error {
 		return errors.New("one option for each question")
 	}
 	answers := map[string]string{}
+	var keys []string
 	for i, q := range qs {
-		if !slices.ContainsFunc(q.Options, func(o wire.Option) bool { return o.Label == options[i] }) {
+		at := slices.IndexFunc(q.Options, func(o wire.Option) bool { return o.Label == options[i] })
+		if at < 0 {
 			return fmt.Errorf("%q isn't one of its options", options[i])
 		}
 		answers[q.Question] = options[i]
+		keys = append(keys, strconv.Itoa(at+1))
+	}
+	if w.codex {
+		return s.answer(id, answer{decision: Allow, keys: keys})
 	}
 	return s.answer(id, answer{decision: Allow, answers: answers})
 }
@@ -508,17 +525,25 @@ func (s *Service) answer(id string, a answer) error {
 		return errors.New("it was answered already")
 	}
 	if w.codex {
-		// Codex's own prompt is showing: press its key.
-		key := codexAllowKey
-		if decision == Deny {
-			key = codexDenyKey
+		// Codex's own prompt is showing: press its keys, one at a time.
+		keys := a.keys
+		if len(keys) == 0 {
+			keys = []string{codexAllowKey}
+			if decision == Deny {
+				keys = []string{codexDenyKey}
+			}
 		}
 		ctx, cancel := context.WithTimeout(context.Background(), queryTimeout)
 		defer cancel()
-		if _, err := s.ask(ctx, UIRequest{Kind: KindKeys, Session: w.session, Text: key}); err != nil {
-			return err
+		for _, k := range keys {
+			if _, err := s.ask(ctx, UIRequest{Kind: KindKeys, Session: w.session, Text: k}); err != nil {
+				return err
+			}
 		}
 		s.dropApproval(id)
+		if decision == Allow {
+			s.afterApproval(w.session, StateBusy, false)
+		}
 		return nil
 	}
 	select {
@@ -546,12 +571,15 @@ func (s *Service) Typed(session string, p []byte) {
 	}
 	id := a.Approvals[0].ID
 	w := s.waits[id]
-	if w == nil || !answersDialog(k, w.codex) {
+	// Codex's letters answer its approval prompt; on its question screen
+	// they start a note.
+	codexKeys := w != nil && w.codex && len(w.questions) == 0
+	if w == nil || !answersDialog(k, codexKeys) {
 		s.mu.Unlock()
 		return
 	}
 	// Esc (and Codex's n) is No: the turn ends on its own event.
-	no := k == 0x1b || w.codex && k == 'n'
+	no := k == 0x1b || codexKeys && k == 'n'
 	if w.codex {
 		s.mu.Unlock()
 		s.dropApproval(id)
@@ -570,9 +598,9 @@ func (s *Service) Typed(session string, p []byte) {
 	events.Emit(EventStatus, st)
 }
 
-// answersDialog: a key that answers an agent's permission dialog: Enter
-// (its highlighted choice), a choice's number, or Esc (No); Codex's also
-// takes y, a and n (0.167).
+// answersDialog: a key that answers an agent's permission dialog or
+// question: Enter (its highlighted choice), a choice's number, or Esc (No);
+// Codex's approval prompt also takes y, a and n (0.167).
 func answersDialog(k byte, codex bool) bool {
 	switch {
 	case k == '\r' || k == '\n' || k == 0x1b || k >= '1' && k <= '9':

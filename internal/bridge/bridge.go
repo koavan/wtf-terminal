@@ -734,6 +734,13 @@ func (s *Service) do(ctx context.Context, req wire.Request) wire.Response {
 		if req.Event == "PermissionRequest" {
 			return s.awaitApproval(ctx, req)
 		}
+		// Codex's PreToolUse is only for its question to you.
+		if req.Event == "PreToolUse" {
+			if req.Provider == "codex" && req.Tool == codexQuestion {
+				return s.awaitApproval(ctx, req)
+			}
+			return wire.Response{}
+		}
 		s.settleApprovals(req)
 		// From inside a sub-agent, or about one: its parent's state stays.
 		if req.AgentID != "" || subagentEvents[req.Event] {

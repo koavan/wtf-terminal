@@ -156,7 +156,7 @@ func hook(c client, provider string, in io.Reader, out io.Writer) int {
 		log.Printf("can't read the hook event: %v", err)
 		return 2
 	}
-	if ev.Event == "PreToolUse" {
+	if ev.Event == "PreToolUse" && provider == "claude" {
 		// claude-auto-mode: Claude Code's own permission mode decides.
 		if os.Getenv("WTF_CLAUDE_AUTO") == "1" {
 			return 0

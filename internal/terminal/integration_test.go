@@ -382,6 +382,9 @@ func TestCodexWrapper(t *testing.T) {
 					t.Errorf("missing %s in %q", event, out)
 				}
 			}
+			if want := "ARG:hooks.PreToolUse=[{matcher=\"^request_user_input$\",hooks=[{type=\"command\",command=\"/tmp/wtf mcp codex-hook\"}]}]"; !strings.Contains(out, want) {
+				t.Errorf("missing the question hook in %q", out)
+			}
 			if !strings.Contains(out, "ARG:hello") {
 				t.Errorf("missing original argument: %q", out)
 			}

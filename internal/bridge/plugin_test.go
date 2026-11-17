@@ -684,4 +684,64 @@ func TestHookCodexApprovals(t *testing.T) {
 	if err := f.s.Answer(st.Approvals[0].ID, Deny); err == nil {
 		t.Fatal("answered twice")
 	}
+
+	// A question (request_user_input, through its PreToolUse): answered by
+	// pressing each option's number in its pane.
+	run(`{"hook_event_name":"UserPromptSubmit","prompt":"plan"}`)
+	run(`{"hook_event_name":"PreToolUse","tool_name":"request_user_input","tool_input":{"questions":[{"id":"db","header":"DB","question":"Which database?","options":[{"label":"Postgres (Recommended)","description":"SQL"},{"label":"Redis","description":"KV"}]}]}}`)
+	st = agent()
+	if len(st.Approvals) != 1 || !st.Approvals[0].Clickable() || st.State != StateWaiting || st.Message != "Which database?" {
+		t.Fatalf("codex question: %+v", st)
+	}
+	if err := f.s.Answer(st.Approvals[0].ID, Allow); err == nil {
+		t.Fatal("a codex question answered y")
+	}
+	f.s.Typed("s1", []byte("y")) // starts a note there: still asking
+	if len(agent().Approvals) != 1 {
+		t.Fatal("y cleared a codex question")
+	}
+	f.mu.Lock()
+	f.keys = nil
+	f.mu.Unlock()
+	if err := f.s.AnswerQuestion(st.Approvals[0].ID, []string{"Redis"}); err != nil {
+		t.Fatal(err)
+	}
+	f.mu.Lock()
+	keys = slices.Clone(f.keys)
+	f.mu.Unlock()
+	if st := agent(); !slices.Equal(keys, []string{"2"}) || len(st.Approvals) != 0 || st.State != StateBusy {
+		t.Fatalf("answered with %q: %+v", keys, st)
+	}
+	run(`{"hook_event_name":"PostToolUse","tool_name":"request_user_input","tool_input":{"questions":[]}}`)
+
+	// Several questions: a number for each, in order; or answered in the
+	// pane, where its PostToolUse clears it.
+	run(`{"hook_event_name":"PreToolUse","tool_name":"request_user_input","tool_input":{"questions":[{"id":"a","question":"A?","options":[{"label":"x"},{"label":"y"}]},{"id":"b","question":"B?","options":[{"label":"p"},{"label":"q"}]}]}}`)
+	st = agent()
+	if st.Approvals[0].Clickable() {
+		t.Fatalf("two questions clickable: %+v", st.Approvals[0])
+	}
+	f.mu.Lock()
+	f.keys = nil
+	f.mu.Unlock()
+	if err := f.s.AnswerQuestion(st.Approvals[0].ID, []string{"y", "p"}); err != nil {
+		t.Fatal(err)
+	}
+	f.mu.Lock()
+	keys = slices.Clone(f.keys)
+	f.mu.Unlock()
+	if !slices.Equal(keys, []string{"2", "1"}) {
+		t.Fatalf("two answers pressed %q", keys)
+	}
+	run(`{"hook_event_name":"PreToolUse","tool_name":"request_user_input","tool_input":{"questions":[{"id":"c","question":"C?","options":[{"label":"x"}]}]}}`)
+	run(`{"hook_event_name":"PostToolUse","tool_name":"request_user_input","tool_input":{"questions":[]}}`)
+	if st := agent(); len(st.Approvals) != 0 {
+		t.Fatalf("answered in the pane: %+v", st)
+	}
+
+	// Its PreToolUse for anything else says nothing and lists nothing.
+	run(`{"hook_event_name":"PreToolUse","tool_name":"exec_command","tool_input":{"cmd":"ls"}}`)
+	if st := agent(); len(st.Approvals) != 0 {
+		t.Fatalf("another tool's PreToolUse: %+v", st)
+	}
 }
