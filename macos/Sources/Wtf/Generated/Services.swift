@@ -198,9 +198,12 @@ enum Services {
     enum bridge {
         static func Agents() async throws -> [Go.bridge.Status] { try await Backend.call("bridge", "Agents", [], as: [Go.bridge.Status].self) }
         static func AgentsIn(_ a0: String) async throws -> [String] { try await Backend.call("bridge", "AgentsIn", [a0], as: [String].self) }
+        static func AllowAlways(_ a0: String, _ a1: Int) async throws { try await Backend.run("bridge", "AllowAlways", [a0, a1]) }
         static func Answer(_ a0: String, _ a1: String) async throws { try await Backend.run("bridge", "Answer", [a0, a1]) }
         static func AnswerQuestion(_ a0: String, _ a1: [String]) async throws { try await Backend.run("bridge", "AnswerQuestion", [a0, a1]) }
+        static func AnswerText(_ a0: String, _ a1: String) async throws { try await Backend.run("bridge", "AnswerText", [a0, a1]) }
         static func ClaudeCommand() async throws -> String { try await Backend.call("bridge", "ClaudeCommand", [], as: String.self) }
+        static func DenyWith(_ a0: String, _ a1: String) async throws { try await Backend.run("bridge", "DenyWith", [a0, a1]) }
         static func Forget(_ a0: String) async throws { try await Backend.run("bridge", "Forget", [a0]) }
         static func Rename(_ a0: String, _ a1: String) async throws { try await Backend.run("bridge", "Rename", [a0, a1]) }
         static func Reply(_ a0: String, _ a1: Go.bridge.Reply) async throws { try await Backend.run("bridge", "Reply", [a0, a1]) }

@@ -515,6 +515,61 @@ func TestHookApprovals(t *testing.T) {
 	}
 	waitFor("working after the answer", func(st Status) bool { return len(st.Approvals) == 0 && st.State == StateBusy })
 
+	// A question answered in your own words.
+	cmd, out = start(`{"hook_event_name":"PermissionRequest","tool_name":"AskUserQuestion","tool_input":{"questions":[{"question":"Color?","options":[{"label":"Red"}]}]}}`)
+	st = waitFor("asking a question", asking)
+	if !st.Approvals[0].FreeText {
+		t.Fatalf("one question, not free text: %+v", st.Approvals[0])
+	}
+	if err := f.s.AnswerText(st.Approvals[0].ID, "  "); err == nil {
+		t.Fatal("answered with nothing")
+	}
+	if err := f.s.AnswerText(st.Approvals[0].ID, " Purple "); err != nil {
+		t.Fatal(err)
+	}
+	cmd.Wait()
+	if want := `{"hookSpecificOutput":{"decision":{"behavior":"allow","updatedInput":{"answers":{"Color?":"Purple"},"questions":[{"options":[{"label":"Red"}],"question":"Color?"}]}},"hookEventName":"PermissionRequest"}}` + "\n"; out.String() != want {
+		t.Fatalf("free-text answer: %q", out.String())
+	}
+
+	// "Yes, and don't ask again": the suggestion goes back as Claude Code
+	// sent it; ones that aren't an allow aren't offered.
+	cmd, out = start(`{"hook_event_name":"PermissionRequest","tool_name":"Bash","tool_input":{"command":"npm test"},"permission_suggestions":[` +
+		`{"type":"addRules","rules":[{"toolName":"Bash","ruleContent":"npm test:*"}],"behavior":"allow","destination":"localSettings"},` +
+		`{"type":"addRules","rules":[{"toolName":"Bash"}],"behavior":"deny","destination":"localSettings"},` +
+		`{"type":"setMode","mode":"acceptEdits","destination":"session"},` +
+		`{"type":"addDirectories","directories":["/srv"],"destination":"session"}]}`)
+	st = waitFor("asking about npm test", asking)
+	if want := []string{"Always allow Bash(npm test:*) in this project", "Accept all edits this session", "Always allow access to /srv this session"}; !slices.Equal(st.Approvals[0].Always, want) || st.Approvals[0].FreeText {
+		t.Fatalf("always = %q", st.Approvals[0].Always)
+	}
+	if err := f.s.AllowAlways(st.Approvals[0].ID, 3); err == nil {
+		t.Fatal("a choice it doesn't have")
+	}
+	if err := f.s.AllowAlways(st.Approvals[0].ID, 1); err != nil {
+		t.Fatal(err)
+	}
+	cmd.Wait()
+	if want := `{"hookSpecificOutput":{"decision":{"behavior":"allow","updatedPermissions":[{"type":"setMode","mode":"acceptEdits","destination":"session"}]},"hookEventName":"PermissionRequest"}}` + "\n"; out.String() != want {
+		t.Fatalf("always: %q", out.String())
+	}
+	waitFor("working after always", func(st Status) bool { return len(st.Approvals) == 0 && st.State == StateBusy })
+
+	// Denied with what to do instead: Claude carries on (no interrupt).
+	cmd, out = start(`{"hook_event_name":"PermissionRequest","tool_name":"Bash","tool_input":{"command":"npm i"}}`)
+	st = waitFor("asking about npm i", asking)
+	if err := f.s.AnswerText(st.Approvals[0].ID, "x"); err == nil {
+		t.Fatal("a command answered with text")
+	}
+	if err := f.s.DenyWith(st.Approvals[0].ID, "Use pnpm instead"); err != nil {
+		t.Fatal(err)
+	}
+	cmd.Wait()
+	if want := `{"hookSpecificOutput":{"decision":{"behavior":"deny","message":"The user denied this in wtf's Approvals inbox and said: Use pnpm instead"},"hookEventName":"PermissionRequest"}}` + "\n"; out.String() != want {
+		t.Fatalf("deny with: %q", out.String())
+	}
+	run(`{"hook_event_name":"UserPromptSubmit","prompt":"go on"}`)
+
 	// Several questions, or several choices: answered in the pane.
 	cmd, _ = start(`{"hook_event_name":"PermissionRequest","tool_name":"AskUserQuestion","tool_input":{"questions":[{"question":"Which?","options":[{"label":"a"}]},{"question":"Port?","options":[{"label":"1"}]}]}}`)
 	st = waitFor("asking two questions", asking)
@@ -683,6 +738,30 @@ func TestHookCodexApprovals(t *testing.T) {
 	}
 	if err := f.s.Answer(st.Approvals[0].ID, Deny); err == nil {
 		t.Fatal("answered twice")
+	}
+
+	// Always presses a; denied with words, Esc then the words, sent.
+	run(`{"hook_event_name":"UserPromptSubmit","prompt":"more"}`)
+	run(`{"hook_event_name":"PermissionRequest","tool_name":"Bash","tool_input":{"command":"ls"}}`)
+	st = agent()
+	if !slices.Equal(st.Approvals[0].Always, []string{"Don't ask again for this command this session"}) {
+		t.Fatalf("codex always = %q", st.Approvals[0].Always)
+	}
+	f.mu.Lock()
+	f.keys = nil
+	f.mu.Unlock()
+	if err := f.s.AllowAlways(st.Approvals[0].ID, 0); err != nil {
+		t.Fatal(err)
+	}
+	run(`{"hook_event_name":"PermissionRequest","tool_name":"Bash","tool_input":{"command":"rm x"}}`)
+	if err := f.s.DenyWith(agent().Approvals[0].ID, "keep x,\n  remove y"); err != nil {
+		t.Fatal(err)
+	}
+	f.mu.Lock()
+	keys = slices.Clone(f.keys)
+	f.mu.Unlock()
+	if !slices.Equal(keys, []string{"a", "\x1b", "keep x, remove y", "\r"}) || len(agent().Approvals) != 0 {
+		t.Fatalf("always and deny-with pressed %q", keys)
 	}
 
 	// A question (request_user_input, through its PreToolUse): answered by

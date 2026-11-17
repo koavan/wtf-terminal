@@ -65,6 +65,26 @@ type sideAction struct {
 	// The suggested action (bold).
 	key bool
 	run func()
+	// Instead of run: given the button (a ▾'s menu, a popover from it).
+	runAt func(b *gtk.Button)
+}
+
+// actionButton is a row's action as a button, which never takes the
+// keyboard.
+func actionButton(a sideAction) *gtk.Button {
+	b := gtk.NewButtonWithLabel(a.label)
+	b.AddCSSClass("wtf-side-action")
+	if a.key {
+		b.AddCSSClass("suggested-action")
+	}
+	b.SetTooltipText(a.tip)
+	b.SetFocusOnClick(false)
+	if a.runAt != nil {
+		b.ConnectClicked(func() { a.runAt(b) })
+	} else {
+		b.ConnectClicked(a.run)
+	}
+	return b
 }
 
 type sideSection struct {
@@ -388,15 +408,7 @@ func sideRowWidget(r sideRow) *gtk.Box {
 		row := gtk.NewBox(gtk.OrientationHorizontal, 4)
 		row.SetMarginTop(3)
 		for _, a := range r.actions {
-			b := gtk.NewButtonWithLabel(a.label)
-			b.AddCSSClass("wtf-side-action")
-			if a.key {
-				b.AddCSSClass("suggested-action")
-			}
-			b.SetTooltipText(a.tip)
-			b.SetFocusOnClick(false)
-			b.ConnectClicked(a.run)
-			row.Append(b)
+			row.Append(actionButton(a))
 		}
 		lines.Append(row)
 	}

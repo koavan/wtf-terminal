@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	coreglib "github.com/diamondburned/gotk4/pkg/core/glib"
+	"github.com/diamondburned/gotk4/pkg/gdk/v4"
 	"github.com/diamondburned/gotk4/pkg/gtk/v4"
 	"github.com/diamondburned/gotk4/pkg/pango"
 
@@ -104,10 +105,12 @@ func approvalBody(a *App, ap bridge.Approval, diffLines int) []sideText {
 	return more
 }
 
-// approvalActions: Allow / Deny / Go to Agent, or a question's options.
+// approvalActions: Allow (▾ its "don't ask again" choices) / Deny (▾ Deny
+// and Tell…) / Go to Agent, or a question's options and Other….
 // shortcut: Allow names its key (the floating card's).
 func approvalActions(w *Window, st bridge.Status, ap bridge.Approval, shortcut bool) []sideAction {
 	a := w.app
+	b := a.be.Bridge
 	id, session, product := ap.ID, st.Session, agentProduct(st)
 	if len(ap.Questions) > 0 {
 		if !ap.Clickable() {
@@ -118,17 +121,111 @@ func approvalActions(w *Window, st bridge.Status, ap bridge.Approval, shortcut b
 			acts = append(acts, sideAction{label: a.settings.text(o), tip: "Answer " + a.settings.text(o) + ", as choosing it in " + product + "'s own dialog",
 				run: func() { w.answerQuestion(id, o) }})
 		}
-		return append(acts, sideAction{label: "Go to Agent", tip: "Show its pane: its dialog also lets you type your own answer", run: func() { a.goToAgent(session) }})
+		if ap.FreeText {
+			question := a.settings.text(ap.Questions[0].Question)
+			acts = append(acts, sideAction{label: "Other…", tip: "Answer in your own words, as typing your own in " + product + "'s dialog",
+				runAt: func(at *gtk.Button) {
+					w.tellAt(at, question, "Your answer", "Answer", func(text string) error { return b.AnswerText(id, text) })
+				}})
+		}
+		return append(acts, sideAction{label: "Go to Agent", tip: "Show its pane", run: func() { a.goToAgent(session) }})
 	}
 	allow := "Allow"
 	if k := keyOf("approval.allow"); shortcut && k != "" {
 		allow += " " + k
 	}
-	return []sideAction{
-		{label: allow, key: true, tip: "Let " + product + " do this once, as Yes in its own dialog", run: func() { w.answerApproval(id, bridge.Allow) }},
-		{label: "Deny", tip: "Refuse it and stop " + product + "'s turn, as No in its own dialog", run: func() { w.answerApproval(id, bridge.Deny) }},
-		{label: "Go to Agent", tip: "Show its pane: its dialog has more choices (always allow, tell it what to do instead)", run: func() { a.goToAgent(session) }},
+	acts := []sideAction{{label: allow, key: true, tip: "Let " + product + " do this once, as Yes in its own dialog", run: func() { w.answerApproval(id, bridge.Allow) }}}
+	if len(ap.Always) > 0 {
+		var items []*menuItem
+		for i, label := range ap.Always {
+			items = append(items, item(a.settings.text(label), func() { w.allowAlways(id, i) }))
+		}
+		acts = append(acts, sideAction{label: "▾", tip: "Allow, and don't ask again", runAt: func(at *gtk.Button) { w.menuAt(at, items) }})
 	}
+	tell := "Deny, and tell " + product + " what to do instead"
+	return append(acts,
+		sideAction{label: "Deny", tip: "Refuse it and stop " + product + "'s turn, as No in its own dialog", run: func() { w.answerApproval(id, bridge.Deny) }},
+		sideAction{label: "▾", tip: tell, runAt: func(at *gtk.Button) {
+			w.menuAt(at, []*menuItem{item("Deny and Tell "+product+"…", func() {
+				w.tellAt(at, tell, "e.g. use pnpm instead", "Deny and Send", func(text string) error { return b.DenyWith(id, text) })
+			})})
+		}},
+		sideAction{label: "Go to Agent", tip: "Show its pane", run: func() { a.goToAgent(session) }},
+	)
+}
+
+// menuAt shows a ▾'s menu under its button. The menu hangs off the window's
+// overlay, which outlives the button when its row or card is rebuilt.
+func (w *Window) menuAt(at *gtk.Button, items []*menuItem) {
+	if w.actionMenu == nil {
+		w.actionMenu = newMenuPopover(w.overlay)
+	}
+	r, ok := at.ComputeBounds(w.overlay)
+	if !ok {
+		return
+	}
+	w.actionMenu.show(float64(r.X()), float64(r.Y()+r.Height()), items, nil)
+}
+
+// tellAt asks, in a popover from a button, for what you tell an agent:
+// what to do instead, or your own answer. Only it takes the keyboard, and
+// only once you've asked for it; Enter sends, Esc cancels. Like menuAt's,
+// it hangs off the overlay, one kept for the window.
+func (w *Window) tellAt(at *gtk.Button, title, placeholder, send string, do func(string) error) {
+	r, ok := at.ComputeBounds(w.overlay)
+	if !ok {
+		return
+	}
+	if w.tellPop == nil {
+		w.tellPop = gtk.NewPopover()
+		w.tellPop.SetParent(w.overlay)
+		w.tellPop.ConnectClosed(func() { coreglib.IdleAdd(w.focusActive) })
+	}
+	pop := w.tellPop
+	box := gtk.NewBox(gtk.OrientationVertical, 8)
+	box.SetMarginTop(6)
+	box.SetMarginBottom(6)
+	box.SetMarginStart(6)
+	box.SetMarginEnd(6)
+	head := gtk.NewLabel(title)
+	head.SetWrap(true)
+	head.SetMaxWidthChars(44)
+	head.SetXAlign(0)
+	head.AddCSSClass("heading")
+	entry := gtk.NewEntry()
+	entry.SetPlaceholderText(placeholder)
+	entry.SetWidthChars(40)
+	go_ := func() {
+		text := strings.TrimSpace(entry.Text())
+		if text == "" {
+			entry.ErrorBell()
+			return
+		}
+		pop.Popdown()
+		go func() {
+			if err := do(text); err != nil {
+				coreglib.IdleAdd(func() { w.toast("Not sent: " + err.Error()) })
+			}
+		}()
+	}
+	entry.ConnectActivate(go_)
+	cancel := gtk.NewButtonWithLabel("Cancel")
+	cancel.ConnectClicked(pop.Popdown)
+	ok_ := gtk.NewButtonWithLabel(send)
+	ok_.AddCSSClass("suggested-action")
+	ok_.ConnectClicked(go_)
+	row := gtk.NewBox(gtk.OrientationHorizontal, 6)
+	row.SetHAlign(gtk.AlignEnd)
+	row.Append(cancel)
+	row.Append(ok_)
+	box.Append(head)
+	box.Append(entry)
+	box.Append(row)
+	pop.SetChild(box)
+	rect := gdk.NewRectangle(int(r.X()), int(r.Y()), int(r.Width()), int(r.Height()))
+	pop.SetPointingTo(&rect)
+	pop.Popup()
+	entry.GrabFocus()
 }
 
 // approvalDeck: the requests waiting on you, floating over a window's
@@ -309,15 +406,7 @@ func (d *approvalDeck) card(st bridge.Status, ap bridge.Approval) gtk.Widgetter 
 	}
 	row.SetMarginTop(3)
 	for _, act := range acts {
-		b := gtk.NewButtonWithLabel(act.label)
-		b.AddCSSClass("wtf-side-action")
-		if act.key {
-			b.AddCSSClass("suggested-action")
-		}
-		b.SetTooltipText(act.tip)
-		b.SetFocusOnClick(false)
-		b.ConnectClicked(act.run)
-		row.Append(b)
+		row.Append(actionButton(act))
 	}
 	box.Append(row)
 	return box

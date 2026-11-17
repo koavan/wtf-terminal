@@ -123,8 +123,10 @@ enum ApprovalContent {
         }
     }
 
-    /// Allow / Deny / Go to Agent, or a question's options. `shortcut`: the
-    /// Allow button names ⌘⏎ (the floating card's).
+    /// Allow (▾ its "don't ask again" choices) / Deny (▾ Deny and Tell…) /
+    /// Go to Agent, or a question's options and Other…. `shortcut`: the
+    /// Allow button names ⌘⏎ (the floating card's). `anchor` stays while
+    /// the buttons are rebuilt: menus and popovers show from it.
     static func buttons(_ ap: Go.bridge.Approval, of st: Go.bridge.Status, shortcut: Bool, anchor: NSView) -> NSView {
         let r = Redaction.shared
         let product = Agents.product(st)
@@ -140,15 +142,46 @@ enum ApprovalContent {
             b.refusesFirstResponder = true
             return b
         }
+        /// A ▾ next to a button: its menu of more choices.
+        func more(_ tip: String, _ items: @escaping (NSButton) -> [NSMenuItem]) -> NSButton {
+            var me: NSButton?
+            let b = button("▾", tip) {
+                guard let b = me else { return }
+                let m = NSMenu()
+                items(b).forEach(m.addItem)
+                m.popUp(positioning: nil, at: NSPoint(x: 0, y: b.bounds.height + 2), in: b)
+            }
+            me = b
+            b.setAccessibilityLabel(tip)
+            return b
+        }
         let go = "Go to Agent"
         if ap.questions.isEmpty {
-            let row = NSStackView(views: [
+            var views: [NSView] = [
                 button(shortcut ? "Allow ⌘⏎" : "Allow", "Let \(product) do this once, as Yes in its own dialog", key: true) { [weak anchor] in
                     answer(id, "allow", anchor)
                 },
-                button("Deny", "Refuse it and stop \(product)'s turn, as No in its own dialog") { [weak anchor] in answer(id, "deny", anchor) },
-                button(go, "Show its pane: its dialog has more choices (always allow, tell it what to do instead)") { Agents.go(to: session) },
-            ])
+            ]
+            if !ap.always.isEmpty {
+                let always = ap.always
+                views.append(more("Allow, and don't ask again") { _ in
+                    always.enumerated().map { i, label in
+                        ClosureMenuItem(title: r.text(label), keyEquivalent: "") { [weak anchor] in allowAlways(id, i, anchor) }
+                    }
+                })
+            }
+            views.append(button("Deny", "Refuse it and stop \(product)'s turn, as No in its own dialog") { [weak anchor] in answer(id, "deny", anchor) })
+            views.append(more("Deny, and tell \(product) what to do instead") { b in
+                [ClosureMenuItem(title: "Deny and Tell \(product)…", keyEquivalent: "") { [weak anchor, weak b] in
+                    guard let anchor, let b else { return }
+                    TellPopover.show(from: b, anchor: anchor, title: "Deny, and tell \(product) what to do instead",
+                                     placeholder: "e.g. use pnpm instead", send: "Deny and Send") { text in
+                        try await Services.bridge.DenyWith(id, text)
+                    }
+                }]
+            })
+            views.append(button(go, "Show its pane") { Agents.go(to: session) })
+            let row = NSStackView(views: views)
             row.spacing = 2
             return row
         }
@@ -163,7 +196,19 @@ enum ApprovalContent {
                 views.append(b)
             }
         }
-        let tip = Agents.clickable(ap) ? "Show its pane: its dialog also lets you type your own answer"
+        if ap.freeText {
+            let question = r.text(ap.questions[0].question)
+            var me: NSButton?
+            let b = button("Other…", "Answer in your own words, as typing your own in \(product)'s dialog") { [weak anchor] in
+                guard let anchor, let b = me else { return }
+                TellPopover.show(from: b, anchor: anchor, title: question, placeholder: "Your answer", send: "Answer") { text in
+                    try await Services.bridge.AnswerText(id, text)
+                }
+            }
+            me = b
+            views.append(b)
+        }
+        let tip = Agents.clickable(ap) ? "Show its pane"
             : "Answer in its pane: several questions, or several choices, are answered there"
         views.append(button(go, tip, key: !Agents.clickable(ap)) { Agents.go(to: session) })
         let col = NSStackView(views: views)
@@ -177,6 +222,16 @@ enum ApprovalContent {
         Task { @MainActor in
             do {
                 try await Services.bridge.Answer(id, decision)
+            } catch {
+                Toast.show("Already answered in the pane", in: anchor)
+            }
+        }
+    }
+
+    static func allowAlways(_ id: String, _ choice: Int, _ anchor: NSView?) {
+        Task { @MainActor in
+            do {
+                try await Services.bridge.AllowAlways(id, choice)
             } catch {
                 Toast.show("Already answered in the pane", in: anchor)
             }
@@ -386,5 +441,105 @@ final class ApprovalDeck: NSView {
         guard let ap = top, ap.questions.isEmpty else { return false }
         ApprovalContent.answer(ap.id, "allow", owner.rootView)
         return true
+    }
+}
+
+/// A small popover for what you tell an agent: what to do instead of what
+/// it asked, or your own answer to its question. Only it takes the
+/// keyboard, and only once you've asked for it; Return sends, Esc cancels.
+@MainActor
+final class TellPopover: NSViewController, NSPopoverDelegate {
+    private static var open: NSPopover?
+
+    /// For the self-check.
+    static var shown: Bool { open?.isShown == true }
+    static func closeOpen() { open?.close() }
+
+    private let heading: String
+    private let placeholder: String
+    private let sendTitle: String
+    private let send: (String) async throws -> Void
+    private weak var anchor: NSView?
+    private let field = NSTextField()
+
+    /// Shows it under `button`, positioned on `anchor` (which outlives the
+    /// buttons when they're rebuilt).
+    static func show(from button: NSView, anchor: NSView, title: String, placeholder: String, send sendTitle: String,
+                     _ send: @escaping (String) async throws -> Void) {
+        open?.close()
+        guard button.window != nil else { return }
+        let p = NSPopover()
+        let vc = TellPopover(title: title, placeholder: placeholder, sendTitle: sendTitle, anchor: anchor, send: send)
+        p.contentViewController = vc
+        p.behavior = .transient
+        p.delegate = vc
+        p.show(relativeTo: button.convert(button.bounds, to: anchor), of: anchor, preferredEdge: .minY)
+        open = p
+        p.contentViewController?.view.window?.makeFirstResponder(vc.field)
+    }
+
+    private init(title: String, placeholder: String, sendTitle: String, anchor: NSView, send: @escaping (String) async throws -> Void) {
+        heading = title
+        self.placeholder = placeholder
+        self.sendTitle = sendTitle
+        self.send = send
+        self.anchor = anchor
+        super.init(nibName: nil, bundle: nil)
+    }
+
+    required init?(coder: NSCoder) { fatalError() }
+
+    override func loadView() {
+        let label = NSTextField(wrappingLabelWithString: heading)
+        label.font = .systemFont(ofSize: 12, weight: .semibold)
+        label.maximumNumberOfLines = 3
+        field.placeholderString = placeholder
+        field.bezelStyle = .roundedBezel
+        field.usesSingleLineMode = false
+        field.cell?.wraps = true
+        field.cell?.isScrollable = false
+        field.target = self
+        field.action = #selector(go)
+        let cancel = ClosureButton(title: "Cancel") { TellPopover.open?.close() }
+        cancel.keyEquivalent = "\u{1b}"
+        let ok = ClosureButton(title: sendTitle) { [weak self] in self?.go() }
+        ok.keyEquivalent = "\r"
+        let buttons = NSStackView(views: [NSView(), cancel, ok])
+        buttons.spacing = 6
+        let stack = NSStackView(views: [label, field, buttons])
+        stack.orientation = .vertical
+        stack.alignment = .leading
+        stack.spacing = 8
+        stack.edgeInsets = NSEdgeInsets(top: 12, left: 12, bottom: 12, right: 12)
+        NSLayoutConstraint.activate([
+            stack.widthAnchor.constraint(equalToConstant: 320),
+            label.widthAnchor.constraint(equalTo: stack.widthAnchor, constant: -24),
+            field.widthAnchor.constraint(equalTo: stack.widthAnchor, constant: -24),
+            field.heightAnchor.constraint(greaterThanOrEqualToConstant: 44),
+            buttons.widthAnchor.constraint(equalTo: stack.widthAnchor, constant: -24),
+        ])
+        view = stack
+    }
+
+    @objc private func go() {
+        let text = field.stringValue.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !text.isEmpty else {
+            NSSound.beep()
+            return
+        }
+        let send = send
+        let anchor = anchor
+        TellPopover.open?.close()
+        Task { @MainActor in
+            do {
+                try await send(text)
+            } catch {
+                Toast.show("Not sent: \(error.localizedDescription)", in: anchor)
+            }
+        }
+    }
+
+    func popoverDidClose(_ notification: Notification) {
+        if TellPopover.open?.contentViewController === self { TellPopover.open = nil }
     }
 }

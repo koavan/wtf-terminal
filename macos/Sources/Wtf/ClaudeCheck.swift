@@ -205,7 +205,7 @@ enum ClaudeCheck {
         h '{"hook_event_name":"SubagentStop","agent_id":"a1","agent_type":"Explore","last_assistant_message":"It is TestDeploy."}'
         while [ ! -e "$d/ask" ]; do sleep 0.1; done
         h '{"hook_event_name":"UserPromptSubmit","prompt":"restart the api"}'
-        h '{"hook_event_name":"PermissionRequest","cwd":"/tmp","tool_name":"Bash","tool_input":{"command":"kubectl --context wtf-check-ctx -n shop rollout restart deploy/api","description":"Restart the api"}}' > "$d/answer.tmp"
+        h '{"hook_event_name":"PermissionRequest","cwd":"/tmp","tool_name":"Bash","tool_input":{"command":"kubectl --context wtf-check-ctx -n shop rollout restart deploy/api","description":"Restart the api"},"permission_suggestions":[{"type":"addRules","rules":[{"toolName":"Bash","ruleContent":"kubectl rollout restart:*"}],"behavior":"allow","destination":"localSettings"}]}' > "$d/answer.tmp"
         mv "$d/answer.tmp" "$d/answer"
         h '{"hook_event_name":"Stop"}'
         while [ ! -e "$d/quit" ]; do sleep 0.1; done
@@ -318,17 +318,23 @@ enum ClaudeCheck {
         Agents.nextApproval(from: w)
         check(await waitUntil(5) { m.active?.focusedPaneId == id }, "Next Approval goes to the agent asking")
         check(await waitUntil(5) { w.approvalDeck.isHidden }, "its card hides with the agent's own dialog in front")
-        func allow(_ v: NSView) -> NSButton? {
-            if let b = v as? NSButton, b.title == "Allow" { return b }
-            for s in v.subviews { if let b = allow(s) { return b } }
-            return nil
+        func buttons(_ v: NSView) -> [NSButton] {
+            (v as? NSButton).map { [$0] } ?? v.subviews.flatMap(buttons)
         }
-        let button = w.sidePane.flatMap { allow($0) }
-        check(button != nil, "with an Allow button")
-        button?.performClick(nil)
-        check(await waitUntil(5) { exists("answer") }, "Allow answers the hook")
-        check(read("answer") == #"{"hookSpecificOutput":{"decision":{"behavior":"allow"},"hookEventName":"PermissionRequest"}}"#,
-              "with allow: \(read("answer").debugDescription)")
+        let titles = (w.sidePane.map(buttons) ?? []).map(\.title).filter { ["Allow", "▾", "Deny", "Go to Agent"].contains($0) }
+        check(titles == ["Allow", "▾", "Deny", "▾", "Go to Agent"], "with Allow ▾, Deny ▾ and Go to Agent: \(titles)")
+        check(ap?.always == ["Always allow Bash(kubectl rollout restart:*) in this project"], "Allow's ▾ offers its rule: \(ap?.always ?? [])")
+        // Deny's ▾ asks what to tell it, in a popover.
+        if let deny = (w.sidePane.map(buttons) ?? []).last(where: { $0.title == "▾" }) {
+            TellPopover.show(from: deny, anchor: w.rootView, title: "Deny, and tell Claude what to do instead", placeholder: "e.g. use pnpm instead",
+                             send: "Deny and Send") { _ in }
+            check(await waitUntil(3) { TellPopover.shown }, "Deny and Tell's popover shows")
+            TellPopover.closeOpen()
+        }
+        ApprovalContent.allowAlways(ap?.id ?? "", 0, w.rootView)
+        check(await waitUntil(5) { exists("answer") }, "Always allow answers the hook")
+        check(read("answer") == #"{"hookSpecificOutput":{"decision":{"behavior":"allow","updatedPermissions":[{"type":"addRules","rules":[{"toolName":"Bash","ruleContent":"kubectl rollout restart:*"}],"behavior":"allow","destination":"localSettings"}]},"hookEventName":"PermissionRequest"}}"#,
+              "with allow and its rule: \(read("answer").debugDescription)")
         check(await waitUntil(5) { Agents.all[session]?.approvals.isEmpty == true && badge() != .waiting }, "and it leaves the inbox: \(String(describing: badge()))")
 
         // A name you give it: the Agents tab and the picker show it.

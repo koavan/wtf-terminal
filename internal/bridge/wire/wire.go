@@ -61,6 +61,8 @@ type Request struct {
 	// is still in flight, from Claude Code's background_tasks. More than
 	// none means the turn only paused: that work wakes it when it ends.
 	Background int `json:"background,omitempty"`
+	// PermissionRequest: Claude Code's permission_suggestions, as sent.
+	Suggestions []Suggestion `json:"suggestions,omitempty"`
 }
 
 // ToolInput is what wtf shows of a tool call's input: an Agent call's
@@ -87,6 +89,11 @@ type ToolInput struct {
 	// AskUserQuestion: what Claude asks you.
 	Questions []Question `json:"questions,omitempty"`
 }
+
+// Suggestion is one of a PermissionRequest's permission_suggestions: a
+// rule (or mode, or folder) Claude Code would save for "Yes, and don't ask
+// again". Raw holds it as Claude Code sent it, which is what goes back.
+type Suggestion = json.RawMessage
 
 // Question is one of an AskUserQuestion's questions.
 type Question struct {
@@ -123,6 +130,11 @@ type Response struct {
 	// → the option chosen, which the helper hands Claude Code as the
 	// tool's answers.
 	Answers map[string]string `json:"answers,omitempty"`
+	// Allowed with "don't ask again": the permission_suggestions to save,
+	// as Claude Code sent them (its updatedPermissions).
+	Permissions []Suggestion `json:"permissions,omitempty"`
+	// Denied with what you told Claude to do instead.
+	Message string `json:"message,omitempty"`
 }
 
 // Tool is one MCP tool as the helper registers it.

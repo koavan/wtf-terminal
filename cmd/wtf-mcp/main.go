@@ -27,6 +27,7 @@ import (
 	"log"
 	"net"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/modelcontextprotocol/go-sdk/mcp"
@@ -143,6 +144,8 @@ func hook(c client, provider string, in io.Reader, out io.Writer) int {
 		Tool      string          `json:"tool_name"`
 		Input     *wire.ToolInput `json:"tool_input"`
 		Response  json.RawMessage `json:"tool_response"`
+		// PermissionRequest: what "don't ask again" would save.
+		Suggestions []wire.Suggestion `json:"permission_suggestions"`
 		// Stop: the session's background work in flight.
 		Background []struct {
 			Status string `json:"status"`
@@ -202,6 +205,9 @@ func hook(c client, provider string, in io.Reader, out io.Writer) int {
 	if ev.Event == "SubagentStop" && req.Message == "" {
 		req.Message = ev.Last
 	}
+	if ev.Event == "PermissionRequest" && provider == "claude" {
+		req.Suggestions = ev.Suggestions
+	}
 	if ev.Event == "PermissionRequest" && req.Message == "" && ev.Input != nil {
 		req.Message = ev.Input.Description
 	}
@@ -235,7 +241,14 @@ func hook(c client, provider string, in io.Reader, out io.Writer) int {
 				decision["updatedInput"] = raw.Input
 			}
 		}
-		if resp.Decision == "deny" {
+		if resp.Decision == "allow" && len(resp.Permissions) > 0 {
+			decision["updatedPermissions"] = resp.Permissions
+		}
+		switch {
+		case resp.Decision == "deny" && strings.TrimSpace(resp.Message) != "":
+			// Denied with what to do instead: Claude carries on with it.
+			decision["message"] = tellMessage + resp.Message
+		case resp.Decision == "deny":
 			decision["message"] = denyMessage
 			decision["interrupt"] = true
 		}
@@ -251,6 +264,9 @@ func hook(c client, provider string, in io.Reader, out io.Writer) int {
 
 // denyMessage tells Claude why its tool call was refused.
 const denyMessage = "The user denied this in wtf's Approvals inbox. Wait for their next instruction."
+
+// tellMessage comes before what you told Claude to do instead.
+const tellMessage = "The user denied this in wtf's Approvals inbox and said: "
 
 // maxEdit is how much of an edit the helper sends; the inbox shows less.
 const maxEdit = 64 << 10

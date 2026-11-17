@@ -9,6 +9,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/diamondburned/gotk4/pkg/gtk/v4"
+
 	"github.com/dayanraj/wtf/internal/bridge"
 	"github.com/dayanraj/wtf/internal/uicore"
 )
@@ -292,7 +294,7 @@ touch $d/substopped
 # #39: a permission prompt, answered from the inbox.
 while [ ! -e $d/ask ]; do sleep 0.1; done
 h '{"hook_event_name":"UserPromptSubmit","prompt":"restart the api"}'
-h '{"hook_event_name":"PermissionRequest","cwd":"/tmp","tool_name":"Bash","tool_input":{"command":"kubectl --context wtf-check-ctx -n shop rollout restart deploy/api","description":"Restart the api"}}' > $d/answer.tmp
+h '{"hook_event_name":"PermissionRequest","cwd":"/tmp","tool_name":"Bash","tool_input":{"command":"kubectl --context wtf-check-ctx -n shop rollout restart deploy/api","description":"Restart the api"},"permission_suggestions":[{"type":"addRules","rules":[{"toolName":"Bash","ruleContent":"kubectl rollout restart:*"}],"behavior":"allow","destination":"localSettings"}]}' > $d/answer.tmp
 mv $d/answer.tmp $d/answer
 h '{"hook_event_name":"Stop"}'
 while [ ! -e $d/quit ]; do sleep 0.1; done
@@ -454,12 +456,37 @@ func (w *Window) checkAgents() {
 				rows = t.approvalRowsOf(a.agents.all[session])
 			}
 		})
-		check(len(rows) == 1 && len(rows[0].actions) == 3 && rows[0].actions[0].label == "Allow", "with Allow, Deny and Go to Agent")
-		if len(rows) == 1 && len(rows[0].actions) > 0 {
-			onMain(rows[0].actions[0].run)
+		var labels []string
+		if len(rows) == 1 {
+			for _, act := range rows[0].actions {
+				labels = append(labels, act.label)
+			}
 		}
-		check(waitUntil(5*time.Second, func() bool { return exists("answer") }), "Allow answers the hook")
-		check(read("answer") == `{"hookSpecificOutput":{"decision":{"behavior":"allow"},"hookEventName":"PermissionRequest"}}`, "with allow: %q", read("answer"))
+		check(slices.Equal(labels, []string{"Allow", "▾", "Deny", "▾", "Go to Agent"}), "with Allow ▾, Deny ▾ and Go to Agent: %q", labels)
+		check(slices.Equal(ap.Always, []string{"Always allow Bash(kubectl rollout restart:*) in this project"}), "Allow's ▾ offers its rule: %q", ap.Always)
+		// Deny's ▾ asks what to tell it, in a popover off the window.
+		onMain(func() {
+			at := gtk.NewButtonWithLabel("▾")
+			at.SetHAlign(gtk.AlignEnd)
+			at.SetVAlign(gtk.AlignEnd)
+			w.overlay.AddOverlay(at)
+			w.tellAt(at, "Deny, and tell Claude what to do instead", "e.g. use pnpm instead", "Deny and Send", func(string) error { return nil })
+		})
+		time.Sleep(300 * time.Millisecond)
+		var tellShown bool
+		onMain(func() { tellShown = w.tellPop != nil && w.tellPop.Visible() })
+		check(tellShown, "Deny and Tell's popover shows")
+		w.shot("approval-tell")
+		onMain(func() {
+			w.tellPop.Popdown()
+			if at := w.overlay.LastChild(); at != nil {
+				w.overlay.RemoveOverlay(at)
+			}
+		})
+		onMain(func() { w.allowAlways(ap.ID, 0) })
+		check(waitUntil(5*time.Second, func() bool { return exists("answer") }), "Always allow answers the hook")
+		check(read("answer") == `{"hookSpecificOutput":{"decision":{"behavior":"allow","updatedPermissions":[{"type":"addRules","rules":[{"toolName":"Bash","ruleContent":"kubectl rollout restart:*"}],"behavior":"allow","destination":"localSettings"}]},"hookEventName":"PermissionRequest"}}`,
+			"with allow and its rule: %q", read("answer"))
 		check(waitUntil(5*time.Second, func() bool {
 			onMain(func() { aps = a.agents.all[session].Approvals })
 			return len(aps) == 0 && badge() != bridge.StateWaiting

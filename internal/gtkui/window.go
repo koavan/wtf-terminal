@@ -34,11 +34,14 @@ type Window struct {
 	stack  *gtk.Stack
 	toasts *adw.ToastOverlay
 	// Over the panes: the palette, and what agents wait on you for (#39).
-	overlay   *gtk.Overlay
-	deck      *approvalDeck
-	palette   *palette
-	broadcast *broadcast
-	shortcuts *gtk.ShortcutsWindow
+	overlay *gtk.Overlay
+	// The approval buttons' ▾ menu and text popover (approvaldeck.go).
+	actionMenu *menuPopover
+	tellPop    *gtk.Popover
+	deck       *approvalDeck
+	palette    *palette
+	broadcast  *broadcast
+	shortcuts  *gtk.ShortcutsWindow
 	// Show All Tabs, while shown.
 	overviewShown *overview
 	// The workspace dialog last shown (for checks).
@@ -921,6 +924,12 @@ func (w *Window) closeForGood() {
 	w.address.usage.stop()
 	w.unobserve()
 	w.deck.close()
+	if w.tellPop != nil {
+		w.tellPop.Unparent()
+	}
+	if w.actionMenu != nil {
+		w.actionMenu.pop.Unparent()
+	}
 	if !w.background {
 		name, store := w.name, w.app.be.Store
 		go func() { _ = store.Forget(name) }()

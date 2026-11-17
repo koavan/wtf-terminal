@@ -288,6 +288,16 @@ func (w *Window) answerApproval(id, decision string) {
 	}()
 }
 
+// allowAlways allows an approval and saves its choice'th "don't ask again".
+func (w *Window) allowAlways(id string, choice int) {
+	b := w.app.be.Bridge
+	go func() {
+		if err := b.AllowAlways(id, choice); err != nil {
+			coreglib.IdleAdd(func() { w.toast("Already answered in the pane") })
+		}
+	}()
+}
+
 // answerQuestion answers a question Claude asks with one of its options.
 func (w *Window) answerQuestion(id, option string) {
 	b := w.app.be.Bridge

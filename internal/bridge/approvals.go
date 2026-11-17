@@ -2,6 +2,7 @@ package bridge
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"slices"
@@ -53,6 +54,12 @@ type Approval struct {
 	// An AskUserQuestion: what Claude asks you, answered with an option
 	// (AnswerQuestion) rather than Allow or Deny.
 	Questions []Question `json:"questions"`
+	// "Yes, and don't ask again": what each choice would save, e.g.
+	// "Always allow Bash(npm test:*) in this project" (AllowAlways).
+	Always []string `json:"always"`
+	// A question you can answer in your own words (AnswerText): Claude's,
+	// one question, one choice.
+	FreeText bool `json:"freeText"`
 }
 
 // Question is one of the questions Claude asks you.
@@ -93,7 +100,10 @@ type waiter struct {
 	// An AskUserQuestion's questions and options as Claude Code sent them
 	// (the inbox shows them redacted): what its answers must name.
 	questions []wire.Question
-	codex     bool
+	// The permission_suggestions behind each of the Approval's Always (for
+	// Codex: none, its key is a).
+	always []wire.Suggestion
+	codex  bool
 	// Answered by a key typed in its pane: off the list, but the hook
 	// still waits (Claude Code kills it on No).
 	inPane bool
@@ -106,6 +116,10 @@ type answer struct {
 	answers  map[string]string
 	// Codex: the keys that answer its question (each option's number).
 	keys []string
+	// Allowed for good: the suggestions Claude Code saves.
+	permissions []wire.Suggestion
+	// Denied with what to do instead.
+	message string
 }
 
 // Codex's approval prompt: y is "Yes, proceed", Esc is "No, and tell Codex
@@ -141,6 +155,18 @@ func (s *Service) awaitApproval(ctx context.Context, req wire.Request) wire.Resp
 		codex: req.Provider == "codex"}
 	if isQuestion(req.Tool) && req.Input != nil {
 		w.questions = req.Input.Questions
+	}
+	switch {
+	case w.codex && !isQuestion(req.Tool):
+		ap.Always = []string{codexAlways(req.Tool)}
+	case !w.codex:
+		for _, sg := range req.Suggestions {
+			if label := suggestionLabel(sg); label != "" {
+				ap.Always = append(ap.Always, label)
+				w.always = append(w.always, sg)
+			}
+		}
+		ap.FreeText = len(ap.Questions) == 1 && !ap.Questions[0].Multi
 	}
 	msg := firstOf(strings.TrimSpace(req.Message), req.Tool)
 	if req.Input != nil && req.Input.Command != "" {
@@ -194,7 +220,7 @@ func (s *Service) awaitApproval(ctx context.Context, req wire.Request) wire.Resp
 	case decision == Deny || gone:
 		s.afterApproval(req.Pane, StateIdle, inPane)
 	}
-	return wire.Response{Decision: decision, Answers: got.answers}
+	return wire.Response{Decision: decision, Answers: got.answers, Permissions: got.permissions, Message: got.message}
 }
 
 // Claude Code's multiple-choice question to you comes through the
@@ -515,6 +541,151 @@ func (s *Service) AnswerQuestion(id string, options []string) error {
 	return s.answer(id, answer{decision: Allow, answers: answers})
 }
 
+// AllowAlways allows an approval and saves its choice'th "don't ask again"
+// (one of the Approval's Always); for Codex, it presses a.
+func (s *Service) AllowAlways(id string, choice int) error {
+	s.mu.Lock()
+	w := s.waits[id]
+	var sg wire.Suggestion
+	ok := w != nil && (w.codex && choice == 0 && len(w.questions) == 0 || choice >= 0 && choice < len(w.always))
+	if ok && !w.codex {
+		sg = w.always[choice]
+	}
+	s.mu.Unlock()
+	switch {
+	case w == nil:
+		return errors.New("it was answered already")
+	case !ok:
+		return errors.New("it has no such choice")
+	case w.codex:
+		return s.answer(id, answer{decision: Allow, keys: []string{codexAlwaysKey}})
+	}
+	return s.answer(id, answer{decision: Allow, permissions: []wire.Suggestion{sg}})
+}
+
+// DenyWith denies an approval and tells the agent what to do instead,
+// which it carries on with: Claude gets it as the reason; Codex's No (Esc)
+// ends its turn, so the text is typed into its prompt and sent.
+func (s *Service) DenyWith(id, text string) error {
+	text = strings.TrimSpace(text)
+	if text == "" {
+		return errors.New("say what to do instead")
+	}
+	if len(text) > maxTold {
+		return errors.New("that's too long")
+	}
+	s.mu.Lock()
+	w := s.waits[id]
+	codex := w != nil && w.codex
+	s.mu.Unlock()
+	if codex {
+		// One line: Enter in Codex's prompt sends it.
+		line := strings.Join(strings.Fields(text), " ")
+		return s.answer(id, answer{decision: Deny, keys: []string{codexDenyKey, pause, line, pause, "\r"}})
+	}
+	return s.answer(id, answer{decision: Deny, message: text})
+}
+
+// AnswerText answers a question Claude asks in your own words (its
+// "Type something"), when the Approval says FreeText.
+func (s *Service) AnswerText(id, text string) error {
+	text = strings.TrimSpace(text)
+	if text == "" {
+		return errors.New("type an answer")
+	}
+	if len(text) > maxTold {
+		return errors.New("that's too long")
+	}
+	s.mu.Lock()
+	w := s.waits[id]
+	var q string
+	free := w != nil && !w.codex && !w.inPane && len(w.questions) == 1 && !w.questions[0].MultiSelect
+	if free {
+		q = w.questions[0].Question
+	}
+	s.mu.Unlock()
+	if w == nil {
+		return errors.New("it was answered already")
+	}
+	if !free {
+		return errors.New("this question is answered in the agent's pane")
+	}
+	return s.answer(id, answer{decision: Allow, answers: map[string]string{q: text}})
+}
+
+// maxTold is how long what you tell an agent may be.
+const maxTold = 4000
+
+// pause, among an answer's keys, waits a moment: Codex's prompt shows
+// once its approval closes, and text typed all at once reads as a paste
+// that an Enter right after would only add a line to.
+const pause = "\x00pause"
+
+// Codex's "Yes, and don't ask again for this command in this session" (for
+// an edit: these files), 0.167.
+const codexAlwaysKey = "a"
+
+func codexAlways(tool string) string {
+	if tool == "apply_patch" {
+		return "Don't ask again for these files"
+	}
+	return "Don't ask again for this command this session"
+}
+
+// suggestionLabel says what a permission_suggestion saves, "" for one
+// that isn't an allow (wtf offers only those).
+func suggestionLabel(sg wire.Suggestion) string {
+	var v struct {
+		Type  string `json:"type"`
+		Rules []struct {
+			Tool    string `json:"toolName"`
+			Content string `json:"ruleContent"`
+		} `json:"rules"`
+		Behavior    string   `json:"behavior"`
+		Mode        string   `json:"mode"`
+		Directories []string `json:"directories"`
+		Destination string   `json:"destination"`
+	}
+	if json.Unmarshal(sg, &v) != nil {
+		return ""
+	}
+	where := map[string]string{"localSettings": " in this project", "projectSettings": " in this project, for everyone",
+		"userSettings": " in every project", "session": " this session", "cliArg": " this session"}[v.Destination]
+	var label string
+	switch v.Type {
+	case "addRules", "replaceRules":
+		if v.Behavior != "allow" || len(v.Rules) == 0 {
+			return ""
+		}
+		var rules []string
+		for _, r := range v.Rules {
+			if r.Content == "" {
+				rules = append(rules, r.Tool)
+			} else {
+				rules = append(rules, r.Tool+"("+r.Content+")")
+			}
+		}
+		label = "Always allow " + strings.Join(rules, ", ") + where
+	case "setMode":
+		switch v.Mode {
+		case "acceptEdits":
+			label = "Accept all edits" + where
+		case "":
+			return ""
+		default:
+			label = "Switch to " + v.Mode + " mode" + where
+		}
+	case "addDirectories":
+		if len(v.Directories) == 0 {
+			return ""
+		}
+		label = "Always allow access to " + strings.Join(v.Directories, ", ") + where
+	default:
+		return ""
+	}
+	return shortLine(uicore.Redact(label), maxPrompt)
+}
+
 func (s *Service) answer(id string, a answer) error {
 	decision := a.decision
 	s.mu.Lock()
@@ -536,6 +707,10 @@ func (s *Service) answer(id string, a answer) error {
 		ctx, cancel := context.WithTimeout(context.Background(), queryTimeout)
 		defer cancel()
 		for _, k := range keys {
+			if k == pause {
+				time.Sleep(300 * time.Millisecond)
+				continue
+			}
 			if _, err := s.ask(ctx, UIRequest{Kind: KindKeys, Session: w.session, Text: k}); err != nil {
 				return err
 			}
