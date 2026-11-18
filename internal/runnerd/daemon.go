@@ -38,6 +38,8 @@ const (
 	watchEvery = 3 * time.Second
 	// A client that can't keep up is dropped (it reconnects).
 	clientQueue = 256
+	// How long an ended agent stays listed (and its tmux pane kept).
+	KeepEnded = 72 * time.Hour
 )
 
 // Daemon is one runner's daemon.
@@ -96,6 +98,9 @@ func (d *Daemon) Serve() error {
 
 	d.br = bridge.NewService(infra.NewService())
 	d.br.PaneOf = d.paneOf
+	run := make([]byte, 3)
+	rand.Read(run)
+	d.br.IDPrefix = hex.EncodeToString(run) + "-"
 	events.SetEmitter(func(name string, data any) {
 		if st, ok := data.(bridge.Status); ok && name == bridge.EventStatus {
 			d.mu.Lock()
@@ -109,6 +114,12 @@ func (d *Daemon) Serve() error {
 			d.broadcast(Message{Type: "status", Status: &st})
 		}
 	})
+	// What its agents last said, before their hooks say more.
+	for _, a := range d.agents {
+		if st, ok := d.last[a.ID]; ok && a.Alive {
+			bridge.Restore(d.br, st)
+		}
+	}
 	if err := d.br.ListenAt(d.run(HooksSock), key); err != nil {
 		return err
 	}
@@ -154,6 +165,11 @@ func loadKey(path string) ([]byte, error) {
 func (d *Daemon) load() {
 	if b, err := os.ReadFile(d.run(agentsFile)); err == nil {
 		_ = json.Unmarshal(b, &d.agents)
+	}
+	for i := range d.agents {
+		if !d.agents[i].Alive && d.agents[i].Ended == 0 {
+			d.agents[i].Ended = time.Now().UnixMilli()
+		}
 	}
 	d.last = map[string]bridge.Status{}
 	if b, err := os.ReadFile(d.run(statusFile)); err == nil {
@@ -253,8 +269,9 @@ func (d *Daemon) watch() {
 			continue
 		}
 		changed = true
-		a.Alive, a.Exit = now, ""
+		a.Alive, a.Exit, a.Ended = now, "", 0
 		if !now {
+			a.Ended = time.Now().UnixMilli()
 			a.Exit = exit[a.ID]
 			if a.Exit == "" {
 				a.Exit = "gone"
@@ -262,10 +279,26 @@ func (d *Daemon) watch() {
 			ended = append(ended, a.ID)
 		}
 	}
+	// Ended long ago: dropped, with its tmux pane.
+	var old []string
+	cut := time.Now().Add(-KeepEnded).UnixMilli()
+	d.agents = slices.DeleteFunc(d.agents, func(a Agent) bool {
+		if !a.Alive && a.Ended > 0 && a.Ended < cut {
+			old = append(old, a.ID)
+			return true
+		}
+		return false
+	})
+	if len(old) > 0 {
+		changed = true
+	}
 	if changed {
 		d.save()
 	}
 	d.mu.Unlock()
+	for _, id := range old {
+		exec.Command(d.Tmux, "kill-session", "-t", "=wtf-"+id).Run()
+	}
 	for _, id := range ended {
 		d.br.ShellClosed(id)
 	}
@@ -593,7 +626,7 @@ func (d *Daemon) start(cmd Command) (Agent, error) {
 	}
 	args := []string{"new-session", "-d", "-s", "wtf-" + a.ID, "-x", "200", "-y", "50", "-c", a.Dir,
 		"-e", "WTF_PANE=" + a.ID, "-e", "WTF_BRIDGE=" + d.run(HooksSock), "-e", "WTF_BRIDGE_TOKEN=" + d.br.Token(a.ID),
-		"-e", "WTF_MCP=" + filepath.Join(d.Base, "wtf-mcp"),
+		"-e", "WTF_MCP=" + filepath.Join(d.Base, "wtf-mcp"), "-e", "WTF_RUNNER=1",
 		"--", shell, "-lc", agentScript, filepath.Join(d.Base, "status-settings.json"), d.Claude()}
 	if a.Mode != "" {
 		args = append(args, "--permission-mode", a.Mode)

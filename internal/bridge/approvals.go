@@ -195,7 +195,9 @@ func (s *Service) awaitApproval(ctx context.Context, req wire.Request) wire.Resp
 		s.mu.Unlock()
 		return wire.Response{}
 	}
-	ap.ID = "a" + strconv.FormatUint(s.seq.Add(1), 10)
+	// (A restored agent that was waiting says what it waits on now.)
+	a.Message = uicore.Redact(shortLine(msg, maxPrompt))
+	ap.ID = "a" + s.IDPrefix + strconv.FormatUint(s.seq.Add(1), 10)
 	s.waits[ap.ID] = w
 	s.asking.Add(1)
 	a.Approvals = append(a.Approvals, ap)

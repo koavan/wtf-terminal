@@ -244,6 +244,10 @@ func (w *Window) runnerMenu(id string) []*menuItem {
 	if !w.app.runners.busy[id] {
 		items = append(items, item("Check Again", func() { w.app.checkRunner(id) }))
 	}
+	if c, ok := w.app.runners.agents[id]; ok && !c.Connected {
+		svc := w.app.be.Runners
+		items = append(items, item("Reconnect Now", func() { go svc.Reconnect(id) }))
+	}
 	label, run, fix := w.runnerFix(st)
 	if fix {
 		items = append(items, item(label, run))

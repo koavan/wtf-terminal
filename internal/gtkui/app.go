@@ -229,6 +229,11 @@ func (a *App) activate() {
 		return
 	}
 	a.started = true
+	// #41: runners you added connect now, so their agents' requests reach
+	// you without opening the Agents tab. Not in self-checks.
+	if a.debug == "" {
+		coreglib.IdleAdd(a.loadRunners)
+	}
 	var saved []state.Window
 	if a.debug == "" || a.debug == "restore" {
 		saved = a.be.Store.Windows()

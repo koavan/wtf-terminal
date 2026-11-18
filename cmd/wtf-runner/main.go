@@ -37,6 +37,11 @@ func main() {
 	case "--version", "version":
 		fmt.Printf("%s protocol=%s\n", version, runnerd.Protocol)
 	case "serve":
+		// A big log starts over (the last one kept as .old).
+		logPath := filepath.Join(base, runnerd.RunDir, runnerd.LogFile)
+		if fi, err := os.Stat(logPath); err == nil && fi.Size() > 1<<20 {
+			os.Rename(logPath, logPath+".old")
+		}
 		f, err := os.OpenFile(filepath.Join(base, runnerd.RunDir, runnerd.LogFile), os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0o600)
 		if err == nil {
 			log.SetOutput(f)

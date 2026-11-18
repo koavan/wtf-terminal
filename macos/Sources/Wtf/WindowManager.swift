@@ -69,6 +69,14 @@ final class WindowManager {
         Settings.shared.showProblems()
         // Once ever: which tools the side pane needs aren't installed.
         if ProcessInfo.processInfo.environment["WTF_NATIVE_DEBUG"] == nil { keyWindow?.toolsFirstRun() ?? windows.first?.toolsFirstRun() }
+        // #41: runners you added connect now, so their agents' requests
+        // reach you without opening the Agents tab; again after a sleep.
+        if ProcessInfo.processInfo.environment["WTF_NATIVE_DEBUG"] == nil {
+            Runners.load()
+            NSWorkspace.shared.notificationCenter.addObserver(forName: NSWorkspace.didWakeNotification, object: nil, queue: .main) { _ in
+                Task { try? await Services.runner.ReconnectAll() }
+            }
+        }
     }
 
     private var badgesOn = true

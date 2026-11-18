@@ -357,6 +357,7 @@ enum Runners {
             m.addItem(i)
         }
         add("Check Again", enabled: !busy.contains(id)) { check(id) }
+        if let c = agents[id], !c.connected { add("Reconnect Now") { Task { try? await Services.runner.Reconnect(id) } } }
         if let fx = fix(st) { add(fx.title) { fx.run(owner) } }
         add("Start Claude Code…", enabled: ready.contains { $0.id == id }) { start(on: id, owner: owner) }
         m.addItem(.separator())

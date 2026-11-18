@@ -164,7 +164,9 @@ Each runner's agents are listed under it, like the agents here: **Needs you**, *
 - **What it asks you** shows exactly like a local agent's: a card over the terminal, a row under the agent in the Agents tab, and a notification, with **Allow**, **Deny**, the always-allow choices, **Deny and tell…** and question forms. Your answer goes to the runner, where Claude Code is waiting on it. A request can wait there for as long as Claude Code lets it (up to a day), even while wtf isn't connected.
 - When it needs you or finishes, you get a notification and a sound, as for agents here, saying which runner it's on.
 
-wtf keeps one SSH connection open to each runner that's set up, and reconnects after a drop; the runner's row says **Not connected** and why while it's down. If wtf-runner on the runner restarts (an update, say) while an agent waits for you, that request can only be answered in the agent's tab: its row says **answer in its pane**.
+wtf connects to each runner you've added when it starts (one SSH connection each, kept open; nothing is polled), so a runner's agent that needs you reaches you without opening the Agents tab. After a drop it reconnects by itself, at once when your computer wakes up{{mac:|other: or within half a minute}}; meanwhile the runner's row says **Not connected** and why, and right-click → **Reconnect Now** tries straight away.
+
+When wtf-runner on the runner restarts (you update it, say) while an agent waits for you, the request comes back within a minute and can be answered from wtf as before. An agent that ended stays listed for 3 days, with its last screen in its tab, then goes.
 
 ## Without opening the side pane
 

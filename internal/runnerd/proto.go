@@ -31,6 +31,9 @@ type Agent struct {
 	// Its tmux pane is running; when it isn't, how it exited.
 	Alive bool   `json:"alive"`
 	Exit  string `json:"exit,omitempty"`
+	// When it ended (Unix milliseconds); ended agents are dropped after
+	// KeepEnded.
+	Ended int64 `json:"ended,omitempty"`
 }
 
 // Message is what the daemon sends.

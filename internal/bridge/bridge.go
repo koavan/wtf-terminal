@@ -254,6 +254,9 @@ type Service struct {
 	// and environment, for an approval's context facts).
 	Headless bool
 	PaneOf   func(session string) (Pane, bool)
+	// Starts approval ids, so a restarted daemon's never match its last
+	// one's.
+	IDPrefix string
 }
 
 func NewService(in *infra.Service) *Service {

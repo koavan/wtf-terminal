@@ -1070,9 +1070,15 @@ Phases:
    inbox, notifications with Allow/Deny, Next Approval and Go to Agent…
    work unchanged; answers are forwarded to the daemon's bridge (op
    `answer`). Context facts are worked out on the runner (PaneOf).
-6. ☐ Robustness: reconnect with backoff, protocol version check and runner
-   upgrade, dead tmux cleanup; self-checks against a local Linux container
-   with sshd (never the real `~/.ssh`).
+6. ☑ (2026-11-17) Robustness: runners connect at launch (not in
+   self-checks) and again on wake (macOS); Reconnect Now; a waiting
+   `PermissionRequest` survives a daemon restart (wtf-mcp retries for
+   ~60 s when WTF_RUNNER is set; the daemon restores its agents' last
+   statuses into its bridge, and approval ids carry a per-run prefix);
+   ended agents and their panes go after 72 h; the daemon log rolls over
+   at 1 MB. `linux/runner-test.sh` (testdata/runner/Dockerfile) sets up a
+   throwaway runner and runs the live test; `agents` also runs real
+   agents (approval, daemon restart, peek, reply) after `login`.
 7. ☐ macOS + Linux UI parity, manual page, release.
 
 ## Also built

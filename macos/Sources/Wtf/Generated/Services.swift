@@ -263,6 +263,8 @@ enum Services {
         static func List() async throws -> [Go.runner.Status] { try await Backend.call("runner", "List", [], as: [Go.runner.Status].self) }
         static func OpenCommand(_ a0: String, _ a1: String) async throws -> String { try await Backend.call("runner", "OpenCommand", [a0, a1], as: String.self) }
         static func Peek(_ a0: String, _ a1: String) async throws -> String { try await Backend.call("runner", "Peek", [a0, a1], as: String.self) }
+        static func Reconnect(_ a0: String) async throws { try await Backend.run("runner", "Reconnect", [a0]) }
+        static func ReconnectAll() async throws { try await Backend.run("runner", "ReconnectAll", []) }
         static func Remove(_ a0: String) async throws { try await Backend.run("runner", "Remove", [a0]) }
         static func Rename(_ a0: String, _ a1: String) async throws { try await Backend.run("runner", "Rename", [a0, a1]) }
         static func RenameAgent(_ a0: String, _ a1: String, _ a2: String) async throws { try await Backend.run("runner", "RenameAgent", [a0, a1, a2]) }

@@ -3288,9 +3288,10 @@ extension Go.runner {
         public var created: Int
         public var alive: Bool
         public var exit: String
+        public var ended: Int
         public var status: Go.bridge.Status?
 
-        public init(id: String = "", name: String = "", dir: String = "", prompt: String = "", mode: String = "", created: Int = 0, alive: Bool = false, exit: String = "", status: Go.bridge.Status? = nil) {
+        public init(id: String = "", name: String = "", dir: String = "", prompt: String = "", mode: String = "", created: Int = 0, alive: Bool = false, exit: String = "", ended: Int = 0, status: Go.bridge.Status? = nil) {
             self.id = id
             self.name = name
             self.dir = dir
@@ -3299,6 +3300,7 @@ extension Go.runner {
             self.created = created
             self.alive = alive
             self.exit = exit
+            self.ended = ended
             self.status = status
         }
 
@@ -3311,6 +3313,7 @@ extension Go.runner {
             case created = "created"
             case alive = "alive"
             case exit = "exit"
+            case ended = "ended"
             case status = "status"
         }
 
@@ -3324,6 +3327,7 @@ extension Go.runner {
             self.created = (try? c.decodeIfPresent(Int.self, forKey: .created)) ?? 0
             self.alive = (try? c.decodeIfPresent(Bool.self, forKey: .alive)) ?? false
             self.exit = (try? c.decodeIfPresent(String.self, forKey: .exit)) ?? ""
+            self.ended = (try? c.decodeIfPresent(Int.self, forKey: .ended)) ?? 0
             self.status = (try? c.decodeIfPresent(Go.bridge.Status.self, forKey: .status)) ?? nil
         }
     }
@@ -3428,8 +3432,9 @@ extension Go.runnerd {
         public var created: Int
         public var alive: Bool
         public var exit: String
+        public var ended: Int
 
-        public init(id: String = "", name: String = "", dir: String = "", prompt: String = "", mode: String = "", created: Int = 0, alive: Bool = false, exit: String = "") {
+        public init(id: String = "", name: String = "", dir: String = "", prompt: String = "", mode: String = "", created: Int = 0, alive: Bool = false, exit: String = "", ended: Int = 0) {
             self.id = id
             self.name = name
             self.dir = dir
@@ -3438,6 +3443,7 @@ extension Go.runnerd {
             self.created = created
             self.alive = alive
             self.exit = exit
+            self.ended = ended
         }
 
         enum CodingKeys: String, CodingKey {
@@ -3449,6 +3455,7 @@ extension Go.runnerd {
             case created = "created"
             case alive = "alive"
             case exit = "exit"
+            case ended = "ended"
         }
 
         public init(from decoder: Decoder) throws {
@@ -3461,6 +3468,7 @@ extension Go.runnerd {
             self.created = (try? c.decodeIfPresent(Int.self, forKey: .created)) ?? 0
             self.alive = (try? c.decodeIfPresent(Bool.self, forKey: .alive)) ?? false
             self.exit = (try? c.decodeIfPresent(String.self, forKey: .exit)) ?? ""
+            self.ended = (try? c.decodeIfPresent(Int.self, forKey: .ended)) ?? 0
         }
     }
 }

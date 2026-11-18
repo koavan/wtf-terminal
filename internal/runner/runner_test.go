@@ -268,6 +268,27 @@ func TestLive(t *testing.T) {
 	if apID == "" {
 		t.Fatalf("not mirrored with its approval: %+v", s.Bridge.Agents())
 	}
+	// Phase 6: the daemon restarts (an update) while it waits; the hook
+	// asks the new one, and the request is back, answerable from here.
+	if out, err := exec.Command("ssh", "-F", cfg, "runner", `"$HOME/`+Dir+`/wtf-runner" stop`).CombinedOutput(); err != nil {
+		t.Fatalf("stop: %v %s", err, out)
+	}
+	first := apID
+	for range 120 {
+		time.Sleep(500 * time.Millisecond)
+		apID = ""
+		for _, st := range s.Bridge.Agents() {
+			if st.Session == session && len(st.Approvals) > 0 {
+				apID = st.Approvals[0].ID
+			}
+		}
+		if apID != "" && apID != first {
+			break
+		}
+	}
+	if apID == "" || apID == first {
+		t.Fatalf("the request didn't come back after a restart: %+v", s.Agents("runner:"))
+	}
 	if err := s.Bridge.Answer(apID, bridge.Allow); err != nil {
 		t.Fatal(err)
 	}

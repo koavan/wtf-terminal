@@ -88,3 +88,16 @@ func cutLast(s, sep string) (before, after string, ok bool) {
 	}
 	return s[:i], s[i+len(sep):], true
 }
+
+// Restore puts back an agent's last status in a headless bridge
+// (wtf-runner's daemon, after a restart), without its approvals: their
+// hooks ask again (wtf-mcp retries on a runner), and a permission request
+// for an agent that was waiting is taken.
+func Restore(s *Service, st Status) {
+	st.Approvals = nil
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.agents[st.Session] == nil {
+		s.agents[st.Session] = &st
+	}
+}

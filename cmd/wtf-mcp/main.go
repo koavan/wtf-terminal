@@ -41,6 +41,10 @@ var version = "dev"
 // A call can wait for a command to finish in the shell (the app limits it).
 const callTimeout = 4 * time.Minute
 
+// How long a runner's permission prompt waits for its daemon to come back
+// (0.5 + 1 + … + 32 s, about a minute).
+const runnerRetry = 60 * time.Second
+
 type client struct{ sock, pane, token string }
 
 func (c client) do(ctx context.Context, req wire.Request) (wire.Response, error) {
@@ -224,6 +228,15 @@ func hook(c client, provider string, in io.Reader, out io.Writer) int {
 		}
 	}
 	resp, err := c.do(ctx, req)
+	// On a runner (#41), a permission prompt outlives wtf-runner's daemon
+	// restarting (an update): ask the new one, for as long as it takes
+	// to come back. Claude Code's own dialog stays open meanwhile.
+	if err != nil && ev.Event == "PermissionRequest" && provider == "claude" && os.Getenv(wire.EnvRunner) != "" {
+		for wait := 500 * time.Millisecond; err != nil && wait < runnerRetry; wait *= 2 {
+			time.Sleep(wait)
+			resp, err = c.do(ctx, req)
+		}
+	}
 	if err != nil {
 		log.Print(err)
 		return 0

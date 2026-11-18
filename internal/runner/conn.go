@@ -95,6 +95,37 @@ func (s *Service) disconnect(id string) {
 	}
 }
 
+// Reconnect drops a runner's stream and starts it again now (after the
+// network changed, or this computer woke up), rather than at its next
+// retry. It does nothing for a runner that isn't connecting.
+func (s *Service) Reconnect(id string) {
+	s.mu.Lock()
+	c := s.conns[id]
+	s.mu.Unlock()
+	if c == nil {
+		return
+	}
+	s.disconnect(id)
+	s.connect(c.r)
+}
+
+// ReconnectAll reconnects every runner whose stream is down.
+func (s *Service) ReconnectAll() {
+	s.mu.Lock()
+	var down []string
+	for id, c := range s.conns {
+		c.mu.Lock()
+		if !c.connected {
+			down = append(down, id)
+		}
+		c.mu.Unlock()
+	}
+	s.mu.Unlock()
+	for _, id := range down {
+		s.Reconnect(id)
+	}
+}
+
 func (s *Service) conn(id string) (*conn, error) {
 	s.mu.Lock()
 	c := s.conns[id]

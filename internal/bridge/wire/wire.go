@@ -21,6 +21,9 @@ const (
 	// The TOML string value for a Codex command hook ("/path/wtf-mcp hook").
 	// Shell integration adds it to Codex's lifecycle hooks for that run.
 	EnvCodexHook = "WTF_CODEX_HOOK"
+	// Set in agents wtf-runner starts (#41): their hooks reach a daemon
+	// that may restart.
+	EnvRunner = "WTF_RUNNER"
 )
 
 // Request is what the helper sends.
