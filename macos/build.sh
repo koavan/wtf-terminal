@@ -73,6 +73,8 @@ mkdir -p "$app/Contents/Resources/Fonts"
 cp macos/Resources/Fonts/*.ttf macos/Resources/Fonts/OFL.txt "$app/Contents/Resources/Fonts/"
 # The wtf Claude Code plugin, for `claude --plugin-dir` (#32).
 cp -R claude-plugin "$app/Contents/Resources/claude-plugin"
+# What wtf installs on agent runners (#41).
+linux/runner-payload.sh "$app/Contents/Resources/runner" "$version"
 # The manual: the pages in manual/, shared with the Linux app.
 mkdir -p "$app/Contents/Resources/manual"
 cp manual/*.md "$app/Contents/Resources/manual/"

@@ -22,6 +22,7 @@ extension Go { public enum kube {} }
 extension Go { public enum netconn {} }
 extension Go { public enum procs {} }
 extension Go { public enum review {} }
+extension Go { public enum runner {} }
 extension Go { public enum snippets {} }
 extension Go { public enum sshhosts {} }
 extension Go { public enum state {} }
@@ -3143,6 +3144,190 @@ extension Go.review {
             self.excerpt = (try? c.decodeIfPresent(String.self, forKey: .excerpt)) ?? ""
             self.countText = (try? c.decodeIfPresent(String.self, forKey: .countText)) ?? ""
             self.lines = (try? c.decodeIfPresent([String].self, forKey: .lines)) ?? []
+        }
+    }
+}
+
+extension Go.runner {
+    /// runner.Facts
+    public struct Facts: Codable, Equatable, Sendable {
+        public var reachable: Bool
+        public var error: String
+        public var os: String
+        public var arch: String
+        public var goarch: String
+        public var home: String
+        public var tmux: String
+        public var packageManager: String
+        public var claude: String
+        public var claudeVersion: String
+        public var signedIn: Bool
+        public var authMethod: String
+        public var account: String
+        public var org: String
+        public var plan: String
+        public var loginExpires: String
+        public var onboarded: Bool
+        public var apiKeySet: Bool
+        public var runnerVersion: String
+        public var runnerProtocol: String
+
+        public init(reachable: Bool = false, error: String = "", os: String = "", arch: String = "", goarch: String = "", home: String = "", tmux: String = "", packageManager: String = "", claude: String = "", claudeVersion: String = "", signedIn: Bool = false, authMethod: String = "", account: String = "", org: String = "", plan: String = "", loginExpires: String = "", onboarded: Bool = false, apiKeySet: Bool = false, runnerVersion: String = "", runnerProtocol: String = "") {
+            self.reachable = reachable
+            self.error = error
+            self.os = os
+            self.arch = arch
+            self.goarch = goarch
+            self.home = home
+            self.tmux = tmux
+            self.packageManager = packageManager
+            self.claude = claude
+            self.claudeVersion = claudeVersion
+            self.signedIn = signedIn
+            self.authMethod = authMethod
+            self.account = account
+            self.org = org
+            self.plan = plan
+            self.loginExpires = loginExpires
+            self.onboarded = onboarded
+            self.apiKeySet = apiKeySet
+            self.runnerVersion = runnerVersion
+            self.runnerProtocol = runnerProtocol
+        }
+
+        enum CodingKeys: String, CodingKey {
+            case reachable = "reachable"
+            case error = "error"
+            case os = "os"
+            case arch = "arch"
+            case goarch = "goarch"
+            case home = "home"
+            case tmux = "tmux"
+            case packageManager = "packageManager"
+            case claude = "claude"
+            case claudeVersion = "claudeVersion"
+            case signedIn = "signedIn"
+            case authMethod = "authMethod"
+            case account = "account"
+            case org = "org"
+            case plan = "plan"
+            case loginExpires = "loginExpires"
+            case onboarded = "onboarded"
+            case apiKeySet = "apiKeySet"
+            case runnerVersion = "runnerVersion"
+            case runnerProtocol = "runnerProtocol"
+        }
+
+        public init(from decoder: Decoder) throws {
+            let c = try decoder.container(keyedBy: CodingKeys.self)
+            self.reachable = (try? c.decodeIfPresent(Bool.self, forKey: .reachable)) ?? false
+            self.error = (try? c.decodeIfPresent(String.self, forKey: .error)) ?? ""
+            self.os = (try? c.decodeIfPresent(String.self, forKey: .os)) ?? ""
+            self.arch = (try? c.decodeIfPresent(String.self, forKey: .arch)) ?? ""
+            self.goarch = (try? c.decodeIfPresent(String.self, forKey: .goarch)) ?? ""
+            self.home = (try? c.decodeIfPresent(String.self, forKey: .home)) ?? ""
+            self.tmux = (try? c.decodeIfPresent(String.self, forKey: .tmux)) ?? ""
+            self.packageManager = (try? c.decodeIfPresent(String.self, forKey: .packageManager)) ?? ""
+            self.claude = (try? c.decodeIfPresent(String.self, forKey: .claude)) ?? ""
+            self.claudeVersion = (try? c.decodeIfPresent(String.self, forKey: .claudeVersion)) ?? ""
+            self.signedIn = (try? c.decodeIfPresent(Bool.self, forKey: .signedIn)) ?? false
+            self.authMethod = (try? c.decodeIfPresent(String.self, forKey: .authMethod)) ?? ""
+            self.account = (try? c.decodeIfPresent(String.self, forKey: .account)) ?? ""
+            self.org = (try? c.decodeIfPresent(String.self, forKey: .org)) ?? ""
+            self.plan = (try? c.decodeIfPresent(String.self, forKey: .plan)) ?? ""
+            self.loginExpires = (try? c.decodeIfPresent(String.self, forKey: .loginExpires)) ?? ""
+            self.onboarded = (try? c.decodeIfPresent(Bool.self, forKey: .onboarded)) ?? false
+            self.apiKeySet = (try? c.decodeIfPresent(Bool.self, forKey: .apiKeySet)) ?? false
+            self.runnerVersion = (try? c.decodeIfPresent(String.self, forKey: .runnerVersion)) ?? ""
+            self.runnerProtocol = (try? c.decodeIfPresent(String.self, forKey: .runnerProtocol)) ?? ""
+        }
+    }
+}
+
+extension Go.runner {
+    /// runner.Runner
+    public struct Runner: Codable, Equatable, Sendable {
+        public var id: String
+        public var alias: String
+        public var port: String
+        public var name: String
+        public var added: String
+
+        public init(id: String = "", alias: String = "", port: String = "", name: String = "", added: String = "") {
+            self.id = id
+            self.alias = alias
+            self.port = port
+            self.name = name
+            self.added = added
+        }
+
+        enum CodingKeys: String, CodingKey {
+            case id = "id"
+            case alias = "alias"
+            case port = "port"
+            case name = "name"
+            case added = "added"
+        }
+
+        public init(from decoder: Decoder) throws {
+            let c = try decoder.container(keyedBy: CodingKeys.self)
+            self.id = (try? c.decodeIfPresent(String.self, forKey: .id)) ?? ""
+            self.alias = (try? c.decodeIfPresent(String.self, forKey: .alias)) ?? ""
+            self.port = (try? c.decodeIfPresent(String.self, forKey: .port)) ?? ""
+            self.name = (try? c.decodeIfPresent(String.self, forKey: .name)) ?? ""
+            self.added = (try? c.decodeIfPresent(String.self, forKey: .added)) ?? ""
+        }
+    }
+}
+
+extension Go.runner {
+    /// runner.Status
+    public struct Status: Codable, Equatable, Sendable {
+        public var id: String
+        public var alias: String
+        public var port: String
+        public var name: String
+        public var added: String
+        public var facts: Go.runner.Facts?
+        public var checked: String
+        public var problems: [String]
+        public var outdated: Bool
+
+        public init(id: String = "", alias: String = "", port: String = "", name: String = "", added: String = "", facts: Go.runner.Facts? = nil, checked: String = "", problems: [String] = [], outdated: Bool = false) {
+            self.id = id
+            self.alias = alias
+            self.port = port
+            self.name = name
+            self.added = added
+            self.facts = facts
+            self.checked = checked
+            self.problems = problems
+            self.outdated = outdated
+        }
+
+        enum CodingKeys: String, CodingKey {
+            case id = "id"
+            case alias = "alias"
+            case port = "port"
+            case name = "name"
+            case added = "added"
+            case facts = "facts"
+            case checked = "checked"
+            case problems = "problems"
+            case outdated = "outdated"
+        }
+
+        public init(from decoder: Decoder) throws {
+            let c = try decoder.container(keyedBy: CodingKeys.self)
+            self.id = (try? c.decodeIfPresent(String.self, forKey: .id)) ?? ""
+            self.alias = (try? c.decodeIfPresent(String.self, forKey: .alias)) ?? ""
+            self.port = (try? c.decodeIfPresent(String.self, forKey: .port)) ?? ""
+            self.name = (try? c.decodeIfPresent(String.self, forKey: .name)) ?? ""
+            self.added = (try? c.decodeIfPresent(String.self, forKey: .added)) ?? ""
+            self.facts = (try? c.decodeIfPresent(Go.runner.Facts.self, forKey: .facts)) ?? nil
+            self.checked = (try? c.decodeIfPresent(String.self, forKey: .checked)) ?? ""
+            self.problems = (try? c.decodeIfPresent([String].self, forKey: .problems)) ?? []
+            self.outdated = (try? c.decodeIfPresent(Bool.self, forKey: .outdated)) ?? false
         }
     }
 }

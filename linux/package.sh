@@ -44,6 +44,7 @@ for arch in $archs; do
 		done' sh "$version" "$commit" "$date" "$stage"
 	cp macos/Resources/Fonts/*.ttf macos/Resources/Fonts/OFL.txt "$stage/fonts/"
 	cp -R claude-plugin "$stage/claude-plugin"
+	linux/runner-payload.sh "$stage/runner" "$version"
 
 	echo "== $arch: packaging"
 	# nfpm expands variables in some fields but not in file paths.

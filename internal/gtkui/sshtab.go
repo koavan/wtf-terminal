@@ -689,6 +689,7 @@ func (s *sshHostsSection) menu(ids []string) []*menuItem {
 		menuSection,
 		item("Install Public Key…", func() { t.showKeyInstall(nil, &h) }),
 		item("Host Keys…", func() { t.showHostKeys(h) }),
+		item("Use as Agent Runner…", func() { w.addRunner(&h) }),
 		menuSection,
 		item("Copy ssh Command", func() { t.copy(uicore.SSHCommand(h), "Copied ssh command") }),
 		item("Copy Host Name", func() {

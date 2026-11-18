@@ -128,6 +128,31 @@ A resumed agent gets back the name you gave it. A Codex agent resumes the same w
 
 To run several agents on one repository without them editing the same files, give each its own [worktree](#worktrees): {{cmd:worktree.new}} can start Claude Code in it straight away.
 
+## Runners: agents on another machine
+
+A **runner** is a Linux machine you reach over SSH where Claude Code agents can run, signed in to **your own Claude account** on that machine. wtf never uses or asks for an API key for them. Runners are listed under **Runners** at the bottom of the Agents tab.
+
+**Add one**: **Add Runner…** at the bottom of the Agents tab, or right-click a host in the [SSH tab](#ssh-hosts) → **Use as Agent Runner…**. The machine must already be one of your SSH hosts, and wtf must be able to connect without asking anything: with a key (loaded in your agent, or without a passphrase) and its host key already accepted. If it isn't accepted yet, the runner says so; **Open a Shell There…** connects once in a tab so you can check and accept it. Adding a runner changes nothing on it.
+
+wtf then checks it and shows what it found, as facts:
+
+- the system (Linux, arm64 or amd64), tmux, and the Claude Code and wtf-runner versions there;
+- who Claude Code is signed in as there, the plan, and until when the sign-in lasts;
+- that `ANTHROPIC_API_KEY` is set in your login shell there, if it is. Agents wtf starts there don't get it, so they always use your Claude account.
+
+A green dot means it's ready; orange means something is missing, shown in the row with a button for the next step, in this order:
+
+1. **Install tmux…** and **Install Claude Code…** open a tab that runs the install on the runner (tmux through its package manager, which may ask for your password; Claude Code with its official installer), so you see every step.
+2. **Sign In…** opens a tab running `claude auth login` on the runner. It shows a link: open it in your browser here, sign in to your Claude account, and paste the code it gives you back into the tab. Your sign-in stays on the runner.
+3. **Finish Claude Code Setup…** opens Claude Code there once for its first-run screens (theme and notes; it asks you to trust wtf-runner's own folder). Type `/exit` when it's done.
+4. **Install wtf-runner…** copies wtf-runner, Claude Code's hook helper and wtf's status hooks to `~/.local/share/wtf-runner` on the runner, after you confirm. It changes nothing else there. When you update wtf, the runner shows **Update wtf-runner…**.
+
+After a step in a tab, right-click the runner → **Check Again**. wtf checks each runner once when the Agents tab first shows, and when you ask; it never polls.
+
+Right-click a runner for **Check Again**, **Open a Shell There**, **Sign In Again…**, **Rename…** and **Remove Runner…**. Removing it only forgets it in wtf, unless you also tick **Also delete ~/.local/share/wtf-runner there**. Claude Code, its sign-in and your files stay as they are.
+
+Starting agents on a runner and answering them from wtf come next. Until then, a runner is ready for them but runs nothing.
+
 ## Without opening the side pane
 
 - {{cmd:agents.pick}} lists the same agents in the command palette, most urgent first: needs you, then done, working and idle. Type to filter: `needs`, `done`, `working`, `idle`, or part of a name, tab title, folder, branch or prompt.

@@ -29,6 +29,7 @@ final class AgentsView: NSView, SidePaneTab {
         Agents.observe(self) { [weak self] in self?.rebuild() }
         Redaction.shared.observe(self) { $0.rebuild() }
         Settings.shared.observe(self) { $0.rebuild() }
+        Runners.observe(self) { $0.rebuild() }
         rebuild()
     }
 
@@ -125,6 +126,18 @@ final class AgentsView: NSView, SidePaneTab {
                 form.add(form.link("Resume All…") { [weak owner] in if let owner { Resume.resumeAll(from: owner) } }, full: false)
             }
         }
+        // #41: remote machines agents can run on.
+        let runners = Runners.list
+        let rh = NSTextField(labelWithString: "RUNNERS")
+        rh.font = .systemFont(ofSize: 10.5, weight: .bold)
+        rh.textColor = .secondaryLabelColor
+        rh.toolTip = "Linux machines, reached over SSH, where agents run with your own Claude account"
+        form.add(rh, full: false)
+        for r in runners { form.add(RunnerRow(r, owner: owner)) }
+        if runners.isEmpty {
+            form.add(form.note("Run agents on a Linux machine over SSH, signed in to your own Claude account there."))
+        }
+        form.add(form.link("Add Runner…") { [weak owner] in if let owner { Runners.add(owner: owner) } }, full: false)
         if !list.isEmpty {
             form.add(form.note("Go to Agent… ⌥⌘A · Next Agent Needing You ⌥⌘N" + (asks.isEmpty ? "" : " · Next Approval ⌥⌘Y")))
         }

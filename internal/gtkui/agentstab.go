@@ -65,6 +65,13 @@ func newAgentsTab(w *Window) *agentsTab {
 		}
 	}
 	t.list.onMenu = func(ids []string, x, y float64) {
+		if id, ok := strings.CutPrefix(ids[0], "runner:"); ok {
+			t.list.menu.show(x, y, w.runnerMenu(id), nil)
+			return
+		}
+		if ids[0] == "runner-add" {
+			return
+		}
 		if session, ap, ok := t.approvalAt(ids[0]); ok && len(ap.Questions) > 0 {
 			var items []*menuItem
 			if ap.Clickable() {
@@ -126,7 +133,9 @@ func newAgentsTab(w *Window) *agentsTab {
 	t.root = gtk.NewBox(gtk.OrientationVertical, 4)
 	t.root.Append(t.header.root)
 	t.root.Append(t.list.root)
-	t.stop = w.app.agents.observe(t.rebuild)
+	stopAgents, stopRunners := w.app.agents.observe(t.rebuild), w.app.runners.observe(t.rebuild)
+	t.stop = func() { stopAgents(); stopRunners() }
+	w.app.loadRunners()
 	t.timer = coreglib.TimeoutSecondsAdd(30, func() bool {
 		if t.closed {
 			return false
@@ -189,6 +198,13 @@ func agentRowSession(id string) (session string, toggle bool) {
 // activate: a click on an agent or one of its sub-agents goes to it; on
 // the toggle, shows or hides its sub-agents.
 func (t *agentsTab) activate(id string) {
+	if id == "runner-add" {
+		t.w.addRunner(nil)
+		return
+	}
+	if strings.HasPrefix(id, "runner:") {
+		return // its button does the next thing; right-click for more
+	}
 	if session, _, ok := t.approvalAt(id); ok {
 		t.w.app.goToAgent(session)
 		return
@@ -393,6 +409,9 @@ func (t *agentsTab) rebuild() {
 		sections = append(sections, sideSection{title: "Resumable",
 			tip: "Running in the background when wtf last quit: claude --resume brings each back, on your click", rows: rs, always: true})
 	}
+	// #41: remote machines agents can run on.
+	sections = append(sections, sideSection{title: "Runners", tip: "Linux machines, reached over SSH, where agents run with your own Claude account",
+		rows: t.runnerRows(), always: true})
 	t.list.set(sections)
 }
 

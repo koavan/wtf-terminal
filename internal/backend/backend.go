@@ -27,6 +27,7 @@ import (
 	"github.com/dayanraj/wtf/internal/notify"
 	"github.com/dayanraj/wtf/internal/procs"
 	"github.com/dayanraj/wtf/internal/review"
+	"github.com/dayanraj/wtf/internal/runner"
 	"github.com/dayanraj/wtf/internal/snippets"
 	"github.com/dayanraj/wtf/internal/sshhosts"
 	"github.com/dayanraj/wtf/internal/state"
@@ -68,6 +69,7 @@ type Backend struct {
 	Secrets     *cloudsecrets.Service
 	Worktree    *worktree.Service
 	Update      *update.Service
+	Runners     *runner.Service
 
 	started []any // by Start, for Shutdown
 }
@@ -144,6 +146,8 @@ func New(version, commit, buildDate, stateDir string) (*Backend, error) {
 	b.Worktree.Busy = b.Bridge.AgentsIn
 	b.Update = update.NewService(version, stateDir)
 	b.Update.Enabled = func() bool { return b.Config.Current().Config.UpdateCheck }
+	b.Runners = runner.NewService(stateDir, version)
+	b.Runners.StatusSettings = b.Bridge.StatusSettings
 	b.Terminal.ExtraEnv = bridge.ShellEnv(b.Bridge)
 	b.Terminal.OnExit = b.Bridge.ShellClosed
 	b.Terminal.OnAtShell = b.Bridge.Forget
@@ -185,6 +189,7 @@ func (b *Backend) Services() []Named {
 		{"cloudsecrets", b.Secrets},
 		{"worktree", b.Worktree},
 		{"update", b.Update},
+		{"runner", b.Runners},
 	}
 }
 

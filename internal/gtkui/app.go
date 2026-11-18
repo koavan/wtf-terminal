@@ -53,17 +53,18 @@ type Build struct{ Version, Commit, Date string }
 // App is the running application: one per process. A second `wtf-gtk`
 // asks this one for a new window and exits.
 type App struct {
-	gtk      *adw.Application
-	build    Build
-	be       *backend.Backend
-	claude   *claudePanes
-	agents   *agentList
+	gtk     *adw.Application
+	build   Build
+	be      *backend.Backend
+	claude  *claudePanes
+	agents  *agentList
+	runners *runnerList
 	// The background window (#34), while agents run there.
 	background *Window
-	cancel   context.CancelFunc
-	events   *eventPump
-	settings *settings
-	debug    string
+	cancel     context.CancelFunc
+	events     *eventPump
+	settings   *settings
+	debug      string
 
 	windows []*Window
 	// Window names in the session file, not to be reused for new windows.
@@ -78,7 +79,7 @@ type App struct {
 // Main runs the app and returns the exit status.
 func Main(build Build) int {
 	log.SetFlags(log.Ltime | log.Lmicroseconds)
-	a := &App{build: build, debug: os.Getenv("WTF_NATIVE_DEBUG"), savedNames: map[string]bool{}, claude: newClaudePanes(), agents: newAgentList()}
+	a := &App{build: build, debug: os.Getenv("WTF_NATIVE_DEBUG"), savedNames: map[string]bool{}, claude: newClaudePanes(), agents: newAgentList(), runners: newRunnerList()}
 	a.home, _ = os.UserHomeDir()
 	flags := gio.ApplicationFlagsNone
 	if a.debug != "" {

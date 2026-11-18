@@ -365,6 +365,7 @@ final class SshHostsSection: NSView, NSSearchFieldDelegate {
         m.addItem(.separator())
         add("Install Public Key…") { KeyInstallSheet.show(key: nil, host: h, in: o) }
         add("Host Keys…") { HostKeysSheet.show(h, in: o) }
+        add("Use as Agent Runner…") { Runners.add(host: h, owner: o) }
         m.addItem(.separator())
         add("Copy ssh Command") { [weak self] in
             Clipboard.copy(Ssh.command(h))

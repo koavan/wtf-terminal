@@ -11,6 +11,8 @@ date=$(date -u +%Y-%m-%d)
 rm -rf bin/gtk/claude-plugin
 mkdir -p bin/gtk
 cp -R claude-plugin bin/gtk/claude-plugin
+# What wtf installs on agent runners (#41), found next to the app.
+linux/runner-payload.sh bin/gtk/runner "${version:-dev}"
 exec docker run --rm -v "$PWD":/src -w /src \
 	-v wtf-gtk-gomod:/root/go/pkg/mod -v wtf-gtk-gocache:/root/.cache/go-build \
 	wtf-gtk-dev:ubuntu24 sh -c '

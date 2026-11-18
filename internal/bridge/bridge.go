@@ -270,6 +270,10 @@ func NewService(in *infra.Service) *Service {
 	return s
 }
 
+// StatusSettings is the path of the plugin's status-settings.json ("" if
+// this build has none); runners get a copy (#41).
+func (s *Service) StatusSettings() string { return s.statusSettings }
+
 // StatusSettingsFile, in the plugin's folder, is the Claude Code settings
 // wtf's shell integration adds to a claude you start yourself: only the
 // hooks that report its state, no tools, commands or permission rules.

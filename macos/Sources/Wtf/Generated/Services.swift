@@ -211,6 +211,7 @@ enum Services {
         static func Seen(_ a0: String) async throws { try await Backend.run("bridge", "Seen", [a0]) }
         static func SetTarget(_ a0: String, _ a1: String) async throws { try await Backend.run("bridge", "SetTarget", [a0, a1]) }
         static func ShellClosed(_ a0: String) async throws { try await Backend.run("bridge", "ShellClosed", [a0]) }
+        static func StatusSettings() async throws -> String { try await Backend.call("bridge", "StatusSettings", [], as: String.self) }
         static func Typed(_ a0: String, _ a1: String) async throws { try await Backend.run("bridge", "Typed", [a0, a1]) }
     }
 
@@ -248,5 +249,16 @@ enum Services {
     enum update {
         static func Check() async throws -> Go.update.Status { try await Backend.call("update", "Check", [], as: Go.update.Status.self) }
         static func Skip(_ a0: String) async throws { try await Backend.run("update", "Skip", [a0]) }
+    }
+
+    enum runner {
+        static func Add(_ a0: String, _ a1: String, _ a2: String) async throws -> Go.runner.Status { try await Backend.call("runner", "Add", [a0, a1, a2], as: Go.runner.Status.self) }
+        static func Check(_ a0: String) async throws -> Go.runner.Status { try await Backend.call("runner", "Check", [a0], as: Go.runner.Status.self) }
+        static func Install(_ a0: String) async throws -> Go.runner.Status { try await Backend.call("runner", "Install", [a0], as: Go.runner.Status.self) }
+        static func List() async throws -> [Go.runner.Status] { try await Backend.call("runner", "List", [], as: [Go.runner.Status].self) }
+        static func Remove(_ a0: String) async throws { try await Backend.run("runner", "Remove", [a0]) }
+        static func Rename(_ a0: String, _ a1: String) async throws { try await Backend.run("runner", "Rename", [a0, a1]) }
+        static func TabCommand(_ a0: String, _ a1: String) async throws -> String { try await Backend.call("runner", "TabCommand", [a0, a1], as: String.self) }
+        static func Uninstall(_ a0: String) async throws { try await Backend.run("runner", "Uninstall", [a0]) }
     }
 }

@@ -1011,6 +1011,59 @@ Also built 2026-11-15:
   and the bridge works its facts out again every half second (up to 20 s)
   until the account is known, then updates it.
 
+### 41. Remote agent runners ☐
+
+Agreed 2026-11-17: run Claude Code agents on a remote Linux machine (a
+"runner") and see, approve and answer them from wtf as if they were local.
+No API key: you sign in to your own Claude account on the runner with
+`/login`, once, in a wtf tab; wtf strips `ANTHROPIC_API_KEY` from every
+agent it starts so a stray key never takes over.
+
+Decided: Linux runners only; reached over SSH (no open ports, no relay);
+agents keep running while wtf or the laptop is off; agents work in
+folders that already exist on the runner; sign-in is interactive `/login`
+(no token pushed from the laptop).
+
+Design: a `wtf-runner` daemon on the runner (Go, linux amd64/arm64) owns
+a bridge socket there. Agents run in tmux sessions (`wtf-<id>`) with
+`--settings` hooks pointing the unchanged `wtf-mcp hook` at that socket.
+The daemon keeps agent state and holds waiting `PermissionRequest` hooks,
+so approvals wait while you're offline. wtf connects with
+`ssh <host> wtf-runner attach`: a JSON stream (snapshot, then events; wtf
+sends answers, replies, start/end).
+
+Phases:
+
+0. ☑ Hands-on, 2026-11-17, Claude Code 2.1.327 in a Debian arm64 container
+   over SSH: `claude auth login --claudeai` works without a display (URL,
+   code pasted back); `claude auth status` prints JSON (`loggedIn`,
+   `authMethod` "claude.ai", `loginExpiresAt`, plan) and exits 1 signed out.
+   The unchanged `wtf-mcp hook` inside tmux reaches a socket on the runner.
+   A `PermissionRequest` held 678 s with no SSH open, then allowed: "Allowed
+   by PermissionRequest hook". `tmux kill-session` sends SessionEnd;
+   `--resume <id>` (id = transcript file name) brings it back; `tmux
+   send-keys -l` + Enter is a prompt. Found: first run shows theme and
+   folder-trust screens before any hook (trust's default is "No, exit");
+   auto mode is now the default permission mode; tmux drops the session
+   when claude exits (use `remain-on-exit`).
+1. ◐ Add Runner (built 2026-11-17, not hands-on yet): pick an SSH host; facts (OS/arch, tmux, claude version);
+   install `wtf-runner` + `wtf-mcp` to `~/.local/share/wtf-runner` after
+   you confirm; offer to install claude if missing.
+2. ◐ Sign In…: a tab with `ssh -t <host> claude auth login --claudeai`, plus Finish Claude Code Setup…; sign-in shown
+   as a fact on the runner's row.
+3. ☐ Status: a section per runner in the Agents tab (states, sub-agents,
+   names, done/seen); local notifications and sounds; snapshot on reconnect.
+4. ☐ Start on Runner… (runner, existing folder, prompt, permission mode);
+   Peek and Reply via `tmux send-keys`; Open attaches a tab to the tmux
+   session; End.
+5. ☐ Approvals and questions: cards, inbox, always allow, deny and tell,
+   forms — unchanged; context facts (#40) worked out on the runner, never
+   from the laptop's config.
+6. ☐ Robustness: reconnect with backoff, protocol version check and runner
+   upgrade, dead tmux cleanup; self-checks against a local Linux container
+   with sshd (never the real `~/.ssh`).
+7. ☐ macOS + Linux UI parity, manual page, release.
+
 ## Also built
 
 - Resource usage (2026-10-13): wtf's own CPU and memory in the address bar
