@@ -78,7 +78,7 @@ func (d *Daemon) Serve() error {
 	if d.Claude == nil {
 		d.Claude = findClaude
 	}
-	if err := os.MkdirAll(d.run(""), 0o700); err != nil {
+	if err := Secure(d.Base); err != nil {
 		return err
 	}
 	lock, err := os.OpenFile(d.run(lockFile), os.O_CREATE|os.O_RDWR, 0o600)
@@ -147,19 +147,6 @@ func (d *Daemon) Serve() error {
 			d.saveStatuses()
 		}
 	}
-}
-
-func loadKey(path string) ([]byte, error) {
-	if b, err := os.ReadFile(path); err == nil {
-		if k, err := hex.DecodeString(strings.TrimSpace(string(b))); err == nil && len(k) >= 32 {
-			return k, nil
-		}
-	}
-	k := make([]byte, 32)
-	if _, err := rand.Read(k); err != nil {
-		return nil, err
-	}
-	return k, os.WriteFile(path, []byte(hex.EncodeToString(k)+"\n"), 0o600)
 }
 
 func (d *Daemon) load() {

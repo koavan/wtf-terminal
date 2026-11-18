@@ -145,7 +145,7 @@ A green dot means it's ready; orange means something is missing, shown in the ro
 1. **Install tmux…** and **Install Claude Code…** open a tab that runs the install on the runner (tmux through its package manager, which may ask for your password; Claude Code with its official installer), so you see every step.
 2. **Sign In…** opens a tab running `claude auth login` on the runner. It shows a link: open it in your browser here, sign in to your Claude account, and paste the code it gives you back into the tab. Your sign-in stays on the runner.
 3. **Finish Claude Code Setup…** opens Claude Code there once for its first-run screens (theme and notes; it asks you to trust wtf-runner's own folder). Type `/exit` when it's done.
-4. **Install wtf-runner…** copies wtf-runner, Claude Code's hook helper and wtf's status hooks to `~/.local/share/wtf-runner` on the runner, after you confirm. It changes nothing else there. When you update wtf, the runner shows **Update wtf-runner…**.
+4. **Install wtf-runner…** copies wtf-runner, Claude Code's hook helper and wtf's status hooks to `~/.local/share/wtf-runner` on the runner, after you confirm. It changes nothing else there. When you update wtf, the runner shows **Update wtf-runner…**. That folder is yours alone: each time wtf-runner starts it sets the folder and its `run/` folder back to owner-only, and it won't start if either is a link or belongs to another user (the runner's row then says **Not connected** and why).
 
 When a step's command ends in its tab (you finished, or quit it), wtf checks the runner again and its status moves on to the next step. wtf also checks each runner once when the Agents tab first shows, and when you right-click it → **Check Again**; it never polls.
 

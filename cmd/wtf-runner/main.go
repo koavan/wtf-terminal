@@ -37,6 +37,11 @@ func main() {
 	case "--version", "version":
 		fmt.Printf("%s protocol=%s\n", version, runnerd.Protocol)
 	case "serve":
+		// Before it opens anything there (its log included).
+		if err := runnerd.Secure(base); err != nil {
+			fmt.Fprintln(os.Stderr, "wtf-runner:", err)
+			os.Exit(1)
+		}
 		// A big log starts over (the last one kept as .old).
 		logPath := filepath.Join(base, runnerd.RunDir, runnerd.LogFile)
 		if fi, err := os.Stat(logPath); err == nil && fi.Size() > 1<<20 {
@@ -89,7 +94,7 @@ func dial(base string, start bool) (net.Conn, error) {
 	if c, err := net.Dial("unix", sock(base)); err == nil || !start {
 		return c, err
 	}
-	if err := os.MkdirAll(filepath.Join(base, runnerd.RunDir), 0o700); err != nil {
+	if err := runnerd.Secure(base); err != nil {
 		return nil, err
 	}
 	exe, _ := os.Executable()
