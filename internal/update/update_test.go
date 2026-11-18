@@ -25,6 +25,13 @@ func TestNewer(t *testing.T) {
 		{"1.9.4", "", false},
 		{"1.9.4-rc1", "1.9.3", false},
 		{"1.9.4", "1.9.3-dirty", false},
+		// A pre-release is older than its release, newer than the last.
+		{"1.13.0", "1.13.0-dev", true},
+		{"1.13.1", "1.13.0-dev", true},
+		{"1.12.0", "1.13.0-dev", false},
+		{"1.13.0", "1.13.0-rc1", true},
+		{"1.13.0", "1.13.0-dev-dirty", false},
+		{"1.13.0", "1.13.0-", false},
 	} {
 		if got := newer(c.latest, c.current); got != c.want {
 			t.Errorf("newer(%q, %q) = %v, want %v", c.latest, c.current, got, c.want)

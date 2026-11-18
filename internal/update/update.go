@@ -86,7 +86,7 @@ func NewService(version, stateDir string) *Service {
 // day. A build without a release version (a development build) never checks
 // on its own.
 func (s *Service) ServiceStartup(ctx context.Context) error {
-	if _, ok := parse(s.version); !ok || os.Getenv("WTF_NATIVE_DEBUG") != "" {
+	if _, _, ok := parseCurrent(s.version); !ok || os.Getenv("WTF_NATIVE_DEBUG") != "" {
 		return nil
 	}
 	ctx, s.cancel = context.WithCancel(ctx)
@@ -275,10 +275,26 @@ func parse(v string) ([3]int, bool) {
 	return out, true
 }
 
-// newer reports whether latest is a later release than current.
+// parseCurrent reads this build's version: a release ("1.13.0"), or a
+// pre-release of one ("1.13.0-dev", "1.13.0-rc1"), which comes before it.
+// A local build ("-dirty", "dev") isn't one: it doesn't check.
+func parseCurrent(v string) (n [3]int, pre bool, ok bool) {
+	base, suffix, cut := strings.Cut(strings.TrimSpace(v), "-")
+	if n, ok = parse(base); !ok || !cut {
+		return n, false, ok
+	}
+	if suffix == "" || strings.Contains(suffix, "dirty") || strings.ContainsFunc(suffix, func(r rune) bool {
+		return !(r >= 'a' && r <= 'z' || r >= '0' && r <= '9' || r == '.')
+	}) {
+		return n, false, false
+	}
+	return n, true, true
+}
+
+// newer reports whether latest (a release) is a later one than current.
 func newer(latest, current string) bool {
 	l, ok1 := parse(latest)
-	c, ok2 := parse(current)
+	c, pre, ok2 := parseCurrent(current)
 	if !ok1 || !ok2 {
 		return false
 	}
@@ -287,5 +303,6 @@ func newer(latest, current string) bool {
 			return l[i] > c[i]
 		}
 	}
-	return false
+	// 1.13.0 comes after 1.13.0-dev.
+	return pre
 }

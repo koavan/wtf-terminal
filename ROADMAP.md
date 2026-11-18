@@ -1011,7 +1011,7 @@ Also built 2026-11-15:
   and the bridge works its facts out again every half second (up to 20 s)
   until the account is known, then updates it.
 
-### 41. Remote agent runners ☐
+### 41. Remote agent runners ◐
 
 Agreed 2026-11-17: run Claude Code agents on a remote Linux machine (a
 "runner") and see, approve and answer them from wtf as if they were local.
@@ -1046,10 +1046,10 @@ Phases:
    folder-trust screens before any hook (trust's default is "No, exit");
    auto mode is now the default permission mode; tmux drops the session
    when claude exits (use `remain-on-exit`).
-1. ◐ Add Runner (built 2026-11-17, not hands-on yet): pick an SSH host; facts (OS/arch, tmux, claude version);
+1. ☑ Add Runner (2026-11-17, tried on macOS): pick an SSH host; facts (OS/arch, tmux, claude version);
    install `wtf-runner` + `wtf-mcp` to `~/.local/share/wtf-runner` after
    you confirm; offer to install claude if missing.
-2. ◐ Sign In…: a tab with `ssh -t <host> claude auth login --claudeai`, plus Finish Claude Code Setup…; sign-in shown
+2. ☑ Sign In…: a tab with `ssh -t <host> claude auth login --claudeai`, plus Finish Claude Code Setup…; sign-in shown
    as a fact on the runner's row.
 3. ☑ Status (2026-11-17): `wtf-runner serve` (internal/runnerd) runs
    wtf's bridge headless (ListenAt with a key kept in run/key, PaneOf for
@@ -1079,7 +1079,9 @@ Phases:
    at 1 MB. `linux/runner-test.sh` (testdata/runner/Dockerfile) sets up a
    throwaway runner and runs the live test; `agents` also runs real
    agents (approval, daemon restart, peek, reply) after `login`.
-7. ☐ macOS + Linux UI parity, manual page, release.
+7. ◐ macOS + Linux UI parity, manual page (done), release: 1.13.0-dev
+   built 2026-11-18 for trying it out (not a production release); the
+   runner UI on a real Linux desktop is still to be tried.
 
 ## Also built
 

@@ -638,6 +638,16 @@ started in), and background agents are listed under **Resumable** in the
 Agents tab. Nothing resumes until you click, and a resumed agent keeps its
 name.
 
+Agents can also run on a **runner**: a Linux machine you reach over SSH,
+signed in to your own Claude account there (`claude auth login`, never an
+API key). **Add Runner…** (Agents tab, or right-click an SSH host) checks it
+and shows what it needs (tmux, Claude Code, sign-in) with a button for
+each step, then installs `wtf-runner` after you confirm. Agents started
+there run in tmux under that daemon and keep running when wtf quits or the
+Mac sleeps; they're listed under their runner, a click opens their terminal
+in a tab, and what they ask you floats as a card like any other agent's,
+answered from here.
+
 ## Resource usage
 
 wtf can show its own CPU and memory in the address bar (`show-usage`, or
