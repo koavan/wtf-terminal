@@ -149,6 +149,9 @@ final class AgentsView: NSView, SidePaneTab {
             form.add(form.note("Run agents on a Linux machine over SSH, signed in to your own Claude account there."))
         }
         form.add(form.link("Add Runner…") { [weak owner] in if let owner { Runners.add(owner: owner) } }, full: false)
+        if !runners.isEmpty {
+            form.add(form.link("Update All Runners…") { [weak owner] in if let owner { Runners.updateAll(owner: owner) } }, full: false)
+        }
         if !list.isEmpty {
             form.add(form.note("Go to Agent… ⌥⌘A · Next Agent Needing You ⌥⌘N" + (asks.isEmpty ? "" : " · Next Approval ⌥⌘Y")))
         }

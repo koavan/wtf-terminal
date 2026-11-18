@@ -147,9 +147,11 @@ A green dot means it's ready; orange means something is missing, shown in the ro
 3. **Finish Claude Code Setup…** opens Claude Code there once for its first-run screens (theme and notes; it asks you to trust wtf-runner's own folder). Type `/exit` when it's done.
 4. **Install wtf-runner…** copies wtf-runner, Claude Code's hook helper and wtf's status hooks to `~/.local/share/wtf-runner` on the runner, after you confirm. It changes nothing else there. When you update wtf, the runner shows **Update wtf-runner…**. That folder is yours alone: each time wtf-runner starts it sets the folder and its `run/` folder back to owner-only, and it won't start if either is a link or belongs to another user (the runner's row then says **Not connected** and why).
 
+**Update All Runners…** (under the runners in the Agents tab, or {{cmd:runners.update}}) updates every runner at once after you update wtf. It checks each runner again first, then lists the ones whose wtf-runner isn't this wtf's, with the version each has, and updates them all when you confirm. Agents running there keep running. Runners it can't reach are named and left as they are; a runner without wtf-runner keeps its own **Install wtf-runner…** button.
+
 When a step's command ends in its tab (you finished, or quit it), wtf checks the runner again and its status moves on to the next step. wtf also checks each runner once when the Agents tab first shows, and when you right-click it → **Check Again**; it never polls.
 
-Right-click a runner for **Check Again**, **Open a Shell There**, **Sign In Again…**, **Sign Out…**, **Rename…** and **Remove Runner…**. **Sign Out…** asks first, then runs `claude auth logout` there in a tab; agents can't start on that runner until you sign in again. Removing it only forgets it in wtf, unless you also tick **Also delete ~/.local/share/wtf-runner there**. Claude Code, its sign-in and your files stay as they are.
+Right-click a runner for **Check Again**, **Open a Shell There**, **Sign In Again…**, **Sign Out…**, **Reinstall wtf-runner…** (copies this wtf's wtf-runner there again, even when it's current), **Rename…** and **Remove Runner…**. **Sign Out…** asks first, then runs `claude auth logout` there in a tab; agents can't start on that runner until you sign in again. Removing it only forgets it in wtf, unless you also tick **Also delete ~/.local/share/wtf-runner there**. Claude Code, its sign-in and your files stay as they are.
 
 ### Agents on a runner
 

@@ -495,3 +495,19 @@ func (s *Service) TabCommand(id, what string) (string, error) {
 	}
 	return TabSSH(r, remote), nil
 }
+
+// Stale picks, from runners just checked, the ones whose wtf-runner isn't
+// this wtf's (Update All Runners…), and names the ones that couldn't be
+// reached. Runners without wtf-runner aren't stale: they're installed from
+// their own row.
+func Stale(sts []Status) (stale []Status, unreachable []string) {
+	for _, st := range sts {
+		switch {
+		case st.Facts == nil || !st.Facts.Reachable:
+			unreachable = append(unreachable, st.Name)
+		case st.Outdated:
+			stale = append(stale, st)
+		}
+	}
+	return stale, unreachable
+}

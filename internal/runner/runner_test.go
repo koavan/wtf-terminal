@@ -336,3 +336,23 @@ func TestLive(t *testing.T) {
 		t.Fatal(err)
 	}
 }
+
+func TestStale(t *testing.T) {
+	st := func(name string, f *Facts, outdated bool) Status {
+		return Status{Runner: Runner{ID: name + ":", Name: name}, Facts: f, Outdated: outdated}
+	}
+	up := &Facts{Reachable: true, RunnerVersion: "1.13.0"}
+	stale, down := Stale([]Status{
+		st("old", up, true),
+		st("current", &Facts{Reachable: true, RunnerVersion: "1.13.1"}, false),
+		st("bare", &Facts{Reachable: true}, false),
+		st("off", &Facts{Reachable: false, RunnerVersion: "1.13.0"}, false),
+		st("unchecked", nil, false),
+	})
+	if len(stale) != 1 || stale[0].Name != "old" {
+		t.Errorf("stale = %+v, want only old", stale)
+	}
+	if !slices.Equal(down, []string{"off", "unchecked"}) {
+		t.Errorf("unreachable = %v", down)
+	}
+}

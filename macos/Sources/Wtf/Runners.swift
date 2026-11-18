@@ -372,6 +372,76 @@ enum Runners {
         }
     }
 
+    /// Update All Runners…: checks every runner again first (runners are
+    /// only checked when the Agents tab first shows, so one can look
+    /// current when it isn't), then, after you confirm the list, updates
+    /// each one whose wtf-runner isn't this wtf's, all at once. Runners
+    /// without wtf-runner are left to their own Install button.
+    static func updateAll(owner: WindowController) {
+        load()
+        Task {
+            let all = (try? await Services.runner.List()) ?? []
+            guard !all.isEmpty else {
+                Toast.show("Add a runner first (Agents tab → Add Runner…)", in: owner.rootView)
+                return
+            }
+            for r in all { busy.insert(r.id) }
+            changed()
+            let checks = all.map { r in Task { try? await Services.runner.Check(r.id) } }
+            for (r, t) in zip(all, checks) {
+                if let st = await t.value { put(st) }
+                busy.remove(r.id)
+            }
+            changed()
+            let ids = Set(all.map(\.id))
+            let now = list.filter { ids.contains($0.id) }
+            let stale = now.filter { $0.outdated && $0.facts?.reachable == true }
+            let down = now.filter { $0.facts?.reachable != true }.map(\.name)
+            let skipped = down.isEmpty ? "" : " Not reachable now, so left as they are: \(down.joined(separator: ", "))."
+            guard !stale.isEmpty else {
+                Toast.show("Every runner already has this wtf's wtf-runner." + skipped, in: owner.rootView, seconds: down.isEmpty ? 3 : 6)
+                return
+            }
+            let what = stale.count == 1 ? stale[0].name : "\(stale.count) runners"
+            Confirm.show(in: owner.window, title: "Update wtf-runner on \(what)?",
+                         message: "wtf copies its wtf-runner, wtf-mcp (Claude Code's hook helper) and status hooks to ~/.local/share/wtf-runner on each, over SSH, replacing the version shown. Nothing else there changes, and agents running there keep running." + skipped,
+                         items: stale.map { "\($0.name) (\($0.alias)): \($0.facts?.runnerVersion ?? "")" },
+                         button: "Update", limit: 12, destructive: false) {
+                installAll(stale, owner: owner)
+            }
+        }
+    }
+
+    /// Updates wtf-runner on each of runners at once, then says how it went.
+    private static func installAll(_ runners: [Go.runner.Status], owner: WindowController) {
+        for r in runners { busy.insert(r.id) }
+        changed()
+        Task {
+            let installs = runners.map { r in
+                Task { () -> String? in
+                    do {
+                        put(try await Services.runner.Install(r.id))
+                        return nil
+                    } catch {
+                        return "\(r.name): \(error.localizedDescription)"
+                    }
+                }
+            }
+            var failed: [String] = []
+            for (r, t) in zip(runners, installs) {
+                if let err = await t.value { failed.append(err) }
+                busy.remove(r.id)
+                changed()
+            }
+            let done = runners.count - failed.count
+            if failed.isEmpty {
+                Toast.show(done == 1 ? "Updated wtf-runner on \(runners[0].name)" : "Updated wtf-runner on \(done) runners", in: owner.rootView, seconds: 3)
+            } else {
+                Toast.show((done > 0 ? "Updated \(done) of \(runners.count). " : "") + "Couldn't update " + failed.joined(separator: "; "), in: owner.rootView, seconds: 8)
+            }
+        }
+    }
+
     // MARK: Menu
 
     static func menu(_ st: Go.runner.Status, owner: WindowController, in view: NSView?) -> NSMenu {

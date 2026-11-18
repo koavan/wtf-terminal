@@ -73,6 +73,7 @@ enum Commands {
             _ = $0.approvalDeck.allowTop()
         },
         Command("agents.start", "Start Claude Code…") { $0.startAgent() },
+        Command("runners.update", "Update All Runners…") { Runners.updateAll(owner: $0) },
         Command("worktree.new", "New Worktree… (git)") { WorktreeUI.new(from: WorktreeUI.here($0), owner: $0) },
         Command("worktree.open", "Open Worktree… (git)") { WorktreeUI.open(from: WorktreeUI.here($0), owner: $0) },
         Command("worktree.remove", "Remove Worktree… (git)") { WorktreeUI.remove(from: WorktreeUI.here($0), owner: $0) },

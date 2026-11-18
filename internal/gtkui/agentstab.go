@@ -74,7 +74,7 @@ func newAgentsTab(w *Window) *agentsTab {
 			t.list.menu.show(x, y, w.remoteAgentMenu(ids[0]), nil)
 			return
 		}
-		if ids[0] == "runner-add" {
+		if ids[0] == "runner-add" || ids[0] == "runner-update" {
 			return
 		}
 		if session, ap, ok := t.approvalAt(ids[0]); ok && len(ap.Questions) > 0 {
@@ -205,6 +205,10 @@ func agentRowSession(id string) (session string, toggle bool) {
 func (t *agentsTab) activate(id string) {
 	if id == "runner-add" {
 		t.w.addRunner(nil)
+		return
+	}
+	if id == "runner-update" {
+		t.w.updateAllRunners()
 		return
 	}
 	if rest, ok := strings.CutPrefix(id, "ragent:"); ok {

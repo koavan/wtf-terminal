@@ -3,9 +3,11 @@
 package gtkui
 
 import (
+	"fmt"
 	"path/filepath"
 	"slices"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/diamondburned/gotk4-adwaita/pkg/adw"
@@ -270,6 +272,109 @@ func (w *Window) installRunner(id string) {
 			})
 		}()
 	}, nil)
+}
+
+// updateAllRunners: Update All Runners…. Every runner is checked again
+// first (runners are only checked when the Agents tab first shows, so one
+// can look current when it isn't); then, after you confirm the list, each
+// one whose wtf-runner isn't this wtf's is updated, all at once. Runners
+// without wtf-runner are left to their own Install button.
+func (w *Window) updateAllRunners() {
+	a := w.app
+	a.loadRunners()
+	l, svc := a.runners, a.be.Runners
+	all := svc.List()
+	if len(all) == 0 {
+		w.toast("Add a runner first (Agents tab → Add Runner…)")
+		return
+	}
+	for _, r := range all {
+		l.busy[r.ID] = true
+	}
+	l.changed()
+	go func() {
+		sts := make([]runner.Status, len(all))
+		errs := make([]error, len(all))
+		var wg sync.WaitGroup
+		for i, r := range all {
+			wg.Add(1)
+			go func() {
+				defer wg.Done()
+				sts[i], errs[i] = svc.Check(r.ID)
+			}()
+		}
+		wg.Wait()
+		coreglib.IdleAdd(func() {
+			var now []runner.Status
+			for i, r := range all {
+				delete(l.busy, r.ID)
+				if errs[i] == nil {
+					l.put(sts[i])
+					now = append(now, sts[i])
+				} else {
+					now = append(now, r)
+				}
+			}
+			l.changed()
+			stale, down := runner.Stale(now)
+			skipped := ""
+			if len(down) > 0 {
+				skipped = " Not reachable now, so left as they are: " + strings.Join(down, ", ") + "."
+			}
+			if len(stale) == 0 {
+				w.toast("Every runner already has this wtf's wtf-runner." + skipped)
+				return
+			}
+			what := stale[0].Name
+			if len(stale) > 1 {
+				what = fmt.Sprintf("%d runners", len(stale))
+			}
+			body := "wtf copies its wtf-runner, wtf-mcp (Claude Code's hook helper) and status hooks to ~/.local/share/wtf-runner on each, over SSH, replacing the version shown. Nothing else there changes, and agents running there keep running." + skipped + "\n"
+			for _, st := range stale {
+				body += "\n• " + st.Name + " (" + st.Alias + "): " + st.Facts.RunnerVersion
+			}
+			w.confirmPlan(&w.win.Window, "Update wtf-runner on "+what+"?", body, "Update", false, func() { w.installRunners(stale) }, nil)
+		})
+	}()
+}
+
+// installRunners updates wtf-runner on each of runners at once, then says
+// how it went.
+func (w *Window) installRunners(runners []runner.Status) {
+	l, svc := w.app.runners, w.app.be.Runners
+	for _, r := range runners {
+		l.busy[r.ID] = true
+	}
+	l.changed()
+	left, failed := len(runners), []string{}
+	for _, r := range runners {
+		go func() {
+			st, err := svc.Install(r.ID)
+			coreglib.IdleAdd(func() {
+				if err != nil {
+					failed = append(failed, r.Name+": "+err.Error())
+				} else {
+					l.put(st)
+				}
+				delete(l.busy, r.ID)
+				l.changed()
+				if left--; left > 0 {
+					return
+				}
+				done := len(runners) - len(failed)
+				switch {
+				case len(failed) == 0 && done == 1:
+					w.toast("Updated wtf-runner on " + runners[0].Name)
+				case len(failed) == 0:
+					w.toast(fmt.Sprintf("Updated wtf-runner on %d runners", done))
+				case done > 0:
+					w.toast(fmt.Sprintf("Updated %d of %d. Couldn't update %s", done, len(runners), strings.Join(failed, "; ")))
+				default:
+					w.toast("Couldn't update " + strings.Join(failed, "; "))
+				}
+			})
+		}()
+	}
 }
 
 func (w *Window) runnerMenu(id string) []*menuItem {
@@ -730,6 +835,10 @@ func (t *agentsTab) runnerRows() []sideRow {
 	}
 	rows = append(rows, sideRow{id: "runner-add", icon: "list-add-symbolic", title: "Add Runner…",
 		tip: "Run agents on a Linux machine over SSH, signed in to your own Claude account there"})
+	if len(w.app.runners.list) > 0 {
+		rows = append(rows, sideRow{id: "runner-update", icon: "software-update-available-symbolic", title: "Update All Runners…",
+			tip: "Checks every runner, then updates the ones whose wtf-runner isn't this wtf's"})
+	}
 	return rows
 }
 
