@@ -605,8 +605,9 @@ extension Go.bridge {
         public var questions: [Go.bridge.Question]
         public var always: [String]
         public var freeText: Bool
+        public var form: Bool
 
-        public init(id: String = "", tool: String = "", what: String = "", description: String = "", diff: String = "", facts: [String] = [], since: Int = 0, subagent: String = "", questions: [Go.bridge.Question] = [], always: [String] = [], freeText: Bool = false) {
+        public init(id: String = "", tool: String = "", what: String = "", description: String = "", diff: String = "", facts: [String] = [], since: Int = 0, subagent: String = "", questions: [Go.bridge.Question] = [], always: [String] = [], freeText: Bool = false, form: Bool = false) {
             self.id = id
             self.tool = tool
             self.what = what
@@ -618,6 +619,7 @@ extension Go.bridge {
             self.questions = questions
             self.always = always
             self.freeText = freeText
+            self.form = form
         }
 
         enum CodingKeys: String, CodingKey {
@@ -632,6 +634,7 @@ extension Go.bridge {
             case questions = "questions"
             case always = "always"
             case freeText = "freeText"
+            case form = "form"
         }
 
         public init(from decoder: Decoder) throws {
@@ -647,6 +650,7 @@ extension Go.bridge {
             self.questions = (try? c.decodeIfPresent([Go.bridge.Question].self, forKey: .questions)) ?? []
             self.always = (try? c.decodeIfPresent([String].self, forKey: .always)) ?? []
             self.freeText = (try? c.decodeIfPresent(Bool.self, forKey: .freeText)) ?? false
+            self.form = (try? c.decodeIfPresent(Bool.self, forKey: .form)) ?? false
         }
     }
 }
@@ -731,6 +735,30 @@ extension Go.bridge {
             self.running = (try? c.decodeIfPresent(Bool.self, forKey: .running)) ?? false
             self.process = (try? c.decodeIfPresent(String.self, forKey: .process)) ?? ""
             self.integrated = (try? c.decodeIfPresent(Bool.self, forKey: .integrated)) ?? false
+        }
+    }
+}
+
+extension Go.bridge {
+    /// bridge.Pick
+    public struct Pick: Codable, Equatable, Sendable {
+        public var options: [String]
+        public var text: String
+
+        public init(options: [String] = [], text: String = "") {
+            self.options = options
+            self.text = text
+        }
+
+        enum CodingKeys: String, CodingKey {
+            case options = "options"
+            case text = "text"
+        }
+
+        public init(from decoder: Decoder) throws {
+            let c = try decoder.container(keyedBy: CodingKeys.self)
+            self.options = (try? c.decodeIfPresent([String].self, forKey: .options)) ?? []
+            self.text = (try? c.decodeIfPresent(String.self, forKey: .text)) ?? ""
         }
     }
 }

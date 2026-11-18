@@ -200,6 +200,7 @@ enum Services {
         static func AgentsIn(_ a0: String) async throws -> [String] { try await Backend.call("bridge", "AgentsIn", [a0], as: [String].self) }
         static func AllowAlways(_ a0: String, _ a1: Int) async throws { try await Backend.run("bridge", "AllowAlways", [a0, a1]) }
         static func Answer(_ a0: String, _ a1: String) async throws { try await Backend.run("bridge", "Answer", [a0, a1]) }
+        static func AnswerAll(_ a0: String, _ a1: [Go.bridge.Pick]) async throws { try await Backend.run("bridge", "AnswerAll", [a0, a1]) }
         static func AnswerQuestion(_ a0: String, _ a1: [String]) async throws { try await Backend.run("bridge", "AnswerQuestion", [a0, a1]) }
         static func AnswerText(_ a0: String, _ a1: String) async throws { try await Backend.run("bridge", "AnswerText", [a0, a1]) }
         static func ClaudeCommand() async throws -> String { try await Backend.call("bridge", "ClaudeCommand", [], as: String.self) }

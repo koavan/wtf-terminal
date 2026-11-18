@@ -570,7 +570,33 @@ func TestHookApprovals(t *testing.T) {
 	}
 	run(`{"hook_event_name":"UserPromptSubmit","prompt":"go on"}`)
 
-	// Several questions, or several choices: answered in the pane.
+	// Several questions, several choices: answered all at once with the
+	// card's form, a choice or your own words for each.
+	cmd, out = start(`{"hook_event_name":"PermissionRequest","tool_name":"AskUserQuestion","tool_input":{"questions":[{"question":"Fruits?","options":[{"label":"Apple"},{"label":"Banana"},{"label":"Cherry"}],"multiSelect":true},{"question":"Size?","options":[{"label":"S"},{"label":"L"}]},{"question":"Name?","options":[{"label":"x"}]}]}}`)
+	st = waitFor("asking three questions", asking)
+	if ap := st.Approvals[0]; !ap.Form || !ap.FreeText || ap.Clickable() {
+		t.Fatalf("form: %+v", ap)
+	}
+	for _, bad := range [][]Pick{
+		{{Options: []string{"Apple"}}, {Options: []string{"S"}}},
+		{{Options: []string{"Apple"}}, {Options: []string{"S", "L"}}, {Text: "Bo"}},
+		{{Options: []string{"Apple"}}, {}, {Text: "Bo"}},
+		{{Options: []string{"Kiwi"}}, {Options: []string{"S"}}, {Text: "Bo"}},
+	} {
+		if err := f.s.AnswerAll(st.Approvals[0].ID, bad); err == nil {
+			t.Fatalf("answered with %+v", bad)
+		}
+	}
+	if err := f.s.AnswerAll(st.Approvals[0].ID, []Pick{{Options: []string{"Apple", "Cherry"}}, {Options: []string{"L"}}, {Text: " Bo "}}); err != nil {
+		t.Fatal(err)
+	}
+	cmd.Wait()
+	if !strings.Contains(out.String(), `"answers":{"Fruits?":"Apple, Cherry","Name?":"Bo","Size?":"L"}`) {
+		t.Fatalf("form answers: %q", out.String())
+	}
+	run(`{"hook_event_name":"UserPromptSubmit","prompt":"go on"}`)
+
+	// Or in the pane.
 	cmd, _ = start(`{"hook_event_name":"PermissionRequest","tool_name":"AskUserQuestion","tool_input":{"questions":[{"question":"Which?","options":[{"label":"a"}]},{"question":"Port?","options":[{"label":"1"}]}]}}`)
 	st = waitFor("asking two questions", asking)
 	if st.Approvals[0].Clickable() || st.Message != "Which? (and 1 more)" {
@@ -797,13 +823,16 @@ func TestHookCodexApprovals(t *testing.T) {
 	// pane, where its PostToolUse clears it.
 	run(`{"hook_event_name":"PreToolUse","tool_name":"request_user_input","tool_input":{"questions":[{"id":"a","question":"A?","options":[{"label":"x"},{"label":"y"}]},{"id":"b","question":"B?","options":[{"label":"p"},{"label":"q"}]}]}}`)
 	st = agent()
-	if st.Approvals[0].Clickable() {
-		t.Fatalf("two questions clickable: %+v", st.Approvals[0])
+	if st.Approvals[0].Clickable() || !st.Approvals[0].Form || st.Approvals[0].FreeText {
+		t.Fatalf("two codex questions: %+v", st.Approvals[0])
+	}
+	if err := f.s.AnswerAll(st.Approvals[0].ID, []Pick{{Options: []string{"y"}}, {Text: "z"}}); err == nil {
+		t.Fatal("a codex question answered in words")
 	}
 	f.mu.Lock()
 	f.keys = nil
 	f.mu.Unlock()
-	if err := f.s.AnswerQuestion(st.Approvals[0].ID, []string{"y", "p"}); err != nil {
+	if err := f.s.AnswerAll(st.Approvals[0].ID, []Pick{{Options: []string{"y"}}, {Options: []string{"p"}}}); err != nil {
 		t.Fatal(err)
 	}
 	f.mu.Lock()

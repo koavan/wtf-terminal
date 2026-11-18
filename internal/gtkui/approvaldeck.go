@@ -2,6 +2,8 @@ package gtkui
 
 import (
 	"fmt"
+	"maps"
+	"slices"
 	"strings"
 
 	coreglib "github.com/diamondburned/gotk4/pkg/core/glib"
@@ -114,7 +116,7 @@ func approvalActions(w *Window, st bridge.Status, ap bridge.Approval, shortcut b
 	id, session, product := ap.ID, st.Session, agentProduct(st)
 	if len(ap.Questions) > 0 {
 		if !ap.Clickable() {
-			return []sideAction{{label: "Go to Agent", key: true, tip: "Answer in its pane: several questions, or several choices, are answered there", run: func() { a.goToAgent(session) }}}
+			return []sideAction{{label: "Go to Agent", key: true, tip: "Answer on its floating card, or in its pane", run: func() { a.goToAgent(session) }}}
 		}
 		var acts []sideAction
 		for _, o := range ap.Questions[0].Options {
@@ -242,6 +244,11 @@ type approvalDeck struct {
 	known     map[string]bool
 	topID     string
 	stop      func()
+	// What's built: rebuilt only when it changes, so a form keeps its
+	// focus and what you've typed.
+	built string
+	// A form's answers so far, by request.
+	picks map[string][]bridge.Pick
 }
 
 const deckWidth = 380
@@ -255,27 +262,62 @@ func newApprovalDeck(w *Window) *approvalDeck {
 	d.root.SetMarginBottom(12)
 	d.root.SetCanFocus(false)
 	d.root.SetVisible(false)
-	d.stop = w.app.agents.observe(d.refresh)
+	d.picks = map[string][]bridge.Pick{}
+	offAgents := w.app.agents.observe(d.refresh)
+	offSettings := w.app.settings.observe(func() { d.rebuild(true) })
+	d.stop = func() { offAgents(); offSettings() }
 	return d
 }
 
-// top is the request approval.allow answers (not a question).
+// top is the request approval.allow answers: one to allow, or a filled-in
+// form to submit (a single question's options answer it).
 func (d *approvalDeck) top() (bridge.Approval, bool) {
-	if d.collapsed || len(d.shown) == 0 || len(d.shown[0].ap.Questions) > 0 {
+	if d.collapsed || len(d.shown) == 0 {
 		return bridge.Approval{}, false
 	}
-	return d.shown[0].ap, true
+	ap := d.shown[0].ap
+	return ap, len(ap.Questions) == 0 || ap.Form && d.complete(ap)
 }
 
 func (d *approvalDeck) allowTop() {
-	if ap, ok := d.top(); ok {
+	ap, ok := d.top()
+	switch {
+	case !ok:
+	case ap.Form:
+		d.submit(ap)
+	default:
 		d.w.answerApproval(ap.ID, bridge.Allow)
 	}
 }
 
+// complete: every question has an option or your own words.
+func (d *approvalDeck) complete(ap bridge.Approval) bool {
+	p := d.picks[ap.ID]
+	if len(p) != len(ap.Questions) {
+		return false
+	}
+	for _, x := range p {
+		if len(x.Options) == 0 && strings.TrimSpace(x.Text) == "" {
+			return false
+		}
+	}
+	return true
+}
+
+func (d *approvalDeck) submit(ap bridge.Approval) {
+	w, b, picks := d.w, d.w.app.be.Bridge, slices.Clone(d.picks[ap.ID])
+	go func() {
+		if err := b.AnswerAll(ap.ID, picks); err != nil {
+			coreglib.IdleAdd(func() { w.toast("Not answered: " + err.Error()) })
+		}
+	}()
+}
+
 // refresh rebuilds from the agents' requests (they changed, or the tab in
-// front did).
-func (d *approvalDeck) refresh() {
+// front did), when what it shows changed.
+func (d *approvalDeck) refresh() { d.rebuild(false) }
+
+func (d *approvalDeck) rebuild(force bool) {
 	w := d.w
 	front := map[string]bool{}
 	if t, ok := w.model.Active(); ok {
@@ -302,6 +344,20 @@ func (d *approvalDeck) refresh() {
 		}
 	}
 	d.known = ids
+	maps.DeleteFunc(d.picks, func(id string, _ []bridge.Pick) bool { return !ids[id] })
+	var sig strings.Builder
+	for _, ask := range d.shown {
+		sig.WriteString(ask.ap.ID + ",")
+	}
+	fmt.Fprintf(&sig, "|%v|", d.collapsed)
+	if len(d.shown) > 0 {
+		title, _ := w.app.agentTitle(d.shown[0].st)
+		sig.WriteString(title + strings.Join(d.shown[0].ap.Facts, "\n"))
+	}
+	if !force && sig.String() == d.built {
+		return
+	}
+	d.built = sig.String()
 	for c := d.root.FirstChild(); c != nil; c = d.root.FirstChild() {
 		d.root.Remove(c)
 	}
@@ -387,6 +443,10 @@ func (d *approvalDeck) card(st bridge.Status, ap bridge.Approval) gtk.Widgetter 
 	head.Append(hide)
 	box.Append(head)
 
+	if ap.Form {
+		d.form(box, st, ap)
+		return box
+	}
 	for _, m := range approvalBody(a, ap, 8) {
 		t := wrapLabel(m.text, "wtf-side-detail")
 		for _, c := range m.classes {
@@ -410,6 +470,113 @@ func (d *approvalDeck) card(st bridge.Status, ap bridge.Approval) gtk.Widgetter 
 	}
 	box.Append(row)
 	return box
+}
+
+// form: several questions, or several choices, answered at once: each
+// question with its options (radio buttons, or checkboxes when it takes
+// several) and, for Claude, an entry for your own words; then Submit, which
+// needs every question answered.
+func (d *approvalDeck) form(box *gtk.Box, st bridge.Status, ap bridge.Approval) {
+	a := d.w.app
+	id := ap.ID
+	if len(d.picks[id]) != len(ap.Questions) {
+		d.picks[id] = make([]bridge.Pick, len(ap.Questions))
+	}
+	submit := "Submit"
+	if k := keyOf("approval.allow"); k != "" {
+		submit += " " + k
+	}
+	send := gtk.NewButtonWithLabel(submit)
+	send.AddCSSClass("wtf-side-action")
+	send.AddCSSClass("suggested-action")
+	send.SetFocusOnClick(false)
+	send.SetTooltipText("Send these answers to " + agentProduct(st) + ", as answering in its own dialog")
+	update := func() { send.SetSensitive(d.complete(ap)) }
+	send.ConnectClicked(func() {
+		if d.complete(ap) {
+			d.submit(ap)
+		}
+	})
+	for i, q := range ap.Questions {
+		title := q.Question
+		if q.Header != "" {
+			title = q.Header + " · " + title
+		}
+		t := wrapLabel(a.settings.text(title), "wtf-side-detail")
+		t.AddCSSClass("heading")
+		t.SetMaxWidthChars(52)
+		t.SetMarginTop(4)
+		box.Append(t)
+		var checks []*gtk.CheckButton
+		var entry *gtk.Entry
+		setting := false
+		for _, o := range q.Options {
+			c := gtk.NewCheckButtonWithLabel(a.settings.text(o))
+			c.SetFocusOnClick(false)
+			c.SetTooltipText(a.settings.text(o))
+			if !q.Multi && len(checks) > 0 {
+				c.SetGroup(checks[0])
+			}
+			c.SetActive(slices.Contains(d.picks[id][i].Options, o))
+			c.ConnectToggled(func() {
+				p := d.picks[id]
+				if setting || i >= len(p) {
+					return
+				}
+				var chosen []string
+				for j, x := range checks {
+					if x.Active() {
+						chosen = append(chosen, q.Options[j])
+					}
+				}
+				p[i].Options = chosen
+				if len(chosen) > 0 && entry != nil && entry.Text() != "" {
+					// A choice instead of your own words.
+					p[i].Text = ""
+					setting = true
+					entry.SetText("")
+					setting = false
+				}
+				update()
+			})
+			checks = append(checks, c)
+			box.Append(c)
+		}
+		if ap.FreeText {
+			entry = gtk.NewEntry()
+			if len(q.Options) == 0 {
+				entry.SetPlaceholderText("Your answer")
+			} else {
+				entry.SetPlaceholderText("Or in your own words")
+			}
+			entry.SetText(d.picks[id][i].Text)
+			entry.ConnectChanged(func() {
+				p := d.picks[id]
+				if setting || i >= len(p) {
+					return
+				}
+				p[i].Text = entry.Text()
+				if strings.TrimSpace(p[i].Text) != "" && len(p[i].Options) > 0 {
+					// Your own words instead of a choice.
+					p[i].Options = nil
+					setting = true
+					for _, c := range checks {
+						c.SetActive(false)
+					}
+					setting = false
+				}
+				update()
+			})
+			box.Append(entry)
+		}
+	}
+	session := st.Session
+	row := gtk.NewBox(gtk.OrientationHorizontal, 4)
+	row.SetMarginTop(3)
+	row.Append(send)
+	row.Append(actionButton(sideAction{label: "Go to Agent", tip: "Show its pane", run: func() { a.goToAgent(session) }}))
+	box.Append(row)
+	update()
 }
 
 // pill: collapsed, "3 waiting for you"; a click shows the card again.

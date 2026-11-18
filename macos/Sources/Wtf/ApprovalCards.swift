@@ -209,7 +209,7 @@ enum ApprovalContent {
             views.append(b)
         }
         let tip = Agents.clickable(ap) ? "Show its pane"
-            : "Answer in its pane: several questions, or several choices, are answered there"
+            : "Answer on its floating card, or in its pane"
         views.append(button(go, tip, key: !Agents.clickable(ap)) { Agents.go(to: session) })
         let col = NSStackView(views: views)
         col.orientation = .vertical
@@ -263,6 +263,11 @@ final class ApprovalDeck: NSView {
     private(set) var shown: [(Go.bridge.Status, Go.bridge.Approval)] = []
     private var known: Set<String> = []
     private var topId = ""
+    /// What's built: rebuilt only when it changes, so a form keeps its
+    /// focus and what you've typed.
+    private var built = ""
+    /// A form's answers so far, by request.
+    private var picks: [String: [Go.bridge.Pick]] = [:]
 
     static let width: CGFloat = 380
 
@@ -272,20 +277,26 @@ final class ApprovalDeck: NSView {
         translatesAutoresizingMaskIntoConstraints = false
         isHidden = true
         Agents.observe(self) { [weak self] in self?.refresh() }
-        Redaction.shared.observe(self) { $0.refresh() }
-        Settings.shared.observe(self) { $0.refresh() }
+        Redaction.shared.observe(self) { $0.refresh(force: true) }
+        Settings.shared.observe(self) { $0.refresh(force: true) }
     }
 
     required init?(coder: NSCoder) { fatalError() }
 
     override var isFlipped: Bool { true }
 
-    /// The request ⌘⏎ answers (not a question).
+    /// The request on the card.
     var top: Go.bridge.Approval? { collapsed || isHidden ? nil : shown.first?.1 }
 
+    /// ⌘⏎ answers the card: Allow, or a form's Submit once it's filled in.
+    var canAnswerTop: Bool {
+        guard let ap = top else { return false }
+        return ap.questions.isEmpty || ap.form && complete(ap)
+    }
+
     /// Rebuilds from the agents' requests (they changed, or the tab in front
-    /// did).
-    func refresh() {
+    /// did), when what it shows changed (or `force`).
+    func refresh(force: Bool = false) {
         let front = Set(owner.model.active?.root.leaves.compactMap { owner.model.panes[$0]?.sessionId } ?? [])
         let on = Settings.shared.config?.approvalCards != false
         shown = on ? Agents.approvals().filter { !front.contains($0.0.session) } : []
@@ -293,8 +304,13 @@ final class ApprovalDeck: NSView {
         // Something new asks: open it again.
         if !ids.subtracting(known).isEmpty { collapsed = false }
         known = ids
+        picks = picks.filter { ids.contains($0.key) }
+        let first = shown.first
+        let sig = shown.map(\.1.id).joined(separator: ",") + "|\(collapsed)|" + (first.map { Agents.title($0.0) + $0.1.facts.joined() } ?? "")
+        if !force, sig == built { return }
+        built = sig
         subviews.forEach { $0.removeFromSuperview() }
-        guard let (st, ap) = shown.first else {
+        guard let (st, ap) = first else {
             isHidden = true
             topId = ""
             return
@@ -388,8 +404,12 @@ final class ApprovalDeck: NSView {
 
         var lines: [NSView] = [top]
         var wide: [NSView] = []
-        ApprovalContent.body(ap, diffLines: 8, into: &lines, wide: &wide)
-        lines.append(ApprovalContent.buttons(ap, of: st, shortcut: true, anchor: owner.rootView))
+        if ap.form {
+            form(ap, of: st, into: &lines, wide: &wide)
+        } else {
+            ApprovalContent.body(ap, diffLines: 8, into: &lines, wide: &wide)
+            lines.append(ApprovalContent.buttons(ap, of: st, shortcut: true, anchor: owner.rootView))
+        }
         let stack = NSStackView(views: lines)
         stack.orientation = .vertical
         stack.alignment = .leading
@@ -436,11 +456,145 @@ final class ApprovalDeck: NSView {
         refresh()
     }
 
-    /// ⌘⏎: allows the card's request (not a question: its options answer it).
+    /// ⌘⏎: allows the card's request, or submits its filled-in form (a
+    /// single question's options answer it).
     func allowTop() -> Bool {
-        guard let ap = top, ap.questions.isEmpty else { return false }
-        ApprovalContent.answer(ap.id, "allow", owner.rootView)
+        guard let ap = top, canAnswerTop else { return false }
+        if ap.form {
+            submit(ap)
+        } else {
+            ApprovalContent.answer(ap.id, "allow", owner.rootView)
+        }
         return true
+    }
+
+    // The form: several questions, or several choices, answered at once.
+
+    /// Every question has an option or your own words.
+    private func complete(_ ap: Go.bridge.Approval) -> Bool {
+        let p = picks[ap.id] ?? []
+        return p.count == ap.questions.count && p.allSatisfy {
+            !$0.options.isEmpty || !$0.text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        }
+    }
+
+    private func submit(_ ap: Go.bridge.Approval) {
+        let id = ap.id
+        let p = picks[id] ?? []
+        let anchor = owner.rootView
+        Task { @MainActor in
+            do {
+                try await Services.bridge.AnswerAll(id, p)
+            } catch {
+                Toast.show("Not answered: \(error.localizedDescription)", in: anchor)
+            }
+        }
+    }
+
+    /// Each question with its options (radio buttons, or checkboxes when it
+    /// takes several) and, for Claude, a field for your own words; then
+    /// Submit, which needs every question answered.
+    private func form(_ ap: Go.bridge.Approval, of st: Go.bridge.Status, into lines: inout [NSView], wide: inout [NSView]) {
+        let r = Redaction.shared
+        let id = ap.id
+        let product = Agents.product(st)
+        if picks[id]?.count != ap.questions.count {
+            picks[id] = ap.questions.map { _ in Go.bridge.Pick() }
+        }
+        let submitButton = ClosureButton(title: "Submit ⌘⏎") { [weak self] in
+            guard let self, let ap = self.top, ap.id == id, self.complete(ap) else { return }
+            self.submit(ap)
+        }
+        submitButton.bezelStyle = .accessoryBarAction
+        submitButton.controlSize = .small
+        submitButton.font = .systemFont(ofSize: 11, weight: .semibold)
+        submitButton.refusesFirstResponder = true
+        submitButton.toolTip = "Send these answers to \(product), as answering in its own dialog"
+        let update = { [weak self, weak submitButton] in
+            guard let self, let ap = self.top, ap.id == id else { return }
+            submitButton?.isEnabled = self.complete(ap)
+        }
+        for (i, q) in ap.questions.enumerated() {
+            let title = NSTextField(wrappingLabelWithString: (q.header.isEmpty ? "" : r.text(q.header) + " · ") + r.text(q.question))
+            title.font = .systemFont(ofSize: 12, weight: .semibold)
+            title.maximumNumberOfLines = 4
+            title.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
+            lines.append(title)
+            wide.append(title)
+            var buttons: [FormChoice] = []
+            var field: FormField?
+            for o in q.options {
+                let b = FormChoice(title: r.text(o))
+                b.setButtonType(q.multi ? .switch : .radio)
+                b.controlSize = .small
+                b.font = .systemFont(ofSize: 11.5)
+                b.refusesFirstResponder = true
+                b.lineBreakMode = .byTruncatingTail
+                b.toolTip = r.text(o)
+                b.state = picks[id]?[i].options.contains(o) == true ? .on : .off
+                buttons.append(b)
+            }
+            for (b, o) in zip(buttons, q.options) {
+                b.onClick = { [weak self, weak b] in
+                    guard let self, var p = self.picks[id], i < p.count, let b else { return }
+                    if q.multi {
+                        p[i].options = q.options.filter { opt in
+                            opt == o ? b.state == .on : p[i].options.contains(opt)
+                        }
+                    } else {
+                        p[i].options = [o]
+                        for x in buttons where x !== b { x.state = .off }
+                        b.state = .on
+                    }
+                    // A choice instead of your own words.
+                    p[i].text = ""
+                    field?.stringValue = ""
+                    self.picks[id] = p
+                    update()
+                }
+            }
+            // Its own view: AppKit groups radio buttons by superview.
+            let options = NSStackView(views: buttons)
+            options.orientation = .vertical
+            options.alignment = .leading
+            options.spacing = 1
+            if !buttons.isEmpty {
+                lines.append(options)
+                wide.append(options)
+            }
+            if ap.freeText {
+                let f = FormField { [weak self] text in
+                    guard let self, var p = self.picks[id], i < p.count else { return }
+                    p[i].text = text
+                    if !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                        // Your own words instead of a choice.
+                        p[i].options = []
+                        buttons.forEach { $0.state = .off }
+                    }
+                    self.picks[id] = p
+                    update()
+                }
+                f.placeholderString = q.options.isEmpty ? "Your answer" : "Or in your own words"
+                f.stringValue = picks[id]?[i].text ?? ""
+                f.controlSize = .small
+                f.font = .systemFont(ofSize: 11.5)
+                f.bezelStyle = .roundedBezel
+                field = f
+                lines.append(f)
+                wide.append(f)
+            }
+        }
+        let session = st.session
+        let go = ClosureButton(title: "Go to Agent") { Agents.go(to: session) }
+        go.bezelStyle = .accessoryBarAction
+        go.controlSize = .small
+        go.font = .systemFont(ofSize: 11)
+        go.refusesFirstResponder = true
+        go.toolTip = "Show its pane"
+        let row = NSStackView(views: [submitButton, go])
+        row.spacing = 2
+        lines.append(row)
+        update()
     }
 }
 
@@ -542,4 +696,38 @@ final class TellPopover: NSViewController, NSPopoverDelegate {
     func popoverDidClose(_ notification: Notification) {
         if TellPopover.open?.contentViewController === self { TellPopover.open = nil }
     }
+}
+
+/// A form's text field: tells each change, takes the keyboard only when
+/// clicked.
+@MainActor
+private final class FormField: NSTextField, NSTextFieldDelegate {
+    private let changed: (String) -> Void
+
+    init(_ changed: @escaping (String) -> Void) {
+        self.changed = changed
+        super.init(frame: .zero)
+        delegate = self
+    }
+
+    required init?(coder: NSCoder) { fatalError() }
+
+    func controlTextDidChange(_ obj: Notification) { changed(stringValue) }
+}
+
+/// A form's radio button or checkbox.
+@MainActor
+private final class FormChoice: NSButton {
+    var onClick: () -> Void = {}
+
+    init(title: String) {
+        super.init(frame: .zero)
+        self.title = title
+        target = self
+        action = #selector(fire)
+    }
+
+    required init?(coder: NSCoder) { fatalError() }
+
+    @objc private func fire() { onClick() }
 }

@@ -57,9 +57,19 @@ type Approval struct {
 	// "Yes, and don't ask again": what each choice would save, e.g.
 	// "Always allow Bash(npm test:*) in this project" (AllowAlways).
 	Always []string `json:"always"`
-	// A question you can answer in your own words (AnswerText): Claude's,
-	// one question, one choice.
+	// Claude's questions: each can be answered in your own words too
+	// (AnswerText for one, AnswerAll for several).
 	FreeText bool `json:"freeText"`
+	// Several questions, or several choices: answered all at once with a
+	// form on the card (AnswerAll).
+	Form bool `json:"form"`
+}
+
+// Pick is your answer to one of a request's questions in its form: the
+// options chosen (one, unless it takes several), or your own words.
+type Pick struct {
+	Options []string `json:"options"`
+	Text    string   `json:"text"`
 }
 
 // Question is one of the questions Claude asks you.
@@ -166,8 +176,9 @@ func (s *Service) awaitApproval(ctx context.Context, req wire.Request) wire.Resp
 				w.always = append(w.always, sg)
 			}
 		}
-		ap.FreeText = len(ap.Questions) == 1 && !ap.Questions[0].Multi
+		ap.FreeText = len(ap.Questions) > 0
 	}
+	ap.Form = formable(ap, w.codex)
 	msg := firstOf(strings.TrimSpace(req.Message), req.Tool)
 	if req.Input != nil && req.Input.Command != "" {
 		msg = req.Tool + ": " + req.Input.Command
@@ -611,6 +622,70 @@ func (s *Service) AnswerText(id, text string) error {
 		return errors.New("this question is answered in the agent's pane")
 	}
 	return s.answer(id, answer{decision: Allow, answers: map[string]string{q: text}})
+}
+
+// formable: questions the card's form answers, all at once, that one
+// click can't: several, or several choices. Codex picks an option per
+// question by its number, so each needs options, one choice.
+func formable(ap Approval, codex bool) bool {
+	if len(ap.Questions) == 0 || ap.Clickable() {
+		return false
+	}
+	if codex {
+		for _, q := range ap.Questions {
+			if q.Multi || len(q.Options) == 0 {
+				return false
+			}
+		}
+	}
+	return true
+}
+
+// AnswerAll answers a request's questions all at once (its form): a Pick
+// for each, in order. Several choices go to Claude as one answer, "Apple,
+// Banana", as its own dialog sends them (checked with Claude Code 2.1.326).
+func (s *Service) AnswerAll(id string, picks []Pick) error {
+	s.mu.Lock()
+	w := s.waits[id]
+	if w == nil || w.inPane || len(w.questions) == 0 {
+		s.mu.Unlock()
+		return errors.New("it was answered already")
+	}
+	qs, codex := w.questions, w.codex
+	s.mu.Unlock()
+	if len(picks) != len(qs) {
+		return errors.New("one answer for each question")
+	}
+	answers := map[string]string{}
+	var keys []string
+	for i, q := range qs {
+		p := picks[i]
+		if text := strings.TrimSpace(p.Text); text != "" {
+			if codex {
+				return errors.New("Codex's questions are answered with their options")
+			}
+			if len(text) > maxTold {
+				return errors.New("that's too long")
+			}
+			answers[q.Question] = text
+			continue
+		}
+		if len(p.Options) == 0 || len(p.Options) > 1 && !q.MultiSelect {
+			return fmt.Errorf("answer %q", firstOf(q.Header, q.Question))
+		}
+		for _, o := range p.Options {
+			at := slices.IndexFunc(q.Options, func(x wire.Option) bool { return x.Label == o })
+			if at < 0 {
+				return fmt.Errorf("%q isn't one of its options", o)
+			}
+			keys = append(keys, strconv.Itoa(at+1))
+		}
+		answers[q.Question] = strings.Join(p.Options, ", ")
+	}
+	if codex {
+		return s.answer(id, answer{decision: Allow, keys: keys})
+	}
+	return s.answer(id, answer{decision: Allow, answers: answers})
 }
 
 // maxTold is how long what you tell an agent may be.

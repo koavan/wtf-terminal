@@ -483,6 +483,55 @@ func (w *Window) checkAgents() {
 				w.overlay.RemoveOverlay(at)
 			}
 		})
+		// A form for several questions: radio buttons, checkboxes, your own
+		// words; Submit waits for every answer.
+		formAp := bridge.Approval{ID: "form-check", Tool: "AskUserQuestion", Form: true, FreeText: true, Questions: []bridge.Question{
+			{Question: "Which fruits?", Header: "Fruit", Options: []string{"Apple", "Banana"}, Multi: true},
+			{Question: "Which size?", Options: []string{"S", "L"}},
+			{Question: "Your name?"},
+		}}
+		var formDone [3]bool
+		onMain(func() {
+			box := gtk.NewBox(gtk.OrientationVertical, 4)
+			box.SetHAlign(gtk.AlignStart)
+			box.SetVAlign(gtk.AlignStart)
+			box.AddCSSClass("wtf-approval-card")
+			w.deck.form(box, a.agents.all[session], formAp)
+			w.overlay.AddOverlay(box)
+			var checks []*gtk.CheckButton
+			var entries []*gtk.Entry
+			for c := box.FirstChild(); c != nil; c = gtk.BaseWidget(c).NextSibling() {
+				switch x := c.(type) {
+				case *gtk.CheckButton:
+					checks = append(checks, x)
+				case *gtk.Entry:
+					entries = append(entries, x)
+				}
+			}
+			formDone[0] = len(checks) == 4 && len(entries) == 3 && !w.deck.complete(formAp)
+			if formDone[0] {
+				checks[0].SetActive(true)
+				checks[1].SetActive(true)
+				checks[2].SetActive(true)
+				checks[3].SetActive(true) // its radio group unsets S
+				entries[2].SetText("Bo")
+				p := w.deck.picks["form-check"]
+				formDone[1] = w.deck.complete(formAp) && slices.Equal(p[0].Options, []string{"Apple", "Banana"}) && slices.Equal(p[1].Options, []string{"L"}) && p[2].Text == "Bo"
+				entries[1].SetText("Medium") // your own words instead
+				p = w.deck.picks["form-check"]
+				formDone[2] = len(p[1].Options) == 0 && !checks[3].Active() && p[1].Text == "Medium"
+			}
+		})
+		check(formDone[0], "a form shows each question's options and an entry")
+		check(formDone[1], "its choices fill it in (radio buttons one, checkboxes several)")
+		check(formDone[2], "your own words replace a choice")
+		w.shot("approval-form")
+		onMain(func() {
+			if box := w.overlay.LastChild(); box != nil {
+				w.overlay.RemoveOverlay(box)
+			}
+			delete(w.deck.picks, "form-check")
+		})
 		onMain(func() { w.allowAlways(ap.ID, 0) })
 		check(waitUntil(5*time.Second, func() bool { return exists("answer") }), "Always allow answers the hook")
 		check(read("answer") == `{"hookSpecificOutput":{"decision":{"behavior":"allow","updatedPermissions":[{"type":"addRules","rules":[{"toolName":"Bash","ruleContent":"kubectl rollout restart:*"}],"behavior":"allow","destination":"localSettings"}]},"hookEventName":"PermissionRequest"}}`,
