@@ -608,7 +608,8 @@ its agent in the Agents tab (`approval-cards`). **Allow** (⌘⏎ /
 Ctrl+Alt+Return) and **Deny** answer it as Yes and No in the agent's own
 dialog; **Allow ▾** saves one of Claude Code's own "don't ask again" rules,
 **Deny ▾ → Deny and Tell…** refuses it with what to do instead, and a
-question's options (or **Other…**, your own words) answer it. Answered in
+question's options (or **Other…**, your own words) answer it; several
+questions, or several choices, get a form on the card. Answered in
 the pane instead, the card and its notification go away; each agent has one
 notification at most.
 
