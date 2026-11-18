@@ -1084,6 +1084,79 @@ Phases:
    1.13.0 on 2026-11-18. The runner UI on a real Linux desktop is still to
    be tried.
 
+### 42. Move an agent to a runner and back ☐
+
+Added 2026-11-18, not started (the user asked to wait): move an idle
+Claude Code agent from this machine to a runner (#41), and back, keeping
+its conversation, memory, files and undo history. Not a live migration: a
+running `claude` can't move, so wtf ends it at a turn's end, moves what it
+depends on and resumes it on the other side with `claude --resume
+<session>`.
+
+What moves:
+
+- Conversation: `~/.claude/projects/<folder-key>/<session>.jsonl` and the
+  sub-agent transcripts beside it, into the other side's
+  `~/.claude/projects/<its folder-key>/` (the key is the folder path, so it
+  changes when the path does).
+- Memory: the project's `~/.claude/projects/<folder-key>/memory/`;
+  `CLAUDE.md` in the repo travels with the files; `~/.claude/CLAUDE.md`
+  stays where it is.
+- Files: the working folder over SSH with rsync (changes only, `.git`
+  included, uncommitted and untracked work kept).
+- Undo history: `~/.claude/file-history/<session>/`, so `/rewind` still
+  reaches back past the move.
+
+Sketch: **Move to Runner…** on an idle agent (refused while it's working
+or waiting on you) → runner and folder there → a plan to confirm (folder,
+size, files that would be overwritten) → end it here (its session is
+known from #38) → rsync → copy transcript, memory and file history,
+rewriting paths when the folder's path differs → start it on the runner
+resumed (`start` in runnerd gains a resume session). **Move Here…** does
+the reverse and warns when the local folder changed while it was away
+(both sides changed: show the conflicting files, never overwrite blindly).
+
+Doesn't move: tools, MCP servers, plugins, `.env` files, credentials (AWS,
+kube contexts), running services; the runner uses its own Claude account.
+The plan says so.
+
+First step when started: hands-on with real Claude Code — does a resumed
+transcript whose paths were rewritten behave (tool calls, sub-agents,
+`/rewind`)? Claude Code's transcript format is internal and may change; if
+rewriting isn't safe, require the same folder path on both sides instead.
+
+### 43. Pass one agent's output to another ☐
+
+Added 2026-11-18, not started (the user asked to wait): send an agent's
+final reply to another agent as its next prompt, local or on any runner,
+so agents can work as a relay (implement → review → fix, plan → build in
+worktrees, failing test → fix, backend API change → frontend). A relay you
+see and can step into, not a hidden pipeline.
+
+How: wtf already knows when a turn ends (the `Stop` hook, which carries
+the transcript path, so the final reply is read from the transcript, never
+the screen) and can send a prompt to any agent (Peek and Reply: typed into
+a local pane, or `tmux send-keys` on a runner). Across runners wtf is the
+go-between over the streams it already holds; runners never talk to each
+other. Only text crosses; files B needs travel by git (A pushes a branch)
+or by #42's folder sync.
+
+Steps:
+
+1. **Send Last Reply To…** on an agent: pick another agent, see the text
+   first, send.
+2. **Hand off when done**: "when A finishes, send its reply to B", ask
+   first (default) or automatic, shown on both agents' rows.
+3. **Saved chains**: reusable setups (e.g. implement → review → fix, up to
+   3 rounds) started on a folder.
+
+Safeguards, from the start: loops end (a maximum number of rounds, or a
+stop phrase such as "LGTM" from B); approvals still apply on every agent
+and the relay never answers them; A's reply reaches B labelled as A's
+output, not as your instructions, and can't widen B's permissions; Hide
+Secrets redaction runs on it first; the Agents tab shows the chain and its
+round, so automation doesn't quietly spend usage.
+
 ## Also built
 
 - Resource usage (2026-10-13): wtf's own CPU and memory in the address bar
