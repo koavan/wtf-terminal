@@ -1079,9 +1079,10 @@ Phases:
    at 1 MB. `linux/runner-test.sh` (testdata/runner/Dockerfile) sets up a
    throwaway runner and runs the live test; `agents` also runs real
    agents (approval, daemon restart, peek, reply) after `login`.
-7. ◐ macOS + Linux UI parity, manual page (done), release: 1.13.0-dev
-   built 2026-11-18 for trying it out (not a production release); the
-   runner UI on a real Linux desktop is still to be tried.
+7. ☑ macOS + Linux UI parity, manual page (done), release: 1.13.0-dev
+   built 2026-11-18 for trying it out; tried by the user and released as
+   1.13.0 on 2026-11-18. The runner UI on a real Linux desktop is still to
+   be tried.
 
 ## Also built
 
