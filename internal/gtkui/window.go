@@ -474,6 +474,7 @@ func (w *Window) commandEnded(p *Pane, code int, took time.Duration) {
 	if uicore.IsScanCommand(ps.Command) {
 		w.scanFinished()
 	}
+	w.runnerFixEnded(p.id)
 	ps.Running, ps.Command = false, ""
 	w.model.MarkFinished(p.id, code == 0)
 	w.strip.refresh()

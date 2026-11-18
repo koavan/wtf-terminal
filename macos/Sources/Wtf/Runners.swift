@@ -311,8 +311,13 @@ enum Runners {
         return nil
     }
 
-    /// Opens a tab running what needs you on the runner; Check Again when
-    /// you're done.
+    /// Panes of tabs opened to fix a runner (install, sign in, setup), by
+    /// window and pane: when their command ends, the runner is checked
+    /// again.
+    private static var fixing: [ObjectIdentifier: [Int: String]] = [:]
+
+    /// Opens a tab running what needs you on the runner. When its command
+    /// ends (you finished, or left), the runner is checked again.
     static func tab(_ id: String, _ what: String, _ title: String, _ owner: WindowController) {
         Task {
             do {
@@ -320,11 +325,21 @@ enum Runners {
                 let name = list.first { $0.id == id }?.name ?? ""
                 let t = owner.model.open(command: cmd)
                 owner.model.rename(t, "\(title) · \(name)")
+                if what != "shell", let pane = owner.model.tab(t)?.focusedPaneId {
+                    fixing[ObjectIdentifier(owner), default: [:]][pane] = id
+                }
                 owner.window?.makeKeyAndOrderFront(nil)
             } catch {
                 Toast.show(error.localizedDescription, in: owner.rootView)
             }
         }
+    }
+
+    /// A command ended in a pane: if it was a runner's fix, check the
+    /// runner again so its status shows what changed.
+    static func commandEnded(in owner: WindowController, pane: Int) {
+        guard let id = fixing[ObjectIdentifier(owner)]?.removeValue(forKey: pane) else { return }
+        check(id)
     }
 
     static func install(_ id: String, owner: WindowController) {

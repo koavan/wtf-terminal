@@ -407,6 +407,7 @@ final class WindowController: NSWindowController, NSWindowDelegate, NSMenuItemVa
             }
             records.changed()
             if Findings.isScan(p.command) { records.scanFinished() }
+            Runners.commandEnded(in: self, pane: id)
             p.running = false
             p.command = ""
             model.markFinished(pane: id, ok: code == 0)

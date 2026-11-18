@@ -34,7 +34,11 @@ type runnerList struct {
 	// the notification each agent last showed, replaced by its next.
 	agents map[string]runner.Agents
 	// Tabs showing a runner's agent, by session.
-	tabs   map[string]remoteTab
+	tabs map[string]remoteTab
+	// The panes of tabs opened to fix a runner (install, sign in, setup),
+	// by window and pane: when their command ends, the runner is checked
+	// again.
+	fixing map[windowPane]string
 	busy   map[string]bool
 	loaded bool
 	obs    map[int]func()
@@ -46,8 +50,13 @@ type remoteTab struct {
 	tab int
 }
 
+type windowPane struct {
+	w    *Window
+	pane int
+}
+
 func newRunnerList() *runnerList {
-	return &runnerList{busy: map[string]bool{}, obs: map[int]func(){}, agents: map[string]runner.Agents{}, tabs: map[string]remoteTab{}}
+	return &runnerList{busy: map[string]bool{}, obs: map[int]func(){}, agents: map[string]runner.Agents{}, tabs: map[string]remoteTab{}, fixing: map[windowPane]string{}}
 }
 
 func (l *runnerList) observe(f func()) (stop func()) {
@@ -190,8 +199,8 @@ func (w *Window) runnerFix(st runner.Status) (label string, run func(), ok bool)
 	return "", nil, false
 }
 
-// runnerTab opens a tab running what needs you on the runner; Check Again
-// when you're done.
+// runnerTab opens a tab running what needs you on the runner. When its
+// command ends (you finished, or left), the runner is checked again.
 func (w *Window) runnerTab(id, what, title string) {
 	cmd, err := w.app.be.Runners.TabCommand(id, what)
 	if err != nil {
@@ -201,7 +210,23 @@ func (w *Window) runnerTab(id, what, title string) {
 	st, _ := w.app.runners.find(id)
 	t := w.model.Open(uicore.OpenOptions{Command: cmd})
 	w.model.Rename(t, title+" · "+st.Name)
+	if what != runner.TabShell {
+		if tb, ok := w.model.Tab(t); ok {
+			w.app.runners.fixing[windowPane{w, tb.FocusedPaneID}] = id
+		}
+	}
 	w.win.Present()
+}
+
+// runnerFixEnded: a command ended in a pane; if it was a runner's fix
+// (installing Claude Code, signing in, first-run setup), check the runner
+// again so its status shows what changed.
+func (w *Window) runnerFixEnded(pane int) {
+	k := windowPane{w, pane}
+	if id, ok := w.app.runners.fixing[k]; ok {
+		delete(w.app.runners.fixing, k)
+		w.app.checkRunner(id)
+	}
 }
 
 func (w *Window) installRunner(id string) {

@@ -147,7 +147,7 @@ A green dot means it's ready; orange means something is missing, shown in the ro
 3. **Finish Claude Code Setup…** opens Claude Code there once for its first-run screens (theme and notes; it asks you to trust wtf-runner's own folder). Type `/exit` when it's done.
 4. **Install wtf-runner…** copies wtf-runner, Claude Code's hook helper and wtf's status hooks to `~/.local/share/wtf-runner` on the runner, after you confirm. It changes nothing else there. When you update wtf, the runner shows **Update wtf-runner…**.
 
-After a step in a tab, right-click the runner → **Check Again**. wtf checks each runner once when the Agents tab first shows, and when you ask; it never polls.
+When a step's command ends in its tab (you finished, or quit it), wtf checks the runner again and its status moves on to the next step. wtf also checks each runner once when the Agents tab first shows, and when you right-click it → **Check Again**; it never polls.
 
 Right-click a runner for **Check Again**, **Open a Shell There**, **Sign In Again…**, **Rename…** and **Remove Runner…**. Removing it only forgets it in wtf, unless you also tick **Also delete ~/.local/share/wtf-runner there**. Claude Code, its sign-in and your files stay as they are.
 
