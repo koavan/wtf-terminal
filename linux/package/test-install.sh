@@ -20,8 +20,10 @@ arch=${1:-arm64}
 rpmarch=$arch
 [ "$arch" = amd64 ] && rpmarch=x86_64
 [ "$arch" = arm64 ] && rpmarch=aarch64
-deb=$(ls bin/gtk/packages/wtf_*_"$arch".deb | tail -1)
-rpm=$(ls bin/gtk/packages/wtf-*."$rpmarch".rpm | tail -1)
+# The newest built (by time: as text, wtf_1.8.0 sorts after wtf_1.13.0).
+deb=$(ls -t bin/gtk/packages/wtf_*_"$arch".deb | head -1)
+rpm=$(ls -t bin/gtk/packages/wtf-*."$rpmarch".rpm | head -1)
+echo "== testing $deb and $rpm"
 fail=0
 
 # The check, the same everywhere: it starts, opens a window, uses the real
