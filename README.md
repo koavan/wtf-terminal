@@ -602,6 +602,16 @@ prompts), or ends it. **Start Claude Code…** starts one in a folder, with a
 first prompt, in a tab or in the background. Quitting wtf ends them, after
 asking.
 
+What an agent waits on you for (a command to run, a file to edit, a
+question) floats as a card over the terminal, bottom right, and sits under
+its agent in the Agents tab (`approval-cards`). **Allow** (⌘⏎ /
+Ctrl+Alt+Return) and **Deny** answer it as Yes and No in the agent's own
+dialog; **Allow ▾** saves one of Claude Code's own "don't ask again" rules,
+**Deny ▾ → Deny and Tell…** refuses it with what to do instead, and a
+question's options (or **Other…**, your own words) answer it. Answered in
+the pane instead, the card and its notification go away; each agent has one
+notification at most.
+
 Sub-agents an agent starts (Claude Code's Agent tool) sit folded under it:
 a small "▸ 3 sub-agents · 1 working" line opens them, each with its type and
 task, its latest step while it works ("Read deploy_test.go") or its report's
