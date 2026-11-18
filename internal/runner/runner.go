@@ -437,6 +437,7 @@ func (s *Service) payloadFiles(goarch string) ([]file, error) {
 // Tab commands: what needs you runs in a tab.
 const (
 	TabSignIn        = "signin"
+	TabSignOut       = "signout"
 	TabSetup         = "setup"
 	TabInstallClaude = "install-claude"
 	TabInstallTmux   = "install-tmux"
@@ -473,6 +474,8 @@ func (s *Service) TabCommand(id, what string) (string, error) {
 	switch what {
 	case TabSignIn:
 		remote = claude + " auth login --claudeai"
+	case TabSignOut:
+		remote = claude + " auth logout"
 	case TabSetup:
 		// Claude Code's first-run screens, in wtf-runner's own folder so
 		// the folder it asks you to trust is one wtf made.

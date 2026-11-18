@@ -178,6 +178,7 @@ func TestTabCommand(t *testing.T) {
 	s.Check("box:")
 	for what, want := range map[string]string{
 		TabSignIn:        `ssh -t -o ConnectTimeout=10 box 'env -u ANTHROPIC_API_KEY "/home/dev/.local/bin/claude" auth login --claudeai'`,
+		TabSignOut:       `ssh -t -o ConnectTimeout=10 box 'env -u ANTHROPIC_API_KEY "/home/dev/.local/bin/claude" auth logout'`,
 		TabInstallClaude: `ssh -t -o ConnectTimeout=10 box 'curl -fsSL https://claude.ai/install.sh | bash'`,
 		TabInstallTmux:   `ssh -t -o ConnectTimeout=10 box 'sudo apt-get update && sudo apt-get install tmux'`,
 		TabSetup:         `ssh -t -o ConnectTimeout=10 box 'mkdir -p "$HOME/.local/share/wtf-runner" && cd "$HOME/.local/share/wtf-runner" && env -u ANTHROPIC_API_KEY "/home/dev/.local/bin/claude"'`,

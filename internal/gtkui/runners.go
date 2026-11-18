@@ -229,6 +229,18 @@ func (w *Window) runnerFixEnded(pane int) {
 	}
 }
 
+// signOutRunner signs Claude Code out on the runner (claude auth logout),
+// after you confirm, in a tab; the runner is checked again when it ends.
+func (w *Window) signOutRunner(st runner.Status) {
+	who := ""
+	if st.Facts != nil && st.Facts.Account != "" {
+		who = " (" + st.Facts.Account + ")"
+	}
+	w.app.confirm(&w.win.Window, "Sign Claude Code out on "+st.Name+"?",
+		"Claude Code on "+st.Alias+" signs out of your Claude account"+who+". Agents can't start there until you sign in again.",
+		"Sign Out", func() { w.runnerTab(st.ID, runner.TabSignOut, "Sign out") })
+}
+
 func (w *Window) installRunner(id string) {
 	st, ok := w.app.runners.find(id)
 	if !ok || st.Facts == nil {
@@ -290,6 +302,9 @@ func (w *Window) runnerMenu(id string) []*menuItem {
 				l = "Sign In Again…"
 			}
 			items = append(items, item(l, func() { w.runnerTab(id, runner.TabSignIn, "Sign in") }))
+			if f.SignedIn {
+				items = append(items, item("Sign Out…", func() { w.signOutRunner(st) }))
+			}
 		}
 		if f.RunnerVersion != "" && !strings.HasSuffix(label, "wtf-runner…") {
 			items = append(items, item("Reinstall wtf-runner…", func() { w.installRunner(id) }))

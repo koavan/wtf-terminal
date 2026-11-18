@@ -342,6 +342,17 @@ enum Runners {
         check(id)
     }
 
+    /// Signs Claude Code out on the runner (claude auth logout), after you
+    /// confirm, in a tab; the runner is checked again when it ends.
+    static func signOut(_ st: Go.runner.Status, owner: WindowController) {
+        let who = st.facts.map(\.account).flatMap { $0.isEmpty ? nil : " (\($0))" } ?? ""
+        Confirm.show(in: owner.window, title: "Sign Claude Code out on \(st.name)?",
+                     message: "Claude Code on \(st.alias) signs out of your Claude account\(who). Agents can't start there until you sign in again.",
+                     button: "Sign Out") {
+            tab(st.id, "signout", "Sign out", owner)
+        }
+    }
+
     static func install(_ id: String, owner: WindowController) {
         guard let st = list.first(where: { $0.id == id }), let f = st.facts else { return }
         let update = !f.runnerVersion.isEmpty
@@ -379,6 +390,7 @@ enum Runners {
         add("Open a Shell There") { tab(id, "shell", "SSH", owner) }
         if let f = st.facts, f.reachable {
             if !f.claude.isEmpty { add(f.signedIn ? "Sign In Again…" : "Sign In…") { tab(id, "signin", "Sign in", owner) } }
+            if !f.claude.isEmpty, f.signedIn { add("Sign Out…") { signOut(st, owner: owner) } }
             if !f.runnerVersion.isEmpty, fix(st)?.title.hasSuffix("wtf-runner…") != true {
                 add("Reinstall wtf-runner…") { install(id, owner: owner) }
             }

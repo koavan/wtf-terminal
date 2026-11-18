@@ -149,7 +149,7 @@ A green dot means it's ready; orange means something is missing, shown in the ro
 
 When a step's command ends in its tab (you finished, or quit it), wtf checks the runner again and its status moves on to the next step. wtf also checks each runner once when the Agents tab first shows, and when you right-click it → **Check Again**; it never polls.
 
-Right-click a runner for **Check Again**, **Open a Shell There**, **Sign In Again…**, **Rename…** and **Remove Runner…**. Removing it only forgets it in wtf, unless you also tick **Also delete ~/.local/share/wtf-runner there**. Claude Code, its sign-in and your files stay as they are.
+Right-click a runner for **Check Again**, **Open a Shell There**, **Sign In Again…**, **Sign Out…**, **Rename…** and **Remove Runner…**. **Sign Out…** asks first, then runs `claude auth logout` there in a tab; agents can't start on that runner until you sign in again. Removing it only forgets it in wtf, unless you also tick **Also delete ~/.local/share/wtf-runner there**. Claude Code, its sign-in and your files stay as they are.
 
 ### Agents on a runner
 
