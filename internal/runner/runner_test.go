@@ -10,6 +10,9 @@ import (
 	"slices"
 	"strings"
 	"testing"
+	"time"
+
+	"github.com/dayanraj/wtf/internal/bridge"
 )
 
 const signedIn = `os=Linux
@@ -24,6 +27,9 @@ onboarded=1
 runner=1.12.0 protocol=1
 end=1
 `
+
+// noStream stands in for the agents stream's ssh: it fails at once.
+func noStream(ctx context.Context, _ []string) *exec.Cmd { return exec.CommandContext(ctx, "false") }
 
 func TestParseProbe(t *testing.T) {
 	f := parseProbe([]byte(signedIn))
@@ -77,6 +83,7 @@ func newTest(t *testing.T) (*Service, *fakeSSH) {
 	s := NewService(t.TempDir(), "1.12.0")
 	f := &fakeSSH{out: signedIn}
 	s.ssh = f.run
+	s.sshCommand = noStream
 	return s, f
 }
 
@@ -106,7 +113,7 @@ func TestRunners(t *testing.T) {
 		t.Fatal(err)
 	}
 	s2 := NewService(filepath.Dir(s.file), "1.13.0")
-	s2.ssh = f.run
+	s2.ssh, s2.sshCommand = f.run, noStream
 	if l := s2.List(); len(l) != 1 || l[0].Name != "Build box" || l[0].Facts != nil {
 		t.Fatalf("List = %+v", l)
 	}
@@ -206,5 +213,61 @@ func TestLive(t *testing.T) {
 			t.Fatalf("Install: %+v %v", st.Facts, err)
 		}
 		t.Logf("installed: %s protocol %s, outdated %v", st.Facts.RunnerVersion, st.Facts.RunnerProtocol, st.Outdated)
+	}
+	s.sshCommand = func(ctx context.Context, args []string) *exec.Cmd {
+		return exec.CommandContext(ctx, "ssh", append([]string{"-F", cfg}, args...)...)
+	}
+	// The agents stream: up after a check, then an agent in default mode
+	// asks before running its command.
+	waitFor := func(what string, ok func(Agents) bool) Agents {
+		for range 120 {
+			if a := s.Agents("runner:"); ok(a) {
+				return a
+			}
+			time.Sleep(500 * time.Millisecond)
+		}
+		t.Fatalf("no %s: %+v", what, s.Agents("runner:"))
+		return Agents{}
+	}
+	s.Check("runner:")
+	waitFor("connection", func(a Agents) bool { return a.Connected })
+	dir := os.Getenv("WTF_RUNNER_TEST_DIR")
+	if dir == "" {
+		return
+	}
+	ag, err := s.Start("runner:", dir, "Run this exact Bash command: date > live-test.txt — then reply done.", "default", "live test")
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := waitFor("approval", func(a Agents) bool {
+		for _, x := range a.Agents {
+			if x.ID == ag.ID && x.Status != nil && x.Status.State == bridge.StateWaiting {
+				return true
+			}
+		}
+		return false
+	})
+	t.Logf("waiting: %+v", got.Agents[len(got.Agents)-1].Status.Message)
+	// Still alive after the daemon has looked at its tmux sessions a few
+	// times (every 3 s).
+	time.Sleep(7 * time.Second)
+	for _, x := range s.Agents("runner:").Agents {
+		if x.ID == ag.ID && !x.Alive {
+			t.Fatalf("a running agent counts as ended: %+v", x)
+		}
+	}
+	if err := s.EndAgent("runner:", ag.ID); err != nil {
+		t.Fatal(err)
+	}
+	waitFor("end", func(a Agents) bool {
+		for _, x := range a.Agents {
+			if x.ID == ag.ID {
+				return !x.Alive
+			}
+		}
+		return false
+	})
+	if err := s.ForgetAgent("runner:", ag.ID); err != nil {
+		t.Fatal(err)
 	}
 }

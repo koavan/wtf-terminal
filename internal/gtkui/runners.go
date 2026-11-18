@@ -3,6 +3,7 @@
 package gtkui
 
 import (
+	"path/filepath"
 	"slices"
 	"strings"
 	"time"
@@ -11,6 +12,8 @@ import (
 	coreglib "github.com/diamondburned/gotk4/pkg/core/glib"
 	"github.com/diamondburned/gotk4/pkg/gtk/v4"
 
+	"github.com/dayanraj/wtf/internal/bridge"
+	"github.com/dayanraj/wtf/internal/notify"
 	"github.com/dayanraj/wtf/internal/runner"
 	"github.com/dayanraj/wtf/internal/sshhosts"
 	"github.com/dayanraj/wtf/internal/uicore"
@@ -27,7 +30,11 @@ func init() {
 // what needs you there. Listed in the Agents tab; as
 // macos/Sources/Wtf/Runners.swift. Main thread only.
 type runnerList struct {
-	list   []runner.Status
+	list []runner.Status
+	// Each runner's agents and connection (phase 3), from its stream; and
+	// the notification each agent last showed, replaced by its next.
+	agents map[string]runner.Agents
+	notes  map[string]string
 	busy   map[string]bool
 	loaded bool
 	obs    map[int]func()
@@ -35,7 +42,7 @@ type runnerList struct {
 }
 
 func newRunnerList() *runnerList {
-	return &runnerList{busy: map[string]bool{}, obs: map[int]func(){}}
+	return &runnerList{busy: map[string]bool{}, obs: map[int]func(){}, agents: map[string]runner.Agents{}, notes: map[string]string{}}
 }
 
 func (l *runnerList) observe(f func()) (stop func()) {
@@ -286,6 +293,7 @@ func (w *Window) removeRunner(st runner.Status) {
 						return
 					}
 					l.list = slices.DeleteFunc(l.list, func(r runner.Status) bool { return r.ID == st.ID })
+					delete(l.agents, st.ID)
 					l.changed()
 				})
 			}()
@@ -309,6 +317,143 @@ func (w *Window) confirmPlanWith(parent *gtk.Window, title, body string, extra g
 	})
 	w.app.debugLog("confirm: %s", title)
 	d.Present()
+}
+
+// runnerAgents: a runner's agents changed. A notification and a sound
+// when one needs you or finishes, as for agents here.
+func (a *App) runnerAgents(ev runner.Agents) {
+	l := a.runners
+	st, ok := l.find(ev.Runner)
+	if !ok {
+		return
+	}
+	old, had := l.agents[ev.Runner]
+	l.agents[ev.Runner] = ev
+	l.changed()
+	if !had {
+		return
+	}
+	for _, ag := range ev.Agents {
+		if ag.Status == nil {
+			continue
+		}
+		now, was := agentState(*ag.Status), ""
+		for _, o := range old.Agents {
+			if o.ID == ag.ID && o.Status != nil {
+				was = agentState(*o.Status)
+			}
+		}
+		if now == was {
+			continue
+		}
+		var head, body, sound string
+		switch now {
+		case bridge.StateWaiting:
+			head, body, sound = "Claude Code on "+st.Name+" needs you", a.settings.text(ag.Status.Message), notify.SoundAttention
+		case agentDone:
+			head, body, sound = "Claude Code on "+st.Name+" finished", a.settings.text(ag.Status.Prompt), notify.SoundComplete
+		default:
+			continue
+		}
+		if !a.agents.soundDue(a.settings.config().AgentSound) {
+			sound = ""
+		}
+		key, n, title := ev.Runner+"|"+ag.ID, a.be.Notify, remoteTitle(ag)
+		replace := l.notes[key]
+		go func() {
+			id := notify.Post(n, replace, head, title, body, sound)
+			coreglib.IdleAdd(func() { l.notes[key] = id })
+		}()
+	}
+}
+
+// remoteTitle is an agent's name, else its folder's.
+func remoteTitle(ag runner.RemoteAgent) string {
+	if ag.Name != "" {
+		return ag.Name
+	}
+	return filepath.Base(ag.Dir)
+}
+
+// remoteAgentRows: a runner's agents under it, "ragent:<runner>|<id>".
+func (t *agentsTab) remoteAgentRows(id string) []sideRow {
+	a := t.w.app
+	home := "" // the runner's, so its folders read ~/…
+	if st, ok := a.runners.find(id); ok && st.Facts != nil {
+		home = st.Facts.Home
+	}
+	var rows []sideRow
+	for _, ag := range a.runners.agents[id].Agents {
+		r := sideRow{id: "ragent:" + id + "|" + ag.ID, dot: "agent-idle", title: remoteTitle(ag), depth: 1,
+			tip: "Claude Code on the runner; right-click for more"}
+		label := "Starting"
+		switch {
+		case !ag.Alive:
+			label = "Ended"
+			if ag.Exit != "" {
+				label += " (" + ag.Exit + ")"
+			}
+		case ag.Status != nil:
+			state := agentState(*ag.Status)
+			r.dot, label = "agent-"+state, agentLabel(state)
+			r.pills = []sidePill{{text: agentAge(ag.Status.Since), tip: "In this state since then"}}
+		}
+		r.detail = label + " · " + uicore.PrettyPath(ag.Dir, home)
+		switch {
+		case ag.Status != nil && ag.Status.State == bridge.StateWaiting && ag.Status.Message != "":
+			r.alert, r.alertClass = a.settings.text(ag.Status.Message), "agent-alert"
+		case ag.Status != nil && ag.Status.Prompt != "":
+			r.alert, r.alertClass = a.settings.text(ag.Status.Prompt), "dim-label"
+		case ag.Prompt != "":
+			r.alert, r.alertClass = a.settings.text(ag.Prompt), "dim-label"
+		}
+		rows = append(rows, r)
+	}
+	return rows
+}
+
+func (w *Window) remoteAgentMenu(rowID string) []*menuItem {
+	id, agentID, _ := strings.Cut(strings.TrimPrefix(rowID, "ragent:"), "|")
+	var ag runner.RemoteAgent
+	found := false
+	for _, x := range w.app.runners.agents[id].Agents {
+		if x.ID == agentID {
+			ag, found = x, true
+		}
+	}
+	if !found {
+		return nil
+	}
+	svc := w.app.be.Runners
+	run := func(f func() error) {
+		go func() {
+			if err := f(); err != nil {
+				coreglib.IdleAdd(func() { w.toast(err.Error()) })
+			}
+		}()
+	}
+	var items []*menuItem
+	if ag.Status != nil && ag.Status.Unseen {
+		items = append(items, item("Mark as Seen", func() { run(func() error { return svc.SeenAgent(id, agentID) }) }))
+	}
+	items = append(items,
+		item("Rename…", func() {
+			w.app.ask(&w.win.Window, "Rename Agent", "Shown in the Agents tab and its notifications.", ag.Name, "Rename", func(name string) {
+				run(func() error { return svc.RenameAgent(id, agentID, name) })
+			})
+		}),
+		item("Copy Folder Path", func() { w.win.Clipboard().SetText(ag.Dir) }),
+		menuSection)
+	if ag.Alive {
+		items = append(items, item("End Claude Code…", func() {
+			w.app.confirm(&w.win.Window, "End "+remoteTitle(ag)+"?", "Its tmux session on the runner closes, and Claude Code with it.", "End", func() {
+				run(func() error { return svc.EndAgent(id, agentID) })
+			})
+		}))
+	} else {
+		items = append(items, item("Remove from List", func() { run(func() error { return svc.ForgetAgent(id, agentID) }) }))
+	}
+	return items
 }
 
 // runnerRows is the Runners section's rows: "runner:<id>" each, then
@@ -366,7 +511,11 @@ func (t *agentsTab) runnerRows() []sideRow {
 		if label, run, ok := w.runnerFix(st); ok && !busy {
 			r.actions = []sideAction{{label: label, key: true, run: run}}
 		}
+		if c := w.app.runners.agents[st.ID]; f != nil && f.Reachable && !c.Connected && c.Error != "" {
+			r.more = append([]sideText{{text: "Not connected: " + c.Error + " (retrying)", classes: []string{"agent-alert"}}}, r.more...)
+		}
 		rows = append(rows, r)
+		rows = append(rows, t.remoteAgentRows(st.ID)...)
 	}
 	rows = append(rows, sideRow{id: "runner-add", icon: "list-add-symbolic", title: "Add Runner…",
 		tip: "Run agents on a Linux machine over SSH, signed in to your own Claude account there"})

@@ -245,6 +245,12 @@ type Service struct {
 
 	// Reads where an agent's checkout stands; tests replace it.
 	branchOf func(dir string) worktree.Branch
+
+	// Headless (wtf-runner's daemon, #41): no UI to ask, so requests to it
+	// fail at once, and PaneOf says what a session's shell is (its folder
+	// and environment, for an approval's context facts).
+	Headless bool
+	PaneOf   func(session string) (Pane, bool)
 }
 
 func NewService(in *infra.Service) *Service {
@@ -315,6 +321,31 @@ func (s *Service) startup() error {
 	go s.serve(ln)
 	return nil
 }
+
+// ListenAt starts a headless bridge (wtf-runner's daemon, #41) on a socket
+// at a fixed path with a key kept across restarts, so agents started by an
+// earlier daemon still reach it. A stale socket file is replaced.
+func (s *Service) ListenAt(sock string, key []byte) error {
+	if len(key) < 32 {
+		return errors.New("bridge key too short")
+	}
+	s.Headless, s.key = true, key
+	os.Remove(sock)
+	ln, err := net.Listen("unix", sock)
+	if err != nil {
+		return err
+	}
+	if err := os.Chmod(sock, 0o600); err != nil {
+		ln.Close()
+		return err
+	}
+	s.sock, s.ln = sock, ln
+	go s.serve(ln)
+	return nil
+}
+
+// Token is the WTF_BRIDGE_TOKEN for a session's shell.
+func (s *Service) Token(session string) string { return s.token(session) }
 
 func (s *Service) shutdown() {
 	if s.ln != nil {
@@ -641,6 +672,9 @@ func (s *Service) Reply(id string, r Reply) {
 
 // ask sends a request to the UI and waits for its reply.
 func (s *Service) ask(ctx context.Context, req UIRequest) (Reply, error) {
+	if s.Headless {
+		return Reply{}, errors.New("no wtf window here")
+	}
 	req.ID = "b" + strconv.FormatUint(s.seq.Add(1), 10)
 	ch := make(chan Reply, 1)
 	s.mu.Lock()

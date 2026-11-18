@@ -31,6 +31,7 @@ import (
 	"github.com/dayanraj/wtf/internal/bridge"
 	"github.com/dayanraj/wtf/internal/infra"
 	"github.com/dayanraj/wtf/internal/paths"
+	"github.com/dayanraj/wtf/internal/runner"
 	"github.com/dayanraj/wtf/internal/state"
 	"github.com/dayanraj/wtf/internal/terminal"
 	"github.com/dayanraj/wtf/internal/uicore"
@@ -148,6 +149,11 @@ func (a *App) startup() {
 		if st, ok := data.(bridge.Status); ok {
 			a.agentStatus(st)
 			a.claudeStatus(st)
+		}
+	})
+	a.events.on(runner.EventAgents, func(data any) {
+		if ev, ok := data.(runner.Agents); ok {
+			a.runnerAgents(ev)
 		}
 	})
 	a.events.on(infra.EventChanged, func(any) {

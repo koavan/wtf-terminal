@@ -133,7 +133,10 @@ final class AgentsView: NSView, SidePaneTab {
         rh.textColor = .secondaryLabelColor
         rh.toolTip = "Linux machines, reached over SSH, where agents run with your own Claude account"
         form.add(rh, full: false)
-        for r in runners { form.add(RunnerRow(r, owner: owner)) }
+        for r in runners {
+            form.add(RunnerRow(r, owner: owner))
+            for a in Runners.agents[r.id]?.agents ?? [] { form.add(RemoteAgentRow(a, runner: r.id)) }
+        }
         if runners.isEmpty {
             form.add(form.note("Run agents on a Linux machine over SSH, signed in to your own Claude account there."))
         }

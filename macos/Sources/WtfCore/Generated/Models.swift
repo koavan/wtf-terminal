@@ -23,6 +23,7 @@ extension Go { public enum netconn {} }
 extension Go { public enum procs {} }
 extension Go { public enum review {} }
 extension Go { public enum runner {} }
+extension Go { public enum runnerd {} }
 extension Go { public enum snippets {} }
 extension Go { public enum sshhosts {} }
 extension Go { public enum state {} }
@@ -3149,6 +3150,38 @@ extension Go.review {
 }
 
 extension Go.runner {
+    /// runner.Agents
+    public struct Agents: Codable, Equatable, Sendable {
+        public var runner: String
+        public var connected: Bool
+        public var error: String
+        public var agents: [Go.runner.RemoteAgent]
+
+        public init(runner: String = "", connected: Bool = false, error: String = "", agents: [Go.runner.RemoteAgent] = []) {
+            self.runner = runner
+            self.connected = connected
+            self.error = error
+            self.agents = agents
+        }
+
+        enum CodingKeys: String, CodingKey {
+            case runner = "runner"
+            case connected = "connected"
+            case error = "error"
+            case agents = "agents"
+        }
+
+        public init(from decoder: Decoder) throws {
+            let c = try decoder.container(keyedBy: CodingKeys.self)
+            self.runner = (try? c.decodeIfPresent(String.self, forKey: .runner)) ?? ""
+            self.connected = (try? c.decodeIfPresent(Bool.self, forKey: .connected)) ?? false
+            self.error = (try? c.decodeIfPresent(String.self, forKey: .error)) ?? ""
+            self.agents = (try? c.decodeIfPresent([Go.runner.RemoteAgent].self, forKey: .agents)) ?? []
+        }
+    }
+}
+
+extension Go.runner {
     /// runner.Facts
     public struct Facts: Codable, Equatable, Sendable {
         public var reachable: Bool
@@ -3245,6 +3278,58 @@ extension Go.runner {
 }
 
 extension Go.runner {
+    /// runner.RemoteAgent
+    public struct RemoteAgent: Codable, Equatable, Sendable {
+        public var id: String
+        public var name: String
+        public var dir: String
+        public var prompt: String
+        public var mode: String
+        public var created: Int
+        public var alive: Bool
+        public var exit: String
+        public var status: Go.bridge.Status?
+
+        public init(id: String = "", name: String = "", dir: String = "", prompt: String = "", mode: String = "", created: Int = 0, alive: Bool = false, exit: String = "", status: Go.bridge.Status? = nil) {
+            self.id = id
+            self.name = name
+            self.dir = dir
+            self.prompt = prompt
+            self.mode = mode
+            self.created = created
+            self.alive = alive
+            self.exit = exit
+            self.status = status
+        }
+
+        enum CodingKeys: String, CodingKey {
+            case id = "id"
+            case name = "name"
+            case dir = "dir"
+            case prompt = "prompt"
+            case mode = "mode"
+            case created = "created"
+            case alive = "alive"
+            case exit = "exit"
+            case status = "status"
+        }
+
+        public init(from decoder: Decoder) throws {
+            let c = try decoder.container(keyedBy: CodingKeys.self)
+            self.id = (try? c.decodeIfPresent(String.self, forKey: .id)) ?? ""
+            self.name = (try? c.decodeIfPresent(String.self, forKey: .name)) ?? ""
+            self.dir = (try? c.decodeIfPresent(String.self, forKey: .dir)) ?? ""
+            self.prompt = (try? c.decodeIfPresent(String.self, forKey: .prompt)) ?? ""
+            self.mode = (try? c.decodeIfPresent(String.self, forKey: .mode)) ?? ""
+            self.created = (try? c.decodeIfPresent(Int.self, forKey: .created)) ?? 0
+            self.alive = (try? c.decodeIfPresent(Bool.self, forKey: .alive)) ?? false
+            self.exit = (try? c.decodeIfPresent(String.self, forKey: .exit)) ?? ""
+            self.status = (try? c.decodeIfPresent(Go.bridge.Status.self, forKey: .status)) ?? nil
+        }
+    }
+}
+
+extension Go.runner {
     /// runner.Runner
     public struct Runner: Codable, Equatable, Sendable {
         public var id: String
@@ -3328,6 +3413,54 @@ extension Go.runner {
             self.checked = (try? c.decodeIfPresent(String.self, forKey: .checked)) ?? ""
             self.problems = (try? c.decodeIfPresent([String].self, forKey: .problems)) ?? []
             self.outdated = (try? c.decodeIfPresent(Bool.self, forKey: .outdated)) ?? false
+        }
+    }
+}
+
+extension Go.runnerd {
+    /// runnerd.Agent
+    public struct Agent: Codable, Equatable, Sendable {
+        public var id: String
+        public var name: String
+        public var dir: String
+        public var prompt: String
+        public var mode: String
+        public var created: Int
+        public var alive: Bool
+        public var exit: String
+
+        public init(id: String = "", name: String = "", dir: String = "", prompt: String = "", mode: String = "", created: Int = 0, alive: Bool = false, exit: String = "") {
+            self.id = id
+            self.name = name
+            self.dir = dir
+            self.prompt = prompt
+            self.mode = mode
+            self.created = created
+            self.alive = alive
+            self.exit = exit
+        }
+
+        enum CodingKeys: String, CodingKey {
+            case id = "id"
+            case name = "name"
+            case dir = "dir"
+            case prompt = "prompt"
+            case mode = "mode"
+            case created = "created"
+            case alive = "alive"
+            case exit = "exit"
+        }
+
+        public init(from decoder: Decoder) throws {
+            let c = try decoder.container(keyedBy: CodingKeys.self)
+            self.id = (try? c.decodeIfPresent(String.self, forKey: .id)) ?? ""
+            self.name = (try? c.decodeIfPresent(String.self, forKey: .name)) ?? ""
+            self.dir = (try? c.decodeIfPresent(String.self, forKey: .dir)) ?? ""
+            self.prompt = (try? c.decodeIfPresent(String.self, forKey: .prompt)) ?? ""
+            self.mode = (try? c.decodeIfPresent(String.self, forKey: .mode)) ?? ""
+            self.created = (try? c.decodeIfPresent(Int.self, forKey: .created)) ?? 0
+            self.alive = (try? c.decodeIfPresent(Bool.self, forKey: .alive)) ?? false
+            self.exit = (try? c.decodeIfPresent(String.self, forKey: .exit)) ?? ""
         }
     }
 }

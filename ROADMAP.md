@@ -1051,8 +1051,14 @@ Phases:
    you confirm; offer to install claude if missing.
 2. ◐ Sign In…: a tab with `ssh -t <host> claude auth login --claudeai`, plus Finish Claude Code Setup…; sign-in shown
    as a fact on the runner's row.
-3. ☐ Status: a section per runner in the Agents tab (states, sub-agents,
-   names, done/seen); local notifications and sounds; snapshot on reconnect.
+3. ☑ Status (2026-11-17): `wtf-runner serve` (internal/runnerd) runs
+   wtf's bridge headless (ListenAt with a key kept in run/key, PaneOf for
+   facts, no UI asks), starts agents in tmux (`$SHELL -lc`, `env -u
+   ANTHROPIC_API_KEY`, `remain-on-exit`), watches `tmux list-panes` every
+   3 s (spaces: tmux prints tabs as "_"), and streams hello/agents/status
+   as JSON lines to `wtf-runner attach`. wtf keeps that stream open per
+   ready runner (reconnects with backoff) and lists each runner's agents
+   under it, with notifications and sounds. Install stops the old daemon.
 4. ☐ Start on Runner… (runner, existing folder, prompt, permission mode);
    Peek and Reply via `tmux send-keys`; Open attaches a tab to the tmux
    session; End.

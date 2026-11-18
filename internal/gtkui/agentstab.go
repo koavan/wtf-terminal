@@ -57,7 +57,7 @@ func newAgentsTab(w *Window) *agentsTab {
 	t.list.onClick = t.activate
 	t.list.onActivate = t.activate
 	t.list.onDoubleClick = func(id string) {
-		if strings.HasPrefix(id, "resume") || strings.HasPrefix(id, "ask:") {
+		if strings.HasPrefix(id, "resume") || strings.HasPrefix(id, "runner") || strings.HasPrefix(id, "ragent:") || strings.HasPrefix(id, "ask:") {
 			return
 		}
 		if session, toggle := agentRowSession(id); !toggle && id == session {
@@ -67,6 +67,10 @@ func newAgentsTab(w *Window) *agentsTab {
 	t.list.onMenu = func(ids []string, x, y float64) {
 		if id, ok := strings.CutPrefix(ids[0], "runner:"); ok {
 			t.list.menu.show(x, y, w.runnerMenu(id), nil)
+			return
+		}
+		if strings.HasPrefix(ids[0], "ragent:") {
+			t.list.menu.show(x, y, w.remoteAgentMenu(ids[0]), nil)
 			return
 		}
 		if ids[0] == "runner-add" {
@@ -202,7 +206,7 @@ func (t *agentsTab) activate(id string) {
 		t.w.addRunner(nil)
 		return
 	}
-	if strings.HasPrefix(id, "runner:") {
+	if strings.HasPrefix(id, "runner:") || strings.HasPrefix(id, "ragent:") {
 		return // its button does the next thing; right-click for more
 	}
 	if session, _, ok := t.approvalAt(id); ok {

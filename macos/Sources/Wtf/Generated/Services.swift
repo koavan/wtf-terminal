@@ -206,12 +206,14 @@ enum Services {
         static func ClaudeCommand() async throws -> String { try await Backend.call("bridge", "ClaudeCommand", [], as: String.self) }
         static func DenyWith(_ a0: String, _ a1: String) async throws { try await Backend.run("bridge", "DenyWith", [a0, a1]) }
         static func Forget(_ a0: String) async throws { try await Backend.run("bridge", "Forget", [a0]) }
+        static func ListenAt(_ a0: String, _ a1: String) async throws { try await Backend.run("bridge", "ListenAt", [a0, a1]) }
         static func Rename(_ a0: String, _ a1: String) async throws { try await Backend.run("bridge", "Rename", [a0, a1]) }
         static func Reply(_ a0: String, _ a1: Go.bridge.Reply) async throws { try await Backend.run("bridge", "Reply", [a0, a1]) }
         static func Seen(_ a0: String) async throws { try await Backend.run("bridge", "Seen", [a0]) }
         static func SetTarget(_ a0: String, _ a1: String) async throws { try await Backend.run("bridge", "SetTarget", [a0, a1]) }
         static func ShellClosed(_ a0: String) async throws { try await Backend.run("bridge", "ShellClosed", [a0]) }
         static func StatusSettings() async throws -> String { try await Backend.call("bridge", "StatusSettings", [], as: String.self) }
+        static func Token(_ a0: String) async throws -> String { try await Backend.call("bridge", "Token", [a0], as: String.self) }
         static func Typed(_ a0: String, _ a1: String) async throws { try await Backend.run("bridge", "Typed", [a0, a1]) }
     }
 
@@ -253,11 +255,17 @@ enum Services {
 
     enum runner {
         static func Add(_ a0: String, _ a1: String, _ a2: String) async throws -> Go.runner.Status { try await Backend.call("runner", "Add", [a0, a1, a2], as: Go.runner.Status.self) }
+        static func Agents(_ a0: String) async throws -> Go.runner.Agents { try await Backend.call("runner", "Agents", [a0], as: Go.runner.Agents.self) }
         static func Check(_ a0: String) async throws -> Go.runner.Status { try await Backend.call("runner", "Check", [a0], as: Go.runner.Status.self) }
+        static func EndAgent(_ a0: String, _ a1: String) async throws { try await Backend.run("runner", "EndAgent", [a0, a1]) }
+        static func ForgetAgent(_ a0: String, _ a1: String) async throws { try await Backend.run("runner", "ForgetAgent", [a0, a1]) }
         static func Install(_ a0: String) async throws -> Go.runner.Status { try await Backend.call("runner", "Install", [a0], as: Go.runner.Status.self) }
         static func List() async throws -> [Go.runner.Status] { try await Backend.call("runner", "List", [], as: [Go.runner.Status].self) }
         static func Remove(_ a0: String) async throws { try await Backend.run("runner", "Remove", [a0]) }
         static func Rename(_ a0: String, _ a1: String) async throws { try await Backend.run("runner", "Rename", [a0, a1]) }
+        static func RenameAgent(_ a0: String, _ a1: String, _ a2: String) async throws { try await Backend.run("runner", "RenameAgent", [a0, a1, a2]) }
+        static func SeenAgent(_ a0: String, _ a1: String) async throws { try await Backend.run("runner", "SeenAgent", [a0, a1]) }
+        static func Start(_ a0: String, _ a1: String, _ a2: String, _ a3: String, _ a4: String) async throws -> Go.runnerd.Agent { try await Backend.call("runner", "Start", [a0, a1, a2, a3, a4], as: Go.runnerd.Agent.self) }
         static func TabCommand(_ a0: String, _ a1: String) async throws -> String { try await Backend.call("runner", "TabCommand", [a0, a1], as: String.self) }
         static func Uninstall(_ a0: String) async throws { try await Backend.run("runner", "Uninstall", [a0]) }
     }

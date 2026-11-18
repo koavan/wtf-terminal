@@ -28,15 +28,16 @@ import (
 	"sync"
 	"time"
 
+	"github.com/dayanraj/wtf/internal/runnerd"
 	"github.com/dayanraj/wtf/internal/uicore"
 )
 
 // Dir is where wtf-runner lives on a runner, under the user's home.
 const Dir = ".local/share/wtf-runner"
 
-// Protocol is what this wtf and wtf-runner speak (cmd/wtf-runner's
-// protocol); a runner with another one needs updating.
-const Protocol = "1"
+// Protocol is what this wtf and wtf-runner speak; a runner with another
+// one needs updating.
+const Protocol = runnerd.Protocol
 
 const (
 	checkTimeout   = 30 * time.Second
@@ -78,7 +79,11 @@ type Service struct {
 	StatusSettings func() string
 	ssh            runSSH
 
+	// Tests run the stream's ssh another way.
+	sshCommand func(ctx context.Context, args []string) *exec.Cmd
+
 	mu      sync.Mutex
+	conns   map[string]*conn
 	runners []Runner
 	loaded  bool
 	facts   map[string]Facts
@@ -258,6 +263,10 @@ func (s *Service) Remove(id string) error {
 	s.runners = slices.Delete(s.runners, i, i+1)
 	delete(s.facts, id)
 	delete(s.checked, id)
+	if c := s.conns[id]; c != nil {
+		delete(s.conns, id)
+		c.cancel()
+	}
 	return s.save()
 }
 
@@ -286,12 +295,21 @@ func (s *Service) Check(id string) (Status, error) {
 		f.Error = sshError(ctx, err, errOut)
 	}
 	s.mu.Lock()
-	defer s.mu.Unlock()
 	s.facts[id], s.checked[id] = f, time.Now()
-	if r, ok := s.find(id); ok {
-		return s.status(r), nil
+	r, ok := s.find(id)
+	var st Status
+	if ok {
+		st = s.status(r)
 	}
-	return Status{}, fmt.Errorf("no runner %q", id)
+	s.mu.Unlock()
+	if !ok {
+		return Status{}, fmt.Errorf("no runner %q", id)
+	}
+	// Its agents stream in once wtf-runner is there.
+	if f.Reachable && f.RunnerVersion != "" && f.RunnerProtocol == Protocol {
+		s.connect(r)
+	}
+	return st, nil
 }
 
 // sshError says why ssh failed, from its last line of stderr.
@@ -355,7 +373,8 @@ chmod 700 "$d"
 t=$(mktemp -d "$d/.install.XXXXXX")
 trap "rm -rf \"$t\"" EXIT
 tar -xf - -C "$t"
-for f in wtf-runner wtf-mcp status-settings.json; do mv -f "$t/$f" "$d/$f"; done'`
+for f in wtf-runner wtf-mcp status-settings.json; do mv -f "$t/$f" "$d/$f"; done
+"$d/wtf-runner" stop >/dev/null 2>&1 || true'`
 
 // Uninstall removes ~/.local/share/wtf-runner from the runner (not Claude
 // Code, its sign-in or tmux). Call it only after you confirm.
@@ -364,9 +383,10 @@ func (s *Service) Uninstall(id string) error {
 	if err != nil {
 		return err
 	}
+	s.disconnect(id)
 	ctx, cancel := context.WithTimeout(context.Background(), checkTimeout)
 	defer cancel()
-	if _, errOut, err := s.ssh(ctx, sshArgs(r, `sh -c 'rm -rf "$HOME/`+Dir+`"'`), nil); err != nil {
+	if _, errOut, err := s.ssh(ctx, sshArgs(r, `sh -c '"$HOME/`+Dir+`/wtf-runner" stop >/dev/null 2>&1; rm -rf "$HOME/`+Dir+`"'`), nil); err != nil {
 		return fmt.Errorf("removing wtf-runner from %s: %s", r.Name, sshError(ctx, err, errOut))
 	}
 	s.mu.Lock()

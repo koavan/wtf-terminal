@@ -263,6 +263,12 @@ func (s *Service) call(ctx context.Context, session, tool string, raw json.RawMe
 }
 
 func (s *Service) pane(ctx context.Context, session string) (Pane, error) {
+	if s.PaneOf != nil {
+		if p, ok := s.PaneOf(session); ok {
+			return p, nil
+		}
+		return Pane{}, fmt.Errorf("that shell is gone")
+	}
 	r, err := s.ask(ctx, UIRequest{Kind: KindPane, Session: session})
 	if err != nil {
 		return Pane{}, err
