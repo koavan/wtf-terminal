@@ -222,6 +222,9 @@ type Service struct {
 	targets map[string]string
 	// Session → the Claude Code running in it (from its hooks).
 	agents map[string]*Status
+	// Runners' agents mirrored here (#41), by session: where their
+	// answers go.
+	remotes map[string]Forward
 	// Session → the name you gave its agent, kept until its shell closes.
 	names map[string]string
 	// Approval id → the PermissionRequest hook waiting for its answer (#39).
@@ -467,6 +470,10 @@ func (s *Service) newAgent(session string) *Status {
 // Rename names session's agent ("" clears it), from the Agents tab. The
 // name stays with the shell, for the next claude started there.
 func (s *Service) Rename(session, name string) {
+	if f := s.remote(session); f != nil {
+		go f("Rename", "", name)
+		return
+	}
 	name = strings.Join(strings.Fields(name), " ")
 	if r := []rune(name); len(r) > maxName {
 		name = string(r[:maxName])
@@ -535,6 +542,10 @@ func (s *Service) Agents() []Status {
 // Seen says session's pane is in front: a finished Claude Code there is no
 // longer "done", just idle.
 func (s *Service) Seen(session string) {
+	if f := s.remote(session); f != nil {
+		go f("Seen", "")
+		return
+	}
 	s.mu.Lock()
 	a := s.agents[session]
 	if a == nil || !a.Unseen {
@@ -614,7 +625,8 @@ func (s *Service) AgentsIn(dir string) []string {
 	defer s.mu.Unlock()
 	var out []string
 	for _, a := range s.agents {
-		if a.Folder == "" || !worktree.Inside(a.Folder, filepath.Clean(dir)) {
+		// A runner's folders aren't this machine's.
+		if a.Folder == "" || IsRemote(a.Session) || !worktree.Inside(a.Folder, filepath.Clean(dir)) {
 			continue
 		}
 		if a.Name != "" {

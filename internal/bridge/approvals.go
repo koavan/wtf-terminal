@@ -507,6 +507,9 @@ func (s *Service) settleApprovals(req wire.Request) {
 // Answer answers an approval from the inbox: Allow or Deny. It fails when
 // it was answered already (in the pane, or it's gone).
 func (s *Service) Answer(id, decision string) error {
+	if f, orig, ok := s.remoteApproval(id); ok {
+		return f("Answer", orig, decision)
+	}
 	if decision != Allow && decision != Deny {
 		return errors.New("an approval is answered allow or deny")
 	}
@@ -525,6 +528,9 @@ func (s *Service) Answer(id, decision string) error {
 // the inbox with an option, one for each of its questions, in order. It
 // fails when it was answered already, or an option isn't one it offers.
 func (s *Service) AnswerQuestion(id string, options []string) error {
+	if f, orig, ok := s.remoteApproval(id); ok {
+		return f("AnswerQuestion", orig, options)
+	}
 	s.mu.Lock()
 	w := s.waits[id]
 	if w == nil || w.inPane || len(w.questions) == 0 {
@@ -555,6 +561,9 @@ func (s *Service) AnswerQuestion(id string, options []string) error {
 // AllowAlways allows an approval and saves its choice'th "don't ask again"
 // (one of the Approval's Always); for Codex, it presses a.
 func (s *Service) AllowAlways(id string, choice int) error {
+	if f, orig, ok := s.remoteApproval(id); ok {
+		return f("AllowAlways", orig, choice)
+	}
 	s.mu.Lock()
 	w := s.waits[id]
 	var sg wire.Suggestion
@@ -578,6 +587,9 @@ func (s *Service) AllowAlways(id string, choice int) error {
 // which it carries on with: Claude gets it as the reason; Codex's No (Esc)
 // ends its turn, so the text is typed into its prompt and sent.
 func (s *Service) DenyWith(id, text string) error {
+	if f, orig, ok := s.remoteApproval(id); ok {
+		return f("DenyWith", orig, text)
+	}
 	text = strings.TrimSpace(text)
 	if text == "" {
 		return errors.New("say what to do instead")
@@ -600,6 +612,9 @@ func (s *Service) DenyWith(id, text string) error {
 // AnswerText answers a question Claude asks in your own words (its
 // "Type something"), when the Approval says FreeText.
 func (s *Service) AnswerText(id, text string) error {
+	if f, orig, ok := s.remoteApproval(id); ok {
+		return f("AnswerText", orig, text)
+	}
 	text = strings.TrimSpace(text)
 	if text == "" {
 		return errors.New("type an answer")
@@ -645,6 +660,9 @@ func formable(ap Approval, codex bool) bool {
 // for each, in order. Several choices go to Claude as one answer, "Apple,
 // Banana", as its own dialog sends them (checked with Claude Code 2.1.326).
 func (s *Service) AnswerAll(id string, picks []Pick) error {
+	if f, orig, ok := s.remoteApproval(id); ok {
+		return f("AnswerAll", orig, picks)
+	}
 	s.mu.Lock()
 	w := s.waits[id]
 	if w == nil || w.inPane || len(w.questions) == 0 {

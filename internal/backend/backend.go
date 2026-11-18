@@ -148,6 +148,7 @@ func New(version, commit, buildDate, stateDir string) (*Backend, error) {
 	b.Update.Enabled = func() bool { return b.Config.Current().Config.UpdateCheck }
 	b.Runners = runner.NewService(stateDir, version)
 	b.Runners.StatusSettings = b.Bridge.StatusSettings
+	b.Runners.Bridge = b.Bridge
 	b.Terminal.ExtraEnv = bridge.ShellEnv(b.Bridge)
 	b.Terminal.OnExit = b.Bridge.ShellClosed
 	b.Terminal.OnAtShell = b.Bridge.Forget

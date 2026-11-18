@@ -32,6 +32,7 @@ const (
 	keyFile     = "key"
 	lockFile    = "daemon.lock"
 	agentsFile  = "agents.json"
+	statusFile  = "statuses.json"
 	LogFile     = "daemon.log"
 	// How often it looks at its tmux sessions (here, on the runner).
 	watchEvery = 3 * time.Second
@@ -47,10 +48,14 @@ type Daemon struct {
 	Tmux   string
 	Claude func() string
 
-	br      *bridge.Service
-	ctl     net.Listener
-	mu      sync.Mutex
-	agents  []Agent
+	br     *bridge.Service
+	ctl    net.Listener
+	mu     sync.Mutex
+	agents []Agent
+	// What each agent last reported, kept across restarts: a waiting one
+	// stays waiting (to be answered in its pane: its hook is gone).
+	last    map[string]bridge.Status
+	dirty   bool
 	clients map[*client]struct{}
 	quit    chan struct{}
 }
@@ -93,6 +98,14 @@ func (d *Daemon) Serve() error {
 	d.br.PaneOf = d.paneOf
 	events.SetEmitter(func(name string, data any) {
 		if st, ok := data.(bridge.Status); ok && name == bridge.EventStatus {
+			d.mu.Lock()
+			if st.State == bridge.StateEnded {
+				delete(d.last, st.Session)
+			} else {
+				d.last[st.Session] = st
+			}
+			d.dirty = true
+			d.mu.Unlock()
 			d.broadcast(Message{Type: "status", Status: &st})
 		}
 	})
@@ -120,6 +133,7 @@ func (d *Daemon) Serve() error {
 			return nil
 		case <-t.C:
 			d.watch()
+			d.saveStatuses()
 		}
 	}
 }
@@ -141,6 +155,53 @@ func (d *Daemon) load() {
 	if b, err := os.ReadFile(d.run(agentsFile)); err == nil {
 		_ = json.Unmarshal(b, &d.agents)
 	}
+	d.last = map[string]bridge.Status{}
+	if b, err := os.ReadFile(d.run(statusFile)); err == nil {
+		_ = json.Unmarshal(b, &d.last)
+	}
+	// An approval's hook didn't outlive the last daemon: it's answered in
+	// the agent's pane now.
+	for id, st := range d.last {
+		if len(st.Approvals) > 0 {
+			st.Approvals = nil
+			st.Message = strings.TrimSpace(st.Message + " (answer in its pane)")
+			d.last[id] = st
+		}
+	}
+}
+
+// saveStatuses writes what agents last reported, at most every few
+// seconds.
+func (d *Daemon) saveStatuses() {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	if !d.dirty {
+		return
+	}
+	d.dirty = false
+	b, _ := json.Marshal(d.last)
+	tmp := d.run(statusFile + ".tmp")
+	if err := os.WriteFile(tmp, b, 0o600); err == nil {
+		os.Rename(tmp, d.run(statusFile))
+	}
+}
+
+// statuses is what each agent last reported: its bridge's word, else
+// what it said before this daemon started.
+func (d *Daemon) statuses() []bridge.Status {
+	live := d.br.Agents()
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	have := map[string]bool{}
+	for _, st := range live {
+		have[st.Session] = true
+	}
+	for _, a := range d.agents {
+		if st, ok := d.last[a.ID]; ok && a.Alive && !have[a.ID] {
+			live = append(live, st)
+		}
+	}
+	return live
 }
 
 // save writes the agents; d.mu is held.
@@ -276,7 +337,7 @@ func (d *Daemon) serveClient(conn net.Conn) {
 	hello := Message{Type: "hello", Version: d.Version, Protocol: Protocol, Agents: slices.Clone(d.agents)}
 	d.clients[c] = struct{}{}
 	d.mu.Unlock()
-	hello.Statuses = d.br.Agents()
+	hello.Statuses = d.statuses()
 	b, _ := json.Marshal(hello)
 	c.out <- append(b, '\n')
 	done := make(chan struct{})
@@ -389,9 +450,101 @@ func (d *Daemon) do(cmd Command) (any, error) {
 		d.sendAgents()
 		return nil, nil
 	case OpQuit:
+		d.saveStatuses()
+		return nil, nil
+	case OpAnswer:
+		return nil, d.answer(cmd)
+	case OpPeek:
+		if err := d.alive(cmd.Agent); err != nil {
+			return nil, err
+		}
+		out, err := exec.Command(d.Tmux, "capture-pane", "-p", "-J", "-t", "=wtf-"+cmd.Agent+":", "-S", "-60").Output()
+		if err != nil {
+			return nil, fmt.Errorf("tmux: %v", err)
+		}
+		return strings.TrimRight(string(out), "\n "), nil
+	case OpType:
+		if err := d.alive(cmd.Agent); err != nil {
+			return nil, err
+		}
+		text := strings.TrimSpace(cmd.Text)
+		if text == "" {
+			return nil, errors.New("type something")
+		}
+		t := "=wtf-" + cmd.Agent + ":"
+		if out, err := exec.Command(d.Tmux, "send-keys", "-t", t, "-l", text).CombinedOutput(); err != nil {
+			return nil, fmt.Errorf("tmux: %s", strings.TrimSpace(string(out)))
+		}
+		time.Sleep(150 * time.Millisecond) // a paste and its Enter apart
+		if out, err := exec.Command(d.Tmux, "send-keys", "-t", t, "Enter").CombinedOutput(); err != nil {
+			return nil, fmt.Errorf("tmux: %s", strings.TrimSpace(string(out)))
+		}
 		return nil, nil
 	}
 	return nil, fmt.Errorf("unknown command %q", cmd.Op)
+}
+
+func (d *Daemon) alive(id string) error {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	i, err := d.find(id)
+	if err != nil {
+		return err
+	}
+	if !d.agents[i].Alive {
+		return errors.New("it ended")
+	}
+	return nil
+}
+
+// answer answers an approval through the bridge, as wtf's own would.
+func (d *Daemon) answer(cmd Command) error {
+	id := cmd.Approval
+	switch cmd.Method {
+	case "Answer":
+		var decision string
+		if err := oneArg(cmd.Args, &decision); err != nil {
+			return err
+		}
+		return d.br.Answer(id, decision)
+	case "AnswerQuestion":
+		var options []string
+		if err := oneArg(cmd.Args, &options); err != nil {
+			return err
+		}
+		return d.br.AnswerQuestion(id, options)
+	case "AllowAlways":
+		var choice int
+		if err := oneArg(cmd.Args, &choice); err != nil {
+			return err
+		}
+		return d.br.AllowAlways(id, choice)
+	case "DenyWith", "AnswerText":
+		var text string
+		if err := oneArg(cmd.Args, &text); err != nil {
+			return err
+		}
+		if cmd.Method == "DenyWith" {
+			return d.br.DenyWith(id, text)
+		}
+		return d.br.AnswerText(id, text)
+	case "AnswerAll":
+		var picks []bridge.Pick
+		if err := oneArg(cmd.Args, &picks); err != nil {
+			return err
+		}
+		return d.br.AnswerAll(id, picks)
+	}
+	return fmt.Errorf("unknown answer %q", cmd.Method)
+}
+
+// oneArg reads the one argument in a JSON array.
+func oneArg(args json.RawMessage, v any) error {
+	var a []json.RawMessage
+	if err := json.Unmarshal(args, &a); err != nil || len(a) != 1 {
+		return errors.New("bad answer")
+	}
+	return json.Unmarshal(a[0], v)
 }
 
 // findClaude is Claude Code's native install, else claude from PATH (the

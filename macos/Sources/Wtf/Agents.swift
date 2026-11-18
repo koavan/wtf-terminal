@@ -222,6 +222,10 @@ enum Agents {
     /// Goes to an agent's window, tab and pane; a background one comes back
     /// into a tab first.
     static func go(to session: String) {
+        if Runners.isRemote(session) {
+            Runners.open(session: session)
+            return
+        }
         if find(session)?.0.background == true { Background.open(session) }
         guard let (w, p) = find(session) else { return }
         if let tab = w.model.tabOf(pane: p.id) { w.model.activate(tab.id) }
@@ -276,17 +280,25 @@ enum Agents {
         if st.state == "ended", let (w, p) = place, w.background { w.model.closePane(p.id) }
         updateDock()
         notify()
-        guard st.state != "ended", let (w, p) = place else { return }
+        guard st.state != "ended" else { return }
         let now = state(st)
-        if visible(p, in: w) {
-            ApprovalNotifications.shared.clear(st.session)
-            if st.unseen { Task { try? await Services.bridge.Seen(st.session) } }
-            return
-        }
         // #39: a new permission prompt says what it asks and where.
         let ask = st.approvals.first { !oldAsks.contains($0.id) }
-        guard now != old || ask != nil, let tab = w.model.tabOf(pane: p.id) else { return }
-        let title = st.name.isEmpty ? w.model.title(tab) : st.name
+        let title: String
+        if Runners.isRemote(st.session) {
+            // #41: an agent on a runner has no pane here.
+            guard now != old || ask != nil else { return }
+            title = Runners.subtitle(st)
+        } else {
+            guard let (w, p) = place else { return }
+            if visible(p, in: w) {
+                ApprovalNotifications.shared.clear(st.session)
+                if st.unseen { Task { try? await Services.bridge.Seen(st.session) } }
+                return
+            }
+            guard now != old || ask != nil, let tab = w.model.tabOf(pane: p.id) else { return }
+            title = st.name.isEmpty ? w.model.title(tab) : st.name
+        }
         switch now {
         case .waiting:
             var body = Redaction.shared.text(st.message)

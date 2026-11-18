@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io"
 	"os/exec"
+	"path/filepath"
 	"slices"
 	"strings"
 	"sync"
@@ -61,6 +62,8 @@ type conn struct {
 	agents    []runnerd.Agent
 	statuses  map[string]bridge.Status
 	cancel    context.CancelFunc
+	// The agents mirrored into wtf's bridge, by session.
+	mirrored map[string]bool
 }
 
 // connect starts the stream to a ready runner, if it isn't running.
@@ -88,6 +91,7 @@ func (s *Service) disconnect(id string) {
 	s.mu.Unlock()
 	if c != nil {
 		c.cancel()
+		c.unmirrorAll()
 	}
 }
 
@@ -251,7 +255,95 @@ func (c *conn) snapshot() Agents {
 	return out
 }
 
-func (c *conn) emit() { events.Emit(EventAgents, c.snapshot()) }
+func (c *conn) emit() {
+	snap := c.snapshot()
+	c.mirror(snap)
+	events.Emit(EventAgents, snap)
+}
+
+// Session is a runner's agent's session in wtf's bridge.
+func Session(runner, agent string) string { return bridge.RemotePrefix + runner + "|" + agent }
+
+// ParseSession is the runner and agent a Session names.
+func ParseSession(session string) (runner, agent string, ok bool) {
+	rest, ok := strings.CutPrefix(session, bridge.RemotePrefix)
+	if !ok {
+		return "", "", false
+	}
+	i := strings.LastIndex(rest, "|")
+	if i < 0 {
+		return "", "", false
+	}
+	return rest[:i], rest[i+1:], true
+}
+
+// mirror lists the runner's running agents in wtf's bridge, so their
+// approvals float and are answered like any other (#41 phase 5).
+func (c *conn) mirror(snap Agents) {
+	br := c.s.Bridge
+	if br == nil {
+		return
+	}
+	now := map[string]bool{}
+	for _, a := range snap.Agents {
+		if a.Status == nil || !a.Alive {
+			continue
+		}
+		session := Session(c.r.ID, a.ID)
+		now[session] = true
+		st := *a.Status
+		if st.Name == "" {
+			st.Name = a.Name
+		}
+		if st.Name == "" {
+			st.Name = filepath.Base(a.Dir)
+		}
+		bridge.Mirror(br, session, st, c.forward(a.ID))
+	}
+	c.mu.Lock()
+	old := c.mirrored
+	c.mirrored = now
+	c.mu.Unlock()
+	for session := range old {
+		if !now[session] {
+			bridge.Unmirror(br, session)
+		}
+	}
+}
+
+// unmirrorAll drops this runner's agents from wtf's bridge.
+func (c *conn) unmirrorAll() {
+	c.mu.Lock()
+	old := c.mirrored
+	c.mirrored = nil
+	c.mu.Unlock()
+	if c.s.Bridge != nil {
+		for session := range old {
+			bridge.Unmirror(c.s.Bridge, session)
+		}
+	}
+}
+
+// forward sends what the bridge is asked about agent to the runner.
+func (c *conn) forward(agent string) bridge.Forward {
+	return func(method, approval string, args ...any) error {
+		switch method {
+		case "Seen":
+			_, err := c.do(runnerd.Command{Op: runnerd.OpSeen, Agent: agent})
+			return err
+		case "Rename":
+			name, _ := args[0].(string)
+			_, err := c.do(runnerd.Command{Op: runnerd.OpRename, Agent: agent, Name: name})
+			return err
+		}
+		b, err := json.Marshal(args)
+		if err != nil {
+			return err
+		}
+		_, err = c.do(runnerd.Command{Op: runnerd.OpAnswer, Agent: agent, Approval: approval, Method: method, Args: b})
+		return err
+	}
+}
 
 // do sends a command and waits for its reply.
 func (c *conn) do(cmd runnerd.Command) (json.RawMessage, error) {
@@ -337,6 +429,40 @@ func (s *Service) RenameAgent(id, agent, name string) error {
 // EndAgent ends an agent's tmux session. Call it only after you confirm.
 func (s *Service) EndAgent(id, agent string) error {
 	return s.agentOp(id, runnerd.Command{Op: runnerd.OpEnd, Agent: agent})
+}
+
+// Peek is the end of an agent's screen, as text.
+func (s *Service) Peek(id, agent string) (string, error) {
+	c, err := s.conn(id)
+	if err != nil {
+		return "", err
+	}
+	res, err := c.do(runnerd.Command{Op: runnerd.OpPeek, Agent: agent})
+	if err != nil {
+		return "", err
+	}
+	var text string
+	return text, json.Unmarshal(res, &text)
+}
+
+// Reply types text into an agent's pane and presses Enter: a prompt, or
+// an answer to what it shows.
+func (s *Service) Reply(id, agent, text string) error {
+	return s.agentOp(id, runnerd.Command{Op: runnerd.OpType, Agent: agent, Text: text})
+}
+
+// OpenCommand is what a tab runs to show an agent's terminal: its tmux
+// session on the runner, over ssh. Leaving it (Ctrl-b d, or closing the
+// tab) leaves the agent running.
+func (s *Service) OpenCommand(id, agent string) (string, error) {
+	r, err := s.runner(id)
+	if err != nil {
+		return "", err
+	}
+	if strings.ContainsAny(agent, " '\"$;|&") {
+		return "", fmt.Errorf("bad agent %q", agent)
+	}
+	return TabSSH(r, "tmux attach -t '=wtf-"+agent+"'"), nil
 }
 
 // ForgetAgent drops an agent that ended.

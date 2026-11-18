@@ -151,7 +151,20 @@ After a step in a tab, right-click the runner → **Check Again**. wtf checks ea
 
 Right-click a runner for **Check Again**, **Open a Shell There**, **Sign In Again…**, **Rename…** and **Remove Runner…**. Removing it only forgets it in wtf, unless you also tick **Also delete ~/.local/share/wtf-runner there**. Claude Code, its sign-in and your files stay as they are.
 
-Starting agents on a runner and answering them from wtf come next. Until then, a runner is ready for them but runs nothing.
+### Agents on a runner
+
+**Start one**: **Start Claude Code…** on a ready runner's row (or right-click it), or **On a Runner…** in {{cmd:agents.start}}. Give a folder on the runner (`~/…` works), a first prompt if you like, the permission mode, and a name. **Start in Background** leaves it running there; **Start and Open** also shows it in a tab. It runs in a tmux session on the runner, with your login shell's tools, signed in to your Claude account there: `ANTHROPIC_API_KEY` is removed from its environment. It keeps running when you close the tab, quit wtf or this computer sleeps.
+
+The first time Claude Code runs in a folder it asks whether you trust it, before it reports anything: the agent shows **Starting** until you answer that in its tab.
+
+Each runner's agents are listed under it, like the agents here: **Needs you**, **Working**, **Done**, **Idle**, or **Ended** once its tmux session is gone, with its folder and last prompt.
+
+- **Click** an agent to open its terminal in a tab (`ssh -t … tmux attach`). Type there as in any tab. Closing the tab, or detaching with Ctrl-b d, leaves it running; another click brings the same tab back.
+- **Right-click** for **Peek and Reply…** (the end of its screen, and a line to type into it, sent with Enter), **Rename…**, **Mark as Seen**, **Copy Folder Path**, **End Claude Code…** (closes its tmux session, after you confirm), and **Remove from List** once it has ended.
+- **What it asks you** shows exactly like a local agent's: a card over the terminal, a row under the agent in the Agents tab, and a notification, with **Allow**, **Deny**, the always-allow choices, **Deny and tell…** and question forms. Your answer goes to the runner, where Claude Code is waiting on it. A request can wait there for as long as Claude Code lets it (up to a day), even while wtf isn't connected.
+- When it needs you or finishes, you get a notification and a sound, as for agents here, saying which runner it's on.
+
+wtf keeps one SSH connection open to each runner that's set up, and reconnects after a drop; the runner's row says **Not connected** and why while it's down. If wtf-runner on the runner restarts (an update, say) while an agent waits for you, that request can only be answered in the agent's tab: its row says **answer in its pane**.
 
 ## Without opening the side pane
 
@@ -183,5 +196,5 @@ A Claude Code or Codex that quits, or is killed, disappears from the list when i
 ## What it doesn't cover yet
 
 - Other coding agents (OpenCode and others).
-- Claude Code or Codex started inside tmux or over SSH from a wtf shell: its hooks run where it runs, not in wtf's shell.
+- Claude Code or Codex you start yourself inside tmux or over SSH from a wtf shell: its hooks run where it runs, not in wtf's shell. Start it on a [runner](#agents) instead to see it here.
 - fish (no shell integration).

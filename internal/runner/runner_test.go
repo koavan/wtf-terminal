@@ -217,6 +217,7 @@ func TestLive(t *testing.T) {
 	s.sshCommand = func(ctx context.Context, args []string) *exec.Cmd {
 		return exec.CommandContext(ctx, "ssh", append([]string{"-F", cfg}, args...)...)
 	}
+	s.Bridge = bridge.NewService(nil)
 	// The agents stream: up after a check, then an agent in default mode
 	// asks before running its command.
 	waitFor := func(what string, ok func(Agents) bool) Agents {
@@ -255,6 +256,48 @@ func TestLive(t *testing.T) {
 		if x.ID == ag.ID && !x.Alive {
 			t.Fatalf("a running agent counts as ended: %+v", x)
 		}
+	}
+	// Phase 5: mirrored in wtf's bridge, and allowed from there.
+	session := Session("runner:", ag.ID)
+	var apID string
+	for _, st := range s.Bridge.Agents() {
+		if st.Session == session && len(st.Approvals) > 0 {
+			apID = st.Approvals[0].ID
+		}
+	}
+	if apID == "" {
+		t.Fatalf("not mirrored with its approval: %+v", s.Bridge.Agents())
+	}
+	if err := s.Bridge.Answer(apID, bridge.Allow); err != nil {
+		t.Fatal(err)
+	}
+	idle := func(a Agents) bool {
+		for _, x := range a.Agents {
+			if x.ID == ag.ID && x.Status != nil && x.Status.State == bridge.StateIdle {
+				return true
+			}
+		}
+		return false
+	}
+	waitFor("done after allowing", idle)
+	// Phase 4: peek, and a reply as the next prompt.
+	screen, err := s.Peek("runner:", ag.ID)
+	if err != nil || !strings.Contains(screen, "live-test.txt") {
+		t.Fatalf("peek: %v\n%s", err, screen)
+	}
+	if err := s.Reply("runner:", ag.ID, "Reply with just the word pong."); err != nil {
+		t.Fatal(err)
+	}
+	waitFor("the reply's turn", func(a Agents) bool {
+		for _, x := range a.Agents {
+			if x.ID == ag.ID && x.Status != nil && strings.Contains(x.Status.Prompt, "pong") && x.Status.State == bridge.StateIdle {
+				return true
+			}
+		}
+		return false
+	})
+	if cmd, _ := s.OpenCommand("runner:", ag.ID); !strings.Contains(cmd, `tmux attach -t '\''=wtf-`+ag.ID+`'\''`) {
+		t.Fatalf("open: %s", cmd)
 	}
 	if err := s.EndAgent("runner:", ag.ID); err != nil {
 		t.Fatal(err)

@@ -55,34 +55,158 @@ enum Runners {
 
     // MARK: Agents
 
-    /// A runner's agents changed: a notification and a sound when one needs
-    /// you or finishes, as for agents here.
+    /// A runner's agents changed. Their notifications come from Agents,
+    /// where they're mirrored (the bridge's status, #41 phase 5).
     private static func apply(_ ev: Go.runner.Agents) {
         guard list.contains(where: { $0.id == ev.runner }) else { return }
-        let old = agents[ev.runner]
         agents[ev.runner] = ev
         changed()
-        guard let old else { return }
-        let name = list.first { $0.id == ev.runner }?.name ?? ""
-        for a in ev.agents {
-            guard let st = a.status else { continue }
-            let was = old.agents.first { $0.id == a.id }?.status.map(Agents.state)
-            let now = Agents.state(st)
-            guard now != was else { continue }
-            let title = title(a)
-            let key = "runner.\(ev.runner).\(a.id)"
-            switch now {
-            case .waiting:
-                ApprovalNotifications.shared.show(title: "Claude Code on \(name) needs you", subtitle: title,
-                                                  body: Redaction.shared.text(st.message), key: key)
-                Agents.playSound(.attention)
-            case .done:
-                ApprovalNotifications.shared.show(title: "Claude Code on \(name) finished", subtitle: title,
-                                                  body: Redaction.shared.text(st.prompt), key: key)
-                Agents.playSound(.complete)
-            default:
-                break
+    }
+
+    // MARK: Sessions
+
+    /// A runner's agent's session in wtf's bridge (runner.Session).
+    static func session(_ runner: String, _ agent: String) -> String { "rr:\(runner)|\(agent)" }
+
+    static func isRemote(_ session: String) -> Bool { session.hasPrefix("rr:") }
+
+    /// The runner and agent a session names.
+    static func parse(_ session: String) -> (runner: String, agent: String)? {
+        guard isRemote(session), let bar = session.lastIndex(of: "|") else { return nil }
+        return (String(session[session.index(session.startIndex, offsetBy: 3)..<bar]), String(session[session.index(after: bar)...]))
+    }
+
+    /// "demo on build-box", for its notifications and cards.
+    static func subtitle(_ st: Go.bridge.Status) -> String {
+        guard let (r, _) = parse(st.session), let name = list.first(where: { $0.id == r })?.name else { return st.name }
+        return "\(st.name) on \(name)"
+    }
+
+    // MARK: Open
+
+    /// Tabs showing a runner's agent, by session: a click goes back to its
+    /// tab rather than opening another.
+    private static var tabs: [String: (window: WindowController, tab: Int)] = [:]
+
+    static func open(session: String) {
+        guard let (r, a) = parse(session) else { return }
+        open(runner: r, agent: a)
+    }
+
+    /// Shows an agent's terminal: its tmux session on the runner, in a tab
+    /// (ssh -t … tmux attach). Detach (Ctrl-b d) or close the tab: it keeps
+    /// running.
+    static func open(runner: String, agent: String) {
+        let key = session(runner, agent)
+        Task { try? await Services.runner.SeenAgent(runner, agent) }
+        if let t = tabs[key], t.window.window != nil, t.window.model.tab(t.tab) != nil {
+            t.window.model.activate(t.tab)
+            NSApp.activate(ignoringOtherApps: true)
+            t.window.window?.makeKeyAndOrderFront(nil)
+            return
+        }
+        guard let w = WindowManager.shared.keyWindow ?? WindowManager.shared.windows.first(where: { !$0.background }) else { return }
+        let ag = agents[runner]?.agents.first { $0.id == agent }
+        Task {
+            do {
+                let cmd = try await Services.runner.OpenCommand(runner, agent)
+                let id = w.model.open(command: cmd)
+                let name = list.first { $0.id == runner }?.name ?? ""
+                w.model.rename(id, (ag.map(title) ?? agent) + " · " + name)
+                tabs[key] = (w, id)
+                NSApp.activate(ignoringOtherApps: true)
+                w.window?.makeKeyAndOrderFront(nil)
+            } catch {
+                Toast.show(error.localizedDescription, in: w.rootView)
             }
+        }
+    }
+
+    // MARK: Start
+
+    /// The runners agents can start on now: set up and connected.
+    static var ready: [Go.runner.Status] {
+        list.filter { $0.facts?.reachable == true && $0.problems.isEmpty && agents[$0.id]?.connected == true }
+    }
+
+    static let modes: [(label: String, mode: String)] = [
+        ("Claude Code's default", ""), ("Ask before every command and edit", "default"), ("Accept edits, ask for commands", "acceptEdits"),
+        ("Plan only", "plan"), ("Auto (Claude Code decides)", "auto"),
+    ]
+
+    /// Start on Runner…: a folder there, a first prompt, a permission mode
+    /// and a name; then it runs in the background, or in a tab too.
+    static func start(on runner: String? = nil, owner: WindowController) {
+        let rs = ready
+        guard !rs.isEmpty else {
+            Toast.show(list.isEmpty ? "Add a runner first (Agents tab → Add Runner…)" : "No runner is ready: see the Agents tab", in: owner.rootView)
+            return
+        }
+        let f = FormSheet(title: "Start Claude Code on a Runner",
+                          subtitle: "It runs on the runner in tmux, signed in to your Claude account there, and keeps running when wtf quits or this Mac sleeps.")
+        let pick = f.popup(rs.map(\.name), selected: rs.firstIndex { $0.id == runner } ?? 0)
+        f.field("Runner", pick)
+        func lastDir(_ r: Go.runner.Status) -> String {
+            agents[r.id]?.agents.last.map { path($0.dir, on: r.id) } ?? "~"
+        }
+        let folder = f.text(lastDir(rs[pick.indexOfSelectedItem]), placeholder: "~/project")
+        f.field("Folder", folder, help: "A folder on the runner")
+        let prompt = f.text(placeholder: "First prompt (optional)")
+        f.field("Prompt", prompt)
+        let mode = f.popup(modes.map(\.label))
+        f.field("Permissions", mode, help: "Requests that need you show here and over the terminal")
+        let name = f.text(placeholder: "optional")
+        f.field("Name", name)
+        func go(open: Bool) {
+            let r = rs[pick.indexOfSelectedItem]
+            let m = modes[mode.indexOfSelectedItem].mode
+            Task {
+                do {
+                    let a = try await Services.runner.Start(r.id, folder.stringValue, prompt.stringValue, m, name.stringValue)
+                    if open { self.open(runner: r.id, agent: a.id) } else {
+                        Toast.show("Claude Code started on \(r.name): the Agents tab shows it", in: owner.rootView)
+                    }
+                } catch {
+                    Toast.show(error.localizedDescription, in: owner.rootView, seconds: 5)
+                }
+            }
+        }
+        f.buttons([
+            ("Start in Background", false, { [weak f] in f?.close(); go(open: false) }),
+            ("Start and Open", true, { [weak f] in f?.close(); go(open: true) }),
+        ])
+        f.present(in: owner.window, focus: folder)
+    }
+
+    // MARK: Peek and Reply
+
+    /// The end of an agent's screen, and a line to type into it.
+    static func peek(runner: String, agent: String, in window: NSWindow?) {
+        Task {
+            let text: String
+            do { text = try await Services.runner.Peek(runner, agent) } catch {
+                if let v = window?.contentView { Toast.show(error.localizedDescription, in: v) }
+                return
+            }
+            let ag = agents[runner]?.agents.first { $0.id == agent }
+            let f = FormSheet(title: "Peek and Reply", subtitle: (ag.map(title) ?? agent) + ": the end of its screen", width: 640)
+            let shown = text.split(separator: "\n", omittingEmptySubsequences: false).suffix(30).joined(separator: "\n")
+            f.add(f.note(Redaction.shared.text(shown), mono: true))
+            let reply = f.text(placeholder: "Type a reply; Send presses Enter")
+            f.field("Reply", reply)
+            f.buttons([
+                ("Open", false, { [weak f] in f?.close(); open(runner: runner, agent: agent) }),
+                ("Send", true, { [weak f] in
+                    let t = reply.stringValue
+                    f?.close()
+                    Task {
+                        do { try await Services.runner.Reply(runner, agent, t) } catch {
+                            if let v = window?.contentView { Toast.show(error.localizedDescription, in: v) }
+                        }
+                    }
+                }),
+            ])
+            f.present(in: window, focus: reply)
         }
     }
 
@@ -101,6 +225,10 @@ enum Runners {
     static func agentMenu(_ a: Go.runner.RemoteAgent, runner: String, in view: NSView?) -> NSMenu {
         let m = NSMenu()
         func add(_ t: String, _ run: @escaping () -> Void) { m.addItem(ClosureMenuItem(title: t, keyEquivalent: "", action: run)) }
+        if a.alive {
+            add("Open in Tab") { open(runner: runner, agent: a.id) }
+            add("Peek and Reply…") { peek(runner: runner, agent: a.id, in: view?.window) }
+        }
         if a.status?.unseen == true { add("Mark as Seen") { Task { try? await Services.runner.SeenAgent(runner, a.id) } } }
         add("Rename…") {
             let f = FormSheet(title: "Rename Agent")
@@ -230,6 +358,7 @@ enum Runners {
         }
         add("Check Again", enabled: !busy.contains(id)) { check(id) }
         if let fx = fix(st) { add(fx.title) { fx.run(owner) } }
+        add("Start Claude Code…", enabled: ready.contains { $0.id == id }) { start(on: id, owner: owner) }
         m.addItem(.separator())
         add("Open a Shell There") { tab(id, "shell", "SSH", owner) }
         if let f = st.facts, f.reachable {
@@ -373,6 +502,12 @@ final class RunnerRow: NSView {
             run.bezelStyle = .inline
             run.controlSize = .small
             lines.append(run)
+        } else if !busy, Runners.ready.contains(where: { $0.id == st.id }) {
+            let owner = owner, id = st.id
+            let run = ClosureButton(title: "Start Claude Code…") { Runners.start(on: id, owner: owner) }
+            run.bezelStyle = .inline
+            run.controlSize = .small
+            lines.append(run)
         }
         let stack = NSStackView(views: lines)
         stack.orientation = .vertical
@@ -462,7 +597,7 @@ final class RemoteAgentRow: NSView {
             what.widthAnchor.constraint(lessThanOrEqualTo: stack.widthAnchor, constant: -30),
         ])
         for v in lines.dropFirst(2) { v.widthAnchor.constraint(equalTo: stack.widthAnchor, constant: -30).isActive = true }
-        toolTip = "Claude Code on the runner; right-click for more"
+        toolTip = a.alive ? "Open its terminal (on the runner, in a tab); right-click for more" : "Right-click for more"
         setAccessibilityRole(.group)
         setAccessibilityLabel("\(Runners.title(a)): \(label)")
     }
@@ -470,4 +605,8 @@ final class RemoteAgentRow: NSView {
     required init?(coder: NSCoder) { fatalError() }
 
     override func menu(for event: NSEvent) -> NSMenu? { Runners.agentMenu(agent, runner: runner, in: self) }
+
+    override func mouseDown(with event: NSEvent) {
+        if agent.alive { Runners.open(runner: runner, agent: agent.id) }
+    }
 }

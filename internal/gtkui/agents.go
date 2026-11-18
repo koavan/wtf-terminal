@@ -531,10 +531,11 @@ func (a *App) agentStatus(st bridge.Status) {
 			w.model.ClosePane(ps.ID)
 		}
 	}
-	if w == nil || st.State == bridge.StateEnded {
+	remote := bridge.IsRemote(st.Session) // #41: an agent on a runner, no pane here
+	if st.State == bridge.StateEnded || w == nil && !remote {
 		return
 	}
-	if w.agentVisible(st.Session) {
+	if !remote && w.agentVisible(st.Session) {
 		l.clearNote(st.Session, "")
 		if st.Unseen {
 			go a.be.Bridge.Seen(st.Session)
@@ -553,17 +554,26 @@ func (a *App) agentStatus(st bridge.Status) {
 	if had && agentState(old) == now && ask == nil {
 		return
 	}
-	ps := w.model.PaneBySession(st.Session)
-	if ps == nil {
-		return
-	}
-	t, ok := w.model.TabOf(ps.ID)
-	if !ok {
-		return
-	}
-	title := a.settings.text(w.model.Title(t))
-	if st.Name != "" {
-		title = st.Name
+	var title string
+	if remote {
+		title = a.remoteSubtitle(st)
+		// Its notification's buttons answer through any window.
+		if w = a.front(); w == nil {
+			return
+		}
+	} else {
+		ps := w.model.PaneBySession(st.Session)
+		if ps == nil {
+			return
+		}
+		t, ok := w.model.TabOf(ps.ID)
+		if !ok {
+			return
+		}
+		title = a.settings.text(w.model.Title(t))
+		if st.Name != "" {
+			title = st.Name
+		}
 	}
 	var head, body, sound string
 	switch now {
@@ -693,6 +703,10 @@ func (l *agentList) soundDue(on bool) bool {
 // goToAgent shows an agent's window, tab and pane; a background one comes
 // back into a tab first.
 func (a *App) goToAgent(session string) {
+	if bridge.IsRemote(session) {
+		a.openRemote(session)
+		return
+	}
 	w := a.windowOf(session)
 	if w == nil {
 		return

@@ -261,9 +261,12 @@ enum Services {
         static func ForgetAgent(_ a0: String, _ a1: String) async throws { try await Backend.run("runner", "ForgetAgent", [a0, a1]) }
         static func Install(_ a0: String) async throws -> Go.runner.Status { try await Backend.call("runner", "Install", [a0], as: Go.runner.Status.self) }
         static func List() async throws -> [Go.runner.Status] { try await Backend.call("runner", "List", [], as: [Go.runner.Status].self) }
+        static func OpenCommand(_ a0: String, _ a1: String) async throws -> String { try await Backend.call("runner", "OpenCommand", [a0, a1], as: String.self) }
+        static func Peek(_ a0: String, _ a1: String) async throws -> String { try await Backend.call("runner", "Peek", [a0, a1], as: String.self) }
         static func Remove(_ a0: String) async throws { try await Backend.run("runner", "Remove", [a0]) }
         static func Rename(_ a0: String, _ a1: String) async throws { try await Backend.run("runner", "Rename", [a0, a1]) }
         static func RenameAgent(_ a0: String, _ a1: String, _ a2: String) async throws { try await Backend.run("runner", "RenameAgent", [a0, a1, a2]) }
+        static func Reply(_ a0: String, _ a1: String, _ a2: String) async throws { try await Backend.run("runner", "Reply", [a0, a1, a2]) }
         static func SeenAgent(_ a0: String, _ a1: String) async throws { try await Backend.run("runner", "SeenAgent", [a0, a1]) }
         static func Start(_ a0: String, _ a1: String, _ a2: String, _ a3: String, _ a4: String) async throws -> Go.runnerd.Agent { try await Backend.call("runner", "Start", [a0, a1, a2, a3, a4], as: Go.runnerd.Agent.self) }
         static func TabCommand(_ a0: String, _ a1: String) async throws -> String { try await Backend.call("runner", "TabCommand", [a0, a1], as: String.self) }

@@ -391,6 +391,9 @@ func (w *Window) startAgent() {
 	box.Append(prompt)
 	d.SetExtraChild(box)
 	d.AddResponse("cancel", "Cancel")
+	if len(a.runners.list) > 0 {
+		d.AddResponse("runner", "On a Runner…") // #41
+	}
 	d.AddResponse("background", "Start in Background")
 	d.AddResponse("tab", "Start in a Tab")
 	d.SetResponseAppearance("tab", adw.ResponseSuggested)
@@ -398,6 +401,10 @@ func (w *Window) startAgent() {
 	d.SetCloseResponse("cancel")
 	d.ConnectResponse(func(r string) {
 		if r == "cancel" {
+			return
+		}
+		if r == "runner" {
+			w.startOnRunner("")
 			return
 		}
 		w.startAgentIn(strings.TrimSpace(where.Text()), strings.TrimSpace(prompt.Text()), r == "background")

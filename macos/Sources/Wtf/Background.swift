@@ -134,7 +134,10 @@ extension WindowController {
                 f?.close()
                 self?.startAgent(in: folder.stringValue, prompt: prompt.stringValue, background: false)
             }),
-        ])
+        ], left: Runners.list.isEmpty ? [] : [("On a Runner…", { [weak self, weak f] in
+            f?.close()
+            if let self { Runners.start(owner: self) }
+        })])
         f.present(in: window, focus: prompt)
     }
 

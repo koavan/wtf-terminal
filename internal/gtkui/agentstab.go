@@ -13,6 +13,7 @@ import (
 	"github.com/diamondburned/gotk4/pkg/gtk/v4"
 
 	"github.com/dayanraj/wtf/internal/bridge"
+	"github.com/dayanraj/wtf/internal/runner"
 	"github.com/dayanraj/wtf/internal/state"
 	"github.com/dayanraj/wtf/internal/uicore"
 )
@@ -206,7 +207,13 @@ func (t *agentsTab) activate(id string) {
 		t.w.addRunner(nil)
 		return
 	}
-	if strings.HasPrefix(id, "runner:") || strings.HasPrefix(id, "ragent:") {
+	if rest, ok := strings.CutPrefix(id, "ragent:"); ok {
+		if r, ag, ok := strings.Cut(rest, "|"); ok {
+			t.w.app.openRemote(runner.Session(r, ag))
+		}
+		return
+	}
+	if strings.HasPrefix(id, "runner:") {
 		return // its button does the next thing; right-click for more
 	}
 	if session, _, ok := t.approvalAt(id); ok {
@@ -350,6 +357,9 @@ func (t *agentsTab) rebuild() {
 	var rows, parked []sideRow
 	// Fixed order (when each started), so a row never moves.
 	for _, st := range a.agents.listed() {
+		if bridge.IsRemote(st.Session) {
+			continue // listed under its runner (#41)
+		}
 		state := agentState(st)
 		_, cwd := a.agentPlace(st.Session)
 		title, tab := a.agentTitle(st)

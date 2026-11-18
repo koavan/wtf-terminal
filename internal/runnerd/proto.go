@@ -64,6 +64,14 @@ type Command struct {
 	Prompt string `json:"prompt,omitempty"`
 	Mode   string `json:"mode,omitempty"`
 	Name   string `json:"name,omitempty"`
+	// answer: the approval, the bridge method that answers it (Answer,
+	// AnswerQuestion, AllowAlways, DenyWith, AnswerText, AnswerAll) and
+	// its arguments after the id, as JSON.
+	Approval string          `json:"approval,omitempty"`
+	Method   string          `json:"method,omitempty"`
+	Args     json.RawMessage `json:"args,omitempty"`
+	// type: what to type into its pane (then Enter).
+	Text string `json:"text,omitempty"`
 }
 
 // Commands.
@@ -74,6 +82,9 @@ const (
 	OpEnd    = "end"    // kill its tmux session
 	OpForget = "forget" // drop an agent that ended
 	OpQuit   = "quit"   // the daemon exits (agents keep running in tmux)
+	OpAnswer = "answer" // answer one of its approvals
+	OpPeek   = "peek"   // → result: the end of its screen, as text
+	OpType   = "type"   // type Text into its pane and press Enter
 )
 
 // Modes Claude Code's --permission-mode takes.

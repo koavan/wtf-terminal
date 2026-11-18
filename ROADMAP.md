@@ -1059,12 +1059,17 @@ Phases:
    as JSON lines to `wtf-runner attach`. wtf keeps that stream open per
    ready runner (reconnects with backoff) and lists each runner's agents
    under it, with notifications and sounds. Install stops the old daemon.
-4. ☐ Start on Runner… (runner, existing folder, prompt, permission mode);
-   Peek and Reply via `tmux send-keys`; Open attaches a tab to the tmux
-   session; End.
-5. ☐ Approvals and questions: cards, inbox, always allow, deny and tell,
-   forms — unchanged; context facts (#40) worked out on the runner, never
-   from the laptop's config.
+4. ☑ (2026-11-17) Start on Runner… (runner, folder there, prompt,
+   permission mode, name; background or opened); a click opens the
+   agent's tmux session in a tab (`ssh -t … tmux attach -t '=wtf-<id>'`,
+   quoted for zsh), reusing its tab; Peek and Reply (`capture-pane`,
+   `send-keys -l` + Enter); End; daemon keeps last statuses on disk so a
+   waiting agent survives a daemon restart ("answer in its pane").
+5. ☑ (2026-11-17) Approvals: runner agents are mirrored into wtf's bridge
+   (`rr:<runner>|<agent>`, approval ids `<session>/<id>`), so cards, the
+   inbox, notifications with Allow/Deny, Next Approval and Go to Agent…
+   work unchanged; answers are forwarded to the daemon's bridge (op
+   `answer`). Context facts are worked out on the runner (PaneOf).
 6. ☐ Robustness: reconnect with backoff, protocol version check and runner
    upgrade, dead tmux cleanup; self-checks against a local Linux container
    with sshd (never the real `~/.ssh`).

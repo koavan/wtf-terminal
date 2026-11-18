@@ -13,7 +13,6 @@ import (
 	"github.com/diamondburned/gotk4/pkg/gtk/v4"
 
 	"github.com/dayanraj/wtf/internal/bridge"
-	"github.com/dayanraj/wtf/internal/notify"
 	"github.com/dayanraj/wtf/internal/runner"
 	"github.com/dayanraj/wtf/internal/sshhosts"
 	"github.com/dayanraj/wtf/internal/uicore"
@@ -34,15 +33,21 @@ type runnerList struct {
 	// Each runner's agents and connection (phase 3), from its stream; and
 	// the notification each agent last showed, replaced by its next.
 	agents map[string]runner.Agents
-	notes  map[string]string
+	// Tabs showing a runner's agent, by session.
+	tabs   map[string]remoteTab
 	busy   map[string]bool
 	loaded bool
 	obs    map[int]func()
 	next   int
 }
 
+type remoteTab struct {
+	w   *Window
+	tab int
+}
+
 func newRunnerList() *runnerList {
-	return &runnerList{busy: map[string]bool{}, obs: map[int]func(){}, agents: map[string]runner.Agents{}, notes: map[string]string{}}
+	return &runnerList{busy: map[string]bool{}, obs: map[int]func(){}, agents: map[string]runner.Agents{}, tabs: map[string]remoteTab{}}
 }
 
 func (l *runnerList) observe(f func()) (stop func()) {
@@ -243,6 +248,11 @@ func (w *Window) runnerMenu(id string) []*menuItem {
 	if fix {
 		items = append(items, item(label, run))
 	}
+	for _, r := range w.app.readyRunners() {
+		if r.ID == id {
+			items = append(items, item("Start Claude Code…", func() { w.startOnRunner(id) }))
+		}
+	}
 	items = append(items, menuSection, item("Open a Shell There", func() { w.runnerTab(id, runner.TabShell, "SSH") }))
 	if f := st.Facts; f != nil && f.Reachable {
 		if f.Claude != "" {
@@ -319,52 +329,197 @@ func (w *Window) confirmPlanWith(parent *gtk.Window, title, body string, extra g
 	d.Present()
 }
 
-// runnerAgents: a runner's agents changed. A notification and a sound
-// when one needs you or finishes, as for agents here.
+// runnerAgents: a runner's agents changed. Their notifications come from
+// agentStatus, where they're mirrored (#41 phase 5).
 func (a *App) runnerAgents(ev runner.Agents) {
 	l := a.runners
-	st, ok := l.find(ev.Runner)
+	if _, ok := l.find(ev.Runner); !ok {
+		return
+	}
+	l.agents[ev.Runner] = ev
+	l.changed()
+}
+
+// remoteSubtitle: "demo on build-box", for its notifications and cards.
+func (a *App) remoteSubtitle(st bridge.Status) string {
+	id, _, ok := runner.ParseSession(st.Session)
+	if r, found := a.runners.find(id); ok && found {
+		return st.Name + " on " + r.Name
+	}
+	return st.Name
+}
+
+// openRemote shows a runner's agent's terminal: its tmux session there,
+// in a tab (ssh -t … tmux attach). Detach (Ctrl-b d) or close the tab: it
+// keeps running. A tab already showing it comes to the front.
+func (a *App) openRemote(session string) {
+	id, agentID, ok := runner.ParseSession(session)
 	if !ok {
 		return
 	}
-	old, had := l.agents[ev.Runner]
-	l.agents[ev.Runner] = ev
-	l.changed()
-	if !had {
+	go a.be.Runners.SeenAgent(id, agentID)
+	if t, ok := a.runners.tabs[session]; ok && slices.Contains(a.windows, t.w) {
+		if _, found := t.w.model.Tab(t.tab); found {
+			t.w.model.Activate(t.tab)
+			t.w.win.Present()
+			return
+		}
+	}
+	w := a.front()
+	if w == nil {
 		return
 	}
-	for _, ag := range ev.Agents {
-		if ag.Status == nil {
-			continue
-		}
-		now, was := agentState(*ag.Status), ""
-		for _, o := range old.Agents {
-			if o.ID == ag.ID && o.Status != nil {
-				was = agentState(*o.Status)
-			}
-		}
-		if now == was {
-			continue
-		}
-		var head, body, sound string
-		switch now {
-		case bridge.StateWaiting:
-			head, body, sound = "Claude Code on "+st.Name+" needs you", a.settings.text(ag.Status.Message), notify.SoundAttention
-		case agentDone:
-			head, body, sound = "Claude Code on "+st.Name+" finished", a.settings.text(ag.Status.Prompt), notify.SoundComplete
-		default:
-			continue
-		}
-		if !a.agents.soundDue(a.settings.config().AgentSound) {
-			sound = ""
-		}
-		key, n, title := ev.Runner+"|"+ag.ID, a.be.Notify, remoteTitle(ag)
-		replace := l.notes[key]
-		go func() {
-			id := notify.Post(n, replace, head, title, body, sound)
-			coreglib.IdleAdd(func() { l.notes[key] = id })
-		}()
+	cmd, err := a.be.Runners.OpenCommand(id, agentID)
+	if err != nil {
+		w.toast(err.Error())
+		return
 	}
+	title := agentID
+	for _, ag := range a.runners.agents[id].Agents {
+		if ag.ID == agentID {
+			title = remoteTitle(ag)
+		}
+	}
+	if r, ok := a.runners.find(id); ok {
+		title += " · " + r.Name
+	}
+	tab := w.model.Open(uicore.OpenOptions{Command: cmd})
+	w.model.Rename(tab, title)
+	a.runners.tabs[session] = remoteTab{w, tab}
+	w.win.Present()
+}
+
+// readyRunners: set up and connected, so agents can start there.
+func (a *App) readyRunners() []runner.Status {
+	var out []runner.Status
+	for _, st := range a.runners.list {
+		if st.Facts != nil && st.Facts.Reachable && len(st.Problems) == 0 && a.runners.agents[st.ID].Connected {
+			out = append(out, st)
+		}
+	}
+	return out
+}
+
+var runnerModes = []struct{ label, mode string }{
+	{"Claude Code's default", ""}, {"Ask before every command and edit", "default"}, {"Accept edits, ask for commands", "acceptEdits"},
+	{"Plan only", "plan"}, {"Auto (Claude Code decides)", "auto"},
+}
+
+// startOnRunner: Start Claude Code on a runner — a folder there, a first
+// prompt, a permission mode and a name; in the background, or opened too.
+func (w *Window) startOnRunner(preselect string) {
+	a := w.app
+	rs := a.readyRunners()
+	if len(rs) == 0 {
+		if len(a.runners.list) == 0 {
+			w.toast("Add a runner first (Agents tab → Add Runner…)")
+		} else {
+			w.toast("No runner is ready: see the Agents tab")
+		}
+		return
+	}
+	names := make([]string, len(rs))
+	sel := 0
+	for i, r := range rs {
+		names[i] = r.Name
+		if r.ID == preselect {
+			sel = i
+		}
+	}
+	f := newKubeForm(w, "Start Claude Code on a Runner", "It runs on the runner in tmux, signed in to your Claude account there, and keeps running when wtf quits or this computer sleeps.")
+	pick := gtk.NewDropDownFromStrings(names)
+	pick.SetSelected(uint(sel))
+	f.field("Runner", pick)
+	lastDir := func(r runner.Status) string {
+		ags := a.runners.agents[r.ID].Agents
+		if len(ags) == 0 || r.Facts == nil {
+			return "~"
+		}
+		return uicore.PrettyPath(ags[len(ags)-1].Dir, r.Facts.Home)
+	}
+	folder := f.entry(lastDir(rs[sel]), "~/project")
+	f.field("Folder", folder)
+	pick.NotifyProperty("selected", func() { folder.SetText(lastDir(rs[pick.Selected()])) })
+	prompt := f.entry("", "First prompt (optional)")
+	f.field("Prompt", prompt)
+	labels := make([]string, len(runnerModes))
+	for i, m := range runnerModes {
+		labels[i] = m.label
+	}
+	mode := gtk.NewDropDownFromStrings(labels)
+	f.field("Permissions", mode)
+	name := f.entry("", "optional")
+	f.field("Name", name)
+	f.d.AddResponse("background", "Start in Background")
+	f.button("open", "Start and Open")
+	svc := a.be.Runners
+	f.d.ConnectResponse(func(resp string) {
+		if resp != "open" && resp != "background" {
+			return
+		}
+		r := rs[pick.Selected()]
+		dir, p, m, n := folder.Text(), prompt.Text(), runnerModes[mode.Selected()].mode, name.Text()
+		go func() {
+			ag, err := svc.Start(r.ID, dir, p, m, n)
+			coreglib.IdleAdd(func() {
+				switch {
+				case err != nil:
+					w.toast(err.Error())
+				case resp == "open":
+					a.openRemote(runner.Session(r.ID, ag.ID))
+				default:
+					w.toast("Claude Code started on " + r.Name + ": the Agents tab shows it")
+				}
+			})
+		}()
+	})
+	f.present(folder)
+}
+
+// peekRemote: the end of an agent's screen, and a line to type into it.
+func (w *Window) peekRemote(id, agentID string) {
+	svc := w.app.be.Runners
+	go func() {
+		text, err := svc.Peek(id, agentID)
+		coreglib.IdleAdd(func() {
+			if err != nil {
+				w.toast(err.Error())
+				return
+			}
+			lines := strings.Split(text, "\n")
+			if len(lines) > 30 {
+				lines = lines[len(lines)-30:]
+			}
+			f := newKubeForm(w, "Peek and Reply", "The end of its screen on the runner.")
+			screen := gtk.NewLabel(w.app.settings.text(strings.Join(lines, "\n")))
+			screen.AddCSSClass("monospace")
+			screen.SetXAlign(0)
+			screen.SetSelectable(true)
+			sc := gtk.NewScrolledWindow()
+			sc.SetChild(screen)
+			sc.SetMinContentHeight(260)
+			sc.SetMinContentWidth(560)
+			f.add(sc)
+			reply := f.entry("", "Type a reply; Send presses Enter")
+			f.field("Reply", reply)
+			f.d.AddResponse("open", "Open")
+			f.button("send", "Send")
+			f.d.ConnectResponse(func(r string) {
+				switch r {
+				case "open":
+					w.app.openRemote(runner.Session(id, agentID))
+				case "send":
+					t := reply.Text()
+					go func() {
+						if err := svc.Reply(id, agentID, t); err != nil {
+							coreglib.IdleAdd(func() { w.toast(err.Error()) })
+						}
+					}()
+				}
+			})
+			f.present(reply)
+		})
+	}()
 }
 
 // remoteTitle is an agent's name, else its folder's.
@@ -385,7 +540,7 @@ func (t *agentsTab) remoteAgentRows(id string) []sideRow {
 	var rows []sideRow
 	for _, ag := range a.runners.agents[id].Agents {
 		r := sideRow{id: "ragent:" + id + "|" + ag.ID, dot: "agent-idle", title: remoteTitle(ag), depth: 1,
-			tip: "Claude Code on the runner; right-click for more"}
+			tip: "Open its terminal (on the runner, in a tab); right-click for more"}
 		label := "Starting"
 		switch {
 		case !ag.Alive:
@@ -408,6 +563,11 @@ func (t *agentsTab) remoteAgentRows(id string) []sideRow {
 			r.alert, r.alertClass = a.settings.text(ag.Prompt), "dim-label"
 		}
 		rows = append(rows, r)
+		// What it waits on you for (#41 phase 5), answered here, on its
+		// card, or in its pane.
+		if st, ok := a.agents.all[runner.Session(id, ag.ID)]; ok && ag.Alive {
+			rows = append(rows, t.approvalRowsOf(st)...)
+		}
 	}
 	return rows
 }
@@ -433,6 +593,10 @@ func (w *Window) remoteAgentMenu(rowID string) []*menuItem {
 		}()
 	}
 	var items []*menuItem
+	if ag.Alive {
+		items = append(items, item("Open in Tab", func() { w.app.openRemote(runner.Session(id, agentID)) }),
+			item("Peek and Reply…", func() { w.peekRemote(id, agentID) }))
+	}
 	if ag.Status != nil && ag.Status.Unseen {
 		items = append(items, item("Mark as Seen", func() { run(func() error { return svc.SeenAgent(id, agentID) }) }))
 	}
@@ -510,6 +674,9 @@ func (t *agentsTab) runnerRows() []sideRow {
 		}
 		if label, run, ok := w.runnerFix(st); ok && !busy {
 			r.actions = []sideAction{{label: label, key: true, run: run}}
+		} else if !busy && w.app.runners.agents[st.ID].Connected && len(st.Problems) == 0 {
+			id := st.ID
+			r.actions = []sideAction{{label: "Start Claude Code…", run: func() { w.startOnRunner(id) }}}
 		}
 		if c := w.app.runners.agents[st.ID]; f != nil && f.Reachable && !c.Connected && c.Error != "" {
 			r.more = append([]sideText{{text: "Not connected: " + c.Error + " (retrying)", classes: []string{"agent-alert"}}}, r.more...)

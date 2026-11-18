@@ -28,6 +28,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/dayanraj/wtf/internal/bridge"
 	"github.com/dayanraj/wtf/internal/runnerd"
 	"github.com/dayanraj/wtf/internal/uicore"
 )
@@ -79,6 +80,8 @@ type Service struct {
 	StatusSettings func() string
 	ssh            runSSH
 
+	// wtf's bridge: runners' agents are mirrored there (phase 5).
+	Bridge *bridge.Service
 	// Tests run the stream's ssh another way.
 	sshCommand func(ctx context.Context, args []string) *exec.Cmd
 
@@ -266,6 +269,7 @@ func (s *Service) Remove(id string) error {
 	if c := s.conns[id]; c != nil {
 		delete(s.conns, id)
 		c.cancel()
+		go c.unmirrorAll()
 	}
 	return s.save()
 }

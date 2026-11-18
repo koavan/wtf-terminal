@@ -82,7 +82,8 @@ final class AgentsView: NSView, SidePaneTab {
     private func rebuild() {
         form.clear()
         // Fixed order (when each started), so a row never moves.
-        let list = Agents.listed()
+        // A runner's agents are listed under it (#41).
+        let list = Agents.listed().filter { !Runners.isRemote($0.session) }
         if list.isEmpty, Resume.background.isEmpty {
             form.add(form.label("No agents running", bold: true))
             if Settings.shared.config?.agentStatus == false {
@@ -135,7 +136,14 @@ final class AgentsView: NSView, SidePaneTab {
         form.add(rh, full: false)
         for r in runners {
             form.add(RunnerRow(r, owner: owner))
-            for a in Runners.agents[r.id]?.agents ?? [] { form.add(RemoteAgentRow(a, runner: r.id)) }
+            for a in Runners.agents[r.id]?.agents ?? [] {
+                form.add(RemoteAgentRow(a, runner: r.id))
+                // What it waits on you for (#41 phase 5), answered here, on
+                // its card or in its pane.
+                if a.alive, let st = Agents.all[Runners.session(r.id, a.id)] {
+                    for ap in st.approvals.sorted(by: { $0.since < $1.since }) { form.add(ApprovalRow(ap, of: st, owner: owner)) }
+                }
+            }
         }
         if runners.isEmpty {
             form.add(form.note("Run agents on a Linux machine over SSH, signed in to your own Claude account there."))
