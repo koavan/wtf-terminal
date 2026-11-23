@@ -31,7 +31,9 @@ func (w *Window) detach(id int) *movingTab {
 			detachWidget(&p.root.Widget)
 		}
 	}
+	w.leaving = true
 	payload, ok := w.model.Detach(id, func(*uicore.PaneState) string { return "" })
+	w.leaving = false
 	if !ok {
 		return nil
 	}

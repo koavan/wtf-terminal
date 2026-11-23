@@ -78,6 +78,10 @@ func (a *App) selfCheck(w *Window) {
 		w.checkTabs()
 	case "restore":
 		w.checkRestore()
+	case "home":
+		w.checkHome()
+	case "homeback":
+		w.checkHomeBack()
 	case "sidebar":
 		w.checkSidebar()
 	case "panes":
@@ -168,8 +172,23 @@ func (w *Window) checkApp() {
 	check(waitUntil(3*time.Second, func() bool { return len(a.windows) == 2 }), "Ctrl+Shift+N opens a window")
 	check(waitUntil(3*time.Second, func() bool { return len(a.be.Terminal.ShellPIDs()) == 2 }), "with its own shell")
 	_ = xkey("ctrl+shift+w")
-	check(waitUntil(3*time.Second, func() bool { return len(a.windows) == 1 }), "Ctrl+Shift+W closes it")
-	check(waitUntil(3*time.Second, func() bool { return len(a.be.Terminal.ShellPIDs()) == 1 }), "and its shell")
+	check(waitUntil(3*time.Second, func() bool { return len(a.be.Terminal.ShellPIDs()) == 1 }), "Ctrl+Shift+W closes its tab and its shell")
+	var second *Window
+	onMain(func() {
+		for _, o := range a.windows {
+			if o != w {
+				second = o
+			}
+		}
+	})
+	check(second != nil && waitUntil(3*time.Second, func() bool { return second.homeShown }), "the window stays, on its home page")
+	onMain(func() {
+		if second != nil {
+			second.closeForGood()
+		}
+		w.win.Present()
+	})
+	check(waitUntil(3*time.Second, func() bool { return len(a.windows) == 1 && w.win.IsActive() }), "closing the window closes it")
 
 	// Typing still reaches the shell: Ctrl+letter is the shell's.
 	var mu sync.Mutex
@@ -187,7 +206,15 @@ func (w *Window) checkApp() {
 	}
 	check(waitUntil(3*time.Second, func() bool { return seen("wtf-ok\r\n") }), "typed command ran")
 	_ = xkey("ctrl+d")
-	check(waitUntil(3*time.Second, func() bool { return len(a.windows) == 0 }), "Ctrl+D ends the shell and closes the window")
+	check(waitUntil(3*time.Second, func() bool { return len(w.model.Tabs()) == 0 && w.homeShown }) && len(a.windows) == 1,
+		"Ctrl+D ends the shell; the window stays, on its home page")
+	check(waitUntil(3*time.Second, func() bool { return len(a.be.Terminal.ShellPIDs()) == 0 }), "with no shell left")
+	_ = xkey("ctrl+shift+t")
+	check(waitUntil(3*time.Second, func() bool { return len(w.model.Tabs()) == 1 && !w.homeShown }), "Ctrl+Shift+T opens a tab from the home page")
+	onMain(func() { w.model.CloseMany([]int{w.model.ActiveID()}) })
+	var saved string
+	onMain(func() { saved = w.sessionJSON() })
+	check(strings.Contains(saved, `"tabs":[]`), "a window with no tabs is saved as one: %.80s", saved)
 	w.finish()
 }
 
@@ -1077,6 +1104,45 @@ func (w *Window) checkRestore() {
 	check(group == "api", "and its group (%q)", group)
 	time.Sleep(time.Second)
 	w.shot("restored")
+	w.quitAndFinish()
+}
+
+// checkHome: a window whose last tab closed stays, on its home page.
+func (w *Window) checkHome() {
+	a := w.app
+	check(waitUntil(5*time.Second, func() bool { return w.active() != nil && w.active().sess != nil }), "shell started")
+	onMain(func() { w.closeTabs([]int{w.model.ActiveID()}) })
+	check(waitUntil(3*time.Second, func() bool { return w.homeShown && len(w.model.Tabs()) == 0 }) && len(a.windows) == 1,
+		"closing the last tab leaves the window on its home page")
+	onMain(func() { w.closeTabs([]int{w.model.ActiveID()}) })
+	time.Sleep(500 * time.Millisecond)
+	check(len(a.windows) == 1 && w.homeShown, "Close Tab there does nothing")
+	w.shot("home")
+	onMain(func() { w.home.first.Activate() })
+	check(waitUntil(3*time.Second, func() bool { return len(w.model.Tabs()) == 1 && !w.homeShown }), "New Tab on the home page opens one")
+	onMain(func() { w.closeTabs([]int{w.model.ActiveID()}) })
+	var closed int
+	check(waitUntil(3*time.Second, func() bool { return w.homeShown }), "closed again, the home page is back")
+	onMain(func() { closed = len(w.model.RecentlyClosed()) })
+	check(closed == 2, "with both closed tabs to reopen (%d)", closed)
+	onMain(func() { w.model.ReopenAt(1) })
+	check(waitUntil(3*time.Second, func() bool { return len(w.model.Tabs()) == 1 }), "one of them reopens")
+	onMain(func() { w.closeTabs([]int{w.model.ActiveID()}) })
+	check(waitUntil(3*time.Second, func() bool { return w.homeShown }), "and closes")
+	w.quitAndFinish()
+}
+
+// checkHomeBack: after checkHome, the window comes back with no tabs.
+func (w *Window) checkHomeBack() {
+	a := w.app
+	tabs, home := -1, false
+	time.Sleep(time.Second)
+	onMain(func() {
+		if m := a.window("main"); m != nil {
+			tabs, home = len(m.model.Tabs()), m.homeShown
+		}
+	})
+	check(tabs == 0 && home, "a window left with no tabs comes back on its home page (%d tabs)", tabs)
 	w.quitAndFinish()
 }
 

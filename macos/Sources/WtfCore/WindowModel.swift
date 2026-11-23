@@ -260,6 +260,7 @@ public final class WindowModel {
             }
             t.root.leaves.forEach { panes[$0] = nil }
         }
+        guard tabs.contains(where: { closing.contains($0.id) }) else { return }
         tabs.removeAll { closing.contains($0.id) }
         prune()
         if tabs.isEmpty {
@@ -278,8 +279,16 @@ public final class WindowModel {
         changed()
     }
 
-    public func reopen() {
-        guard let last = recentlyClosed.popLast() else { return }
+    /// The tabs closed in this window, the latest first.
+    public var closedTabs: [(cwd: String, api: Bool)] { recentlyClosed.reversed().map { ($0.cwd, $0.api != nil) } }
+
+    public func reopen() { reopen(at: 0) }
+
+    /// Opens one of `closedTabs` again, by its place in that list.
+    public func reopen(at i: Int) {
+        let at = recentlyClosed.count - 1 - i
+        guard i >= 0, at >= 0 else { return }
+        let last = recentlyClosed.remove(at: at)
         if let api = last.api { openApi(api) } else { open(cwd: last.cwd) }
     }
 
@@ -696,9 +705,17 @@ public final class WindowModel {
         return .split(dir, r, a, b)
     }
 
-    /// Restores a saved window. False when nothing usable is in it.
+    /// Restores a saved window. False when nothing usable is in it. A
+    /// window saved with no tabs comes back with none.
     @discardableResult
     public func restore(_ s: SavedSession) -> Bool {
+        if let saved = s.tabs, saved.isEmpty {
+            tabs = []
+            groups = []
+            activeId = nil
+            changed()
+            return true
+        }
         var groupIds: [Int: Int] = [:]
         var newGroups: [TabGroup] = []
         for g in s.groups ?? [] {

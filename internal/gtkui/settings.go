@@ -131,6 +131,9 @@ flowboxchild { padding: 0; background: none; }
 .wtf-pin-title { font-size: 0.92em; }
 .wtf-pin-text { font-size: 0.85em; background: transparent; }
 .wtf-share { padding: 4px 12px 12px; }
+.wtf-home-title { font-size: 2em; font-weight: 600; }
+.wtf-home-heading { font-size: 0.9em; font-weight: bold; opacity: 0.7; margin-top: 18px; margin-bottom: 4px; }
+.wtf-home-row { padding: 4px 8px; font-weight: normal; }
 .wtf-share-heading { font-size: 0.78em; font-weight: bold; opacity: 0.7; margin-top: 10px; }
 .wtf-share-state { font-weight: bold; }
 .wtf-share-note { font-size: 0.82em; opacity: 0.65; }
@@ -256,6 +259,7 @@ func (s *settings) loadThemeCSS() {
 	fmt.Fprintf(&b, ".wtf-tab-status.claude-done { color: %[1]s; } .agent-done { background: %[1]s; } .agent-busy { background: %[2]s; }\n", ok, accent.Hex())
 	b.WriteString(".agent-waiting { background: #e8913a; } .agent-idle { background: alpha(currentColor, 0.35); } .agent-resumable { background: transparent; box-shadow: inset 0 0 0 1px alpha(currentColor, 0.45); } .agent-alert { color: #e8913a; }\n")
 	fmt.Fprintf(&b, ".wtf-dim { background-color: %s; }\n", th.Background)
+	fmt.Fprintf(&b, ".wtf-home { background-color: %s; color: %s; }\n", th.Background, th.Foreground)
 	// Git status, as the macOS app colors it.
 	gm, ga, gd := "#c98a00", "#188038", "#d93036"
 	if dark {

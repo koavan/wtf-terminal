@@ -4,6 +4,7 @@
 
 - New tab: {{cmd:tab.new}}. It starts in the folder of the tab you were in. Right-click the **+** for other kinds of tab, such as an [API tab](#api).
 - Close: {{cmd:pane.close}} closes the focused pane (the tab, if it's the last one); {{cmd:tab.close}} closes the whole tab; right-click a tab for **Close Other Tabs** and **Close Tabs to the Right**. If a program is still running, wtf asks first.
+- Closing the last tab leaves the window open on its **home page** (so does the last shell exiting): **New Tab**, **New API Tab**, **Start Claude Code…** and **New Window**, the tabs you closed in this window to reopen, and the command palette, Workspaces, Agents, the manual and Settings. The side pane and every shortcut work there. To close the window, use {{cmd:window.close}} or its close button.
 - Duplicate: {{cmd:tab.duplicate}} (or right-click a tab) opens a new tab right after it, in its group, in the folder of its focused pane and with its [git identity](#git-identities). Duplicating an API tab copies its request.
 - Reopen a closed tab: {{cmd:tab.reopen}} (in its old folder).
 - Switch: {{cmd:tab.next}} and {{cmd:tab.prev}}, `Ctrl+Tab`, or {{mac:⌘1–⌘8 (⌘9 for the last)|other:Alt+1–8 (Alt+9 for the last)}}.

@@ -737,7 +737,8 @@ Built 2026-11-06:
   window takes output as fast as a hidden tab (Linux, 200k lines in 0.4 s).
 - Closing a tab, pane or window with agents asks first (`confirmIfBusy`);
   the last window you can see, with agents in it or in the background, quits
-  instead (wtf asks, listing them). The last tab parked keeps a fresh tab.
+  instead (wtf asks, listing them). The last tab parked kept a fresh tab
+  (until 2026-11-23: the window now shows its home page).
 - Agents tab: a Background section; per agent Open in Tab, Peek and Reply…
   (screen with Hide Secrets, updated every second; text + Return, Return,
   Esc, only on your click), End…; Start Claude Code… (folder, first prompt,
@@ -1159,6 +1160,16 @@ round, so automation doesn't quietly spend usage.
 
 ## Also built
 
+- Home page (2026-11-23): a window no longer needs a tab. Closing the last
+  tab (or its shell exiting, or parking its agent) leaves the window on a
+  home page: New Tab, New API Tab, Start Claude Code…, New Window, the
+  tabs closed in this window (`RecentlyClosed` / `ReopenAt` in both
+  models), and the palette, Workspaces, Agents, Manual and Settings. An
+  empty window is saved and comes back empty (`Restore` takes `"tabs":[]`).
+  `OnEmpty` still fires in the model; the windows close on it only for the
+  background window or when the last tab moved to another window. Closing
+  the window, and "the last window with agents is quitting", are unchanged.
+  Linux self-checks `home` and `homeback`.
 - Resource usage (2026-10-13): wtf's own CPU and memory in the address bar
   (`show-usage`) and a per-process breakdown (app, WebKit windows, and the
   programs run in it, counted apart). internal/usage samples via libproc and

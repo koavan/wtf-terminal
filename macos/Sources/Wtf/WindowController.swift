@@ -35,6 +35,14 @@ final class WindowController: NSWindowController, NSWindowDelegate, NSMenuItemVa
     /// The side pane: whether it's open, how wide, which tab (saved per window).
     var sidebar = SidebarState()
     private var sidebarView: Sidebar?
+    /// Shown while the window has no tabs.
+    private lazy var home = HomeView(owner: self)
+    /// Its tab is moving to another window: with none left, this one closes.
+    private var leaving = false
+    /// The home page is what the window shows.
+    var showsHome: Bool { model.tabs.isEmpty && home.superview === panes }
+    /// How many views the pane area holds (for the self-checks).
+    var paneViewCount: Int { panes.subviews.count }
 
     init(name: String) {
         self.name = name
@@ -77,7 +85,12 @@ final class WindowController: NSWindowController, NSWindowDelegate, NSMenuItemVa
         Redaction.shared.observe(self) { $0.sync() }
 
         model.onChange = { [weak self] in self?.sync() }
-        model.onEmpty = { [weak self] in self?.closeForGood() }
+        // The last tab closed: the window stays, on its home page. Only the
+        // background window, or one whose last tab moved away, closes.
+        model.onEmpty = { [weak self] in
+            guard let self, background || leaving else { return }
+            closeForGood()
+        }
         strip.onActivate = { [weak self] in self?.model.activate($0) }
         strip.onClose = { [weak self] in self?.closeTabs([$0]) }
         strip.onNewTab = { [weak self] in self?.model.open() }
@@ -214,6 +227,9 @@ final class WindowController: NSWindowController, NSWindowDelegate, NSMenuItemVa
             panes.dimAmount = Settings.shared.config?.unfocusedSplitDim ?? 0.35
             panes.show(t.root, focused: t.focusedPaneId, zoomed: t.zoomedPaneId, views: views)
             for id in t.root.leaves { terminals[id]?.scheduleTints() }
+        } else if !background {
+            home.refresh()
+            panes.showHome(home)
         }
         Agents.seen(in: self)
         strip.refresh()
@@ -290,7 +306,12 @@ final class WindowController: NSWindowController, NSWindowDelegate, NSMenuItemVa
     /// Gives the keyboard to the active tab's focused pane, unless a text
     /// field (rename, find) has it.
     func focusActive() {
-        guard let w = window, let t = model.active else { return }
+        guard let w = window else { return }
+        guard let t = model.active else {
+            // No tab: the home page has the keyboard, unless a field does.
+            if !background, w.firstResponder == nil || w.firstResponder === w { w.makeFirstResponder(home) }
+            return
+        }
         if let api = apis[t.focusedPaneId] {
             if let r = w.firstResponder as? NSView, r.isDescendant(of: strip) || r.isDescendant(of: api.container) { return }
             api.focus()
@@ -504,7 +525,7 @@ final class WindowController: NSWindowController, NSWindowDelegate, NSMenuItemVa
     func saveNow() {
         guard !closing, !background else { return }
         let json = sessionJSON()
-        guard json != lastSaved, !model.tabs.isEmpty else { return }
+        guard json != lastSaved else { return }
         lastSaved = json
         let name = name
         Task {
@@ -602,7 +623,7 @@ final class WindowController: NSWindowController, NSWindowDelegate, NSMenuItemVa
     func quitting() {
         saveTimer?.invalidate()
         let json = sessionJSON()
-        if !background, json != lastSaved, !model.tabs.isEmpty {
+        if !background, json != lastSaved {
             do { try Backend.runNow("state", "SaveWindow", [name, json]) } catch { NSLog("saving \(name): \(error)") }
         }
         closing = true
@@ -671,6 +692,8 @@ final class WindowController: NSWindowController, NSWindowDelegate, NSMenuItemVa
     }
 
     func moveTab(_ id: Int, to other: WindowController) {
+        leaving = true
+        defer { leaving = false }
         guard let (payload, moving) = detach(id) else { return }
         other.adopt(payload, terminals: moving)
     }

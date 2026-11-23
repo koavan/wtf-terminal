@@ -67,8 +67,37 @@ final class PaneArea: NSView {
 
     required init?(coder: NSCoder) { fatalError() }
 
+    /// What shows while there is no tab (the home page).
+    private var home: NSView?
+
+    /// No tab to show: the panes and their dividers go, `home` fills the area.
+    func showHome(_ home: NSView) {
+        shown.values.forEach { $0.removeFromSuperview() }
+        shown = [:]
+        dims.values.forEach { $0.removeFromSuperview() }
+        dims = [:]
+        dividers = []
+        hot = nil
+        dragging = nil
+        layoutTree = nil
+        focused = nil
+        zoomed = nil
+        pillBox.isHidden = true
+        if home.superview !== self {
+            self.home?.removeFromSuperview()
+            home.frame = bounds
+            home.autoresizingMask = [.width, .height]
+            addSubview(home)
+            self.home = home
+        }
+        window?.invalidateCursorRects(for: self)
+        needsDisplay = true
+    }
+
     /// Shows a tab: `views` holds a view for each of its panes.
     func show(_ tree: Layout, focused: Int, zoomed: Int?, views: [Int: NSView]) {
+        home?.removeFromSuperview()
+        home = nil
         layoutTree = tree
         self.focused = focused
         self.zoomed = zoomed

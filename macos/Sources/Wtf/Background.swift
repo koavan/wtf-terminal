@@ -44,14 +44,11 @@ extension WindowController {
     }
 
     /// Moves panes to the background window, their shells still running.
-    /// The last window you can see keeps a fresh tab rather than closing.
+    /// A window left with no tabs shows its home page.
     func park(_ ids: [Int]) {
         let product = Agents.product(sessions: ids.compactMap { model.panes[$0]?.sessionId })
         for id in ids {
             guard let term = terminals[id], let s = model.panes[id]?.sessionId else { continue }
-            if model.tabs.count == 1, model.tabOf(pane: id)?.root.leaves.count == 1, WindowManager.shared.visibleWindows.count == 1 {
-                model.open(cwd: "")
-            }
             markDetached(id)
             guard let payload = model.detachPane(id, buffers: { _ in "" }) else { continue }
             WindowManager.shared.park(payload, terminals: [s: term])

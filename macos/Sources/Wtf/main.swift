@@ -394,6 +394,43 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             NSLog("sidebar state: open \(w.sidebar.open), tab \(w.sidebar.tab), width \(w.sidebar.width)")
             NSApp.terminate(nil)
         }
+        if env["WTF_NATIVE_DEBUG"] == "home" {
+            // Closes every tab: the window stays, on its home page; a tab
+            // reopens from it; a split tab closed leaves nothing behind. Then
+            // quits the normal way, which saves the window with no tabs.
+            let m = w.model
+            func state() -> String {
+                "tabs \(m.tabs.count) window visible \(w.window?.isVisible == true) home \(w.showsHome) views \(w.paneViewCount)"
+            }
+            func snap(_ name: String) {
+                guard let dir = env["WTF_NATIVE_SNAPSHOT_DIR"], let v = w.window?.contentView,
+                      let rep = v.bitmapImageRepForCachingDisplay(in: v.bounds) else { return }
+                v.cacheDisplay(in: v.bounds, to: rep)
+                try? rep.representation(using: .png, properties: [:])?.write(to: URL(fileURLWithPath: "\(dir)/\(name).png"))
+            }
+            m.closeMany(m.tabs.map(\.id))
+            try? await Task.sleep(for: .seconds(1))
+            NSLog("home closed all: \(state())")
+            snap("home")
+            m.reopen(at: 0)
+            m.split(.row)
+            try? await Task.sleep(for: .seconds(1.5))
+            NSLog("home reopened and split: \(state())")
+            m.closeMany(m.tabs.map(\.id))
+            m.close(0)
+            try? await Task.sleep(for: .seconds(1))
+            NSLog("home closed again: \(state()) closed \(m.closedTabs.count)")
+            snap("home-again")
+            NSApp.terminate(nil)
+        }
+        if env["WTF_NATIVE_DEBUG"] == "homeback" {
+            // After "home": the window comes back with no tabs.
+            try? await Task.sleep(for: .seconds(1))
+            NSLog("homeback: \(WindowManager.shared.windows.map { "\($0.name) tabs \($0.model.tabs.count) home \($0.showsHome)" })")
+            w.model.open(cwd: "")
+            try? await Task.sleep(for: .seconds(1))
+            NSApp.terminate(nil)
+        }
         if env["WTF_NATIVE_DEBUG"] == "restore" {
             let m = w.model
             NSLog("restored windows: \(WindowManager.shared.windows.map(\.name)) tabs: \(m.tabs.map { "\(m.title($0)):\($0.root.leaves.count)" }) groups: \(m.groups.map { "\($0.name)/\($0.color)" })")

@@ -147,6 +147,45 @@ private func checkInvariants(_ w: WindowModel, _ note: @autoclosure () -> String
     #expect(s.emptied == 1)
 }
 
+@Test func anEmptyWindowTakesCommandsAndNewTabs() {
+    let s = Setup()
+    s.w.close(s.open(1)[0])
+    s.w.close(0)
+    s.w.close(99)
+    s.w.split(.row)
+    s.w.duplicate()
+    s.w.cycle(1)
+    #expect(s.emptied == 1 && s.w.tabs.isEmpty && s.w.activePane == nil)
+    checkInvariants(s.w)
+    s.w.open(cwd: "/again")
+    #expect(s.w.tabs.count == 1 && s.w.activePane?.cwd == "/again")
+    checkInvariants(s.w)
+}
+
+@Test func reopensAnyOfTheClosedTabs() {
+    let s = Setup()
+    s.w.closeMany(s.open(3))
+    #expect(s.w.closedTabs.map(\.cwd) == ["/t2", "/t1", "/t0"])
+    s.w.reopen(at: 5)
+    s.w.reopen(at: -1)
+    #expect(s.w.tabs.isEmpty)
+    s.w.reopen(at: 1)
+    #expect(s.w.activePane?.cwd == "/t1")
+    s.w.reopen()
+    #expect(s.w.activePane?.cwd == "/t2")
+    #expect(s.w.closedTabs.map(\.cwd) == ["/t0"])
+}
+
+@Test func aWindowSavedWithNoTabsComesBackWithNone() throws {
+    let s = Setup()
+    s.w.close(s.open(1)[0])
+    let data = try JSONEncoder().encode(s.w.snapshot(fontSize: 13))
+    let r = Setup()
+    #expect(r.w.restore(try JSONDecoder().decode(SavedSession.self, from: data)))
+    #expect(r.w.tabs.isEmpty && r.w.activeId == nil && r.emptied == 0)
+    checkInvariants(r.w)
+}
+
 @Test func newTabInAGroupOpensAfterItsLastMember() {
     let s = Setup()
     let t = s.open(3)

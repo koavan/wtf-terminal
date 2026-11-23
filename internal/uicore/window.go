@@ -554,6 +554,9 @@ func (w *WindowModel) CloseMany(ids []int) {
 			delete(w.Panes, l)
 		}
 	}
+	if len(kept) == len(w.tabs) {
+		return
+	}
 	w.tabs = kept
 	w.prune()
 	if len(w.tabs) == 0 {
@@ -575,14 +578,34 @@ func (w *WindowModel) CloseMany(ids []int) {
 	w.changed()
 }
 
+// ClosedTab is a tab closed in this window that can be opened again.
+type ClosedTab struct {
+	Cwd string
+	// API: it was an API tab.
+	API bool
+}
+
+// RecentlyClosed lists the tabs closed in this window, the latest first.
+func (w *WindowModel) RecentlyClosed() []ClosedTab {
+	out := make([]ClosedTab, 0, len(w.recentlyClosed))
+	for i := len(w.recentlyClosed) - 1; i >= 0; i-- {
+		c := w.recentlyClosed[i]
+		out = append(out, ClosedTab{Cwd: c.cwd, API: c.api != nil})
+	}
+	return out
+}
+
 // Reopen opens the last closed tab's folder again.
-func (w *WindowModel) Reopen() {
-	n := len(w.recentlyClosed)
-	if n == 0 {
+func (w *WindowModel) Reopen() { w.ReopenAt(0) }
+
+// ReopenAt opens one of RecentlyClosed again, by its place in that list.
+func (w *WindowModel) ReopenAt(i int) {
+	at := len(w.recentlyClosed) - 1 - i
+	if i < 0 || at < 0 {
 		return
 	}
-	last := w.recentlyClosed[n-1]
-	w.recentlyClosed = w.recentlyClosed[:n-1]
+	last := w.recentlyClosed[at]
+	w.recentlyClosed = append(w.recentlyClosed[:at:at], w.recentlyClosed[at+1:]...)
 	if last.api != nil {
 		w.OpenAPI(*last.api, nil, 0)
 		return
@@ -1355,8 +1378,14 @@ func (w *WindowModel) load(n *SavedNode, depth int, live bool) *Layout {
 	return &Layout{Dir: SplitDir(*n.Dir), Ratio: r, A: a, B: b}
 }
 
-// Restore restores a saved window. False when nothing usable is in it.
+// Restore restores a saved window. False when nothing usable is in it. A
+// window saved with no tabs comes back with none.
 func (w *WindowModel) Restore(s SavedSession) bool {
+	if s.Tabs != nil && len(s.Tabs) == 0 {
+		w.tabs, w.groups, w.activeID = nil, nil, 0
+		w.changed()
+		return true
+	}
 	groupIDs := map[int]int{}
 	var newGroups []TabGroup
 	for _, g := range s.Groups {

@@ -71,7 +71,7 @@ func (w *Window) agentPanes(ids []int) []int {
 }
 
 // park moves panes to the background window, their shells still running.
-// The last visible window keeps a fresh tab rather than closing.
+// A window left with no tabs shows its home page.
 func (w *Window) park(ids []int) {
 	a := w.app
 	var sessions []string
@@ -85,9 +85,6 @@ func (w *Window) park(ids []int) {
 		p, ps := w.panes[id], w.model.Panes[id]
 		if p == nil || ps == nil || p.session == "" {
 			continue
-		}
-		if t, ok := w.model.TabOf(id); ok && len(w.model.Tabs()) == 1 && len(t.Root.Leaves()) == 1 && len(a.visibleWindows()) == 1 {
-			w.model.Open(uicore.OpenOptions{Cwd: new(string)})
 		}
 		// Its window label first, so this window emptying (CloseWindow)
 		// spares it.

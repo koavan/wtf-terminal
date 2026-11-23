@@ -100,7 +100,7 @@ Secrets are hidden in all of it. A sub-agent's steps don't change its agent's st
 
 Close a tab or pane running Claude Code (or Codex) and wtf asks:
 
-- **Keep Running in Background**: it keeps working where you can't see it, with its shell and scrollback. The Agents tab lists it under **Background**, with its badge and notifications as before.
+- **Keep Running in Background**: it keeps working where you can't see it, with its shell and scrollback. The Agents tab lists it under **Background**, with its badge and notifications as before. If that was the window's last tab, the window stays open on its home page.
 - **End Claude Code** (**End Codex**; **End Them** for a mix): it ends with the tab, as before.
 
 Tick **Don't ask again** to always do the same; **Settings** ({{mac:⌘,|other:Ctrl+,}}) → **General** → **Closing a tab running Claude Code or Codex**, or `agent-close` (`ask`, `background` or `end`) in `config.toml`, changes it back. Closing a whole window asks once for all its agents.

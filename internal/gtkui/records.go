@@ -334,8 +334,11 @@ func (w *Window) saveTranscript(p *Pane) {
 	if p == nil {
 		p = w.active()
 	}
+	if p == nil {
+		return
+	}
 	ps := w.model.Panes[p.id]
-	if p == nil || ps == nil {
+	if ps == nil {
 		return
 	}
 	if !ps.Integrated {

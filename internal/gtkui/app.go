@@ -235,7 +235,7 @@ func (a *App) activate() {
 		coreglib.IdleAdd(a.loadRunners)
 	}
 	var saved []state.Window
-	if a.debug == "" || a.debug == "restore" {
+	if a.debug == "" || a.debug == "restore" || a.debug == "homeback" {
 		saved = a.be.Store.Windows()
 	}
 	var sessions []*uicore.SavedSession

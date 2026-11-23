@@ -6,7 +6,7 @@ A tab can hold several terminals side by side or stacked.
 - Move between panes with {{cmd:pane.next}} / {{cmd:pane.prev}}, or by direction: {{cmd:pane.left}}, {{cmd:pane.right}}, {{cmd:pane.up}}, {{cmd:pane.down}}. Clicking a pane focuses it too.
 - {{cmd:pane.zoom}} lets the focused pane fill the tab for a while; press it again to bring the others back.
 - Drag a divider to resize; double-click it to even it out.
-- {{cmd:pane.close}} closes the focused pane.
+- {{cmd:pane.close}} closes the focused pane. A tab's last pane closes the tab; the window's last tab leaves it on its home page.
 - Drop files on a pane from {{mac:Finder|other:your file manager}} or another app to type their paths at its prompt, quoted, with a space after (nothing runs). That pane gets the focus.
 
 Unfocused panes are dimmed a little, so you can tell where you're typing. Change how much with `unfocused-split-dim` in [Settings](#settings).

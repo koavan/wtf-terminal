@@ -1,6 +1,7 @@
 package uicore
 
 import (
+	"encoding/json"
 	"fmt"
 	"reflect"
 	"slices"
@@ -283,6 +284,67 @@ func TestClosingTheLastTabClosesTheWindow(t *testing.T) {
 	if s.emptied != 1 {
 		t.Errorf("emptied = %d", s.emptied)
 	}
+}
+
+func TestAnEmptyWindowTakesCommandsAndNewTabs(t *testing.T) {
+	s := newSetup()
+	s.w.Close(s.open(1)[0])
+	s.w.Close(0)
+	s.w.Close(99)
+	s.w.Split(SplitRow, nil, "")
+	s.w.Duplicate()
+	s.w.Cycle(1)
+	if s.emptied != 1 || len(s.w.Tabs()) != 0 || s.w.ActivePane() != nil {
+		t.Fatalf("emptied = %d, tabs = %d", s.emptied, len(s.w.Tabs()))
+	}
+	checkInvariants(t, s.w, "empty")
+	s.w.Open(OpenOptions{Cwd: ptr("/again")})
+	if len(s.w.Tabs()) != 1 || s.w.ActivePane().Cwd != "/again" {
+		t.Errorf("tabs = %d", len(s.w.Tabs()))
+	}
+	checkInvariants(t, s.w, "reopened")
+}
+
+func TestReopensAnyOfTheClosedTabs(t *testing.T) {
+	s := newSetup()
+	s.w.CloseMany(s.open(3))
+	got := s.w.RecentlyClosed()
+	if len(got) != 3 || got[0].Cwd != "/t2" || got[2].Cwd != "/t0" {
+		t.Fatalf("closed = %+v", got)
+	}
+	s.w.ReopenAt(5)
+	s.w.ReopenAt(-1)
+	if len(s.w.Tabs()) != 0 {
+		t.Fatalf("tabs = %d", len(s.w.Tabs()))
+	}
+	s.w.ReopenAt(1)
+	if s.w.ActivePane().Cwd != "/t1" {
+		t.Errorf("cwd = %s", s.w.ActivePane().Cwd)
+	}
+	s.w.Reopen()
+	if s.w.ActivePane().Cwd != "/t2" {
+		t.Errorf("cwd = %s", s.w.ActivePane().Cwd)
+	}
+	if got := s.w.RecentlyClosed(); len(got) != 1 || got[0].Cwd != "/t0" {
+		t.Errorf("closed = %+v", got)
+	}
+}
+
+func TestAWindowSavedWithNoTabsComesBackWithNone(t *testing.T) {
+	s := newSetup()
+	s.w.Close(s.open(1)[0])
+	data, err := json.Marshal(s.w.Snapshot(13, nil))
+	if err != nil {
+		t.Fatal(err)
+	}
+	r := newSetup()
+	if !r.w.Restore(parseJSON(t, string(data))) {
+		t.Fatal("restore failed")
+	}
+	if len(r.w.Tabs()) != 0 || r.w.ActiveID() != 0 || r.emptied != 0 {
+		t.Errorf("tabs = %d, active = %d, emptied = %d", len(r.w.Tabs()), r.w.ActiveID(), r.emptied)
+	}
+	checkInvariants(t, r.w, "")
 }
 
 func TestNewTabInAGroupOpensAfterItsLastMember(t *testing.T) {

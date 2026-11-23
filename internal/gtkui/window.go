@@ -26,13 +26,20 @@ import (
 // per pane, kept while its tab is in the background. Like the macOS app's
 // WindowController.
 type Window struct {
-	app    *App
-	name   string // the backend's name for it, as in the saved session
-	win    *adw.ApplicationWindow
-	model  *uicore.WindowModel
-	strip  *tabStrip
-	stack  *gtk.Stack
-	toasts *adw.ToastOverlay
+	app   *App
+	name  string // the backend's name for it, as in the saved session
+	win   *adw.ApplicationWindow
+	model *uicore.WindowModel
+	strip *tabStrip
+	stack *gtk.Stack
+	// home shows while the window has no tabs.
+	home *homePage
+	// leaving: a tab is moving to another window; with none left, this
+	// window closes.
+	leaving bool
+	// homeShown: the home page is what the window shows.
+	homeShown bool
+	toasts    *adw.ToastOverlay
 	// Over the panes: the palette, and what agents wait on you for (#39).
 	overlay *gtk.Overlay
 	// The approval buttons' ▾ menu and text popover (approvaldeck.go).
@@ -101,6 +108,8 @@ func newWindow(a *App, name string) *Window {
 	w.stack = gtk.NewStack()
 	w.stack.SetHExpand(true)
 	w.stack.SetVExpand(true)
+	w.home = newHomePage(w)
+	w.stack.AddChild(w.home.root)
 	w.overlay = gtk.NewOverlay()
 	w.overlay.SetChild(w.stack)
 	w.deck = newApprovalDeck(w)
@@ -134,7 +143,13 @@ func newWindow(a *App, name string) *Window {
 		}
 		w.queueSync()
 	})
-	w.model.OnEmpty = w.closeForGood
+	// The last tab closed: the window stays, on its home page. Only the
+	// background window, or one whose last tab moved away, closes.
+	w.model.OnEmpty = func() {
+		if w.background || w.leaving {
+			w.closeForGood()
+		}
+	}
 
 	// Polling pauses while no wtf window is in front.
 	w.win.NotifyProperty("is-active", func() {
@@ -256,11 +271,19 @@ func (w *Window) sync() {
 		}
 	}
 	if t, ok := m.Active(); ok {
+		w.homeShown = false
 		w.stack.SetVisibleChild(w.pages[t.ID].root)
 		front := [2]int{t.ID, t.FocusedPaneID}
 		if front != w.lastFront {
 			w.lastFront = front
 			w.focusActive()
+		}
+	} else if !w.background {
+		w.home.refresh()
+		w.stack.SetVisibleChild(w.home.root)
+		if !w.homeShown {
+			w.homeShown, w.lastFront = true, [2]int{}
+			w.home.focus()
 		}
 	}
 	w.pruneBroadcast()
@@ -396,6 +419,9 @@ func (w *Window) focusActive() {
 	}
 	p := w.active()
 	if p == nil {
+		if _, ok := w.model.Active(); !ok && !w.background {
+			w.home.focus()
+		}
 		return
 	}
 	if f := w.win.Focus(); f != nil {
@@ -790,7 +816,7 @@ func (w *Window) scheduleSave() {
 
 // saveNow writes the session if it changed; it waits for it when quitting.
 func (w *Window) saveNow(wait bool) {
-	if w.closing || w.background || len(w.model.Tabs()) == 0 {
+	if w.closing || w.background {
 		return
 	}
 	data := w.sessionJSON()
