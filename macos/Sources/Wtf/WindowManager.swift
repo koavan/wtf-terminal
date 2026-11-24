@@ -58,10 +58,15 @@ final class WindowManager {
         let saved = (try? await Backend.call("session", "Windows", as: [SavedWindow].self)) ?? []
         savedNames = Set(saved.map(\.name))
         if let size = saved.first?.session?.fontSize { Settings.shared.setFontSize(size) }
+        // Every window opens on its home page, its saved tabs in the strip;
+        // with nothing saved, the home page alone. (The self-checks, but
+        // "launch", start in a tab.)
+        let debug = ProcessInfo.processInfo.environment["WTF_NATIVE_DEBUG"]
+        let launch = debug == nil || debug == "launch"
         if saved.isEmpty {
-            open(name: "main", session: nil)
+            open(name: "main", session: nil, launch: launch)
         } else {
-            for w in saved { open(name: w.name, session: w.session) }
+            for w in saved { open(name: w.name, session: w.session, launch: launch) }
         }
         // #38: agents that ran when wtf last quit, offered for resuming.
         Resume.loadAtLaunch()
@@ -83,10 +88,10 @@ final class WindowManager {
 
     @discardableResult
     private func open(name: String, session: SavedSession?, tab: (SavedTab.Payload, [String: TerminalController])? = nil,
-                      plan: Plan? = nil, at point: NSPoint? = nil) -> WindowController {
+                      plan: Plan? = nil, at point: NSPoint? = nil, launch: Bool = false) -> WindowController {
         let w = WindowController(name: name)
         windows.append(w)
-        w.bootstrap(session: session, tab: tab.map { (payload: $0.0, terminals: $0.1) }, plan: plan)
+        w.bootstrap(session: session, tab: tab.map { (payload: $0.0, terminals: $0.1) }, plan: plan, launch: launch)
         if let point, let win = w.window {
             win.setFrameTopLeftPoint(point)
         } else if let last = visibleWindows.dropLast().last?.window {

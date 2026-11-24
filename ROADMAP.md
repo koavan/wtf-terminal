@@ -1170,6 +1170,16 @@ round, so automation doesn't quietly spend usage.
   background window or when the last tab moved to another window. Closing
   the window, and "the last window with agents is quitting", are unchanged.
   Linux self-checks `home` and `homeback`.
+- Home at launch (2026-11-23): wtf opens every window on its home page,
+  the tabs left open in the strip (shells started, as before) and listed
+  under "Open tabs"; with nothing saved, the home page alone instead of a
+  fresh tab. Both models: `ShowHome` leaves no tab active while tabs exist
+  (the session keeps the one that was in front); activating or opening a
+  tab leaves it. A Home button in the strip (lit on the page) and a `home`
+  command go back to it. Closing the last visible window now always quits
+  (the session is kept), not only when agents run. Self-checks start in a
+  tab as before, except macOS `launch` (run twice) and Linux `launch`,
+  `launchback`.
 - Resource usage (2026-10-13): wtf's own CPU and memory in the address bar
   (`show-usage`) and a per-process breakdown (app, WebKit windows, and the
   programs run in it, counted apart). internal/usage samples via libproc and

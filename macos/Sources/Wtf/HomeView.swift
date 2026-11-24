@@ -1,8 +1,9 @@
 import AppKit
 import WtfCore
 
-/// The home page: what a window shows while it has no tabs. Ways to start,
-/// the tabs closed here, and where the rest is. Nothing in it polls.
+/// The home page: what a window shows at launch, from the strip's Home
+/// button, and while it has no tabs. Ways to start, the open tabs, the tabs
+/// closed here, and where the rest is. Nothing in it polls.
 @MainActor
 final class HomeView: NSView {
     private unowned let owner: WindowController
@@ -34,16 +35,49 @@ final class HomeView: NSView {
     override var isFlipped: Bool { true }
     override var acceptsFirstResponder: Bool { true }
 
-    /// Rebuilds the page: the closed tabs change as you go.
+    /// What the page was last built from.
+    private var shape: String?
+
+    /// Rebuilds the page when what it lists changed: the open tabs, and the
+    /// tabs closed here.
     func refresh() {
+        let m = owner.model
+        var parts = m.tabs.map { t in
+            "\(t.id)\u{1}\(Redaction.shared.text(m.title(t)))\u{1}\(t.groupId.flatMap(m.group)?.name ?? "")\u{1}\(TabStripView.icon(m.focusedPane(t)))"
+        }
+        parts.append("closed")
+        parts += m.closedTabs.prefix(8).map { "\($0.api)\u{1}\(Redaction.shared.text($0.cwd))" }
+        let now = parts.joined(separator: "\u{0}")
+        guard now != shape else { return }
+        shape = now
         column.arrangedSubviews.forEach { $0.removeFromSuperview() }
         let title = NSTextField(labelWithString: "wtf")
         title.font = .systemFont(ofSize: 28, weight: .semibold)
         add(title)
-        let sub = NSTextField(labelWithString: "No tabs are open in this window.")
+        let model = owner.model
+        let open = model.tabs
+        let sub = NSTextField(labelWithString: open.isEmpty ? "No tabs are open in this window."
+            : open.count == 1 ? "1 tab is open in this window." : "\(open.count) tabs are open in this window.")
         sub.font = .systemFont(ofSize: 13)
         sub.textColor = .secondaryLabelColor
         add(sub)
+
+        if !open.isEmpty {
+            heading("Open tabs")
+            for t in open.prefix(Self.maxOpen) {
+                let title = Redaction.shared.text(model.title(t))
+                let group = t.groupId.flatMap(model.group)?.name ?? ""
+                row(TabStripView.icon(model.focusedPane(t)), group.isEmpty ? title : "\(title) — \(group)", key: "", tip: title) { [weak owner] in
+                    owner?.model.activate(t.id)
+                }
+            }
+            if open.count > Self.maxOpen {
+                let more = NSTextField(labelWithString: "and \(open.count - Self.maxOpen) more in the tab strip")
+                more.font = .systemFont(ofSize: 12)
+                more.textColor = .tertiaryLabelColor
+                add(more)
+            }
+        }
 
         heading("Start")
         command("plus", "New Tab", "tab.new")
@@ -68,6 +102,9 @@ final class HomeView: NSView {
         command("book", "Manual", "help.manual")
         command("gearshape", "Settings…", "config.open")
     }
+
+    /// How many open tabs the page lists.
+    static let maxOpen = 12
 
     private func add(_ v: NSView) { column.addArrangedSubview(v) }
 

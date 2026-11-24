@@ -30,6 +30,9 @@ final class TabStripView: NSView, NSTextFieldDelegate {
     var onToggleSidebar: (() -> Void)?
     var sidebarOpen = false { didSet { needsDisplay = true } }
     private var sidebarRect = NSRect.zero
+    /// The Home button: the home page in place of the active tab.
+    var onHome: (() -> Void)?
+    private var homeRect = NSRect.zero
     /// Whether the tab's input is broadcast, and whether it records.
     var broadcasting: (Int) -> Bool = { _ in false }
     var recording: (Int) -> Bool = { _ in false }
@@ -64,8 +67,9 @@ final class TabStripView: NSView, NSTextFieldDelegate {
     override var mouseDownCanMoveWindow: Bool { false }
     override func acceptsFirstMouse(for event: NSEvent?) -> Bool { true }
 
-    /// Room for the traffic lights, except in full screen.
-    private var leftInset: CGFloat { (window?.styleMask.contains(.fullScreen) == true ? 12 : 84) + 34 }
+    /// Room for the traffic lights (except in full screen), the side pane
+    /// toggle and the Home button.
+    private var leftInset: CGFloat { (window?.styleMask.contains(.fullScreen) == true ? 12 : 84) + 34 + 32 }
 
     func refresh() {
         layoutItems()
@@ -120,7 +124,8 @@ final class TabStripView: NSView, NSTextFieldDelegate {
             return .tab(id: entry.tab!.id, rect: NSRect(x: x, y: y, width: tabWidth, height: Self.tabHeight))
         }
         plusRect = NSRect(x: x + 2, y: (Self.height - 28) / 2, width: 28, height: 28)
-        sidebarRect = NSRect(x: leftInset - 34, y: (Self.height - 28) / 2, width: 28, height: 28)
+        sidebarRect = NSRect(x: leftInset - 66, y: (Self.height - 28) / 2, width: 28, height: 28)
+        homeRect = NSRect(x: leftInset - 34, y: (Self.height - 28) / 2, width: 28, height: 28)
     }
 
     private func rect(of tab: Int) -> NSRect? {
@@ -175,6 +180,17 @@ final class TabStripView: NSView, NSTextFieldDelegate {
                 NSBezierPath(roundedRect: sidebarRect, xRadius: 7, yRadius: 7).fill()
             }
             draw(symbol: img, in: sidebarRect, tint: sidebarOpen ? .labelColor : .secondaryLabelColor)
+        }
+
+        // Home, lit while the home page is what the window shows.
+        if let img = NSImage(systemSymbolName: "house", accessibilityDescription: "Home")?
+            .withSymbolConfiguration(.init(pointSize: 13, weight: .regular)) {
+            let on = model.activeId == nil
+            if on || hover == -3 {
+                (on ? surface : NSColor.labelColor.withAlphaComponent(0.08)).setFill()
+                NSBezierPath(roundedRect: homeRect, xRadius: 7, yRadius: 7).fill()
+            }
+            draw(symbol: img, in: homeRect, tint: on ? .labelColor : .secondaryLabelColor)
         }
 
         // The + button.
@@ -356,6 +372,8 @@ final class TabStripView: NSView, NSTextFieldDelegate {
             h = -1
         } else if sidebarRect.contains(p) {
             h = -2
+        } else if homeRect.contains(p) {
+            h = -3
         }
         if h != hover || onClose != hoverClose {
             hover = h
@@ -372,6 +390,8 @@ final class TabStripView: NSView, NSTextFieldDelegate {
             toolTip = "New Tab (⌘T)"
         } else if sidebarRect.contains(p) {
             toolTip = "Toggle Sidebar (⌘B)"
+        } else if homeRect.contains(p) {
+            toolTip = "Home"
         } else {
             toolTip = nil
         }
@@ -403,6 +423,8 @@ final class TabStripView: NSView, NSTextFieldDelegate {
         case nil:
             if sidebarRect.contains(p) {
                 onToggleSidebar?()
+            } else if homeRect.contains(p) {
+                onHome?()
             } else if plusRect.contains(p) {
                 onNewTab?()
             } else if event.clickCount == 2 {

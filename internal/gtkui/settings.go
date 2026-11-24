@@ -134,6 +134,7 @@ flowboxchild { padding: 0; background: none; }
 .wtf-home-title { font-size: 2em; font-weight: 600; }
 .wtf-home-heading { font-size: 0.9em; font-weight: bold; opacity: 0.7; margin-top: 18px; margin-bottom: 4px; }
 .wtf-home-row { padding: 4px 8px; font-weight: normal; }
+.wtf-home-on { background: alpha(currentColor, 0.12); }
 .wtf-share-heading { font-size: 0.78em; font-weight: bold; opacity: 0.7; margin-top: 10px; }
 .wtf-share-state { font-weight: bold; }
 .wtf-share-note { font-size: 0.82em; opacity: 0.65; }

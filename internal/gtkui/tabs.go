@@ -30,7 +30,10 @@ type tabStrip struct {
 	tabs   *gtk.Box
 	scroll *gtk.ScrolledWindow
 	menu   *menuPopover
-	shape  string
+	// home shows the home page in place of the active tab; lit while it
+	// is what the window shows.
+	home  *gtk.Button
+	shape string
 	// The widget of each tab shown, for menus and renaming.
 	items map[int]*gtk.Box
 }
@@ -64,9 +67,14 @@ func newTabStrip(w *Window) *tabStrip {
 		}, nil)
 	})
 	add.AddController(kinds)
+	s.home = gtk.NewButtonFromIconName("go-home-symbolic")
+	s.home.AddCSSClass("flat")
+	s.home.SetTooltipText("Home")
+	s.home.ConnectClicked(func() { w.model.ShowHome() })
 	s.root = gtk.NewBox(gtk.OrientationHorizontal, 4)
 	s.root.SetHExpand(true)
 	s.root.SetHAlign(gtk.AlignFill)
+	s.root.Append(s.home)
 	s.root.Append(s.scroll)
 	s.root.Append(add)
 	// The rest of the bar: room to drag the window by.
@@ -85,6 +93,11 @@ func newTabStrip(w *Window) *tabStrip {
 // refresh redraws the strip when anything it shows changed.
 func (s *tabStrip) refresh() {
 	m := s.w.model
+	if m.ActiveID() == 0 {
+		s.home.AddCSSClass("wtf-home-on")
+	} else {
+		s.home.RemoveCSSClass("wtf-home-on")
+	}
 	dark := s.w.app.settings.theme().Dark
 	type entry struct {
 		tab   *uicore.Tab

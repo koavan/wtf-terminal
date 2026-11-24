@@ -191,9 +191,14 @@ type OpenOptions struct {
 
 // WindowModel is one window's tabs, panes and groups.
 type WindowModel struct {
-	tabs     []Tab
-	groups   []TabGroup
+	tabs   []Tab
+	groups []TabGroup
+	// activeID is the tab in front; 0 while the window shows its home page:
+	// with no tabs, or with tabs that wait in the strip (ShowHome).
 	activeID int
+	// resting is the tab that was in front when the home page took over,
+	// for the session.
+	resting int
 	// Panes by id; Tabs hold their ids.
 	Panes map[int]*PaneState
 	// Closed tabs' focused panes, to reopen: a folder, or an API request.
@@ -614,6 +619,17 @@ func (w *WindowModel) ReopenAt(i int) {
 }
 
 func (w *WindowModel) Activate(id int) { w.activate(id, true) }
+
+// ShowHome shows the home page in place of the active tab. The tabs stay in
+// the strip, their shells running; activating one brings it back.
+func (w *WindowModel) ShowHome() {
+	if w.activeID == 0 {
+		return
+	}
+	w.resting = w.activeID
+	w.activeID = 0
+	w.changed()
+}
 
 func (w *WindowModel) activate(id int, notify bool) {
 	t, ok := w.Tab(id)
@@ -1252,6 +1268,9 @@ func (w *WindowModel) Snapshot(fontSize float64, extra map[string]json.RawMessag
 		groups = append(groups, SavedGroup{ID: &id, Name: &name, Color: &color, Collapsed: &collapsed})
 	}
 	version, active := 1, w.activeIndex()
+	if w.activeID == 0 {
+		active = max(w.Index(w.resting), 0)
+	}
 	if extra == nil {
 		extra = map[string]json.RawMessage{}
 	}

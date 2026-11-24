@@ -162,6 +162,32 @@ private func checkInvariants(_ w: WindowModel, _ note: @autoclosure () -> String
     checkInvariants(s.w)
 }
 
+@Test func theHomePageKeepsTheTabsInTheStrip() {
+    let s = Setup()
+    let ids = s.open(3)
+    s.w.activate(ids[1])
+    var changes = 0
+    s.w.onChange = { changes += 1 }
+    s.w.showHome()
+    s.w.showHome()
+    #expect(s.w.active == nil && s.w.activePane == nil && s.w.tabs.count == 3 && changes == 1 && s.emptied == 0)
+    // The session remembers the tab that was in front.
+    #expect(s.w.snapshot(fontSize: 13).active == 1)
+    // Output in any tab marks it; closing one keeps the page.
+    s.w.markActivity(pane: s.w.tabs[1].focusedPaneId)
+    #expect(s.w.tabs[1].activity)
+    s.w.close(ids[1])
+    s.w.split(.row)
+    #expect(s.w.active == nil && s.w.tabs.count == 2 && s.w.panes.count == 2)
+    #expect(s.w.snapshot(fontSize: 13).active == 0)
+    s.w.activate(ids[2])
+    #expect(s.w.activePane?.cwd == "/t2")
+    s.w.showHome()
+    s.w.open(cwd: "/new")
+    #expect(s.w.activePane?.cwd == "/new" && s.w.tabs.count == 3)
+    checkInvariants(s.w)
+}
+
 @Test func reopensAnyOfTheClosedTabs() {
     let s = Setup()
     s.w.closeMany(s.open(3))

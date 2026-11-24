@@ -32,7 +32,8 @@ type Window struct {
 	model *uicore.WindowModel
 	strip *tabStrip
 	stack *gtk.Stack
-	// home shows while the window has no tabs.
+	// home shows while no tab is in front: at launch, from the strip's
+	// Home button, or with no tabs at all.
 	home *homePage
 	// leaving: a tab is moving to another window; with none left, this
 	// window closes.
@@ -167,9 +168,9 @@ func newWindow(a *App, name string) *Window {
 		for id := range w.model.Panes {
 			ids = append(ids, id)
 		}
-		// The last window you can see, with agents in it or in the
-		// background: closing it is quitting (wtf asks about them).
-		if !w.background && len(a.visibleWindows()) == 1 && (a.backgroundCount() > 0 || len(w.agentPanes(ids)) > 0) {
+		// The last window you can see: closing it is quitting. wtf asks
+		// about what's running, and the tabs come back at the next launch.
+		if !w.background && len(a.visibleWindows()) == 1 {
 			a.quit()
 			return true
 		}
@@ -194,6 +195,12 @@ func (w *Window) bootstrap(start windowStart) {
 		w.extra = start.session.Extra
 		w.sidebarState = uicore.ParseSidebarState(w.extra["sidebar"])
 		restored = true
+		// At launch the home page is in front, the tabs in the strip.
+		if start.launch {
+			w.model.ShowHome()
+		}
+	case start.launch:
+		// Nothing saved: the home page alone.
 	default:
 		w.model.Open(uicore.OpenOptions{Cwd: new(string)})
 	}
@@ -655,6 +662,7 @@ func (w *Window) windowCommands() map[string]func() {
 		"export.text":     func() { w.saveOutputAsText(nil) },
 		"export.markdown": func() { w.saveTranscript(nil) },
 		"tab.overview":    w.toggleOverview,
+		"home":            m.ShowHome,
 		"agents.pick":     func() { w.togglePalette(paletteAgents) },
 		"agents.next":     w.nextAgent,
 		"agents.approval": w.nextApproval,
@@ -750,7 +758,7 @@ func (w *Window) mainMenuButton() *gtk.MenuButton {
 		{"find", "term.copyOutput", "term.pinOutput", "claude.ask", "ai.explain", "ai.ask", "ai.investigate", "ai.logs", "ai.runbook", "ai.postmortem", "ai.history", "review.last", "term.clear", "secrets.toggle"},
 		{"record.toggle", "export.text", "export.markdown"},
 		{"font.bigger", "font.smaller", "font.reset"},
-		{"tab.overview", "agents.pick", "agents.next", "agents.approval", "approval.allow", "agents.start", "runners.update", "worktree.new", "worktree.open", "worktree.remove", "tab.group", "broadcast.toggle", "pane.zoom", "pane.next", "pane.prev"},
+		{"home", "tab.overview", "agents.pick", "agents.next", "agents.approval", "approval.allow", "agents.start", "runners.update", "worktree.new", "worktree.open", "worktree.remove", "tab.group", "broadcast.toggle", "pane.zoom", "pane.next", "pane.prev"},
 		{"help.manual", "help.shortcuts", "tools.show", "app.about", "app.updates"},
 		{"app.quit"},
 	}

@@ -106,7 +106,11 @@ public final class WindowModel {
 
     public private(set) var tabs: [Tab] = []
     public private(set) var groups: [TabGroup] = []
+    /// The tab in front. Nil while the window shows its home page: with no
+    /// tabs, or with tabs that wait in the strip (`showHome`).
     public private(set) var activeId: Int?
+    /// The tab that was in front when the home page took over, for the session.
+    private var resting: Int?
     public private(set) var panes: [Int: Pane] = [:]
     /// Closed tabs' focused panes, to reopen: a folder, or an API request.
     private var recentlyClosed: [(cwd: String, api: Api.Request?)] = []
@@ -293,6 +297,15 @@ public final class WindowModel {
     }
 
     public func activate(_ id: Int) { activate(id, notify: true) }
+
+    /// Shows the home page in place of the active tab. The tabs stay in the
+    /// strip, their shells running; activating one brings it back.
+    public func showHome() {
+        guard let id = activeId else { return }
+        resting = id
+        activeId = nil
+        changed()
+    }
 
     private func activate(_ id: Int, notify: Bool) {
         guard let t = tab(id) else { return }
@@ -652,7 +665,7 @@ public final class WindowModel {
             version: 1, fontSize: fontSize,
             tabs: tabs.map { save($0, live: false, buffers: { _ in "" }) },
             groups: groups.map { .init(id: $0.id, name: $0.name, color: $0.color.rawValue, collapsed: $0.collapsed) },
-            active: activeId.flatMap(index) ?? 0, extra: extra)
+            active: (activeId ?? resting).flatMap(index) ?? 0, extra: extra)
     }
 
     private func save(_ t: Tab, live: Bool, buffers: (Pane) -> String) -> SavedTab {

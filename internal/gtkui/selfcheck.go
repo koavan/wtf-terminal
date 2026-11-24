@@ -82,6 +82,10 @@ func (a *App) selfCheck(w *Window) {
 		w.checkHome()
 	case "homeback":
 		w.checkHomeBack()
+	case "launch":
+		w.checkLaunch()
+	case "launchback":
+		w.checkLaunchBack()
 	case "sidebar":
 		w.checkSidebar()
 	case "panes":
@@ -1140,6 +1144,69 @@ func (w *Window) checkHomeBack() {
 		}
 	})
 	check(tabs == 0 && home, "a window left with no tabs comes back on its home page (%d tabs)", tabs)
+	w.quitAndFinish()
+}
+
+// checkLaunch (after homeback, which leaves the main window saved with no
+// tabs): wtf opens on the home page alone. Two tabs are opened for
+// launchback.
+func (w *Window) checkLaunch() {
+	a := w.app
+	m := a.window("main")
+	check(m != nil, "the main window is back")
+	if m == nil {
+		w.quitAndFinish()
+		return
+	}
+	check(waitUntil(3*time.Second, func() bool { return m.homeShown && len(m.model.Tabs()) == 0 }), "with no tabs saved, wtf opens on the home page alone")
+	onMain(func() {
+		tmp, root := "/tmp", "/"
+		m.model.Open(uicore.OpenOptions{Cwd: &tmp})
+		m.model.Open(uicore.OpenOptions{Cwd: &root})
+	})
+	check(waitUntil(5*time.Second, func() bool { return !m.homeShown && m.active() != nil && m.active().sess != nil }), "tabs opened from it")
+	w.quitAndFinish()
+}
+
+// checkLaunchBack: wtf opens on the home page with the tabs left open in
+// the strip, their shells started; a tab comes to the front from the page,
+// and Home goes back to it.
+func (w *Window) checkLaunchBack() {
+	a := w.app
+	m := a.window("main")
+	check(m != nil, "the main window is back")
+	if m == nil {
+		w.quitAndFinish()
+		return
+	}
+	var tabs, shells int
+	started := waitUntil(5*time.Second, func() bool {
+		tabs, shells = len(m.model.Tabs()), 0
+		for _, p := range m.panes {
+			if p.sess != nil {
+				shells++
+			}
+		}
+		return m.homeShown && tabs == 2 && shells == 2
+	})
+	check(started, "wtf opens on the home page with the tabs left open in the strip (%d tabs, %d shells, home %v)", tabs, shells, m.homeShown)
+	var lit bool
+	onMain(func() { lit = m.strip.home.HasCSSClass("wtf-home-on") })
+	check(lit, "the Home button is lit")
+	m.shot("launch-home")
+	// The first row is the first open tab.
+	onMain(func() { m.home.first.Activate() })
+	var front string
+	check(waitUntil(3*time.Second, func() bool {
+		if p := m.model.ActivePane(); p != nil {
+			front = p.Cwd
+		}
+		return !m.homeShown && front == "/tmp"
+	}), "an open tab comes to the front from the page (%q)", front)
+	onMain(func() { m.strip.home.Activate() })
+	check(waitUntil(3*time.Second, func() bool { return m.homeShown && len(m.model.Tabs()) == 2 }), "Home goes back to it, the tabs still open")
+	onMain(func() { m.closeTabs([]int{m.model.Tabs()[0].ID}) })
+	check(waitUntil(3*time.Second, func() bool { return m.homeShown && len(m.model.Tabs()) == 1 }), "a tab closed from there leaves the page up")
 	w.quitAndFinish()
 }
 

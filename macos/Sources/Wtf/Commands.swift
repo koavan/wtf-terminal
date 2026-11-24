@@ -118,6 +118,7 @@ enum Commands {
         Command("tab.newApi", "New API Tab (HTTP Requests)", "⌥⌘T") { $0.model.openApi() },
         Command("tab.duplicate", "Duplicate Tab") { $0.model.duplicate() },
         Command("tab.close", "Close Tab", "⌥⌘W") { w in if let id = w.model.activeId { w.closeTabs([id]) } },
+        Command("home", "Home (Tabs Stay Open)") { $0.model.showHome() },
         Command("tab.overview", "Show All Tabs", "⌘⇧\\") { TabOverview.toggle(in: $0) },
         Command("tab.toNewWindow", "Move Tab to New Window") { w in if let id = w.model.activeId { w.moveToNewWindow(id) } },
         Command("window.new", "New Window", "⌘N") { _ in WindowManager.shared.newWindow() },

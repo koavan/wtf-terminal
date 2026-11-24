@@ -107,6 +107,7 @@ var Commands = func() []Command {
 		cmd("font.smaller", "Smaller Text", "Ctrl+Minus"),
 		cmd("font.reset", "Actual Size", "Ctrl+0"),
 
+		cmd("home", "Home (Tabs Stay Open)", ""),
 		cmd("tab.overview", "Show All Tabs", "Ctrl+Bar"),
 		cmd("agents.pick", "Go to Agent…", "Ctrl+Alt+Shift+M"),
 		cmd("agents.next", "Next Agent Needing You", "Ctrl+Alt+Shift+N"),

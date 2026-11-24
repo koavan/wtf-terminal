@@ -4,12 +4,12 @@
 
 Each window's tabs, groups, splits, folders and text size are saved as you work and restored the next time you open wtf. Shells start fresh in their saved folders (programs that were running aren't restarted). A tab that used a [git identity](#git-identities) gets it back. [API tabs](#api) come back with their requests (credential header values left empty). A tab that was running Claude Code or Codex comes back with a bar offering to **Resume** it, and agents that were running in the background are listed in the Agents tab to resume; see [After wtf quits](#agents). The session lives in `session.json` in wtf's config folder ({{mac:`~/Library/Application Support/wtf`|other:`~/.config/wtf`}}).
 
-A window you left with no tabs comes back on its home page (see [Tabs](#tabs)); its side pane is restored too.
+wtf opens every window on its home page (see [Tabs](#tabs)): the tabs you left open are in the tab strip and listed on the page, their shells already started. A window you left with no tabs comes back with the home page alone; so does wtf the first time you open it. The side pane is restored either way.
 
 To open a set of tabs you use often — not just the last ones — save them as a [workspace](#workspaces).
 
 ## Windows
 
-- {{cmd:window.new}}; {{cmd:window.close}}. Closing a window's last tab doesn't close the window: it shows its home page. Moving its last tab to another window does close it.
+- {{cmd:window.new}}; {{cmd:window.close}}. Closing a window's last tab doesn't close the window: it shows its home page. Moving its last tab to another window does close it. Closing the last window quits wtf, so its tabs come back the next time, like after Quit; a window closed while others are open is forgotten.
 - Drag a tab out of the tab strip to give it its own window — its shells keep running and its scrollback comes along. Right-click a tab to move it to another window.
 - Closing a pane, tab, group or window, or quitting, asks first when a program is still running in it.

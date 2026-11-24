@@ -235,9 +235,13 @@ func (a *App) activate() {
 		coreglib.IdleAdd(a.loadRunners)
 	}
 	var saved []state.Window
-	if a.debug == "" || a.debug == "restore" || a.debug == "homeback" {
+	if a.debug == "" || a.debug == "restore" || a.debug == "homeback" || a.debug == "launch" || a.debug == "launchback" {
 		saved = a.be.Store.Windows()
 	}
+	// Every window opens on its home page, its saved tabs in the strip;
+	// with nothing saved, the home page alone. (The self-checks, but the
+	// launch ones, start in a tab.)
+	launch := a.debug == "" || a.debug == "launch" || a.debug == "launchback"
 	var sessions []*uicore.SavedSession
 	for _, sw := range saved {
 		a.savedNames[sw.Name] = true
@@ -252,10 +256,10 @@ func (a *App) activate() {
 		a.settings.setFontSize(*sessions[0].FontSize)
 	}
 	if len(saved) == 0 {
-		a.openWindow("main", windowStart{})
+		a.openWindow("main", windowStart{launch: launch})
 	}
 	for i, sw := range saved {
-		a.openWindow(sw.Name, windowStart{session: sessions[i]})
+		a.openWindow(sw.Name, windowStart{session: sessions[i], launch: launch})
 	}
 	// #38: agents that ran when wtf last quit, offered for resuming.
 	a.loadResumables()
@@ -273,6 +277,9 @@ type windowStart struct {
 	plan    *uicore.Plan
 	// A new tab with these options (Start Agent in the background).
 	open *uicore.OpenOptions
+	// launch: wtf is starting. The window opens on its home page, its saved
+	// tabs in the strip (none, when there is no session).
+	launch bool
 }
 
 // openWindowWith opens a new window, named the next free w<i>.

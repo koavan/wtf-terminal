@@ -3,6 +3,7 @@
 package gtkui
 
 import (
+	"fmt"
 	"strings"
 
 	"github.com/diamondburned/gotk4/pkg/gtk/v4"
@@ -11,8 +12,9 @@ import (
 	"github.com/dayanraj/wtf/internal/uicore"
 )
 
-// homePage is what a window shows while it has no tabs: ways to start, the
-// tabs closed here, and where the rest is. Nothing in it polls.
+// homePage is what a window shows at launch, from the strip's Home button,
+// and while it has no tabs: ways to start, the open tabs, the tabs closed
+// here, and where the rest is. Nothing in it polls.
 type homePage struct {
 	w    *Window
 	root *gtk.ScrolledWindow
@@ -23,8 +25,12 @@ type homePage struct {
 	shape string
 }
 
-// homeClosedMax is how many closed tabs the home page lists.
-const homeClosedMax = 8
+// homeClosedMax is how many closed tabs the home page lists; homeOpenMax,
+// how many open ones.
+const (
+	homeClosedMax = 8
+	homeOpenMax   = 12
+)
 
 func newHomePage(w *Window) *homePage {
 	h := &homePage{w: w}
@@ -43,7 +49,7 @@ func newHomePage(w *Window) *homePage {
 	return h
 }
 
-// refresh rebuilds the page when the closed tabs changed.
+// refresh rebuilds the page when the open or the closed tabs changed.
 func (h *homePage) refresh() {
 	w := h.w
 	closed := w.model.RecentlyClosed()
@@ -52,6 +58,25 @@ func (h *homePage) refresh() {
 	}
 	var sb strings.Builder
 	sb.WriteString("home")
+	open := w.model.Tabs()
+	type openTab struct {
+		id           int
+		title, group string
+		api          bool
+	}
+	tabs := make([]openTab, 0, len(open))
+	for _, t := range open {
+		o := openTab{id: t.ID, title: w.app.settings.text(w.model.Title(t))}
+		if g, ok := w.model.Group(t.GroupID); ok && t.GroupID != 0 {
+			o.group = g.Name
+		}
+		if p := w.model.FocusedPane(t); p != nil {
+			o.api = p.Kind == uicore.PaneAPI
+		}
+		tabs = append(tabs, o)
+		fmt.Fprintf(&sb, "\x00%d\x01%s\x01%s\x01%v", o.id, o.title, o.group, o.api)
+	}
+	sb.WriteString("\x00closed")
 	for _, c := range closed {
 		sb.WriteString("\x00" + w.app.settings.text(c.Cwd))
 		if c.API {
@@ -70,7 +95,14 @@ func (h *homePage) refresh() {
 
 	title := sideLabel("wtf", "wtf-home-title")
 	h.body.Append(title)
-	h.body.Append(sideLabel("No tabs are open in this window.", "dim-label"))
+	switch n := len(tabs); n {
+	case 0:
+		h.body.Append(sideLabel("No tabs are open in this window.", "dim-label"))
+	case 1:
+		h.body.Append(sideLabel("1 tab is open in this window.", "dim-label"))
+	default:
+		h.body.Append(sideLabel(fmt.Sprintf("%d tabs are open in this window.", n), "dim-label"))
+	}
 
 	cmds := w.windowCommands()
 	command := func(icon, label, id string) {
@@ -92,6 +124,24 @@ func (h *homePage) refresh() {
 				w.showSidebar(tab)
 			}
 		})
+	}
+
+	if len(tabs) > 0 {
+		h.heading("Open tabs")
+		for i, o := range tabs {
+			if i == homeOpenMax {
+				h.body.Append(sideLabel(fmt.Sprintf("and %d more in the tab strip", len(tabs)-homeOpenMax), "dim-label"))
+				break
+			}
+			icon, label := "utilities-terminal-symbolic", o.title
+			if o.api {
+				icon = "network-transmit-receive-symbolic"
+			}
+			if o.group != "" {
+				label += " — " + o.group
+			}
+			h.row(icon, label, "", o.title, func() { w.model.Activate(o.id) })
+		}
 	}
 
 	h.heading("Start")

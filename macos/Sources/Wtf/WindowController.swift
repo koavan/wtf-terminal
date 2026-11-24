@@ -35,12 +35,13 @@ final class WindowController: NSWindowController, NSWindowDelegate, NSMenuItemVa
     /// The side pane: whether it's open, how wide, which tab (saved per window).
     var sidebar = SidebarState()
     private var sidebarView: Sidebar?
-    /// Shown while the window has no tabs.
+    /// Shown while no tab is in front: at launch, from the strip's Home
+    /// button, or with no tabs at all.
     private lazy var home = HomeView(owner: self)
     /// Its tab is moving to another window: with none left, this one closes.
     private var leaving = false
     /// The home page is what the window shows.
-    var showsHome: Bool { model.tabs.isEmpty && home.superview === panes }
+    var showsHome: Bool { model.active == nil && home.superview === panes }
     /// How many views the pane area holds (for the self-checks).
     var paneViewCount: Int { panes.subviews.count }
 
@@ -108,6 +109,7 @@ final class WindowController: NSWindowController, NSWindowDelegate, NSMenuItemVa
         strip.onTearOff = { [weak self] id, at in self?.moveToNewWindow(id, at: at) }
         strip.onRenamed = { [weak self] in self?.focusActive() }
         strip.onToggleSidebar = { [weak self] in self?.toggleSidebar(nil) }
+        strip.onHome = { [weak self] in self?.model.showHome() }
         strip.broadcasting = { Broadcast.shared.isBroadcasting(tab: $0, in: self) }
         strip.recording = { [unowned self] tab in model.tab(tab)?.root.leaves.contains { records.recording[$0] != nil } ?? false }
         strip.claude = { [unowned self] tab in Agents.state(tab: tab, in: self) }
@@ -126,8 +128,10 @@ final class WindowController: NSWindowController, NSWindowDelegate, NSMenuItemVa
 
     /// Opens what the window starts with: a saved session, a tab from
     /// another window, or one fresh tab.
+    /// `launch`: wtf is starting. The window opens on its home page, its
+    /// saved tabs waiting in the strip (none, when there is no session).
     func bootstrap(session: SavedSession?, tab: (payload: SavedTab.Payload, terminals: [String: TerminalController])?, plan: Plan? = nil,
-                   keepTabs: Bool = false) {
+                   keepTabs: Bool = false, launch: Bool = false) {
         if keepTabs, !model.tabs.isEmpty {
             // Opened by the caller (Start in Background).
         } else if let tab {
@@ -140,7 +144,8 @@ final class WindowController: NSWindowController, NSWindowDelegate, NSMenuItemVa
             NetStore.shared.terminalsOnly = sidebar.networkScope == "terminals"
             ProcStore.shared.terminalsOnly = sidebar.processScope == "terminals"
             ProcStore.shared.sort = Procs.Sort(rawValue: sidebar.processSort) ?? .cpu
-        } else {
+            if launch { model.showHome() }
+        } else if !launch {
             model.open(cwd: "")
         }
         sync()
@@ -279,6 +284,7 @@ final class WindowController: NSWindowController, NSWindowDelegate, NSMenuItemVa
     /// A program set its pane's title: the tab and window show it.
     func paneTitleChanged() {
         strip.refresh()
+        if showsHome { home.refresh() }
         window?.title = model.active.map { Redaction.shared.text(model.title($0)) } ?? "wtf"
     }
 
@@ -589,10 +595,9 @@ final class WindowController: NSWindowController, NSWindowDelegate, NSMenuItemVa
 
     func windowShouldClose(_ sender: NSWindow) -> Bool {
         if closing || WindowManager.shared.quitting { return true }
-        // The last window you can see, with agents in it or in the
-        // background: closing it is quitting (wtf asks about them).
-        let wm = WindowManager.shared
-        if !background, wm.visibleWindows.count == 1, wm.backgroundCount > 0 || !agentPanes(Array(model.panes.keys)).isEmpty {
+        // The last window you can see: closing it is quitting. wtf asks
+        // about what's running, and the tabs come back at the next launch.
+        if !background, WindowManager.shared.visibleWindows.count == 1 {
             NSApp.terminate(nil)
             return false
         }

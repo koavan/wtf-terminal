@@ -431,6 +431,47 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             try? await Task.sleep(for: .seconds(1))
             NSApp.terminate(nil)
         }
+        if env["WTF_NATIVE_DEBUG"] == "launch" {
+            // Run twice. With nothing saved: the home page alone; two tabs
+            // are opened and wtf quits the normal way, which saves them.
+            // Again: the home page with both tabs in the strip, a tab comes
+            // to the front from it, and Home goes back.
+            let m = w.model
+            func state() -> String {
+                WindowManager.shared.windows.map {
+                    "\($0.name) tabs \($0.model.tabs.count) active \($0.model.activeId.map(String.init) ?? "-") home \($0.showsHome) views \($0.paneViewCount)"
+                }.joined(separator: "; ")
+            }
+            func snap(_ name: String) {
+                guard let dir = env["WTF_NATIVE_SNAPSHOT_DIR"], let v = w.window?.contentView,
+                      let rep = v.bitmapImageRepForCachingDisplay(in: v.bounds) else { return }
+                v.cacheDisplay(in: v.bounds, to: rep)
+                try? rep.representation(using: .png, properties: [:])?.write(to: URL(fileURLWithPath: "\(dir)/\(name).png"))
+            }
+            try? await Task.sleep(for: .seconds(1.5))
+            if m.tabs.isEmpty {
+                NSLog("launch, nothing saved: \(state())")
+                snap("launch-empty")
+                m.open(cwd: "/tmp")
+                m.open(cwd: "")
+                try? await Task.sleep(for: .seconds(1.5))
+                NSLog("launch, two tabs opened: \(state())")
+            } else {
+                NSLog("launch, tabs saved: \(state()) sessions \(m.panes.values.filter { $0.sessionId != nil }.count)")
+                snap("launch-tabs")
+                m.activate(m.tabs[0].id)
+                try? await Task.sleep(for: .seconds(1))
+                NSLog("launch, a tab in front: \(state())")
+                snap("launch-tab-front")
+                m.showHome()
+                try? await Task.sleep(for: .seconds(1))
+                NSLog("launch, home again: \(state())")
+                m.closeMany(m.tabs.map(\.id))
+                try? await Task.sleep(for: .seconds(1))
+                NSLog("launch, all closed: \(state())")
+            }
+            NSApp.terminate(nil)
+        }
         if env["WTF_NATIVE_DEBUG"] == "restore" {
             let m = w.model
             NSLog("restored windows: \(WindowManager.shared.windows.map(\.name)) tabs: \(m.tabs.map { "\(m.title($0)):\($0.root.leaves.count)" }) groups: \(m.groups.map { "\($0.name)/\($0.color)" })")
@@ -590,6 +631,7 @@ func buildMenu() -> NSMenu {
     ])
     _ = submenu("View", [
         cmd("Command Palette…", "palette", "p", [.command, .shift]),
+        cmd("Home", "home"),
         cmd("Toggle Sidebar", "sidebar.toggle", "b"),
         cmd("Show Agents", "sidebar.agents", "m", [.command, .shift]),
         cmd("Show Files", "sidebar.files", "e", [.command, .shift]),

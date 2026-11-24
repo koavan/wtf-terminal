@@ -305,6 +305,46 @@ func TestAnEmptyWindowTakesCommandsAndNewTabs(t *testing.T) {
 	checkInvariants(t, s.w, "reopened")
 }
 
+func TestTheHomePageKeepsTheTabsInTheStrip(t *testing.T) {
+	s := newSetup()
+	ids := s.open(3)
+	s.w.Activate(ids[1])
+	changes := 0
+	s.w.OnChange = func() { changes++ }
+	s.w.ShowHome()
+	s.w.ShowHome()
+	if _, ok := s.w.Active(); ok || s.w.ActivePane() != nil || len(s.w.Tabs()) != 3 || changes != 1 || s.emptied != 0 {
+		t.Fatalf("active = %d, tabs = %d, changes = %d", s.w.ActiveID(), len(s.w.Tabs()), changes)
+	}
+	// The session remembers the tab that was in front.
+	if got := s.w.Snapshot(13, nil); *got.Active != 1 || len(got.Tabs) != 3 {
+		t.Errorf("saved active = %d, tabs = %d", *got.Active, len(got.Tabs))
+	}
+	// Output in any tab marks it; closing one keeps the page.
+	s.w.MarkActivity(s.w.Tabs()[1].FocusedPaneID)
+	if !s.w.Tabs()[1].Activity {
+		t.Errorf("no activity mark")
+	}
+	s.w.Close(ids[1])
+	s.w.Split(SplitRow, nil, "")
+	if _, ok := s.w.Active(); ok || len(s.w.Tabs()) != 2 || len(s.w.Panes) != 2 {
+		t.Fatalf("active = %d, tabs = %d", s.w.ActiveID(), len(s.w.Tabs()))
+	}
+	if got := s.w.Snapshot(13, nil); *got.Active != 0 {
+		t.Errorf("saved active = %d", *got.Active)
+	}
+	s.w.Activate(ids[2])
+	if s.w.ActivePane().Cwd != "/t2" {
+		t.Errorf("cwd = %s", s.w.ActivePane().Cwd)
+	}
+	s.w.ShowHome()
+	s.w.Open(OpenOptions{Cwd: ptr("/new")})
+	if s.w.ActivePane().Cwd != "/new" || len(s.w.Tabs()) != 3 {
+		t.Errorf("tabs = %d", len(s.w.Tabs()))
+	}
+	checkInvariants(t, s.w, "after home")
+}
+
 func TestReopensAnyOfTheClosedTabs(t *testing.T) {
 	s := newSetup()
 	s.w.CloseMany(s.open(3))
