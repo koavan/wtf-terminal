@@ -139,6 +139,8 @@ flowboxchild { padding: 0; background: none; }
 .wtf-share-state { font-weight: bold; }
 .wtf-share-note { font-size: 0.82em; opacity: 0.65; }
 .wtf-card-preview { font-family: monospace; font-size: 0.75em; opacity: 0.8; }
+.wtf-scanlines { background-image: repeating-linear-gradient(to bottom, transparent 0px, transparent 2px, rgba(0, 0, 0, 0.28) 2px, rgba(0, 0, 0, 0.28) 3px);
+  box-shadow: inset 0 0 120px rgba(0, 0, 0, 0.55); }
 `, padTop, padRight, padBottom, padLeft) + strings.Join(extraCSS, "\n"))
 	gtk.StyleContextAddProviderForDisplay(gdk.DisplayGetDefault(), css, gtk.STYLE_PROVIDER_PRIORITY_APPLICATION)
 	return s
@@ -215,6 +217,23 @@ func (s *settings) preview(t *config.Theme) {
 		s.previewing = t
 		s.changed()
 	}
+}
+
+// phosphor: the Konami code's green screen is on.
+func (s *settings) phosphor() bool {
+	return s.previewing != nil && s.previewing.Name == config.Phosphor.Name
+}
+
+// togglePhosphor turns the green screen on, or back off, for the session:
+// it's previewed, never saved, and a saved theme replaces it.
+func (s *settings) togglePhosphor() (on bool) {
+	if s.phosphor() {
+		s.preview(nil)
+		return false
+	}
+	t := config.Phosphor
+	s.preview(&t)
+	return true
 }
 
 func (s *settings) setHide(on bool) {

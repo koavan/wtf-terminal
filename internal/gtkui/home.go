@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/diamondburned/gotk4/pkg/gdk/v4"
 	"github.com/diamondburned/gotk4/pkg/gtk/v4"
 	"github.com/diamondburned/gotk4/pkg/pango"
 
@@ -23,6 +24,8 @@ type homePage struct {
 	first *gtk.Button
 	// shape is what the page was last built from.
 	shape string
+	// konami follows the keys toward the green screen.
+	konami uicore.Konami
 }
 
 // homeClosedMax is how many closed tabs the home page lists; homeOpenMax,
@@ -46,7 +49,40 @@ func newHomePage(w *Window) *homePage {
 	h.root.SetPolicy(gtk.PolicyNever, gtk.PolicyAutomatic)
 	h.root.AddCSSClass("wtf-home")
 	h.root.SetChild(h.body)
+	// Watched before the rows see them, so the arrows still move between rows.
+	keys := gtk.NewEventControllerKey()
+	keys.SetPropagationPhase(gtk.PhaseCapture)
+	keys.ConnectKeyPressed(func(keyval, _ uint, _ gdk.ModifierType) bool {
+		if h.konami.Key(konamiKey(keyval)) {
+			if w.app.settings.togglePhosphor() {
+				w.toast("▒▒ PHOSPHOR MODE ▒▒  (the code again turns it off)")
+			} else {
+				w.toast("Back to the present.")
+			}
+		}
+		return false
+	})
+	h.root.AddController(keys)
 	return h
+}
+
+// konamiKey names a key as uicore.Konami takes it.
+func konamiKey(keyval uint) string {
+	switch keyval {
+	case gdk.KEY_Up, gdk.KEY_KP_Up:
+		return "up"
+	case gdk.KEY_Down, gdk.KEY_KP_Down:
+		return "down"
+	case gdk.KEY_Left, gdk.KEY_KP_Left:
+		return "left"
+	case gdk.KEY_Right, gdk.KEY_KP_Right:
+		return "right"
+	case gdk.KEY_a, gdk.KEY_A:
+		return "a"
+	case gdk.KEY_b, gdk.KEY_B:
+		return "b"
+	}
+	return ""
 }
 
 // refresh rebuilds the page when the open or the closed tabs changed.

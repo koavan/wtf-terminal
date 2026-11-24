@@ -10,6 +10,7 @@ enum Services {
         static func Current() async throws -> Go.config.Resolved { try await Backend.call("config", "Current", [], as: Go.config.Resolved.self) }
         static func OpenConfigFile() async throws { try await Backend.run("config", "OpenConfigFile", []) }
         static func OpenThemesFolder() async throws { try await Backend.run("config", "OpenThemesFolder", []) }
+        static func Phosphor() async throws -> Go.config.Theme { try await Backend.call("config", "Phosphor", [], as: Go.config.Theme.self) }
         static func SetAgentClose(_ a0: String) async throws { try await Backend.run("config", "SetAgentClose", [a0]) }
         static func SetAgentGroup(_ a0: Bool) async throws { try await Backend.run("config", "SetAgentGroup", [a0]) }
         static func SetAgentSound(_ a0: Bool) async throws { try await Backend.run("config", "SetAgentSound", [a0]) }

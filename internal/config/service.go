@@ -71,6 +71,9 @@ func (s *Service) Themes() []Theme {
 	return s.themes
 }
 
+// Phosphor is the Konami code's green-screen theme, which no list shows.
+func (s *Service) Phosphor() Theme { return Phosphor }
+
 // SetTheme writes the theme setting into the config file.
 func (s *Service) SetTheme(spec string) error {
 	return s.set("theme", fmt.Sprintf("%q", spec))

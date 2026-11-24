@@ -93,6 +93,15 @@ var builtinThemes = []Theme{
 			"#002b36 #cb4b16 #586e75 #657b83 #839496 #6c71c4 #93a1a1 #fdf6e3")},
 }
 
+// Phosphor is the green screen the home page's Konami code turns on for
+// the session. It isn't listed with the others: every color is a shade of
+// the same green, as on a monochrome CRT.
+var Phosphor = Theme{Name: "Phosphor", Background: "#0a120b", Foreground: "#41ff7a", Cursor: "#7dff9f", CursorText: "#0a120b",
+	SelectionBackground: "#1d4d2a", SelectionForeground: "#c8ffd8",
+	Palette: palette("#0d1a10 #2a9a4a #41ff7a #8cffaa #237a3c #2fb05a #5cffa0 #a8ffc0 " +
+		"#1f5a30 #3fd46a #6bff96 #b5ffcc #34a356 #48c96e #86ffb3 #d8ffe4"),
+	Dark: true, Builtin: true}
+
 func init() {
 	for i := range builtinThemes {
 		builtinThemes[i].Builtin = true

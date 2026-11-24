@@ -8,6 +8,7 @@ import WtfCore
 final class HomeView: NSView {
     private unowned let owner: WindowController
     private let column = NSStackView()
+    private var konami = Konami()
 
     init(owner: WindowController) {
         self.owner = owner
@@ -34,6 +35,28 @@ final class HomeView: NSView {
 
     override var isFlipped: Bool { true }
     override var acceptsFirstResponder: Bool { true }
+
+    override func keyDown(with event: NSEvent) {
+        let key: Konami.Key = switch event.keyCode {
+        case 126: .up
+        case 125: .down
+        case 123: .left
+        case 124: .right
+        default:
+            switch event.charactersIgnoringModifiers?.lowercased() {
+            case "a": .a
+            case "b": .b
+            default: .other
+            }
+        }
+        // Keys on the way to the code don't beep.
+        guard key != .other else { return super.keyDown(with: event) }
+        guard konami.key(key) else { return }
+        Task { [weak self] in
+            let on = await Settings.shared.togglePhosphor()
+            Toast.show(on ? "▒▒ PHOSPHOR MODE ▒▒  (the code again turns it off)" : "Back to the present.", in: self)
+        }
+    }
 
     /// What the page was last built from.
     private var shape: String?

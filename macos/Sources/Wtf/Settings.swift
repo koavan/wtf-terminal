@@ -28,6 +28,23 @@ final class Settings {
         changed()
     }
 
+    /// The Konami code's green screen is on.
+    var phosphor: Bool { previewing != nil && previewing == phosphorTheme }
+    private var phosphorTheme: Theme?
+
+    /// Turns the green screen on, or back off, for the session: it's
+    /// previewed, never saved, and a saved theme replaces it.
+    func togglePhosphor() async -> Bool {
+        if phosphor {
+            preview(nil)
+            return false
+        }
+        if phosphorTheme == nil { phosphorTheme = try? await Backend.call("config", "Phosphor", as: Theme.self) }
+        guard let t = phosphorTheme else { return false }
+        preview(t)
+        return true
+    }
+
     /// Loads the config, then follows its changes and the system appearance.
     func start() async throws {
         apply(try await Backend.call("config", "Current", as: ResolvedConfig.self), initial: true)

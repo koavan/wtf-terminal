@@ -61,6 +61,7 @@ final class WindowController: NSWindowController, NSWindowDelegate, NSMenuItemVa
         root.strip = strip
         root.panes = panes
         root.addSubview(panes)
+        root.addSubview(root.scanlines)
         root.addSubview(strip)
         middle.address = address
         middle.broadcast = broadcastBar
@@ -495,6 +496,7 @@ final class WindowController: NSWindowController, NSWindowDelegate, NSMenuItemVa
         panes.layer?.backgroundColor = surface.cgColor
         panes.dimAmount = Settings.shared.config?.unfocusedSplitDim ?? 0.35
         panes.needsLayout = true
+        root.scanlines.isHidden = !Settings.shared.phosphor
         address.dark = theme.dark
         address.accent = NSColor(theme.accent)
         address.ok = strip.ok
@@ -917,6 +919,8 @@ final class WindowController: NSWindowController, NSWindowDelegate, NSMenuItemVa
 final class RootView: NSView {
     weak var strip: TabStripView?
     weak var panes: PaneArea?
+    /// Over the panes while the Konami code's green screen is on.
+    let scanlines = ScanlineView()
     /// Between the strip and the panes (the address bar).
     var middle: NSView? {
         didSet {
@@ -962,6 +966,44 @@ final class RootView: NSView {
             y += mh
         }
         panes?.frame = NSRect(x: x, y: y, width: bounds.width - x, height: max(0, bounds.height - y))
+        scanlines.frame = panes?.frame ?? .zero
+    }
+}
+
+/// A CRT's scanlines and darkened edges. It takes no clicks.
+@MainActor
+final class ScanlineView: NSView {
+    override init(frame: NSRect) {
+        super.init(frame: frame)
+        wantsLayer = true
+        isHidden = true
+        // One dark row in three, tiled by the layer: nothing redraws as the terminal does.
+        let tile = NSImage(size: NSSize(width: 1, height: 3), flipped: false) { _ in
+            NSColor(white: 0, alpha: 0.28).setFill()
+            NSRect(x: 0, y: 0, width: 1, height: 1).fill()
+            return true
+        }
+        layer?.backgroundColor = NSColor(patternImage: tile).cgColor
+        let edges = CAGradientLayer()
+        edges.type = .radial
+        edges.colors = [NSColor.clear.cgColor, NSColor(white: 0, alpha: 0.5).cgColor]
+        edges.locations = [0.6, 1]
+        edges.startPoint = CGPoint(x: 0.5, y: 0.5)
+        edges.endPoint = CGPoint(x: 1, y: 1)
+        layer?.addSublayer(edges)
+        setAccessibilityElement(false)
+    }
+
+    required init?(coder: NSCoder) { fatalError() }
+
+    override func hitTest(_ point: NSPoint) -> NSView? { nil }
+
+    override func setFrameSize(_ size: NSSize) {
+        super.setFrameSize(size)
+        CATransaction.begin()
+        CATransaction.setDisableActions(true)
+        layer?.sublayers?.first?.frame = bounds
+        CATransaction.commit()
     }
 }
 
