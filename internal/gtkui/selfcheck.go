@@ -182,13 +182,10 @@ func (w *Window) checkApp() {
 		}
 	})
 	check(second != nil && waitUntil(3*time.Second, func() bool { return second.homeShown }), "the window stays, on its home page")
-	onMain(func() {
-		if second != nil {
-			second.closeForGood()
-		}
-		w.win.Present()
-	})
-	check(waitUntil(3*time.Second, func() bool { return len(a.windows) == 1 && w.win.IsActive() }), "closing the window closes it")
+	_ = xkey("ctrl+alt+shift+q")
+	check(waitUntil(3*time.Second, func() bool { return len(a.windows) == 1 }), "Ctrl+Alt+Shift+Q closes the window")
+	onMain(func() { w.win.Present() })
+	check(waitUntil(3*time.Second, func() bool { return w.win.IsActive() }), "the first window is in front again")
 
 	// Typing still reaches the shell: Ctrl+letter is the shell's.
 	var mu sync.Mutex

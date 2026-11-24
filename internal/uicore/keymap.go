@@ -61,7 +61,7 @@ var Commands = func() []Command {
 		cmd("pane.close", "Close", "Ctrl+Shift+W"),
 		cmd("tab.close", "Close Tab", "Ctrl+Alt+Shift+W"),
 		cmd("tab.reopen", "Reopen Closed Tab", "Ctrl+Alt+Shift+T"),
-		cmd("window.close", "Close Window", ""),
+		cmd("window.close", "Close Window", "Ctrl+Alt+Shift+Q"),
 
 		cmd("term.copy", "Copy", "Ctrl+Shift+C"),
 		cmd("term.paste", "Paste", "Ctrl+Shift+V"),
