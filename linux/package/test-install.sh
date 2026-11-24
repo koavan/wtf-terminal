@@ -26,8 +26,9 @@ rpm=$(ls -t bin/gtk/packages/wtf-*."$rpmarch".rpm | head -1)
 echo "== testing $deb and $rpm"
 fail=0
 
-# The check, the same everywhere: it starts, opens a window, uses the real
-# folders and the bundled font, and its shell runs.
+# The check, the same everywhere: it starts on its home page, opens a
+# window with a tab when started again, uses the real folders and the
+# bundled font, and its shell runs.
 check='
 set -u
 export HOME=/tmp/home SHELL=/bin/bash LIBGL_ALWAYS_SOFTWARE=1
@@ -43,6 +44,16 @@ missing=$(ldd /usr/bin/wtf | grep "not found" || true)
 [ -z "$missing" ] || { echo "FAIL missing libraries: $missing"; exit 1; }
 wtf >/tmp/wtf.log 2>&1 &
 pid=$!
+# A first launch opens on the home page, with no tab. Started again, wtf
+# opens a window with one in the app already running.
+for _ in $(seq 100); do
+	grep -q "fonts from" /tmp/wtf.log 2>/dev/null && break
+	kill -0 $pid 2>/dev/null || break
+	sleep 0.2
+done
+sleep 2
+if pgrep -P $pid bash >/dev/null 2>&1; then echo "FAIL a first launch started a shell: no home page"; exit 1; fi
+timeout 20 wtf >/tmp/wtf-second.log 2>&1 || { echo "FAIL the second wtf did not hand over"; cat /tmp/wtf-second.log; exit 1; }
 for _ in $(seq 100); do
 	pgrep -P $pid bash >/dev/null 2>&1 && break
 	kill -0 $pid 2>/dev/null || break
