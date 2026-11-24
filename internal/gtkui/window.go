@@ -16,6 +16,7 @@ import (
 	"github.com/diamondburned/gotk4/pkg/glib/v2"
 	"github.com/diamondburned/gotk4/pkg/gtk/v4"
 
+	"github.com/dayanraj/wtf/internal/bridge"
 	"github.com/dayanraj/wtf/internal/cmdhistory"
 	"github.com/dayanraj/wtf/internal/infra"
 	"github.com/dayanraj/wtf/internal/uicore"
@@ -642,6 +643,7 @@ func (w *Window) windowCommands() map[string]func() {
 		"help.manual":         w.showHelp,
 		"tab.rename":          func() { w.strip.rename(m.ActiveID()) },
 		"inspect.tls":         func() { w.showCertHost("") },
+		"game.snake":          w.playSnake,
 		"generate.key":        func() { w.showGenerator("key") },
 		"generate.password":   func() { w.showGenerator("password") },
 		"sidebar.autoRefresh": func() { toggleAutoRefresh(w) },
@@ -793,6 +795,16 @@ func (w *Window) mainMenuButton() *gtk.MenuButton {
 }
 
 // toast shows a short message at the bottom of the window.
+// playSnake opens a tab playing snake (internal/snake).
+func (w *Window) playSnake() {
+	h := bridge.Helper(w.app.be.Bridge)
+	if h == "" {
+		w.toast("Snake comes with wtf-mcp, which isn't installed with this wtf.")
+		return
+	}
+	w.model.Open(uicore.OpenOptions{Command: uicore.ShellQuote(h) + " snake"})
+}
+
 func (w *Window) toast(msg string) {
 	t := adw.NewToast(msg)
 	t.SetTimeout(3)

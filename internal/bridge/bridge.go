@@ -848,6 +848,10 @@ func (s *Service) ServiceShutdown() error {
 // the service's methods the UIs can call).
 func ShellEnv(s *Service) func(session string) []string { return s.shellEnv }
 
+// Helper is the path of wtf-mcp, installed with the app ("" when it
+// isn't): Play Snake runs `wtf-mcp snake` in a tab.
+func Helper(s *Service) string { return s.helper }
+
 // PluginDir is the bundled Claude Code plugin's folder, for
 // `claude --plugin-dir`; "" when it isn't installed with the app.
 func PluginDir(s *Service) string { return s.plugin }

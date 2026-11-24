@@ -34,6 +34,7 @@ var Commands = func() []Command {
 		cmd("themes.folder", "Open Themes Folder", ""),
 		cmd("tools.show", "Command-Line Tools…", ""),
 		cmd("inspect.tls", "Inspect TLS Certificate…", ""),
+		cmd("game.snake", "Play Snake 🐍", ""),
 		cmd("paste.confirm", "Toggle Paste Confirmation", ""),
 		cmd("generate.key", "Generate SSH Key…", ""),
 		cmd("generate.password", "Generate Password…", ""),

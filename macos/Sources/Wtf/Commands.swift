@@ -36,6 +36,14 @@ enum Commands {
         Command("app.about", "About wtf") { AboutDialog.show(in: $0) },
         Command("app.updates", "Check for Updates…") { Updates.check(in: $0) },
         Command("inspect.tls", "Inspect TLS Certificate…") { CertViewer(.host(""), owner: $0).show() },
+        Command("game.snake", "Play Snake 🐍") { w in
+            // wtf-mcp, beside the app's own executable, plays it (internal/snake).
+            guard let helper = Bundle.main.executableURL?.deletingLastPathComponent().appendingPathComponent("wtf-mcp").path,
+                  FileManager.default.isExecutableFile(atPath: helper) else {
+                return Toast.show("Snake comes with wtf-mcp, which isn't in this build of wtf.", in: w.rootView)
+            }
+            w.model.open(command: Shell.quote(helper) + " snake")
+        },
         Command("tools.show", "Command-Line Tools (kubectl, AWS CLI, git…)") { ToolsDialog.show(in: $0) },
         Command("claude.ask", "Ask Claude (runs Claude Code beside this shell)", "⌘I") { ClaudePane.ask(in: $0) },
         Command("ai.ask", "Command from Plain English… (Claude)") { ClaudePane.command(in: $0) },

@@ -15,6 +15,9 @@
 // decides. A PermissionRequest waits for your answer in wtf's Approvals
 // inbox (#39) while Claude Code shows its own dialog; answered in the pane,
 // it says nothing.
+//
+// "wtf-mcp snake" plays snake in the terminal (internal/snake): the
+// command palette's Play Snake opens a tab that runs it.
 package main
 
 import (
@@ -33,6 +36,7 @@ import (
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 
 	"github.com/dayanraj/wtf/internal/bridge/wire"
+	"github.com/dayanraj/wtf/internal/snake"
 )
 
 // Set by the build (-ldflags "-X main.version=…").
@@ -83,6 +87,12 @@ func main() {
 	log.SetPrefix("wtf-mcp: ")
 	if len(os.Args) > 1 && os.Args[1] == "--version" {
 		fmt.Println(version)
+		return
+	}
+	if len(os.Args) > 1 && os.Args[1] == "snake" {
+		if err := snake.Run(); err != nil {
+			log.Fatal(err)
+		}
 		return
 	}
 	c := client{os.Getenv(wire.EnvBridge), os.Getenv(wire.EnvPane), os.Getenv(wire.EnvToken)}
