@@ -352,7 +352,7 @@ func (w *Window) checkAgents() {
 	var ids []string
 	onMain(func() {
 		if t, ok := w.sidePane().(*agentsTab); ok {
-			ids = slices.DeleteFunc(slices.Clone(t.list.ids), func(s string) bool { return s == "" })
+			ids = agentRows(t.list.ids)
 		}
 	})
 	check(slices.Equal(ids, []string{session}), "the Agents tab lists it: %q", ids)
@@ -372,7 +372,7 @@ func (w *Window) checkAgents() {
 	tabIDs := func() (ids []string) {
 		onMain(func() {
 			if t, ok := w.sidePane().(*agentsTab); ok {
-				ids = slices.DeleteFunc(slices.Clone(t.list.ids), func(s string) bool { return s == "" })
+				ids = agentRows(t.list.ids)
 			}
 		})
 		return ids
@@ -584,8 +584,14 @@ func (w *Window) checkAgents() {
 	ids = []string{"x"}
 	onMain(func() {
 		if t, ok := w.sidePane().(*agentsTab); ok {
-			ids = slices.DeleteFunc(slices.Clone(t.list.ids), func(s string) bool { return s == "" })
+			ids = agentRows(t.list.ids)
 		}
 	})
 	check(len(ids) == 0, "and the Agents tab is empty: %q", ids)
+}
+
+// agentRows are the Agents tab's rows about agents: not its section
+// headings, nor the Add Runner… row it always ends with.
+func agentRows(ids []string) []string {
+	return slices.DeleteFunc(slices.Clone(ids), func(s string) bool { return s == "" || s == "runner-add" })
 }
