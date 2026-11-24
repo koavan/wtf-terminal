@@ -8,7 +8,7 @@ import WtfCore
 final class HomeView: NSView {
     private unowned let owner: WindowController
     private let column = NSStackView()
-    private var konami = Konami()
+    private var trail = KeyTrail()
 
     init(owner: WindowController) {
         self.owner = owner
@@ -36,26 +36,26 @@ final class HomeView: NSView {
     override var isFlipped: Bool { true }
     override var acceptsFirstResponder: Bool { true }
 
+    /// Watches for the hidden themes' codes (config.Retro).
     override func keyDown(with event: NSEvent) {
-        let key: Konami.Key = switch event.keyCode {
-        case 126: .up
-        case 125: .down
-        case 123: .left
-        case 124: .right
-        default:
-            switch event.charactersIgnoringModifiers?.lowercased() {
-            case "a": .a
-            case "b": .b
-            default: .other
+        var name = ""
+        if event.modifierFlags.isDisjoint(with: [.command, .control, .option]) {
+            switch event.keyCode {
+            case 126: name = "up"
+            case 125: name = "down"
+            case 123: name = "left"
+            case 124: name = "right"
+            default:
+                if let c = event.charactersIgnoringModifiers?.lowercased(), c.count == 1, let a = c.unicodeScalars.first,
+                   ("a"..."z").contains(a) { name = c }
             }
         }
-        // Keys on the way to the code don't beep.
-        guard key != .other else { return super.keyDown(with: event) }
-        guard konami.key(key) else { return }
-        Task { [weak self] in
-            let on = await Settings.shared.togglePhosphor()
-            Toast.show(on ? "▒▒ PHOSPHOR MODE ▒▒  (the code again turns it off)" : "Back to the present.", in: self)
-        }
+        // Arrows and letters don't beep here.
+        guard !name.isEmpty else { return super.keyDown(with: event) }
+        let retro = Settings.shared.retroThemes
+        guard let i = trail.key(name, codes: retro.map(\.code)) else { return }
+        let on = Settings.shared.toggleRetro(retro[i])
+        Toast.show(on ? retro[i].toast : "Back to the present.", in: self)
     }
 
     /// What the page was last built from.

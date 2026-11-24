@@ -71,8 +71,8 @@ func (s *Service) Themes() []Theme {
 	return s.themes
 }
 
-// Phosphor is the Konami code's green-screen theme, which no list shows.
-func (s *Service) Phosphor() Theme { return Phosphor }
+// Retro lists the hidden themes and the codes that turn them on.
+func (s *Service) Retro() []RetroTheme { return Retro }
 
 // SetTheme writes the theme setting into the config file.
 func (s *Service) SetTheme(spec string) error {

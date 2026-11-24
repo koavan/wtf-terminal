@@ -5,11 +5,13 @@ package gtkui
 import (
 	"fmt"
 	"strings"
+	"unicode"
 
 	"github.com/diamondburned/gotk4/pkg/gdk/v4"
 	"github.com/diamondburned/gotk4/pkg/gtk/v4"
 	"github.com/diamondburned/gotk4/pkg/pango"
 
+	"github.com/dayanraj/wtf/internal/config"
 	"github.com/dayanraj/wtf/internal/uicore"
 )
 
@@ -24,8 +26,8 @@ type homePage struct {
 	first *gtk.Button
 	// shape is what the page was last built from.
 	shape string
-	// konami follows the keys toward the green screen.
-	konami uicore.Konami
+	// trail is the keys typed here, for the hidden themes' codes.
+	trail uicore.KeyTrail
 }
 
 // homeClosedMax is how many closed tabs the home page lists; homeOpenMax,
@@ -52,10 +54,18 @@ func newHomePage(w *Window) *homePage {
 	// Watched before the rows see them, so the arrows still move between rows.
 	keys := gtk.NewEventControllerKey()
 	keys.SetPropagationPhase(gtk.PhaseCapture)
-	keys.ConnectKeyPressed(func(keyval, _ uint, _ gdk.ModifierType) bool {
-		if h.konami.Key(konamiKey(keyval)) {
-			if w.app.settings.togglePhosphor() {
-				w.toast("▒▒ PHOSPHOR MODE ▒▒  (the code again turns it off)")
+	codes := make([][]string, len(config.Retro))
+	for i, r := range config.Retro {
+		codes[i] = r.Code
+	}
+	keys.ConnectKeyPressed(func(keyval, _ uint, state gdk.ModifierType) bool {
+		name := ""
+		if state&(gdk.ControlMask|gdk.AltMask|gdk.SuperMask) == 0 {
+			name = trailKey(keyval)
+		}
+		if i := h.trail.Key(name, codes); i >= 0 {
+			if r := config.Retro[i]; w.app.settings.toggleRetro(r) {
+				w.toast(r.Toast)
 			} else {
 				w.toast("Back to the present.")
 			}
@@ -66,8 +76,9 @@ func newHomePage(w *Window) *homePage {
 	return h
 }
 
-// konamiKey names a key as uicore.Konami takes it.
-func konamiKey(keyval uint) string {
+// trailKey names a key as uicore.KeyTrail takes it: an arrow, a letter,
+// or "".
+func trailKey(keyval uint) string {
 	switch keyval {
 	case gdk.KEY_Up, gdk.KEY_KP_Up:
 		return "up"
@@ -77,10 +88,9 @@ func konamiKey(keyval uint) string {
 		return "left"
 	case gdk.KEY_Right, gdk.KEY_KP_Right:
 		return "right"
-	case gdk.KEY_a, gdk.KEY_A:
-		return "a"
-	case gdk.KEY_b, gdk.KEY_B:
-		return "b"
+	}
+	if r := unicode.ToLower(rune(gdk.KeyvalToUnicode(keyval))); r >= 'a' && r <= 'z' {
+		return string(r)
 	}
 	return ""
 }

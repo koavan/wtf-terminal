@@ -28,26 +28,28 @@ final class Settings {
         changed()
     }
 
-    /// The Konami code's green screen is on.
-    var phosphor: Bool { previewing != nil && previewing == phosphorTheme }
-    private var phosphorTheme: Theme?
+    /// The hidden themes, and the codes typed on the home page for them.
+    private(set) var retroThemes: [RetroTheme] = []
+    /// The hidden theme shown, if one is.
+    var retro: RetroTheme? { previewing.flatMap { p in retroThemes.first { $0.theme == p } } }
+    /// A dark hidden theme, a CRT, is shown.
+    var scanlines: Bool { retro?.theme.dark == true }
 
-    /// Turns the green screen on, or back off, for the session: it's
+    /// Shows a hidden theme for the session, or turns it back off: it's
     /// previewed, never saved, and a saved theme replaces it.
-    func togglePhosphor() async -> Bool {
-        if phosphor {
+    func toggleRetro(_ r: RetroTheme) -> Bool {
+        if retro == r {
             preview(nil)
             return false
         }
-        if phosphorTheme == nil { phosphorTheme = try? await Backend.call("config", "Phosphor", as: Theme.self) }
-        guard let t = phosphorTheme else { return false }
-        preview(t)
+        preview(r.theme)
         return true
     }
 
     /// Loads the config, then follows its changes and the system appearance.
     func start() async throws {
         apply(try await Backend.call("config", "Current", as: ResolvedConfig.self), initial: true)
+        retroThemes = (try? await Backend.call("config", "Retro", as: [RetroTheme].self)) ?? []
         Backend.on("config:changed", ResolvedConfig.self) { [weak self] in self?.apply($0, initial: false) }
         appearance = NSApp.observe(\.effectiveAppearance) { _, _ in
             Task { @MainActor in Settings.shared.changed() }

@@ -1754,6 +1754,34 @@ extension Go.config {
 }
 
 extension Go.config {
+    /// config.RetroTheme
+    public struct RetroTheme: Codable, Equatable, Sendable {
+        public var theme: Go.config.Theme
+        public var code: [String]
+        public var toast: String
+
+        public init(theme: Go.config.Theme = Go.config.Theme(), code: [String] = [], toast: String = "") {
+            self.theme = theme
+            self.code = code
+            self.toast = toast
+        }
+
+        enum CodingKeys: String, CodingKey {
+            case theme = "theme"
+            case code = "code"
+            case toast = "toast"
+        }
+
+        public init(from decoder: Decoder) throws {
+            let c = try decoder.container(keyedBy: CodingKeys.self)
+            self.theme = (try? c.decodeIfPresent(Go.config.Theme.self, forKey: .theme)) ?? Go.config.Theme()
+            self.code = (try? c.decodeIfPresent([String].self, forKey: .code)) ?? []
+            self.toast = (try? c.decodeIfPresent(String.self, forKey: .toast)) ?? ""
+        }
+    }
+}
+
+extension Go.config {
     /// config.Theme
     public struct Theme: Codable, Equatable, Sendable {
         public var name: String

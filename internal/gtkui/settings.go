@@ -219,19 +219,32 @@ func (s *settings) preview(t *config.Theme) {
 	}
 }
 
-// phosphor: the Konami code's green screen is on.
-func (s *settings) phosphor() bool {
-	return s.previewing != nil && s.previewing.Name == config.Phosphor.Name
+// retro is the hidden theme shown (config.Retro), if one is.
+func (s *settings) retro() (config.RetroTheme, bool) {
+	if s.previewing != nil {
+		for _, r := range config.Retro {
+			if r.Theme.Name == s.previewing.Name {
+				return r, true
+			}
+		}
+	}
+	return config.RetroTheme{}, false
 }
 
-// togglePhosphor turns the green screen on, or back off, for the session:
+// scanlines: a dark hidden theme, a CRT, is shown.
+func (s *settings) scanlines() bool {
+	r, ok := s.retro()
+	return ok && r.Theme.Dark
+}
+
+// toggleRetro shows a hidden theme for the session, or turns it back off:
 // it's previewed, never saved, and a saved theme replaces it.
-func (s *settings) togglePhosphor() (on bool) {
-	if s.phosphor() {
+func (s *settings) toggleRetro(r config.RetroTheme) (on bool) {
+	if cur, ok := s.retro(); ok && cur.Theme.Name == r.Theme.Name {
 		s.preview(nil)
 		return false
 	}
-	t := config.Phosphor
+	t := r.Theme
 	s.preview(&t)
 	return true
 }

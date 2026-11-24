@@ -496,7 +496,7 @@ final class WindowController: NSWindowController, NSWindowDelegate, NSMenuItemVa
         panes.layer?.backgroundColor = surface.cgColor
         panes.dimAmount = Settings.shared.config?.unfocusedSplitDim ?? 0.35
         panes.needsLayout = true
-        root.scanlines.isHidden = !Settings.shared.phosphor
+        root.scanlines.isHidden = !Settings.shared.scanlines
         address.dark = theme.dark
         address.accent = NSColor(theme.accent)
         address.ok = strip.ok
@@ -919,7 +919,7 @@ final class WindowController: NSWindowController, NSWindowDelegate, NSMenuItemVa
 final class RootView: NSView {
     weak var strip: TabStripView?
     weak var panes: PaneArea?
-    /// Over the panes while the Konami code's green screen is on.
+    /// Over the panes while a hidden CRT theme is on.
     let scanlines = ScanlineView()
     /// Between the strip and the panes (the address bar).
     var middle: NSView? {

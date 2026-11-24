@@ -44,7 +44,7 @@ type Window struct {
 	toasts    *adw.ToastOverlay
 	// Over the panes: the palette, and what agents wait on you for (#39).
 	overlay *gtk.Overlay
-	// scanlines cover the tabs while the Konami code's green screen is on.
+	// scanlines cover the tabs while a hidden CRT theme is on.
 	scanlines *gtk.Box
 	// The approval buttons' ▾ menu and text popover (approvaldeck.go).
 	actionMenu *menuPopover
@@ -119,7 +119,7 @@ func newWindow(a *App, name string) *Window {
 	w.scanlines = gtk.NewBox(gtk.OrientationVertical, 0)
 	w.scanlines.AddCSSClass("wtf-scanlines")
 	w.scanlines.SetCanTarget(false)
-	w.scanlines.SetVisible(a.settings.phosphor())
+	w.scanlines.SetVisible(a.settings.scanlines())
 	w.overlay.AddOverlay(w.scanlines)
 	w.deck = newApprovalDeck(w)
 	w.overlay.AddOverlay(w.deck.root)
@@ -141,7 +141,7 @@ func newWindow(a *App, name string) *Window {
 	badges := a.settings.config().ContextBadges
 	w.unobserve = a.settings.observe(func() {
 		w.strip.shape = ""
-		w.scanlines.SetVisible(a.settings.phosphor())
+		w.scanlines.SetVisible(a.settings.scanlines())
 		// Badges turned on or off.
 		if on := a.settings.config().ContextBadges; on != badges {
 			badges = on

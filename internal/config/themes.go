@@ -93,19 +93,54 @@ var builtinThemes = []Theme{
 			"#002b36 #cb4b16 #586e75 #657b83 #839496 #6c71c4 #93a1a1 #fdf6e3")},
 }
 
-// Phosphor is the green screen the home page's Konami code turns on for
-// the session. It isn't listed with the others: every color is a shade of
-// the same green, as on a monochrome CRT.
-var Phosphor = Theme{Name: "Phosphor", Background: "#0a120b", Foreground: "#41ff7a", Cursor: "#7dff9f", CursorText: "#0a120b",
-	SelectionBackground: "#1d4d2a", SelectionForeground: "#c8ffd8",
-	Palette: palette("#0d1a10 #2a9a4a #41ff7a #8cffaa #237a3c #2fb05a #5cffa0 #a8ffc0 " +
-		"#1f5a30 #3fd46a #6bff96 #b5ffcc #34a356 #48c96e #86ffb3 #d8ffe4"),
-	Dark: true, Builtin: true}
+// RetroTheme is a hidden theme that no list shows. Typing its Code on the
+// home page previews it for the session, never saved; the code again turns
+// it off. A dark one is a CRT, with scanlines over the panes.
+type RetroTheme struct {
+	Theme Theme `json:"theme"`
+	// Code is the keys to type: "up", "down", "left", "right", or a letter.
+	Code []string `json:"code"`
+	// Toast says it's on.
+	Toast string `json:"toast"`
+}
+
+// Retro are the hidden themes: two monochrome CRTs, each one hue in
+// shades, and a yellowed page in sepia inks.
+var Retro = []RetroTheme{
+	{Code: []string{"up", "up", "down", "down", "left", "right", "left", "right", "b", "a"}, Toast: "▒▒ PHOSPHOR MODE ▒▒  (the code again turns it off)",
+		Theme: Theme{Name: "Phosphor", Background: "#0a120b", Foreground: "#41ff7a", Cursor: "#7dff9f", CursorText: "#0a120b",
+			SelectionBackground: "#1d4d2a", SelectionForeground: "#c8ffd8",
+			Palette: palette("#0d1a10 #2a9a4a #41ff7a #8cffaa #237a3c #2fb05a #5cffa0 #a8ffc0 " +
+				"#1f5a30 #3fd46a #6bff96 #b5ffcc #34a356 #48c96e #86ffb3 #d8ffe4")}},
+	{Code: letters("amber"), Toast: "▒▒ AMBER MODE ▒▒  (type amber again to turn it off)",
+		Theme: Theme{Name: "Amber", Background: "#140c02", Foreground: "#ffb000", Cursor: "#ffc640", CursorText: "#140c02",
+			SelectionBackground: "#4a3000", SelectionForeground: "#ffe6a8",
+			Palette: palette("#1a1105 #b36b00 #ffb000 #ffcc4d #805000 #cc8400 #ffc233 #ffd98a " +
+				"#4d3200 #e69500 #ffbf26 #ffe0a3 #996000 #d98c00 #ffd166 #fff0cc")}},
+	{Code: letters("paper"), Toast: "📜 AGED PAPER  (type paper again to turn it off)",
+		Theme: Theme{Name: "Aged Paper", Background: "#efe3c4", Foreground: "#4a3424", Cursor: "#9c3d1c", CursorText: "#efe3c4",
+			SelectionBackground: "#d8c49a", SelectionForeground: "#3a2a1c",
+			Palette: palette("#3a2a1c #9c3d1c #6b6a1f #8f6410 #6a4a3a #8a3f4f #5d6a4a #a89878 " +
+				"#7a6650 #b5532a #7f7d2a #a87818 #7d5c48 #a34f60 #6b7a5f #d9c9a3")}},
+}
+
+// letters is a word as keys, one a letter.
+func letters(word string) []string {
+	keys := make([]string, 0, len(word))
+	for _, r := range word {
+		keys = append(keys, string(r))
+	}
+	return keys
+}
 
 func init() {
 	for i := range builtinThemes {
 		builtinThemes[i].Builtin = true
 		builtinThemes[i].Dark = isDark(builtinThemes[i].Background)
+	}
+	for i := range Retro {
+		Retro[i].Theme.Builtin = true
+		Retro[i].Theme.Dark = isDark(Retro[i].Theme.Background)
 	}
 }
 
